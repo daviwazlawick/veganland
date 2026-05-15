@@ -39,6 +39,7 @@ export default function ResultScreen({ navigation, route }) {
   const { language } = useApp();
   const { result } = route.params;
   const config = STATUS_CONFIG[result.status] || STATUS_CONFIG.CAUTION;
+  const sourceKey = result.ingredients_source || result.productInfo?.source;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -70,6 +71,20 @@ export default function ResultScreen({ navigation, route }) {
         </View>
 
         <View style={styles.section}>
+          {(result.product_name || result.productInfo?.product_name || sourceKey) && (
+            <View style={styles.metaRow}>
+              {(result.product_name || result.productInfo?.product_name) && (
+                <Text style={styles.metaText} numberOfLines={2}>
+                  {result.product_name || result.productInfo?.product_name}
+                </Text>
+              )}
+              {sourceKey && (
+                <Text style={styles.sourceBadge}>
+                  {t(language, `result.source_${sourceKey}`)}
+                </Text>
+              )}
+            </View>
+          )}
           <Text style={styles.sectionTitle}>
             {result.title}
           </Text>
@@ -161,6 +176,29 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 20,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 12,
+  },
+  metaText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.textLight,
+    fontWeight: '600',
+  },
+  sourceBadge: {
+    fontSize: 11,
+    color: Colors.primary,
+    backgroundColor: Colors.secondary,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    overflow: 'hidden',
+    fontWeight: '700',
   },
   sectionTitle: {
     fontSize: 18,

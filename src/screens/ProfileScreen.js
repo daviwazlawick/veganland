@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, TextInput, Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -11,26 +11,12 @@ import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 
 export default function ProfileScreen({ navigation }) {
-  const { language, setLanguage, profile, apiKey, saveApiKey } = useApp();
-  const [apiKeyInput, setApiKeyInput] = useState(apiKey || '');
-  const [saved, setSaved] = useState(false);
+  const { language, setLanguage, profile } = useApp();
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
   const allergies = profile
     ? (profile.allergyIds || []).map(id => ALLERGIES.find(a => a.id === id)).filter(Boolean)
     : [];
-
-  async function handleSaveKey() {
-    if (!apiKeyInput.startsWith('sk-ant-')) {
-      Alert.alert('', language === 'pt'
-        ? 'A chave deve começar com sk-ant-'
-        : 'The key must start with sk-ant-');
-      return;
-    }
-    await saveApiKey(apiKeyInput.trim());
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -98,26 +84,6 @@ export default function ProfileScreen({ navigation }) {
               {language === 'en' && <Text style={styles.langCheck}>✓</Text>}
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t(language, 'profile.api_key')}</Text>
-          <Text style={styles.apiKeyInfo}>{t(language, 'profile.api_key_info')}</Text>
-          <TextInput
-            style={styles.apiKeyInput}
-            value={apiKeyInput}
-            onChangeText={setApiKeyInput}
-            placeholder={t(language, 'profile.api_key_placeholder')}
-            placeholderTextColor={Colors.textMuted}
-            secureTextEntry={true}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <TouchableOpacity style={styles.saveKeyBtn} onPress={handleSaveKey}>
-            <Text style={styles.saveKeyText}>
-              {saved ? `✓ ${t(language, 'profile.api_key_saved')}` : t(language, 'profile.save_key')}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.aboutCard}>
@@ -201,25 +167,6 @@ const styles = StyleSheet.create({
   langLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.textLight },
   langLabelActive: { color: Colors.primary },
   langCheck: { color: Colors.primary, fontWeight: '700' },
-  apiKeyInfo: { fontSize: 13, color: Colors.textLight, marginBottom: 10 },
-  apiKeyInput: {
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 10,
-    fontFamily: 'monospace',
-  },
-  saveKeyBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  saveKeyText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
   aboutCard: {
     backgroundColor: Colors.primaryDark,
     borderRadius: 16,

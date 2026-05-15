@@ -15,7 +15,11 @@ npm start
 
 Pressione `i` (iOS), `a` (Android), ou escaneie o QR com Expo Go.
 
-**Depois:** Configure sua API key no app (Perfil → API Key)
+Antes de rodar, crie um `.env` na raiz do projeto:
+
+```bash
+EXPO_PUBLIC_ANTHROPIC_API_KEY=sk-ant-...
+```
 
 ---
 
@@ -44,9 +48,10 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 
 1. **Perfil**: Escolha sua dieta (vegan, vegetariano, etc) + alergias
 2. **Foto**: Tire uma foto do rótulo/ingredientes
-3. **Análise**: Claude IA lê os ingredientes
-4. **Resultado**: App mostra se é seguro para você
-5. **Histórico**: Vê produtos já escaneados
+3. **Identificação**: IA identifica produto e ingredientes visíveis
+4. **Busca/Cache**: Se não houver ingredientes na foto, o app consulta cache local e Open Food Facts
+5. **Resultado**: App mostra se é seguro para você
+6. **Histórico**: Vê produtos já escaneados
 
 ---
 
@@ -57,6 +62,7 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 - **React Context** - State management
 - **Claude API** - IA para análise
 - **AsyncStorage** - Persistência local
+- **Open Food Facts** - Busca pública de ingredientes quando a foto não mostra a lista
 - **expo-camera** - Câmera
 - **expo-image-picker** - Galeria
 
@@ -64,8 +70,9 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 
 ## 🔐 Privacidade
 
-- API key fica **só no seu dispositivo**
+- API key é configurada pelo dono do app via `.env`
 - Perfil é **local**, não sincroniza
+- Cache de produtos é **local no dispositivo** nesta versão
 - Fotos são **analisadas mas não armazenadas** pela IA
 
 ---

@@ -9,31 +9,41 @@ import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { analyzeProduct } from '../services/claudeService';
+import {
+  buildMissingIngredientsResult,
+  evaluateProductIngredients,
+  hasAnthropicApiKey,
+  inspectProductImage,
+} from '../services/claudeService';
+import {
+  getCachedAnalysis,
+  getCachedProduct,
+  saveAnalysisToCache,
+  saveProductToCache,
+} from '../services/productCacheService';
+import { findProductIngredients } from '../services/productSearchService';
 
 export default function ScanScreen({ navigation }) {
-  const { language, profile, apiKey, addScanToHistory } = useApp();
+  const { language, profile, addScanToHistory } = useApp();
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
   const cameraRef = useRef(null);
 
   async function handleCapture() {
-    if (!apiKey) {
+    if (!hasAnthropicApiKey()) {
       Alert.alert('', t(language, 'errors.no_api_key'));
       return;
     }
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.7 });
-      setCapturedImage(photo.uri);
-      await runAnalysis(photo.base64);
+      await runAnalysis(photo.base64, photo.uri);
     } catch (e) {
       Alert.alert('', t(language, 'errors.camera_error'));
     }
   }
 
   async function handleGallery() {
-    if (!apiKey) {
+    if (!hasAnthropicApiKey()) {
       Alert.alert('', t(language, 'errors.no_api_key'));
       return;
     }
@@ -44,19 +54,76 @@ export default function ScanScreen({ navigation }) {
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      setCapturedImage(asset.uri);
-      await runAnalysis(asset.base64);
+      await runAnalysis(asset.base64, asset.uri);
     }
   }
 
-  async function runAnalysis(base64) {
+  async function resolveProductIngredients(imageInspection) {
+    const visibleIngredients = imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim();
+    if (visibleIngredients) {
+      const imageProduct = {
+        ...imageInspection,
+        ingredients_text: imageInspection.ingredients_text.trim(),
+        source: 'image',
+      };
+      await saveProductToCache(imageProduct);
+      return imageProduct;
+    }
+
+    const cachedProduct = await getCachedProduct(imageInspection);
+    if (cachedProduct?.ingredients_text) {
+      return {
+        ...cachedProduct,
+        source: 'cache',
+      };
+    }
+
+    const searchedProduct = await findProductIngredients(imageInspection);
+    if (searchedProduct?.ingredients_text) {
+      const productForCurrentImage = {
+        ...searchedProduct,
+        product_name: searchedProduct.product_name || imageInspection.product_name,
+        brand: searchedProduct.brand || imageInspection.brand,
+        barcode: searchedProduct.barcode || imageInspection.barcode,
+        lookup_query: imageInspection.lookup_query,
+      };
+      const cachedProduct = await saveProductToCache(productForCurrentImage);
+      await saveProductToCache(searchedProduct);
+      return cachedProduct;
+    }
+
+    return null;
+  }
+
+  async function runAnalysis(base64, imageUri) {
     setAnalyzing(true);
     try {
-      const result = await analyzeProduct(base64, profile, language, apiKey);
+      const imageInspection = await inspectProductImage(base64, language);
+      const product = await resolveProductIngredients(imageInspection);
+
+      let result;
+      if (product?.ingredients_text) {
+        const cachedAnalysis = await getCachedAnalysis(product, profile, language);
+        result = cachedAnalysis || await evaluateProductIngredients(
+          product.ingredients_text,
+          product,
+          profile,
+          language,
+          product.source || 'unknown'
+        );
+
+        if (!cachedAnalysis) {
+          await saveAnalysisToCache(product, profile, language, result);
+        }
+      } else {
+        result = buildMissingIngredientsResult(imageInspection, language);
+      }
+
       const scan = {
         ...result,
         date: new Date().toISOString(),
-        imageUri: capturedImage,
+        imageUri,
+        productInfo: product || imageInspection,
       };
       await addScanToHistory(scan);
       navigation.navigate('Result', { result: scan });
@@ -67,7 +134,6 @@ export default function ScanScreen({ navigation }) {
       Alert.alert('', msg);
     } finally {
       setAnalyzing(false);
-      setCapturedImage(null);
     }
   }
 

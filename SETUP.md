@@ -5,7 +5,8 @@
 Um app que permite aos usuários:
 1. **Criar um perfil** com suas preferências dietéticas (vegan, vegetariano, etc) e alergias
 2. **Fotografar produtos** no supermercado
-3. **Receber análise instantânea** via IA se o produto é seguro para seu perfil
+3. **Buscar ingredientes** na imagem, cache local ou Open Food Facts
+4. **Receber análise instantânea** via IA se o produto é seguro para seu perfil
 
 ## 📋 Requisitos
 
@@ -22,22 +23,15 @@ Um app que permite aos usuários:
 3. Gere uma nova API key
 4. Copie a chave (começa com `sk-ant-`)
 
-### 2. Configurar a API Key no App
+### 2. Configurar a API Key do App
 
-Você tem 2 opções:
+Crie um arquivo `.env` na raiz do projeto:
 
-**Opção A: Inserir no app (recomendado para começar)**
-- Rode o app (veja abaixo)
-- Vá para aba "Perfil" → "API Key"
-- Cole sua chave e clique "Salvar chave"
-- Feito! O app salvará a chave localmente
-
-**Opção B: Usar arquivo .env**
-- Crie um arquivo `.env` na raiz do projeto:
 ```
 EXPO_PUBLIC_ANTHROPIC_API_KEY=sk-ant-...
 ```
-- Substitua `sk-ant-...` pela sua chave real
+
+Substitua `sk-ant-...` pela sua chave real. Essa chave será usada pelo app para todos os usuários.
 
 ### 3. Rodar o App
 
@@ -56,10 +50,9 @@ Isso abrirá o Expo CLI. Você terá opções:
 1. Clique em "Começar" / "Get Started"
 2. Escolha sua dieta (Vegan, Vegetariano, etc)
 3. Escolha suas alergias (se houver)
-4. Configure sua API key no Perfil
-5. Vá para a aba "Início" e clique em "Escanear Produto"
-6. Tire uma foto do rótulo ou lista de ingredientes
-7. O app analisará com Claude e dirá se é seguro! ✅
+4. Vá para a aba "Início" e clique em "Escanear Produto"
+5. Tire uma foto do rótulo ou lista de ingredientes
+6. O app analisará com Claude e dirá se é seguro! ✅
 
 ## 💰 Custos
 
@@ -75,7 +68,8 @@ Isso abrirá o Expo CLI. Você terá opções:
 
 ## 🔐 Segurança
 
-- Sua API key fica **apenas no seu dispositivo** (AsyncStorage)
+- Sua API key é configurada pelo dono do app via `.env`
+- O cache de ingredientes fica local no dispositivo nesta versão
 - Suas fotos são **analisadas mas não armazenadas** pela Claude
 - Seu perfil é **local** no seu dispositivo
 
