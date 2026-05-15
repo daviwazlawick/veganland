@@ -1,4 +1,19 @@
 services:
+  api:
+    build: .
+    container_name: veganland-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://veganland:${POSTGRES_PASSWORD}@postgres:5432/veganland
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     container_name: veganland-postgres
@@ -6,9 +21,7 @@ services:
     environment:
       POSTGRES_DB: veganland
       POSTGRES_USER: veganland
-      POSTGRES_PASSWORD: change-this-postgres-password
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - veganland-postgres-data:/var/lib/postgresql/data
     healthcheck:

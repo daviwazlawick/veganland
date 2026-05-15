@@ -4,24 +4,23 @@ Backend central do VeganLand. Ele recebe a imagem do app, identifica produto/ing
 
 ## Banco PostgreSQL proprio
 
-Para desenvolvimento local:
+Para desenvolvimento local com Docker:
 
 ```bash
-docker compose up -d postgres
+docker compose up -d --build
 ```
 
 Use esta `DATABASE_URL` em `server/.env`:
 
 ```bash
-DATABASE_URL=postgres://veganland:change-this-postgres-password@localhost:5432/veganland
+POSTGRES_PASSWORD=change-this-postgres-password
+DATABASE_URL=postgres://veganland:change-this-postgres-password@postgres:5432/veganland
 ```
 
-Depois rode:
+Depois rode a migração dentro do container da API:
 
 ```bash
-npm install
-npm run db:migrate
-npm start
+docker compose exec api npm run db:migrate
 ```
 
 ## Produção em VPS
@@ -34,9 +33,17 @@ Exemplo de variáveis da API:
 
 ```bash
 PORT=3000
+POSTGRES_PASSWORD=SENHA_FORTE
 DATABASE_URL=postgres://veganland:SENHA_FORTE@postgres:5432/veganland
 ANTHROPIC_API_KEY=sk-ant-...
 APP_API_KEY=um-segredo-para-o-app
+```
+
+Subir tudo em produção:
+
+```bash
+docker compose up -d --build
+docker compose exec api npm run db:migrate
 ```
 
 ## Rotas

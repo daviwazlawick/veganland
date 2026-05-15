@@ -30,17 +30,15 @@ Um app que permite aos usuários:
 Para desenvolvimento local, suba o banco com Docker:
 
 ```bash
-npm run db:up
+npm run deploy:up
 ```
 
-Isso cria um PostgreSQL local com:
+Isso cria um PostgreSQL local e sobe a API em Docker:
 
 ```bash
-host=localhost
-port=5432
+API=http://localhost:3000
 database=veganland
 user=veganland
-password=change-this-postgres-password
 ```
 
 ### 3. Configurar o Backend
@@ -55,7 +53,8 @@ Crie `server/.env`:
 
 ```bash
 PORT=3000
-DATABASE_URL=postgres://veganland:change-this-postgres-password@localhost:5432/veganland
+POSTGRES_PASSWORD=change-this-postgres-password
+DATABASE_URL=postgres://veganland:change-this-postgres-password@postgres:5432/veganland
 ANTHROPIC_API_KEY=sk-ant-...
 APP_API_KEY=change-this-shared-secret
 ```
@@ -63,13 +62,7 @@ APP_API_KEY=change-this-shared-secret
 Rode a migração do banco:
 
 ```bash
-npm run server:migrate
-```
-
-Inicie a API:
-
-```bash
-npm run server:start
+npm run deploy:migrate
 ```
 
 Teste:
@@ -141,27 +134,25 @@ Para produção, use uma VPS ou servidor com Docker.
 
 1. Copie a pasta `server/` para o servidor.
 2. Edite `server/docker-compose.yml` e troque `POSTGRES_PASSWORD` por uma senha forte.
-3. Suba o banco:
+3. Suba banco e API:
 
 ```bash
-docker compose up -d postgres
+docker compose up -d --build
 ```
 
 4. Configure `server/.env` na API:
 
 ```bash
 PORT=3000
-DATABASE_URL=postgres://veganland:SENHA_FORTE@localhost:5432/veganland
+DATABASE_URL=postgres://veganland:SENHA_FORTE@postgres:5432/veganland
 ANTHROPIC_API_KEY=sk-ant-...
 APP_API_KEY=um-segredo-para-o-app
 ```
 
-5. Rode migração e API:
+5. Rode a migração:
 
 ```bash
-npm install
-npm run db:migrate
-npm start
+docker compose exec api npm run db:migrate
 ```
 
 6. Coloque a API atrás de HTTPS com Nginx, Caddy ou o proxy do seu provedor.
@@ -202,7 +193,7 @@ Modificar código, salvar, e a mudança aparece automaticamente no app (Hot Relo
 
 **"API retorna erro"**
 - Verificar `server/.env`
-- Rodar `npm run server:migrate`
+- Rodar `npm run deploy:migrate`
 - Testar `GET /health` no servidor
 
 **"Câmera não funciona"**

@@ -11,9 +11,8 @@ Tire uma foto do rótulo → IA analisa → Você sabe se é seguro ✅
 ```bash
 npm install
 npm run server:install
-npm run db:up
-npm run server:migrate
-npm run server:start
+npm run deploy:up
+npm run deploy:migrate
 npm start
 ```
 

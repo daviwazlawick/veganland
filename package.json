@@ -10,8 +10,9 @@
     "server:install": "npm install --prefix server",
     "server:start": "npm start --prefix server",
     "server:migrate": "npm run db:migrate --prefix server",
-    "db:up": "docker compose -f server/docker-compose.yml up -d postgres",
-    "db:down": "docker compose -f server/docker-compose.yml down"
+    "deploy:up": "docker compose -f server/docker-compose.yml up -d --build",
+    "deploy:migrate": "docker compose -f server/docker-compose.yml exec api npm run db:migrate",
+    "deploy:down": "docker compose -f server/docker-compose.yml down"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
