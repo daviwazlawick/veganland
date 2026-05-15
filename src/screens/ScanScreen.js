@@ -15,7 +15,13 @@ export default function ScanScreen({ navigation }) {
   const { language, profile, addScanToHistory } = useApp();
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
+  const [cameraActive, setCameraActive] = useState(true);
   const cameraRef = useRef(null);
+
+  function handleClose() {
+    setCameraActive(false);
+    navigation.navigate('Main');
+  }
 
   async function handleCapture() {
     if (!hasApiConfig()) {
@@ -57,7 +63,8 @@ export default function ScanScreen({ navigation }) {
         imageUri,
       };
       await addScanToHistory(scan);
-      navigation.navigate('Result', { result: scan });
+      setCameraActive(false);
+      navigation.replace('Result', { result: scan });
     } catch (e) {
       const msg = e.message?.includes('network') || e.message?.includes('fetch')
         ? t(language, 'errors.network_error')
@@ -87,48 +94,50 @@ export default function ScanScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} ref={cameraRef} facing="back">
-        <SafeAreaView style={styles.overlay}>
-          <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
-            <View style={{ width: 44 }} />
-          </View>
-
-          <View style={styles.frameContainer}>
-            <View style={styles.frame}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+      {cameraActive && (
+        <CameraView style={styles.camera} ref={cameraRef} facing="back">
+          <SafeAreaView style={styles.overlay}>
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={analyzing}>
+                <Text style={styles.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
+              <View style={{ width: 44 }} />
             </View>
-            <Text style={styles.frameHint}>{t(language, 'scan.instruction')}</Text>
-          </View>
 
-          <View style={styles.bottomBar}>
-            <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
-              <Text style={styles.galleryBtnIcon}>🖼️</Text>
-              <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
-            </TouchableOpacity>
+            <View style={styles.frameContainer}>
+              <View style={styles.frame}>
+                <View style={[styles.corner, styles.topLeft]} />
+                <View style={[styles.corner, styles.topRight]} />
+                <View style={[styles.corner, styles.bottomLeft]} />
+                <View style={[styles.corner, styles.bottomRight]} />
+              </View>
+              <Text style={styles.frameHint}>{t(language, 'scan.instruction')}</Text>
+            </View>
 
-            <TouchableOpacity
-              style={[styles.captureBtn, analyzing && styles.captureBtnDisabled]}
-              onPress={handleCapture}
-              disabled={analyzing}
-            >
-              {analyzing ? (
-                <ActivityIndicator color={Colors.primary} size="large" />
-              ) : (
-                <View style={styles.captureBtnInner} />
-              )}
-            </TouchableOpacity>
+            <View style={styles.bottomBar}>
+              <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
+                <Text style={styles.galleryBtnIcon}>🖼️</Text>
+                <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
+              </TouchableOpacity>
 
-            <View style={{ width: 72 }} />
-          </View>
-        </SafeAreaView>
-      </CameraView>
+              <TouchableOpacity
+                style={[styles.captureBtn, analyzing && styles.captureBtnDisabled]}
+                onPress={handleCapture}
+                disabled={analyzing}
+              >
+                {analyzing ? (
+                  <ActivityIndicator color={Colors.primary} size="large" />
+                ) : (
+                  <View style={styles.captureBtnInner} />
+                )}
+              </TouchableOpacity>
+
+              <View style={{ width: 72 }} />
+            </View>
+          </SafeAreaView>
+        </CameraView>
+      )}
 
       {analyzing && (
         <View style={styles.analyzingOverlay}>
