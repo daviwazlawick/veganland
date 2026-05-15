@@ -6,7 +6,7 @@ function bestIngredientText(product) {
     || '';
 }
 
-function mapOpenFoodFactsProduct(product, source) {
+function mapOpenFoodFactsProduct(product) {
   if (!product) return null;
 
   const ingredientsText = bestIngredientText(product).trim();
@@ -17,22 +17,23 @@ function mapOpenFoodFactsProduct(product, source) {
     brand: product.brands || null,
     barcode: product.code || null,
     ingredients_text: ingredientsText,
-    source,
+    source: 'open_food_facts',
     source_url: product.url || null,
+    raw: product,
   };
 }
 
-async function fetchOpenFoodFactsByBarcode(barcode) {
+async function fetchByBarcode(barcode) {
   const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
   if (!response.ok) return null;
 
   const data = await response.json();
   if (data.status !== 1) return null;
 
-  return mapOpenFoodFactsProduct(data.product, 'open_food_facts');
+  return mapOpenFoodFactsProduct(data.product);
 }
 
-async function fetchOpenFoodFactsByQuery(query) {
+async function fetchByQuery(query) {
   const params = [
     'search_simple=1',
     'action=process',
@@ -47,15 +48,14 @@ async function fetchOpenFoodFactsByQuery(query) {
 
   const data = await response.json();
   const products = Array.isArray(data.products) ? data.products : [];
-  const match = products.map(product => mapOpenFoodFactsProduct(product, 'open_food_facts')).find(Boolean);
 
-  return match || null;
+  return products.map(mapOpenFoodFactsProduct).find(Boolean) || null;
 }
 
 export async function findProductIngredients(productIdentity) {
   const barcode = productIdentity?.barcode?.replace(/\D/g, '');
   if (barcode) {
-    const barcodeMatch = await fetchOpenFoodFactsByBarcode(barcode);
+    const barcodeMatch = await fetchByBarcode(barcode);
     if (barcodeMatch) return barcodeMatch;
   }
 
@@ -64,5 +64,5 @@ export async function findProductIngredients(productIdentity) {
 
   if (!query.trim()) return null;
 
-  return fetchOpenFoodFactsByQuery(query);
+  return fetchByQuery(query);
 }

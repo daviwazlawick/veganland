@@ -5,12 +5,14 @@
 Um app que permite aos usuários:
 1. **Criar um perfil** com suas preferências dietéticas (vegan, vegetariano, etc) e alergias
 2. **Fotografar produtos** no supermercado
-3. **Buscar ingredientes** na imagem, cache local ou Open Food Facts
+3. **Buscar ingredientes** na imagem, banco central ou Open Food Facts
 4. **Receber análise instantânea** via IA se o produto é seguro para seu perfil
 
 ## 📋 Requisitos
 
 - **Node.js** 18+ instalado
+- **PostgreSQL** proprio, local ou em VPS/servidor
+- **Docker** recomendado para rodar PostgreSQL
 - **Expo CLI**: `npm install -g expo-cli`
 - **Claude API Key**: de https://console.anthropic.com
 
@@ -23,17 +25,77 @@ Um app que permite aos usuários:
 3. Gere uma nova API key
 4. Copie a chave (começa com `sk-ant-`)
 
-### 2. Configurar a API Key do App
+### 2. Subir o PostgreSQL
 
-Crie um arquivo `.env` na raiz do projeto:
+Para desenvolvimento local, suba o banco com Docker:
 
+```bash
+npm run db:up
 ```
-EXPO_PUBLIC_ANTHROPIC_API_KEY=sk-ant-...
+
+Isso cria um PostgreSQL local com:
+
+```bash
+host=localhost
+port=5432
+database=veganland
+user=veganland
+password=change-this-postgres-password
 ```
 
-Substitua `sk-ant-...` pela sua chave real. Essa chave será usada pelo app para todos os usuários.
+### 3. Configurar o Backend
 
-### 3. Rodar o App
+Instale as dependências do servidor:
+
+```bash
+npm run server:install
+```
+
+Crie `server/.env`:
+
+```bash
+PORT=3000
+DATABASE_URL=postgres://veganland:change-this-postgres-password@localhost:5432/veganland
+ANTHROPIC_API_KEY=sk-ant-...
+APP_API_KEY=change-this-shared-secret
+```
+
+Rode a migração do banco:
+
+```bash
+npm run server:migrate
+```
+
+Inicie a API:
+
+```bash
+npm run server:start
+```
+
+Teste:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Deve retornar:
+
+```json
+{"ok":true}
+```
+
+### 4. Configurar o App
+
+Crie `.env` na raiz do projeto:
+
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_APP_API_KEY=change-this-shared-secret
+```
+
+Para celular físico, troque `localhost` pelo IP da sua máquina ou pela URL hospedada da API.
+
+### 5. Rodar o App
 
 ```bash
 npm start
@@ -45,7 +107,7 @@ Isso abrirá o Expo CLI. Você terá opções:
 - **Android**: Pressione `a` (precisa do Android Studio/Emulator)
 - **Físico**: Instale o app Expo Go no seu iPhone/Android, escaneie o QR code
 
-### 4. Primeiro Uso
+### 6. Primeiro Uso
 
 1. Clique em "Começar" / "Get Started"
 2. Escolha sua dieta (Vegan, Vegetariano, etc)
@@ -68,10 +130,49 @@ Isso abrirá o Expo CLI. Você terá opções:
 
 ## 🔐 Segurança
 
-- Sua API key é configurada pelo dono do app via `.env`
-- O cache de ingredientes fica local no dispositivo nesta versão
+- Sua chave Anthropic fica apenas no backend
+- Produtos e análises ficam no banco central PostgreSQL
 - Suas fotos são **analisadas mas não armazenadas** pela Claude
 - Seu perfil é **local** no seu dispositivo
+
+## 🚀 Produção com PostgreSQL próprio
+
+Para produção, use uma VPS ou servidor com Docker.
+
+1. Copie a pasta `server/` para o servidor.
+2. Edite `server/docker-compose.yml` e troque `POSTGRES_PASSWORD` por uma senha forte.
+3. Suba o banco:
+
+```bash
+docker compose up -d postgres
+```
+
+4. Configure `server/.env` na API:
+
+```bash
+PORT=3000
+DATABASE_URL=postgres://veganland:SENHA_FORTE@localhost:5432/veganland
+ANTHROPIC_API_KEY=sk-ant-...
+APP_API_KEY=um-segredo-para-o-app
+```
+
+5. Rode migração e API:
+
+```bash
+npm install
+npm run db:migrate
+npm start
+```
+
+6. Coloque a API atrás de HTTPS com Nginx, Caddy ou o proxy do seu provedor.
+7. No app, configure:
+
+```bash
+EXPO_PUBLIC_API_URL=https://api.seudominio.com
+EXPO_PUBLIC_APP_API_KEY=um-segredo-para-o-app
+```
+
+Não exponha a porta `5432` do PostgreSQL para a internet. O banco deve ficar acessível apenas pela API.
 
 ## 📚 Estrutura do Projeto
 
@@ -83,6 +184,11 @@ src/
   ├── i18n/           # Português + Inglês
   ├── constants/      # Cores, dietas, alergias
   └── navigation/     # Navegação entre telas
+server/
+  ├── src/server.js   # API HTTP
+  ├── src/analyze.js  # Pipeline de análise
+  ├── src/db.js       # PostgreSQL
+  └── src/schema.sql  # Tabelas
 ```
 
 ## 🛠️ Desenvolvimento
@@ -91,9 +197,13 @@ Modificar código, salvar, e a mudança aparece automaticamente no app (Hot Relo
 
 ## 📞 Troubleshooting
 
-**"API key inválida"**
-- Verificar se começa com `sk-ant-`
-- Ir em console.anthropic.com e gerar nova chave
+**"A URL da API não está configurada"**
+- Verificar `EXPO_PUBLIC_API_URL` no `.env` da raiz
+
+**"API retorna erro"**
+- Verificar `server/.env`
+- Rodar `npm run server:migrate`
+- Testar `GET /health` no servidor
 
 **"Câmera não funciona"**
 - Abrir Configurações do dispositivo

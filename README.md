@@ -10,16 +10,24 @@ Tire uma foto do rótulo → IA analisa → Você sabe se é seguro ✅
 
 ```bash
 npm install
+npm run server:install
+npm run db:up
+npm run server:migrate
+npm run server:start
 npm start
 ```
 
 Pressione `i` (iOS), `a` (Android), ou escaneie o QR com Expo Go.
 
-Antes de rodar, crie um `.env` na raiz do projeto:
+Antes de rodar o app, configure a URL da API no `.env` da raiz:
 
 ```bash
-EXPO_PUBLIC_ANTHROPIC_API_KEY=sk-ant-...
+EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_APP_API_KEY=change-this-shared-secret
 ```
+
+A chave da Anthropic fica no backend, em `server/.env`.
+Veja [server/README.md](./server/README.md) para o PostgreSQL proprio.
 
 ---
 
@@ -49,7 +57,7 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 1. **Perfil**: Escolha sua dieta (vegan, vegetariano, etc) + alergias
 2. **Foto**: Tire uma foto do rótulo/ingredientes
 3. **Identificação**: IA identifica produto e ingredientes visíveis
-4. **Busca/Cache**: Se não houver ingredientes na foto, o app consulta cache local e Open Food Facts
+4. **Busca/Cache**: Se não houver ingredientes na foto, o backend consulta o banco central e Open Food Facts
 5. **Resultado**: App mostra se é seguro para você
 6. **Histórico**: Vê produtos já escaneados
 
@@ -60,7 +68,9 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 - **React Native + Expo** - Cross-platform (iOS/Android)
 - **React Navigation** - Navegação
 - **React Context** - State management
-- **Claude API** - IA para análise
+- **Node API** - Backend central para IA, cache e busca
+- **PostgreSQL** - Banco central de produtos e análises
+- **Claude API** - IA para análise no servidor
 - **AsyncStorage** - Persistência local
 - **Open Food Facts** - Busca pública de ingredientes quando a foto não mostra a lista
 - **expo-camera** - Câmera
@@ -70,9 +80,9 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 
 ## 🔐 Privacidade
 
-- API key é configurada pelo dono do app via `.env`
+- Chave Anthropic fica só no backend
 - Perfil é **local**, não sincroniza
-- Cache de produtos é **local no dispositivo** nesta versão
+- Produtos e análises ficam no banco central
 - Fotos são **analisadas mas não armazenadas** pela IA
 
 ---
@@ -80,6 +90,7 @@ Veja [SETUP.md](./SETUP.md) para instruções completas:
 ## 💡 Stack
 
 - Node 18+
+- PostgreSQL
 - Expo CLI
 - React 19 + React Native 0.81
 - TypeScript (opcional)

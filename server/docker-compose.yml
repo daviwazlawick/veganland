@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: veganland-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: veganland
+      POSTGRES_USER: veganland
+      POSTGRES_PASSWORD: change-this-postgres-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - veganland-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veganland -d veganland"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  veganland-postgres-data:

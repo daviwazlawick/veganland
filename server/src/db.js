@@ -1,0 +1,124 @@
+import './env.js';
+import pg from 'pg';
+
+const { Pool } = pg;
+
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+});
+
+export function normalize(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+export function getIdentityKey(product) {
+  const barcode = product?.barcode?.replace(/\D/g, '');
+  if (barcode) return `barcode:${barcode}`;
+
+  const identity = normalize([product?.brand, product?.product_name || product?.lookup_query].filter(Boolean).join(' '));
+  if (identity) return `name:${identity}`;
+
+  return null;
+}
+
+export function getProfileKey(profile, language) {
+  const allergyIds = [...(profile?.allergyIds || [])].sort().join(',');
+  return `${language}:${profile?.dietId || 'none'}:${allergyIds}`;
+}
+
+export async function findProduct(product) {
+  const barcode = product?.barcode?.replace(/\D/g, '');
+  const identityKey = getIdentityKey(product);
+
+  const result = await pool.query(
+    `select *
+       from products
+      where ($1::text is not null and barcode = $1)
+         or ($2::text is not null and identity_key = $2)
+      order by updated_at desc
+      limit 1`,
+    [barcode || null, identityKey]
+  );
+
+  return result.rows[0] || null;
+}
+
+export async function upsertProduct(product) {
+  const barcode = product?.barcode?.replace(/\D/g, '') || null;
+  const identityKey = getIdentityKey(product);
+
+  if (!identityKey || !product?.ingredients_text) return null;
+
+  const result = await pool.query(
+    `insert into products (
+       identity_key, barcode, brand, product_name, lookup_query,
+       ingredients_text, source, source_url, raw
+     )
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     on conflict (identity_key) do update set
+       barcode = coalesce(excluded.barcode, products.barcode),
+       brand = coalesce(excluded.brand, products.brand),
+       product_name = coalesce(excluded.product_name, products.product_name),
+       lookup_query = coalesce(excluded.lookup_query, products.lookup_query),
+       ingredients_text = excluded.ingredients_text,
+       source = excluded.source,
+       source_url = excluded.source_url,
+       raw = excluded.raw,
+       updated_at = now()
+     returning *`,
+    [
+      identityKey,
+      barcode,
+      product.brand || null,
+      product.product_name || null,
+      product.lookup_query || null,
+      product.ingredients_text,
+      product.source || 'unknown',
+      product.source_url || null,
+      product,
+    ]
+  );
+
+  return result.rows[0];
+}
+
+export async function findAnalysis(productId, profile, language) {
+  const profileKey = getProfileKey(profile, language);
+  const result = await pool.query(
+    `select result
+       from product_analyses
+      where product_id = $1
+        and profile_key = $2
+        and language = $3
+      limit 1`,
+    [productId, profileKey, language]
+  );
+
+  return result.rows[0]?.result || null;
+}
+
+export async function saveAnalysis(productId, profile, language, analysis) {
+  const profileKey = getProfileKey(profile, language);
+  await pool.query(
+    `insert into product_analyses (product_id, profile_key, language, result)
+     values ($1, $2, $3, $4)
+     on conflict (product_id, profile_key, language) do update set
+       result = excluded.result,
+       updated_at = now()`,
+    [productId, profileKey, language, analysis]
+  );
+}
+
+export async function saveScanEvent({ productId, profile, language, status, source }) {
+  await pool.query(
+    `insert into scan_events (product_id, profile_key, language, status, source)
+     values ($1, $2, $3, $4, $5)`,
+    [productId || null, getProfileKey(profile, language), language, status || null, source || null]
+  );
+}

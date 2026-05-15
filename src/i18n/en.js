@@ -58,6 +58,7 @@ export default {
     cannot_read: 'Could not clearly read the ingredients. Try a closer, clearer photo.',
     source_image: 'image',
     source_cache: 'local database',
+    source_database: 'central database',
     source_open_food_facts: 'internet',
     source_unknown: 'uncertain source',
     source_missing: 'not found',
@@ -73,7 +74,7 @@ export default {
     about: 'About VeganLand',
   },
   errors: {
-    no_api_key: 'The Anthropic API key is not configured in the app.',
+    no_api_key: 'The VeganLand API URL is not configured in the app.',
     analysis_failed: 'Could not analyze the product. Please try again.',
     network_error: 'Connection error. Check your internet.',
     camera_error: 'Error accessing camera.',

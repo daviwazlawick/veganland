@@ -1,21 +1,10 @@
-import { DIETS } from '../constants/diets';
-import { ALLERGIES } from '../constants/allergies';
+import './env.js';
 
-const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '';
-const CLAUDE_MODEL = 'claude-opus-4-7';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-7';
 
 export function hasAnthropicApiKey() {
   return ANTHROPIC_API_KEY.trim().length > 0;
-}
-
-function buildProfileDescription(profile, lang) {
-  const diet = DIETS.find(d => d.id === profile.dietId);
-  const dietLabel = diet ? diet.label[lang] : profile.dietId;
-  const allergyLabels = (profile.allergyIds || []).map(id => {
-    const allergy = ALLERGIES.find(a => a.id === id);
-    return allergy ? allergy.label[lang] : id;
-  });
-  return { dietLabel, allergyLabels };
 }
 
 function extractJson(text) {
@@ -25,6 +14,10 @@ function extractJson(text) {
 }
 
 async function callClaude(content, maxTokens = 1024) {
+  if (!hasAnthropicApiKey()) {
+    throw new Error('ANTHROPIC_API_KEY is not configured');
+  }
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -35,26 +28,21 @@ async function callClaude(content, maxTokens = 1024) {
     body: JSON.stringify({
       model: CLAUDE_MODEL,
       max_tokens: maxTokens,
-      messages: [
-        {
-          role: 'user',
-          content,
-        },
-      ],
+      messages: [{ role: 'user', content }],
     }),
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${response.status}`);
+    throw new Error(err?.error?.message || `Anthropic API error ${response.status}`);
   }
 
   const data = await response.json();
   return data.content?.[0]?.text || '';
 }
 
-function buildImageInspectionPrompt(lang) {
-  if (lang === 'pt') {
+function buildImageInspectionPrompt(language) {
+  if (language === 'pt') {
     return `Analise a imagem de um produto alimentício.
 
 Objetivo:
@@ -93,17 +81,23 @@ Respond ONLY with valid JSON in this format:
 }`;
 }
 
-function buildEvaluationPrompt(ingredientsText, product, profile, lang, source) {
-  const { dietLabel, allergyLabels } = buildProfileDescription(profile, lang);
-  const allergyText = allergyLabels.length > 0
-    ? allergyLabels.join(', ')
-    : lang === 'pt' ? 'nenhuma' : 'none';
+function profileDescription(profile, language) {
+  const diet = profile?.dietId || 'none';
+  const allergies = Array.isArray(profile?.allergyIds) && profile.allergyIds.length > 0
+    ? profile.allergyIds.join(', ')
+    : language === 'pt' ? 'nenhuma' : 'none';
+
+  return { diet, allergies };
+}
+
+function buildEvaluationPrompt(ingredientsText, product, profile, language, source) {
+  const { diet, allergies } = profileDescription(profile, language);
   const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || 'produto desconhecido';
 
-  if (lang === 'pt') {
+  if (language === 'pt') {
     return `Você é um assistente de segurança alimentar especializado. O usuário tem o seguinte perfil dietético:
-- Dieta: ${dietLabel}
-- Alergias: ${allergyText}
+- Dieta: ${diet}
+- Alergias: ${allergies}
 
 Produto: ${productName}
 Origem dos ingredientes: ${source}
@@ -126,9 +120,9 @@ Responda APENAS com JSON válido neste formato exato:
 Seja conservador: na dúvida, use CAUTION em vez de SAFE.`;
   }
 
-  return `You are a specialized food safety assistant. The user has the following dietary profile:
-- Diet: ${dietLabel}
-- Allergies: ${allergyText}
+  return `You are a specialized food safety assistant. The user has this dietary profile:
+- Diet: ${diet}
+- Allergies: ${allergies}
 
 Product: ${productName}
 Ingredient source: ${source}
@@ -151,40 +145,40 @@ Respond ONLY with valid JSON in this exact format:
 Be conservative: when in doubt, use CAUTION instead of SAFE.`;
 }
 
-export async function inspectProductImage(imageBase64, lang) {
+export async function inspectProductImage(imageBase64, language, mediaType = 'image/jpeg') {
   const text = await callClaude([
     {
       type: 'image',
       source: {
         type: 'base64',
-        media_type: 'image/jpeg',
+        media_type: mediaType,
         data: imageBase64,
       },
     },
     {
       type: 'text',
-      text: buildImageInspectionPrompt(lang),
+      text: buildImageInspectionPrompt(language),
     },
   ]);
 
   return extractJson(text);
 }
 
-export async function evaluateProductIngredients(ingredientsText, product, profile, lang, source) {
+export async function evaluateProductIngredients(ingredientsText, product, profile, language, source) {
   const text = await callClaude([
     {
       type: 'text',
-      text: buildEvaluationPrompt(ingredientsText, product, profile, lang, source),
+      text: buildEvaluationPrompt(ingredientsText, product, profile, language, source),
     },
   ]);
 
   return extractJson(text);
 }
 
-export function buildMissingIngredientsResult(product, lang) {
+export function buildMissingIngredientsResult(product, language) {
   const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ');
 
-  if (lang === 'pt') {
+  if (language === 'pt') {
     return {
       status: 'CAUTION',
       title: productName || 'Ingredientes não encontrados',
