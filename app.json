@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "veganland",
+    "name": "VeganLand",
     "slug": "veganland",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,20 +10,46 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2E7D52"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "app.veganland",
+      "infoPlist": {
+        "NSCameraUsageDescription": "VeganLand needs camera access to scan product labels and ingredients.",
+        "NSPhotoLibraryUsageDescription": "VeganLand needs photo library access to analyze product images.",
+        "NSPhotoLibraryAddUsageDescription": "VeganLand saves product scan images to your library."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2E7D52"
       },
+      "package": "app.veganland",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "VeganLand needs camera access to scan product labels."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "VeganLand needs photo access to analyze product images."
+        }
+      ]
+    ]
   }
 }
