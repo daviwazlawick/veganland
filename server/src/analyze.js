@@ -1,4 +1,5 @@
 import {
+  analyzeProductByKnowledge,
   buildMissingIngredientsResult,
   evaluateProductIngredients,
   inspectProductImage,
@@ -63,6 +64,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     if (!cachedAnalysis) {
       await saveAnalysis(product.id, profile, lang, result);
     }
+  } else if (imageInspection.product_name || imageInspection.brand || imageInspection.barcode) {
+    // Product identified but no ingredient list found — use Claude's knowledge
+    result = await analyzeProductByKnowledge(imageInspection, profile, lang);
   } else {
     result = buildMissingIngredientsResult(imageInspection, lang);
   }

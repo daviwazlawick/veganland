@@ -1,18 +1,30 @@
 import './env.js';
-import pg from 'pg';
 
-const { Pool } = pg;
+const DATABASE_URL = process.env.DATABASE_URL || '';
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
-});
+// Lazy-load pg only when DATABASE_URL is provided
+let pool = null;
+
+async function getPool() {
+  if (!DATABASE_URL) return null;
+  if (pool) return pool;
+
+  const { default: pg } = await import('pg');
+  pool = new pg.Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+  });
+  return pool;
+}
+
+// Expose pool for /health check (may be null when DB is not configured)
+export { pool };
 
 export function normalize(value) {
   return String(value || '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
@@ -33,10 +45,13 @@ export function getProfileKey(profile, language) {
 }
 
 export async function findProduct(product) {
+  const db = await getPool();
+  if (!db) return null;
+
   const barcode = product?.barcode?.replace(/\D/g, '');
   const identityKey = getIdentityKey(product);
 
-  const result = await pool.query(
+  const result = await db.query(
     `select *
        from products
       where ($1::text is not null and barcode = $1)
@@ -50,12 +65,18 @@ export async function findProduct(product) {
 }
 
 export async function upsertProduct(product) {
+  const db = await getPool();
+  if (!db) {
+    // Without DB, return a synthetic product object so analysis still proceeds
+    return { id: null, ...product };
+  }
+
   const barcode = product?.barcode?.replace(/\D/g, '') || null;
   const identityKey = getIdentityKey(product);
 
   if (!identityKey || !product?.ingredients_text) return null;
 
-  const result = await pool.query(
+  const result = await db.query(
     `insert into products (
        identity_key, barcode, brand, product_name, lookup_query,
        ingredients_text, source, source_url, raw
@@ -89,8 +110,11 @@ export async function upsertProduct(product) {
 }
 
 export async function findAnalysis(productId, profile, language) {
+  const db = await getPool();
+  if (!db || !productId) return null;
+
   const profileKey = getProfileKey(profile, language);
-  const result = await pool.query(
+  const result = await db.query(
     `select result
        from product_analyses
       where product_id = $1
@@ -104,8 +128,11 @@ export async function findAnalysis(productId, profile, language) {
 }
 
 export async function saveAnalysis(productId, profile, language, analysis) {
+  const db = await getPool();
+  if (!db || !productId) return;
+
   const profileKey = getProfileKey(profile, language);
-  await pool.query(
+  await db.query(
     `insert into product_analyses (product_id, profile_key, language, result)
      values ($1, $2, $3, $4)
      on conflict (product_id, profile_key, language) do update set
@@ -116,7 +143,10 @@ export async function saveAnalysis(productId, profile, language, analysis) {
 }
 
 export async function saveScanEvent({ productId, profile, language, status, source }) {
-  await pool.query(
+  const db = await getPool();
+  if (!db) return;
+
+  await db.query(
     `insert into scan_events (product_id, profile_key, language, status, source)
      values ($1, $2, $3, $4, $5)`,
     [productId || null, getProfileKey(profile, language), language, status || null, source || null]

@@ -53,8 +53,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && req.url === '/health') {
-      await pool.query('select 1');
-      sendJson(res, 200, { ok: true });
+      if (pool) {
+        await pool.query('select 1');
+      }
+      sendJson(res, 200, { ok: true, db: !!pool });
       return;
     }
 

@@ -175,6 +175,77 @@ export async function evaluateProductIngredients(ingredientsText, product, profi
   return extractJson(text);
 }
 
+function buildKnowledgePrompt(product, profile, language) {
+  const { diet, allergies } = profileDescription(profile, language);
+  const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || null;
+  const barcode = product?.barcode || null;
+
+  if (language === 'pt') {
+    return `Você é um especialista em segurança alimentar com amplo conhecimento de produtos do mercado.
+
+O usuário tem o seguinte perfil dietético:
+- Dieta: ${diet}
+- Alergias: ${allergies}
+
+Produto identificado na foto: ${productName || 'desconhecido'}${barcode ? ` (código de barras: ${barcode})` : ''}
+
+Não foi possível obter a lista de ingredientes deste produto. Use seu conhecimento sobre este produto (composição típica, categoria, marca) para:
+1. Determinar se provavelmente é adequado para o perfil dietético
+2. Listar ingredientes típicos que podem ser problemáticos
+
+IMPORTANTE: Seja conservador. Se não tiver certeza sobre o produto, use CAUTION.
+
+Responda APENAS com JSON válido neste formato:
+{
+  "status": "SAFE" ou "CAUTION" ou "NOT_SAFE",
+  "title": "título curto em português (máximo 10 palavras)",
+  "explanation": "explicação em português mencionando que a análise é baseada no conhecimento geral do produto (2-4 frases)",
+  "concerns": ["ingrediente ou aspecto preocupante"],
+  "cannot_read": false,
+  "knowledge_based": true,
+  "product_name": "${productName || 'desconhecido'}",
+  "ingredients_source": "knowledge"
+}`;
+  }
+
+  return `You are a food safety expert with broad knowledge of market products.
+
+User dietary profile:
+- Diet: ${diet}
+- Allergies: ${allergies}
+
+Product identified in the photo: ${productName || 'unknown'}${barcode ? ` (barcode: ${barcode})` : ''}
+
+The ingredient list for this product was not available. Use your knowledge about this product (typical composition, category, brand) to:
+1. Determine if it is likely suitable for the dietary profile
+2. List typical ingredients that may be problematic
+
+IMPORTANT: Be conservative. If unsure about the product, use CAUTION.
+
+Respond ONLY with valid JSON in this format:
+{
+  "status": "SAFE" or "CAUTION" or "NOT_SAFE",
+  "title": "short title in English (max 10 words)",
+  "explanation": "explanation in English mentioning the analysis is based on general product knowledge (2-4 sentences)",
+  "concerns": ["concerning ingredient or aspect"],
+  "cannot_read": false,
+  "knowledge_based": true,
+  "product_name": "${productName || 'unknown'}",
+  "ingredients_source": "knowledge"
+}`;
+}
+
+export async function analyzeProductByKnowledge(product, profile, language) {
+  const text = await callClaude([
+    {
+      type: 'text',
+      text: buildKnowledgePrompt(product, profile, language),
+    },
+  ]);
+
+  return extractJson(text);
+}
+
 export function buildMissingIngredientsResult(product, language) {
   const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ');
 
