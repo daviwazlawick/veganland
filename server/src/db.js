@@ -5,7 +5,7 @@ const DATABASE_URL = process.env.DATABASE_URL || '';
 // Lazy-load pg only when DATABASE_URL is provided
 let pool = null;
 
-async function getPool() {
+export async function getPool() {
   if (!DATABASE_URL) return null;
   if (pool) return pool;
 

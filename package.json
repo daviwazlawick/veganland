@@ -10,11 +10,16 @@
     "server:install": "npm install --prefix server",
     "server:start": "npm start --prefix server",
     "server:migrate": "npm run db:migrate --prefix server",
+    "db:up": "docker compose -f server/docker-compose.yml up -d postgres",
+    "db:down": "docker compose -f server/docker-compose.yml down",
     "deploy:up": "docker compose -f server/docker-compose.yml up -d --build",
     "deploy:migrate": "docker compose -f server/docker-compose.yml exec api npm run db:migrate",
-    "deploy:down": "docker compose -f server/docker-compose.yml down"
+    "deploy:down": "docker compose -f server/docker-compose.yml down",
+    "build:web": "EXPO_PUBLIC_API_URL=https://veganland.app EXPO_PUBLIC_APP_API_KEY=$(grep APP_API_KEY server/.env | cut -d= -f2) npx expo export --platform web",
+    "build:deploy": "npm run build:web && cp -r dist/* /var/www/veganland/ && pm2 restart veganland-api && echo '✓ Deploy concluído'"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^7.16.1",
     "@react-navigation/native": "^7.2.4",
@@ -24,9 +29,11 @@
     "expo-image-picker": "~17.0.11",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
-    "react-native-screens": "~4.16.0"
+    "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.0"
   },
   "private": true
 }

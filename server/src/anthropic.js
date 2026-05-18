@@ -145,7 +145,24 @@ Respond ONLY with valid JSON in this exact format:
 Be conservative: when in doubt, use CAUTION instead of SAFE.`;
 }
 
+function stripDataUri(base64) {
+  const match = base64.match(/^data:([^;]+);base64,(.+)$/s);
+  if (match) return { data: match[2], type: match[1] };
+  return { data: base64, type: null };
+}
+
+function detectMediaType(base64) {
+  if (base64.startsWith('iVBOR')) return 'image/png';
+  if (base64.startsWith('/9j/')) return 'image/jpeg';
+  if (base64.startsWith('R0lGOD')) return 'image/gif';
+  if (base64.startsWith('UklGR')) return 'image/webp';
+  return 'image/jpeg';
+}
+
 export async function inspectProductImage(imageBase64, language, mediaType = 'image/jpeg') {
+  const { data, type } = stripDataUri(imageBase64);
+  imageBase64 = data;
+  mediaType = type || detectMediaType(imageBase64);
   const text = await callClaude([
     {
       type: 'image',

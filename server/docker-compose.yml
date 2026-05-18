@@ -21,7 +21,9 @@ services:
     environment:
       POSTGRES_DB: veganland
       POSTGRES_USER: veganland
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: MBXlUD9iB3TklflGnjOrIjZ13zE4c96r
+    ports:
+      - "5432:5432"
     volumes:
       - veganland-postgres-data:/var/lib/postgresql/data
     healthcheck:
