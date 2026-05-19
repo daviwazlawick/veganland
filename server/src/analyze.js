@@ -45,30 +45,59 @@ async function resolveProductIngredients(imageInspection) {
   return upsertProduct(productForCurrentImage);
 }
 
+const NON_FOOD_TYPES = ['cosmetic', 'clothing', 'cleaning', 'other'];
+
 export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId }) {
   const lang = language || 'pt';
   const imageInspection = await inspectProductImage(imageBase64, lang, mediaType);
-  const product = await resolveProductIngredients(imageInspection);
+  const productType = imageInspection.product_type || 'processed_food';
 
   let result;
-  if (product?.ingredients_text) {
-    const cachedAnalysis = await findAnalysis(product.id, profile, lang);
-    result = cachedAnalysis || await evaluateProductIngredients(
-      product.ingredients_text,
-      product,
-      profile,
-      lang,
-      product.source || 'unknown'
-    );
+  let product = null;
 
-    if (!cachedAnalysis) {
-      await saveAnalysis(product.id, profile, lang, result);
-    }
-  } else if (imageInspection.product_name || imageInspection.brand || imageInspection.barcode) {
-    // Product identified but no ingredient list found — use Claude's knowledge
+  if (productType === 'fresh_produce') {
+    // Frutas e vegetais in natura: avaliação direta por conhecimento, sem buscar ingredientes
     result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+
+  } else if (NON_FOOD_TYPES.includes(productType)) {
+    // Cosméticos, roupas, limpeza: não busca no OpenFoodFacts
+    if (imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim()) {
+      result = await evaluateProductIngredients(
+        imageInspection.ingredients_text.trim(),
+        imageInspection,
+        profile,
+        lang,
+        'image',
+        productType
+      );
+    } else if (imageInspection.product_name || imageInspection.brand) {
+      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+    } else {
+      result = buildMissingIngredientsResult(imageInspection, lang);
+    }
+
   } else {
-    result = buildMissingIngredientsResult(imageInspection, lang);
+    // processed_food e supplement: fluxo completo com cache e OpenFoodFacts
+    product = await resolveProductIngredients(imageInspection);
+
+    if (product?.ingredients_text) {
+      const cachedAnalysis = await findAnalysis(product.id, profile, lang);
+      result = cachedAnalysis || await evaluateProductIngredients(
+        product.ingredients_text,
+        product,
+        profile,
+        lang,
+        product.source || 'unknown',
+        productType
+      );
+      if (!cachedAnalysis) {
+        await saveAnalysis(product.id, profile, lang, result);
+      }
+    } else if (imageInspection.product_name || imageInspection.brand || imageInspection.barcode) {
+      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+    } else {
+      result = buildMissingIngredientsResult(imageInspection, lang);
+    }
   }
 
   await saveScanEvent({

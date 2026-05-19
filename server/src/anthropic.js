@@ -43,40 +43,62 @@ async function callClaude(content, maxTokens = 1024) {
 
 function buildImageInspectionPrompt(language) {
   if (language === 'pt') {
-    return `Analise a imagem de um produto alimentício.
+    return `Analise a imagem e identifique o produto.
 
-Objetivo:
-1. Identificar marca, nome do produto e código de barras se estiver visível.
-2. Extrair a lista de ingredientes se ela estiver visível.
-3. Se a foto NÃO mostrar ingredientes legíveis, ainda tente identificar o produto para uma busca externa posterior.
+Primeiro, classifique o tipo de produto:
+- "fresh_produce": frutas, vegetais, cogumelos, ervas frescas in natura (sem embalagem industrializada)
+- "processed_food": alimentos embalados, industrializados, com lista de ingredientes
+- "cosmetic": cosméticos, maquiagem, creme, shampoo, condicionador, perfume, sabonete
+- "clothing": roupas, calçados, bolsas, cintos, acessórios de moda
+- "supplement": vitaminas, suplementos esportivos, proteínas em pó, remédios
+- "cleaning": produtos de limpeza doméstica, detergente, sabão
+- "other": qualquer outro produto não listado acima
+
+Depois extraia:
+1. Marca, nome do produto e código de barras se visível
+2. Para processed_food, cosmetic e supplement: lista de ingredientes/composição se visível
+3. Para clothing: composição do material/tecido se visível (ex: 100% couro, 80% algodão)
+4. Para fresh_produce: apenas o nome do alimento (ex: "maçã", "banana")
 
 Responda APENAS com JSON válido neste formato:
 {
+  "product_type": "fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
   "product_name": "nome do produto ou null",
   "brand": "marca ou null",
   "barcode": "codigo de barras apenas numeros ou null",
-  "lookup_query": "melhor termo curto para buscar ingredientes online ou null",
+  "lookup_query": "melhor termo curto para busca online ou null",
   "ingredients_visible": true ou false,
-  "ingredients_text": "ingredientes extraidos ou null",
+  "ingredients_text": "ingredientes ou composição extraídos ou null",
   "confidence": 0.0
 }`;
   }
 
-  return `Analyze this food product image.
+  return `Analyze the image and identify the product.
 
-Goal:
-1. Identify brand, product name, and barcode if visible.
-2. Extract the ingredient list if it is visible.
-3. If the photo does NOT show readable ingredients, still identify the product for a later external lookup.
+First, classify the product type:
+- "fresh_produce": fresh fruits, vegetables, mushrooms, herbs (not industrially packaged)
+- "processed_food": packaged, processed foods with an ingredient list
+- "cosmetic": cosmetics, makeup, cream, shampoo, conditioner, perfume, soap
+- "clothing": clothes, shoes, bags, belts, fashion accessories
+- "supplement": vitamins, sports supplements, protein powder, medicines
+- "cleaning": household cleaning products, detergent, soap
+- "other": any other product not listed above
+
+Then extract:
+1. Brand, product name, and barcode if visible
+2. For processed_food, cosmetic and supplement: ingredient/composition list if visible
+3. For clothing: material/fabric composition if visible (e.g. 100% leather, 80% cotton)
+4. For fresh_produce: just the food name (e.g. "apple", "banana")
 
 Respond ONLY with valid JSON in this format:
 {
+  "product_type": "fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
   "product_name": "product name or null",
   "brand": "brand or null",
   "barcode": "barcode digits only or null",
-  "lookup_query": "best short search term for online ingredient lookup or null",
+  "lookup_query": "best short search term for online lookup or null",
   "ingredients_visible": true or false,
-  "ingredients_text": "extracted ingredients or null",
+  "ingredients_text": "extracted ingredients or composition or null",
   "confidence": 0.0
 }`;
 }
@@ -90,59 +112,88 @@ function profileDescription(profile, language) {
   return { diet, allergies };
 }
 
-function buildEvaluationPrompt(ingredientsText, product, profile, language, source) {
+const ANIMAL_INGREDIENTS_COSMETICS_PT = `Derivados animais comuns em cosméticos: lanolina (lã), cera de abelha/beeswax, mel, carmim/cochonilha/E120 (inseto), colágeno, queratina, seda/sericina (inseto), glicerina animal, ácido esteárico animal, caseína (leite), elastina, esqualeno de tubarão, retinol animal, placenta animal.`;
+
+const ANIMAL_INGREDIENTS_COSMETICS_EN = `Common animal ingredients in cosmetics: lanolin (wool), beeswax, honey, carmine/cochineal/E120 (insect), collagen, keratin, silk/sericin (insect), animal glycerin, animal stearic acid, casein (milk), elastin, shark squalene, animal retinol, animal placenta.`;
+
+const ANIMAL_MATERIALS_CLOTHING_PT = `Materiais animais em roupas/acessórios: couro/leather (pele bovina), lã/wool (ovelha), seda/silk (bicho-da-seda), plumas/penas/down (aves), pele/fur (animal), caxemira/cashmere (cabra), angora (coelho), alpaca, camelo, lambswool (ovelha jovem).`;
+
+const ANIMAL_MATERIALS_CLOTHING_EN = `Animal materials in clothing/accessories: leather (bovine skin), wool (sheep), silk (silkworm), down/feathers (birds), fur (animal), cashmere (goat), angora (rabbit), alpaca, camel, lambswool (young sheep).`;
+
+function buildEvaluationPrompt(ingredientsText, product, profile, language, source, productType = 'processed_food') {
   const { diet, allergies } = profileDescription(profile, language);
-  const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || 'produto desconhecido';
+  const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || (language === 'pt' ? 'produto desconhecido' : 'unknown product');
+
+  const isCosmetic = ['cosmetic', 'cleaning', 'supplement'].includes(productType);
+  const isClothing = productType === 'clothing';
 
   if (language === 'pt') {
-    return `Você é um assistente de segurança alimentar especializado. O usuário tem o seguinte perfil dietético:
-- Dieta: ${diet}
-- Alergias: ${allergies}
+    let context = '';
+    if (isCosmetic) context = `\nEste é um produto não-alimentar (${productType}). Verifique derivados animais na composição.\n${ANIMAL_INGREDIENTS_COSMETICS_PT}`;
+    if (isClothing) context = `\nEste é um produto de vestuário/acessório. Verifique materiais de origem animal.\n${ANIMAL_MATERIALS_CLOTHING_PT}`;
 
+    return `Você é um especialista em análise de produtos para diferentes estilos de vida e dietas. O usuário tem o seguinte perfil:
+- Dieta/Estilo de vida: ${diet}
+- Alergias: ${allergies}
+${context}
 Produto: ${productName}
-Origem dos ingredientes: ${source}
-Ingredientes:
+Origem: ${source}
+Composição/Ingredientes:
 ${ingredientsText}
 
-Analise os ingredientes e verifique se o produto é seguro para este perfil.
+Analise e verifique se o produto é adequado para este perfil.
+
+Regras importantes:
+- Para dieta "vegan": qualquer ingrediente ou material de origem animal = NOT_SAFE
+- Para dieta "vegetarian": carne, peixe, frutos do mar = NOT_SAFE; laticínios e ovos = SAFE
+- Para dieta "glutenFree": trigo, centeio, cevada, aveia contaminada = NOT_SAFE
+- Para alergias: o ingrediente alérgeno específico = NOT_SAFE
+- Se houver ingrediente ambíguo (pode ser animal ou vegetal), use CAUTION
 
 Responda APENAS com JSON válido neste formato exato:
 {
   "status": "SAFE" ou "CAUTION" ou "NOT_SAFE",
   "title": "título curto em português (máximo 10 palavras)",
   "explanation": "explicação detalhada em português (2-4 frases)",
-  "concerns": ["ingrediente1", "ingrediente2"],
+  "concerns": ["ingrediente ou material problemático"],
   "cannot_read": false,
   "product_name": "${productName}",
   "ingredients_source": "${source}"
-}
-
-Seja conservador: na dúvida, use CAUTION em vez de SAFE.`;
+}`;
   }
 
-  return `You are a specialized food safety assistant. The user has this dietary profile:
-- Diet: ${diet}
-- Allergies: ${allergies}
+  let context = '';
+  if (isCosmetic) context = `\nThis is a non-food product (${productType}). Check for animal-derived ingredients.\n${ANIMAL_INGREDIENTS_COSMETICS_EN}`;
+  if (isClothing) context = `\nThis is a clothing/accessory product. Check for animal-derived materials.\n${ANIMAL_MATERIALS_CLOTHING_EN}`;
 
+  return `You are an expert in product analysis for different lifestyles and diets. The user has this profile:
+- Diet/Lifestyle: ${diet}
+- Allergies: ${allergies}
+${context}
 Product: ${productName}
-Ingredient source: ${source}
-Ingredients:
+Source: ${source}
+Composition/Ingredients:
 ${ingredientsText}
 
-Analyze the ingredients and verify if the product is safe for this profile.
+Analyze and verify if the product is suitable for this profile.
+
+Important rules:
+- For "vegan" diet: any animal-derived ingredient or material = NOT_SAFE
+- For "vegetarian" diet: meat, fish, seafood = NOT_SAFE; dairy and eggs = SAFE
+- For "glutenFree" diet: wheat, rye, barley, contaminated oats = NOT_SAFE
+- For allergies: the specific allergen ingredient = NOT_SAFE
+- If an ingredient is ambiguous (could be animal or plant), use CAUTION
 
 Respond ONLY with valid JSON in this exact format:
 {
   "status": "SAFE" or "CAUTION" or "NOT_SAFE",
   "title": "short title in English (max 10 words)",
   "explanation": "detailed explanation in English (2-4 sentences)",
-  "concerns": ["ingredient1", "ingredient2"],
+  "concerns": ["problematic ingredient or material"],
   "cannot_read": false,
   "product_name": "${productName}",
   "ingredients_source": "${source}"
-}
-
-Be conservative: when in doubt, use CAUTION instead of SAFE.`;
+}`;
 }
 
 function stripDataUri(base64) {
@@ -181,11 +232,11 @@ export async function inspectProductImage(imageBase64, language, mediaType = 'im
   return extractJson(text);
 }
 
-export async function evaluateProductIngredients(ingredientsText, product, profile, language, source) {
+export async function evaluateProductIngredients(ingredientsText, product, profile, language, source, productType = 'processed_food') {
   const text = await callClaude([
     {
       type: 'text',
-      text: buildEvaluationPrompt(ingredientsText, product, profile, language, source),
+      text: buildEvaluationPrompt(ingredientsText, product, profile, language, source, productType),
     },
   ]);
 
@@ -196,28 +247,63 @@ function buildKnowledgePrompt(product, profile, language) {
   const { diet, allergies } = profileDescription(profile, language);
   const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || null;
   const barcode = product?.barcode || null;
+  const productType = product?.product_type || 'processed_food';
 
   if (language === 'pt') {
-    return `Você é um especialista em segurança alimentar com amplo conhecimento de produtos do mercado.
+    if (productType === 'fresh_produce') {
+      return `Você é um especialista em nutrição e estilos de vida.
 
-O usuário tem o seguinte perfil dietético:
-- Dieta: ${diet}
+O usuário tem o seguinte perfil:
+- Dieta/Estilo de vida: ${diet}
 - Alergias: ${allergies}
 
-Produto identificado na foto: ${productName || 'desconhecido'}${barcode ? ` (código de barras: ${barcode})` : ''}
+Foi fotografado um alimento in natura: ${productName || 'fruta ou vegetal não identificado'}
 
-Não foi possível obter a lista de ingredientes deste produto. Use seu conhecimento sobre este produto (composição típica, categoria, marca) para:
-1. Determinar se provavelmente é adequado para o perfil dietético
-2. Listar ingredientes típicos que podem ser problemáticos
+Alimentos in natura (frutas, vegetais, cogumelos, ervas) são inerentemente de origem vegetal.
+- Para dietas vegana, vegetariana, pescatariana e onívora: SEMPRE são SAFE por definição
+- Verifique apenas se há alergia específica declarada a este alimento
+- Observação: algumas frutas comerciais têm cobertura de cera (carnaúba = vegana; shellac/E904 = não-vegana), mas isso raramente é relevante
 
-IMPORTANTE: Seja conservador. Se não tiver certeza sobre o produto, use CAUTION.
+Responda APENAS com JSON válido:
+{
+  "status": "SAFE" ou "NOT_SAFE" (se houver alergia específica),
+  "title": "título curto em português (máximo 10 palavras)",
+  "explanation": "explicação em português (1-2 frases)",
+  "concerns": [],
+  "cannot_read": false,
+  "knowledge_based": true,
+  "product_name": "${productName || 'alimento in natura'}",
+  "ingredients_source": "knowledge"
+}`;
+    }
 
-Responda APENAS com JSON válido neste formato:
+    const typeContext = productType === 'cosmetic' || productType === 'cleaning'
+      ? `\nEste é um produto não-alimentar (${productType}).\n${ANIMAL_INGREDIENTS_COSMETICS_PT}`
+      : productType === 'clothing'
+        ? `\nEste é um produto de vestuário/acessório.\n${ANIMAL_MATERIALS_CLOTHING_PT}`
+        : '';
+
+    return `Você é um especialista com amplo conhecimento de produtos do mercado.
+
+O usuário tem o seguinte perfil:
+- Dieta/Estilo de vida: ${diet}
+- Alergias: ${allergies}
+${typeContext}
+Produto identificado na foto: ${productName || 'desconhecido'}${barcode ? ` (código: ${barcode})` : ''}
+
+A composição/ingredientes não estavam visíveis. Use seu conhecimento sobre este produto para determinar se é adequado para este perfil.
+
+Regras:
+- Para "vegan": qualquer derivado animal = NOT_SAFE
+- Para "vegetarian": carne/peixe = NOT_SAFE
+- Se incerto sobre a composição do produto, use CAUTION
+
+Responda APENAS com JSON válido:
 {
   "status": "SAFE" ou "CAUTION" ou "NOT_SAFE",
   "title": "título curto em português (máximo 10 palavras)",
-  "explanation": "explicação em português mencionando que a análise é baseada no conhecimento geral do produto (2-4 frases)",
-  "concerns": ["ingrediente ou aspecto preocupante"],
+  "explanation": "explicação em português (2-3 frases)",
+  "concerns": ["ingrediente ou material preocupante"],
   "cannot_read": false,
   "knowledge_based": true,
   "product_name": "${productName || 'desconhecido'}",
@@ -225,26 +311,59 @@ Responda APENAS com JSON válido neste formato:
 }`;
   }
 
-  return `You are a food safety expert with broad knowledge of market products.
+  if (productType === 'fresh_produce') {
+    return `You are a nutrition and lifestyle expert.
 
-User dietary profile:
-- Diet: ${diet}
+User profile:
+- Diet/Lifestyle: ${diet}
 - Allergies: ${allergies}
 
+A fresh, unprocessed food was photographed: ${productName || 'unidentified fruit or vegetable'}
+
+Fresh produce (fruits, vegetables, mushrooms, herbs) are inherently plant-based.
+- For vegan, vegetarian, pescatarian, and omnivore diets: always SAFE by definition
+- Only check if there is a specific declared allergy to this food
+
+Respond ONLY with valid JSON:
+{
+  "status": "SAFE" or "NOT_SAFE" (only if specific allergy applies),
+  "title": "short title in English (max 10 words)",
+  "explanation": "explanation in English (1-2 sentences)",
+  "concerns": [],
+  "cannot_read": false,
+  "knowledge_based": true,
+  "product_name": "${productName || 'fresh produce'}",
+  "ingredients_source": "knowledge"
+}`;
+  }
+
+  const typeContext = productType === 'cosmetic' || productType === 'cleaning'
+    ? `\nThis is a non-food product (${productType}).\n${ANIMAL_INGREDIENTS_COSMETICS_EN}`
+    : productType === 'clothing'
+      ? `\nThis is a clothing/accessory product.\n${ANIMAL_MATERIALS_CLOTHING_EN}`
+      : '';
+
+  return `You are an expert with broad knowledge of market products.
+
+User profile:
+- Diet/Lifestyle: ${diet}
+- Allergies: ${allergies}
+${typeContext}
 Product identified in the photo: ${productName || 'unknown'}${barcode ? ` (barcode: ${barcode})` : ''}
 
-The ingredient list for this product was not available. Use your knowledge about this product (typical composition, category, brand) to:
-1. Determine if it is likely suitable for the dietary profile
-2. List typical ingredients that may be problematic
+The composition/ingredients were not visible. Use your knowledge about this product to determine if it is suitable for this profile.
 
-IMPORTANT: Be conservative. If unsure about the product, use CAUTION.
+Rules:
+- For "vegan": any animal-derived ingredient or material = NOT_SAFE
+- For "vegetarian": meat/fish = NOT_SAFE
+- If unsure about product composition, use CAUTION
 
-Respond ONLY with valid JSON in this format:
+Respond ONLY with valid JSON:
 {
   "status": "SAFE" or "CAUTION" or "NOT_SAFE",
   "title": "short title in English (max 10 words)",
-  "explanation": "explanation in English mentioning the analysis is based on general product knowledge (2-4 sentences)",
-  "concerns": ["concerning ingredient or aspect"],
+  "explanation": "explanation in English (2-3 sentences)",
+  "concerns": ["concerning ingredient or material"],
   "cannot_read": false,
   "knowledge_based": true,
   "product_name": "${productName || 'unknown'}",
