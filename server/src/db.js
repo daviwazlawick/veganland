@@ -1,6 +1,12 @@
 import './env.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_DATA_DIR = path.join(__dirname, '..', '.data');
+const LOCAL_USERS_PATH = path.join(LOCAL_DATA_DIR, 'users.json');
 
 // Lazy-load pg only when DATABASE_URL is provided
 let pool = null;
@@ -153,31 +159,82 @@ export async function saveScanEvent({ productId, userId, profile, language, stat
   );
 }
 
+async function readLocalUsers() {
+  try {
+    const raw = await fs.readFile(LOCAL_USERS_PATH, 'utf8');
+    const data = JSON.parse(raw);
+    return Array.isArray(data.users) ? data.users : [];
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function writeLocalUsers(users) {
+  await fs.mkdir(LOCAL_DATA_DIR, { recursive: true });
+  await fs.writeFile(
+    LOCAL_USERS_PATH,
+    JSON.stringify({ users }, null, 2),
+    'utf8'
+  );
+}
+
+function publicUser(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    created_at: user.created_at,
+  };
+}
+
 export async function createUser(email, passwordHash) {
   const db = await getPool();
-  if (!db) throw new Error('Database not available');
+  const normalizedEmail = email.toLowerCase().trim();
+  if (!db) {
+    const users = await readLocalUsers();
+    if (users.some(user => user.email === normalizedEmail)) {
+      throw new Error('Email already registered');
+    }
+    const user = {
+      id: users.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1,
+      email: normalizedEmail,
+      password_hash: passwordHash,
+      created_at: new Date().toISOString(),
+    };
+    users.push(user);
+    await writeLocalUsers(users);
+    return publicUser(user);
+  }
 
   const result = await db.query(
     `insert into users (email, password_hash) values ($1, $2) returning id, email, created_at`,
-    [email.toLowerCase().trim(), passwordHash]
+    [normalizedEmail, passwordHash]
   );
   return result.rows[0];
 }
 
 export async function findUserByEmail(email) {
   const db = await getPool();
-  if (!db) return null;
+  const normalizedEmail = email.toLowerCase().trim();
+  if (!db) {
+    const users = await readLocalUsers();
+    return users.find(user => user.email === normalizedEmail) || null;
+  }
 
   const result = await db.query(
     `select id, email, password_hash, created_at from users where email = $1`,
-    [email.toLowerCase().trim()]
+    [normalizedEmail]
   );
   return result.rows[0] || null;
 }
 
 export async function getUserById(id) {
   const db = await getPool();
-  if (!db) return null;
+  if (!db) {
+    const users = await readLocalUsers();
+    return publicUser(users.find(user => Number(user.id) === Number(id)));
+  }
 
   const result = await db.query(
     `select id, email, created_at from users where id = $1`,
