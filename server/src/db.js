@@ -142,13 +142,63 @@ export async function saveAnalysis(productId, profile, language, analysis) {
   );
 }
 
-export async function saveScanEvent({ productId, profile, language, status, source }) {
+export async function saveScanEvent({ productId, userId, profile, language, status, source, title }) {
   const db = await getPool();
   if (!db) return;
 
   await db.query(
-    `insert into scan_events (product_id, profile_key, language, status, source)
-     values ($1, $2, $3, $4, $5)`,
-    [productId || null, getProfileKey(profile, language), language, status || null, source || null]
+    `insert into scan_events (product_id, user_id, profile_key, language, status, source, title)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [productId || null, userId || null, getProfileKey(profile, language), language, status || null, source || null, title || null]
   );
+}
+
+export async function createUser(email, passwordHash) {
+  const db = await getPool();
+  if (!db) throw new Error('Database not available');
+
+  const result = await db.query(
+    `insert into users (email, password_hash) values ($1, $2) returning id, email, created_at`,
+    [email.toLowerCase().trim(), passwordHash]
+  );
+  return result.rows[0];
+}
+
+export async function findUserByEmail(email) {
+  const db = await getPool();
+  if (!db) return null;
+
+  const result = await db.query(
+    `select id, email, password_hash, created_at from users where email = $1`,
+    [email.toLowerCase().trim()]
+  );
+  return result.rows[0] || null;
+}
+
+export async function getUserById(id) {
+  const db = await getPool();
+  if (!db) return null;
+
+  const result = await db.query(
+    `select id, email, created_at from users where id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+export async function getUserHistory(userId, limit = 50) {
+  const db = await getPool();
+  if (!db) return [];
+
+  const result = await db.query(
+    `select se.id, se.status, se.title, se.language, se.source, se.created_at,
+            p.product_name, p.brand
+       from scan_events se
+       left join products p on p.id = se.product_id
+      where se.user_id = $1
+      order by se.created_at desc
+      limit $2`,
+    [userId, limit]
+  );
+  return result.rows;
 }

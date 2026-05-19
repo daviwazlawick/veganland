@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "server:install": "npm install --prefix server",
     "server:start": "npm start --prefix server",
+    "server:local": "DATABASE_URL= node server/src/server.js",
     "server:migrate": "npm run db:migrate --prefix server",
     "db:up": "docker compose -f server/docker-compose.yml up -d postgres",
     "db:down": "docker compose -f server/docker-compose.yml down",

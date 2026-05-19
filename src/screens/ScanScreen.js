@@ -1,18 +1,20 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
 
 export default function ScanScreen({ navigation }) {
   const { language, profile, addScanToHistory } = useApp();
+  const { token } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
   const [cameraActive, setCameraActive] = useState(true);
@@ -55,18 +57,13 @@ export default function ScanScreen({ navigation }) {
   async function runAnalysis(base64, imageUri) {
     setAnalyzing(true);
     try {
-      const result = await analyzeProductWithApi(base64, profile, language);
-
-      const scan = {
-        ...result,
-        date: new Date().toISOString(),
-        imageUri,
-      };
+      const result = await analyzeProductWithApi(base64, profile, language, token);
+      const scan = { ...result, date: new Date().toISOString(), imageUri };
       await addScanToHistory(scan);
       setCameraActive(false);
       navigation.replace('Result', { result: scan });
     } catch (e) {
-      const msg = e.message?.includes('network') || e.message?.includes('fetch')
+      const msg = e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')
         ? t(language, 'errors.network_error')
         : t(language, 'errors.analysis_failed');
       Alert.alert('', msg);
@@ -80,9 +77,11 @@ export default function ScanScreen({ navigation }) {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.permissionIcon}>📷</Text>
+        <View style={styles.permissionIconWrap}>
+          <Text style={styles.permissionIcon}>📷</Text>
+        </View>
         <Text style={styles.permissionText}>{t(language, 'scan.camera_permission')}</Text>
-        <TouchableOpacity style={styles.allowButton} onPress={requestPermission}>
+        <TouchableOpacity style={styles.allowButton} onPress={requestPermission} activeOpacity={0.9}>
           <Text style={styles.allowButtonText}>{t(language, 'scan.allow')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.galleryOnlyButton} onPress={handleGallery}>
@@ -95,48 +94,50 @@ export default function ScanScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {cameraActive && (
-        <CameraView style={styles.camera} ref={cameraRef} facing="back">
-          <SafeAreaView style={styles.overlay}>
-            <View style={styles.topBar}>
-              <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={analyzing}>
-                <Text style={styles.closeBtnText}>✕</Text>
-              </TouchableOpacity>
-              <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
-              <View style={{ width: 44 }} />
+        <CameraView style={StyleSheet.absoluteFill} ref={cameraRef} facing="back" />
+      )}
+
+      {cameraActive && (
+        <SafeAreaView style={styles.overlay} pointerEvents="box-none">
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={analyzing}>
+              <Text style={styles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
+            <View style={{ width: 44 }} />
+          </View>
+
+          <View style={styles.frameContainer} pointerEvents="none">
+            <View style={styles.frame}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
             </View>
+            <Text style={styles.frameHint}>{t(language, 'scan.instruction')}</Text>
+          </View>
 
-            <View style={styles.frameContainer}>
-              <View style={styles.frame}>
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
-              </View>
-              <Text style={styles.frameHint}>{t(language, 'scan.instruction')}</Text>
-            </View>
+          <View style={styles.bottomBar}>
+            <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
+              <Text style={styles.galleryBtnIcon}>🖼️</Text>
+              <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
+            </TouchableOpacity>
 
-            <View style={styles.bottomBar}>
-              <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
-                <Text style={styles.galleryBtnIcon}>🖼️</Text>
-                <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.captureBtn, analyzing && styles.captureBtnDisabled]}
+              onPress={handleCapture}
+              disabled={analyzing}
+            >
+              {analyzing ? (
+                <ActivityIndicator color={Colors.primary} size="large" />
+              ) : (
+                <View style={styles.captureBtnInner} />
+              )}
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.captureBtn, analyzing && styles.captureBtnDisabled]}
-                onPress={handleCapture}
-                disabled={analyzing}
-              >
-                {analyzing ? (
-                  <ActivityIndicator color={Colors.primary} size="large" />
-                ) : (
-                  <View style={styles.captureBtnInner} />
-                )}
-              </TouchableOpacity>
-
-              <View style={{ width: 72 }} />
-            </View>
-          </SafeAreaView>
-        </CameraView>
+            <View style={{ width: 72 }} />
+          </View>
+        </SafeAreaView>
       )}
 
       {analyzing && (
@@ -153,13 +154,12 @@ export default function ScanScreen({ navigation }) {
   );
 }
 
-const CORNER_SIZE = 24;
-const CORNER_THICKNESS = 3;
+const CORNER_SIZE = 26;
+const CORNER_THICKNESS = 4;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1 },
-  overlay: { flex: 1 },
+  overlay: { ...StyleSheet.absoluteFillObject, flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -171,32 +171,31 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  scanTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  scanTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
   frameContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  frame: {
-    width: 280,
-    height: 280,
-    position: 'relative',
-  },
+  frame: { width: 280, height: 280, position: 'relative' },
   corner: {
     position: 'absolute',
     width: CORNER_SIZE,
     height: CORNER_SIZE,
-    borderColor: '#fff',
+    borderColor: Colors.primary,
   },
   topLeft: { top: 0, left: 0, borderTopWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
   topRight: { top: 0, right: 0, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
   bottomLeft: { bottom: 0, left: 0, borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
   bottomRight: { bottom: 0, right: 0, borderBottomWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
   frameHint: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
     marginTop: 20,
     fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
     paddingHorizontal: 40,
   },
@@ -210,7 +209,7 @@ const styles = StyleSheet.create({
   },
   galleryBtn: { alignItems: 'center', width: 72 },
   galleryBtnIcon: { fontSize: 28 },
-  galleryBtnText: { color: '#fff', fontSize: 12, marginTop: 4 },
+  galleryBtnText: { color: '#fff', fontSize: 12, marginTop: 4, fontWeight: '600' },
   captureBtn: {
     width: 80,
     height: 80,
@@ -219,7 +218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   captureBtnDisabled: { opacity: 0.5 },
   captureBtnInner: {
@@ -227,7 +226,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     backgroundColor: '#fff',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: Colors.primary,
   },
   analyzingOverlay: {
@@ -238,37 +237,51 @@ const styles = StyleSheet.create({
   },
   analyzingCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 28,
+    padding: 36,
     alignItems: 'center',
-    width: '80%',
+    width: '82%',
+    borderBottomWidth: 4,
+    borderBottomColor: Colors.border,
   },
-  analyzingIcon: { fontSize: 48, marginBottom: 12 },
-  analyzingText: { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 6 },
-  analyzingSubtitle: { fontSize: 14, color: Colors.textLight, textAlign: 'center' },
+  analyzingIcon: { fontSize: 52, marginBottom: 14 },
+  analyzingText: { fontSize: 20, fontWeight: '900', color: Colors.text, marginBottom: 6 },
+  analyzingSubtitle: { fontSize: 14, color: Colors.textLight, textAlign: 'center', fontWeight: '500' },
   permissionContainer: {
     flex: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    gap: 20,
   },
-  permissionIcon: { fontSize: 64, marginBottom: 20 },
+  permissionIconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permissionIcon: { fontSize: 44 },
   permissionText: {
     fontSize: 18,
     color: Colors.text,
     textAlign: 'center',
-    marginBottom: 32,
     lineHeight: 26,
+    fontWeight: '600',
   },
   allowButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 40,
-    paddingVertical: 14,
-    marginBottom: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 4,
+    borderBottomColor: Colors.primaryDark,
+    alignItems: 'center',
+    width: '100%',
   },
-  allowButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  allowButtonText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   galleryOnlyButton: { padding: 12 },
-  galleryOnlyText: { color: Colors.primary, fontSize: 15, fontWeight: '600' },
+  galleryOnlyText: { color: Colors.accent, fontSize: 15, fontWeight: '700' },
 });

@@ -1,7 +1,26 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(DATABASE_URL= node server/src/server.js)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(curl -s https://veganland.app/)",
+      "Bash(curl -s https://veganland.app/_expo/static/js/web/index-d992b48e5086677a8e801b0143e75cd4.js)",
+      "Bash(grep -o '.\\\\{0,200\\\\}x-app-api-key.\\\\{0,200\\\\}')",
+      "Bash(curl -s \"https://veganland.app/_expo/static/js/web/index-d992b48e5086677a8e801b0143e75cd4.js\")",
+      "Read(//tmp/**)",
+      "Bash(grep -oE '[A-Za-z0-9]{25,}' /tmp/bundle.js)",
+      "Bash(grep -v '^[0-9a-f]\\\\{32,\\\\}$')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST https://veganland.app/analyze-product -H 'Content-Type: application/json' -H 'x-app-api-key: 79se0AyWPbh963SvguuDFi10JsT0Mr9U' -d '{\"imageBase64\":\"test\",\"profile\":{\"dietId\":\"vegan\",\"allergyIds\":[]}}')",
+      "Bash(node --input-type=module --check)",
+      "Bash(DATABASE_URL= node src/server.js)",
+      "Bash(kill %1)",
+      "Bash(curl -s -X POST http://localhost:3000/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"test@test.com\",\"password\":\"123456\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"x\"}')",
+      "Bash(pkill -f \"node src/server.js\")",
+      "Bash(node *)"
     ]
   }
 }

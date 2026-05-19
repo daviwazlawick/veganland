@@ -30,12 +30,21 @@ create table if not exists product_analyses (
   unique (product_id, profile_key, language)
 );
 
+create table if not exists users (
+  id serial primary key,
+  email text unique not null,
+  password_hash text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists scan_events (
   id uuid primary key default gen_random_uuid(),
   product_id uuid references products(id) on delete set null,
+  user_id integer references users(id) on delete set null,
   profile_key text,
   language text,
   status text,
   source text,
+  title text,
   created_at timestamptz not null default now()
 );

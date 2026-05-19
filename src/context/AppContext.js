@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
+import { apiGetHistory } from '../services/apiService';
 
 const AppContext = createContext(null);
 
@@ -10,6 +12,7 @@ const STORAGE_KEYS = {
 };
 
 export function AppProvider({ children }) {
+  const { token } = useAuth();
   const [language, setLanguageState] = useState('pt');
   const [profile, setProfileState] = useState(null);
   const [scanHistory, setScanHistoryState] = useState([]);
@@ -18,6 +21,10 @@ export function AppProvider({ children }) {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    if (token) loadServerHistory();
+  }, [token]);
 
   async function loadAll() {
     try {
@@ -36,6 +43,21 @@ export function AppProvider({ children }) {
     }
   }
 
+  async function loadServerHistory() {
+    try {
+      const items = await apiGetHistory(token);
+      const normalized = items.map(item => ({
+        status: item.status,
+        title: item.title || item.product_name || '—',
+        date: item.created_at,
+        ingredients_source: item.source,
+      }));
+      setScanHistoryState(normalized);
+    } catch {
+      // silently keep local history if server fails
+    }
+  }
+
   async function setLanguage(lang) {
     setLanguageState(lang);
     await AsyncStorage.setItem(STORAGE_KEYS.language, lang);
@@ -47,9 +69,17 @@ export function AppProvider({ children }) {
   }
 
   async function addScanToHistory(scan) {
-    const updated = [scan, ...scanHistory].slice(0, 20);
+    const entry = {
+      status: scan.status,
+      title: scan.title,
+      date: scan.date || new Date().toISOString(),
+      ingredients_source: scan.ingredients_source,
+    };
+    const updated = [entry, ...scanHistory].slice(0, 50);
     setScanHistoryState(updated);
-    await AsyncStorage.setItem(STORAGE_KEYS.scan_history, JSON.stringify(updated));
+    if (!token) {
+      await AsyncStorage.setItem(STORAGE_KEYS.scan_history, JSON.stringify(updated));
+    }
   }
 
   return (

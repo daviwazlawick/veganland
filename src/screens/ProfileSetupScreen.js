@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48 - 12) / 2;
 
 export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
@@ -39,60 +39,74 @@ export default function ProfileSetupScreen({ navigation }) {
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
         )}
-        <Text style={styles.stepText}>
-          {t(language, 'profile_setup.step')} {step} {t(language, 'profile_setup.of')} 2
-        </Text>
-        <View style={styles.stepDots}>
-          <View style={[styles.dot, step >= 1 && styles.dotActive]} />
-          <View style={[styles.dot, step >= 2 && styles.dotActive]} />
+        <View style={styles.stepTrack}>
+          <StepPill number={1} label={language === 'pt' ? 'Dieta' : 'Diet'} active={true} />
+          <View style={[styles.connector, step >= 2 && styles.connectorActive]} />
+          <StepPill number={2} label={language === 'pt' ? 'Alergias' : 'Allergies'} active={step >= 2} />
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {step === 1 ? (
           <>
+            <Text style={styles.stepEmoji}>🌿</Text>
             <Text style={styles.sectionTitle}>{t(language, 'profile_setup.diet_title')}</Text>
+            <Text style={styles.sectionSub}>
+              {language === 'pt' ? 'Como você se alimenta?' : 'How do you eat?'}
+            </Text>
             <View style={styles.dietGrid}>
-              {DIETS.map(diet => (
-                <TouchableOpacity
-                  key={diet.id}
-                  style={[styles.dietCard, selectedDiet === diet.id && styles.dietCardSelected]}
-                  onPress={() => setSelectedDiet(diet.id)}
-                >
-                  <Text style={styles.dietIcon}>{diet.icon}</Text>
-                  <Text style={[styles.dietLabel, selectedDiet === diet.id && styles.dietLabelSelected]}>
-                    {diet.label[language]}
-                  </Text>
-                  <Text style={[styles.dietDesc, selectedDiet === diet.id && styles.dietDescSelected]}>
-                    {diet.description[language]}
-                  </Text>
-                  {selectedDiet === diet.id && (
-                    <View style={styles.checkBadge}>
-                      <Text style={styles.checkText}>✓</Text>
+              {DIETS.map(diet => {
+                const sel = selectedDiet === diet.id;
+                return (
+                  <TouchableOpacity
+                    key={diet.id}
+                    style={[styles.dietCard, sel && styles.dietCardSelected]}
+                    onPress={() => setSelectedDiet(diet.id)}
+                    activeOpacity={0.85}
+                  >
+                    {sel && (
+                      <View style={styles.dietCheckCircle}>
+                        <Text style={styles.dietCheckText}>✓</Text>
+                      </View>
+                    )}
+                    <View style={[styles.dietEmojiWrap, sel && styles.dietEmojiWrapSel]}>
+                      <Text style={styles.dietEmoji}>{diet.icon}</Text>
                     </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text style={[styles.dietLabel, sel && styles.dietLabelSel]}>
+                      {diet.label[language]}
+                    </Text>
+                    <Text style={[styles.dietDesc, sel && styles.dietDescSel]} numberOfLines={2}>
+                      {diet.description[language]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </>
         ) : (
           <>
+            <Text style={styles.stepEmoji}>🛡️</Text>
             <Text style={styles.sectionTitle}>{t(language, 'profile_setup.allergy_title')}</Text>
-            <Text style={styles.sectionSubtitle}>{t(language, 'profile_setup.allergy_subtitle')}</Text>
+            <Text style={styles.sectionSub}>{t(language, 'profile_setup.allergy_subtitle')}</Text>
             <View style={styles.allergyGrid}>
               {ALLERGIES.map(allergy => {
-                const selected = selectedAllergies.includes(allergy.id);
+                const sel = selectedAllergies.includes(allergy.id);
                 return (
                   <TouchableOpacity
                     key={allergy.id}
-                    style={[styles.allergyChip, selected && styles.allergyChipSelected]}
+                    style={[styles.allergyCard, sel && styles.allergyCardSelected]}
                     onPress={() => toggleAllergy(allergy.id)}
+                    activeOpacity={0.85}
                   >
-                    <Text style={styles.allergyIcon}>{allergy.icon}</Text>
-                    <Text style={[styles.allergyLabel, selected && styles.allergyLabelSelected]}>
+                    <Text style={styles.allergyEmoji}>{allergy.icon}</Text>
+                    <Text style={[styles.allergyLabel, sel && styles.allergyLabelSel]}>
                       {allergy.label[language]}
                     </Text>
-                    {selected && <Text style={styles.allergyCheck}>✓</Text>}
+                    {sel && (
+                      <View style={styles.allergyCheck}>
+                        <Text style={styles.allergyCheckText}>✓</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -104,14 +118,17 @@ export default function ProfileSetupScreen({ navigation }) {
       <View style={styles.footer}>
         {step === 1 ? (
           <TouchableOpacity
-            style={[styles.button, !selectedDiet && styles.buttonDisabled]}
+            style={[styles.btn, !selectedDiet && styles.btnDisabled]}
             onPress={() => selectedDiet && setStep(2)}
+            activeOpacity={0.9}
           >
-            <Text style={styles.buttonText}>{t(language, 'profile_setup.next')} →</Text>
+            <Text style={styles.btnText}>
+              {t(language, 'profile_setup.next')} →
+            </Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.button} onPress={handleSave}>
-            <Text style={styles.buttonText}>💾 {t(language, 'profile_setup.save')}</Text>
+          <TouchableOpacity style={styles.btn} onPress={handleSave} activeOpacity={0.9}>
+            <Text style={styles.btnText}>💾  {t(language, 'profile_setup.save')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -119,119 +136,152 @@ export default function ProfileSetupScreen({ navigation }) {
   );
 }
 
+function StepPill({ number, label, active }) {
+  return (
+    <View style={[styles.stepPill, active ? styles.stepPillActive : styles.stepPillInactive]}>
+      <View style={[styles.stepNum, active ? styles.stepNumActive : styles.stepNumInactive]}>
+        <Text style={[styles.stepNumText, !active && styles.stepNumTextInactive]}>{number}</Text>
+      </View>
+      <Text style={[styles.stepLabel, !active && styles.stepLabelInactive]}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
-    padding: 20,
-    alignItems: 'center',
-    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     backgroundColor: Colors.card,
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: Colors.border,
+    alignItems: 'center',
   },
   backBtn: {
-    position: 'absolute',
-    left: 20,
-    top: 20,
-    padding: 8,
+    position: 'absolute', left: 16, top: 12,
+    width: 44, height: 44,
+    alignItems: 'center', justifyContent: 'center',
   },
-  backText: { fontSize: 24, color: Colors.primary },
-  stepText: { fontSize: 14, color: Colors.textLight, fontWeight: '600' },
-  stepDots: { flexDirection: 'row', gap: 8 },
-  dot: {
-    width: 32,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.border,
+  backText: { fontSize: 24, color: Colors.accent, fontWeight: '800' },
+  stepTrack: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 24, paddingHorizontal: 14, paddingVertical: 8,
   },
-  dotActive: { backgroundColor: Colors.primary },
-  content: { padding: 20, paddingBottom: 100 },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 8,
+  stepPillActive: { backgroundColor: Colors.accent },
+  stepPillInactive: { backgroundColor: Colors.border },
+  stepNum: {
+    width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: Colors.textLight,
-    marginBottom: 20,
+  stepNumActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
+  stepNumInactive: { backgroundColor: 'rgba(0,0,0,0.1)' },
+  stepNumText: { fontSize: 12, fontWeight: '900', color: Colors.white },
+  stepNumTextInactive: { color: Colors.textMuted },
+  stepLabel: { fontSize: 13, fontWeight: '800', color: Colors.white },
+  stepLabelInactive: { color: Colors.textMuted },
+  connector: { width: 28, height: 3, borderRadius: 2, backgroundColor: Colors.border },
+  connectorActive: { backgroundColor: Colors.accent },
+  content: { padding: 20, paddingBottom: 130, alignItems: 'center' },
+  stepEmoji: { fontSize: 48, marginBottom: 4, marginTop: 8 },
+  sectionTitle: { fontSize: 26, fontWeight: '900', color: Colors.text, textAlign: 'center', marginBottom: 4 },
+  sectionSub: { fontSize: 14, color: Colors.textLight, fontWeight: '500', textAlign: 'center', marginBottom: 24 },
+  dietGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: 12, justifyContent: 'center',
+    width: '100%',
   },
-  dietGrid: { gap: 12 },
   dietCard: {
+    width: CARD_WIDTH,
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
+    borderRadius: 22,
+    padding: 18,
+    alignItems: 'center',
+    borderWidth: 2.5,
     borderColor: Colors.border,
+    gap: 8,
     position: 'relative',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   dietCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: '#F0FAF2',
+    backgroundColor: Colors.primaryBg,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.15,
+    elevation: 4,
   },
-  dietIcon: { fontSize: 32, marginBottom: 8 },
-  dietLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  dietLabelSelected: { color: Colors.primary },
-  dietDesc: { fontSize: 13, color: Colors.textLight },
-  dietDescSelected: { color: Colors.primaryDark },
-  checkBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  dietCheckCircle: {
+    position: 'absolute', top: 10, right: 10,
+    width: 24, height: 24, borderRadius: 12,
     backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  checkText: { color: Colors.white, fontWeight: '700' },
+  dietCheckText: { color: Colors.white, fontSize: 13, fontWeight: '900' },
+  dietEmojiWrap: {
+    width: 64, height: 64, borderRadius: 22,
+    backgroundColor: Colors.background,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.border,
+  },
+  dietEmojiWrapSel: {
+    backgroundColor: Colors.primaryLight + '30',
+    borderColor: Colors.primary + '60',
+  },
+  dietEmoji: { fontSize: 34 },
+  dietLabel: { fontSize: 15, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  dietLabelSel: { color: Colors.primaryDark },
+  dietDesc: { fontSize: 11, color: Colors.textLight, textAlign: 'center', fontWeight: '500', lineHeight: 15 },
+  dietDescSel: { color: Colors.primaryDark },
   allergyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: 10, justifyContent: 'center',
+    width: '100%',
   },
-  allergyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  allergyCard: {
     backgroundColor: Colors.card,
-    borderRadius: 24,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 2,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 2.5,
     borderColor: Colors.border,
+    minWidth: 90,
+    gap: 4,
+    position: 'relative',
   },
-  allergyChipSelected: {
-    borderColor: Colors.danger,
-    backgroundColor: Colors.dangerLight,
+  allergyCardSelected: {
+    borderColor: Colors.accent,
+    backgroundColor: Colors.accentLight,
   },
-  allergyIcon: { fontSize: 18 },
-  allergyLabel: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  allergyLabelSelected: { color: Colors.danger },
-  allergyCheck: { fontSize: 12, color: Colors.danger, fontWeight: '700' },
+  allergyEmoji: { fontSize: 28 },
+  allergyLabel: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  allergyLabelSel: { color: Colors.accentDark },
+  allergyCheck: {
+    position: 'absolute', top: -8, right: -8,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: Colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.card,
+  },
+  allergyCheckText: { color: Colors.white, fontSize: 11, fontWeight: '900' },
   footer: {
-    padding: 20,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: 20, paddingBottom: 32,
     backgroundColor: Colors.card,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopWidth: 2, borderTopColor: Colors.border,
   },
-  button: {
+  btn: {
     backgroundColor: Colors.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: 18, paddingVertical: 18,
     alignItems: 'center',
+    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
   },
-  buttonDisabled: { backgroundColor: Colors.textMuted },
-  buttonText: {
-    color: Colors.white,
-    fontSize: 17,
-    fontWeight: '700',
+  btnDisabled: {
+    backgroundColor: Colors.border,
+    borderBottomColor: Colors.textMuted,
   },
+  btnText: { color: Colors.white, fontSize: 18, fontWeight: '900' },
 });

@@ -1,10 +1,8 @@
 import React from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
@@ -12,6 +10,7 @@ import { ALLERGIES } from '../constants/allergies';
 
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
+  const { user, logout } = useAuth();
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
   const allergies = profile
@@ -26,8 +25,10 @@ export default function ProfileScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{t(language, 'profile.diet')}</Text>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardLabelWrap}>
+              <Text style={styles.cardLabel}>{t(language, 'profile.diet')}</Text>
+            </View>
             <TouchableOpacity
               style={styles.editBtn}
               onPress={() => navigation.navigate('ProfileSetup')}
@@ -35,21 +36,26 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.editBtnText}>{t(language, 'profile.edit')}</Text>
             </TouchableOpacity>
           </View>
+
           {diet ? (
             <View style={styles.dietRow}>
-              <Text style={styles.dietIcon}>{diet.icon}</Text>
+              <View style={styles.dietIconWrap}>
+                <Text style={styles.dietIcon}>{diet.icon}</Text>
+              </View>
               <View>
                 <Text style={styles.dietName}>{diet.label[language]}</Text>
                 <Text style={styles.dietDesc}>{diet.description[language]}</Text>
               </View>
             </View>
           ) : (
-            <Text style={styles.noData}>{language === 'pt' ? 'Nenhum perfil configurado' : 'No profile configured'}</Text>
+            <Text style={styles.noData}>
+              {language === 'pt' ? 'Nenhum perfil configurado' : 'No profile configured'}
+            </Text>
           )}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t(language, 'profile.allergies')}</Text>
+          <Text style={styles.cardLabel}>{t(language, 'profile.allergies')}</Text>
           {allergies.length > 0 ? (
             <View style={styles.allergiesWrap}>
               {allergies.map(a => (
@@ -65,33 +71,69 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t(language, 'profile.language')}</Text>
+          <Text style={styles.cardLabel}>{t(language, 'profile.language')}</Text>
           <View style={styles.langRow}>
             <TouchableOpacity
               style={[styles.langOption, language === 'pt' && styles.langOptionActive]}
               onPress={() => setLanguage('pt')}
+              activeOpacity={0.85}
             >
               <Text style={styles.langFlag}>🇧🇷</Text>
-              <Text style={[styles.langLabel, language === 'pt' && styles.langLabelActive]}>Português</Text>
-              {language === 'pt' && <Text style={styles.langCheck}>✓</Text>}
+              <Text style={[styles.langLabel, language === 'pt' && styles.langLabelActive]}>
+                Português
+              </Text>
+              {language === 'pt' && (
+                <View style={styles.langCheck}>
+                  <Text style={styles.langCheckText}>✓</Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.langOption, language === 'en' && styles.langOptionActive]}
               onPress={() => setLanguage('en')}
+              activeOpacity={0.85}
             >
               <Text style={styles.langFlag}>🇺🇸</Text>
-              <Text style={[styles.langLabel, language === 'en' && styles.langLabelActive]}>English</Text>
-              {language === 'en' && <Text style={styles.langCheck}>✓</Text>}
+              <Text style={[styles.langLabel, language === 'en' && styles.langLabelActive]}>
+                English
+              </Text>
+              {language === 'en' && (
+                <View style={styles.langCheck}>
+                  <Text style={styles.langCheckText}>✓</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
 
+        {user && (
+          <View style={styles.accountCard}>
+            <View style={styles.accountRow}>
+              <View style={styles.accountIconWrap}>
+                <Text style={styles.accountIcon}>👤</Text>
+              </View>
+              <View style={styles.accountInfo}>
+                <Text style={styles.accountLabel}>
+                  {language === 'pt' ? 'Conta' : 'Account'}
+                </Text>
+                <Text style={styles.accountEmail}>{user.email}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.85}>
+              <Text style={styles.logoutText}>
+                {language === 'pt' ? '🚪 Sair da conta' : '🚪 Sign out'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.aboutCard}>
-          <Text style={styles.aboutTitle}>🌱 VeganLand</Text>
+          <Text style={styles.aboutEmoji}>🌱</Text>
+          <Text style={styles.aboutTitle}>VeganLand</Text>
           <Text style={styles.aboutText}>
             {language === 'pt'
-              ? 'Analise produtos alimentícios com IA e saiba se são seguros para seu perfil. Powered by Claude (Anthropic).'
-              : 'Analyze food products with AI and know if they\'re safe for your profile. Powered by Claude (Anthropic).'}
+              ? 'Analise produtos alimentícios com IA e saiba se são seguros para o seu perfil. Powered by Claude (Anthropic).'
+              : "Analyze food products with AI and know if they're safe for your profile. Powered by Claude (Anthropic)."}
           </Text>
         </View>
       </ScrollView>
@@ -105,38 +147,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: Colors.card,
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: Colors.border,
   },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: Colors.primary },
-  content: { padding: 16, paddingBottom: 40, gap: 12 },
+  headerTitle: { fontSize: 28, fontWeight: '900', color: Colors.primary },
+  content: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    gap: 14,
   },
-  cardHeader: {
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 12 },
+  cardLabelWrap: {},
+  cardLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   editBtn: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.accentLight,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  editBtnText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
+  editBtnText: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
   dietRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dietIcon: { fontSize: 32 },
-  dietName: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  dietDesc: { fontSize: 13, color: Colors.textLight },
+  dietIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dietIcon: { fontSize: 28 },
+  dietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  dietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
   noData: { fontSize: 14, color: Colors.textMuted, fontStyle: 'italic' },
   allergiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   allergyBadge: {
@@ -149,7 +204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   allergyIcon: { fontSize: 15 },
-  allergyLabel: { fontSize: 13, color: Colors.danger, fontWeight: '600' },
+  allergyLabel: { fontSize: 13, color: Colors.danger, fontWeight: '700' },
   langRow: { flexDirection: 'row', gap: 10 },
   langOption: {
     flex: 1,
@@ -157,22 +212,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: Colors.background,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     borderWidth: 2,
     borderColor: Colors.border,
   },
-  langOptionActive: { borderColor: Colors.primary, backgroundColor: '#F0FAF2' },
-  langFlag: { fontSize: 20 },
-  langLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.textLight },
-  langLabelActive: { color: Colors.primary },
-  langCheck: { color: Colors.primary, fontWeight: '700' },
-  aboutCard: {
-    backgroundColor: Colors.primaryDark,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
+  langOptionActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
   },
-  aboutTitle: { fontSize: 20, fontWeight: '800', color: Colors.white, marginBottom: 8 },
-  aboutText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 20 },
+  langFlag: { fontSize: 22 },
+  langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.textLight },
+  langLabelActive: { color: Colors.primaryDark },
+  langCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langCheckText: { color: Colors.white, fontSize: 12, fontWeight: '900' },
+  accountCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    gap: 14,
+  },
+  accountRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  accountIconWrap: {
+    width: 50, height: 50, borderRadius: 25,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  accountIcon: { fontSize: 24 },
+  accountInfo: { flex: 1 },
+  accountLabel: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
+  logoutBtn: {
+    backgroundColor: Colors.dangerLight,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.danger + '30',
+  },
+  logoutText: { fontSize: 15, fontWeight: '800', color: Colors.dangerDark },
+  aboutCard: {
+    backgroundColor: Colors.accent,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    gap: 8,
+    borderBottomWidth: 4,
+    borderBottomColor: Colors.accentDark,
+  },
+  aboutEmoji: { fontSize: 36 },
+  aboutTitle: { fontSize: 22, fontWeight: '900', color: Colors.white },
+  aboutText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    lineHeight: 20,
+    fontWeight: '500',
+  },
 });

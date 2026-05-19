@@ -45,7 +45,7 @@ async function resolveProductIngredients(imageInspection) {
   return upsertProduct(productForCurrentImage);
 }
 
-export async function analyzeProduct({ imageBase64, mediaType, profile, language }) {
+export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId }) {
   const lang = language || 'pt';
   const imageInspection = await inspectProductImage(imageBase64, lang, mediaType);
   const product = await resolveProductIngredients(imageInspection);
@@ -73,10 +73,12 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
 
   await saveScanEvent({
     productId: product?.id,
+    userId: userId || null,
     profile,
     language: lang,
     status: result.status,
     source: result.ingredients_source || product?.source,
+    title: result.title || null,
   });
 
   return {
