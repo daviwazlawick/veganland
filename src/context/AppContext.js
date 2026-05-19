@@ -17,6 +17,7 @@ export function AppProvider({ children }) {
   const [profile, setProfileState] = useState(null);
   const [scanHistory, setScanHistoryState] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -24,8 +25,11 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (token) {
+      setIsProfileLoaded(false);
       loadServerHistory();
       loadServerProfile();
+    } else {
+      setIsProfileLoaded(true);
     }
   }, [token]);
 
@@ -36,9 +40,14 @@ export function AppProvider({ children }) {
         const serverProfile = { dietId: user.diet_id, allergyIds: user.allergy_ids || [] };
         setProfileState(serverProfile);
         await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(serverProfile));
+      } else {
+        setProfileState(null);
+        await AsyncStorage.removeItem(STORAGE_KEYS.profile);
       }
     } catch {
       // silently keep local profile if server fails
+    } finally {
+      setIsProfileLoaded(true);
     }
   }
 
@@ -113,6 +122,7 @@ export function AppProvider({ children }) {
         scanHistory,
         addScanToHistory,
         isLoaded,
+        isProfileLoaded,
       }}
     >
       {children}

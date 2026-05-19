@@ -260,7 +260,14 @@ function publicUser(user) {
   return {
     id: user.id,
     email: user.email,
+    name: user.name || null,
+    birth_date: user.birth_date || null,
+    country: user.country || null,
+    city: user.city || null,
+    diet_id: user.diet_id || null,
+    allergy_ids: Array.isArray(user.allergy_ids) ? user.allergy_ids : [],
     created_at: user.created_at,
+    updated_at: user.updated_at || null,
   };
 }
 
@@ -276,7 +283,10 @@ export async function createUser(email, passwordHash) {
       id: users.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1,
       email: normalizedEmail,
       password_hash: passwordHash,
+      diet_id: null,
+      allergy_ids: [],
       created_at: new Date().toISOString(),
+      updated_at: null,
     };
     users.push(user);
     await writeLocalUsers(users);
@@ -321,9 +331,30 @@ export async function getUserById(id) {
 
 export async function updateUserProfile(userId, data) {
   const db = await getPool();
-  if (!db) throw new Error('Database not available');
 
   const allowed = ['name', 'birth_date', 'country', 'city', 'address', 'phone', 'avatar_url', 'diet_id', 'allergy_ids'];
+
+  if (!db) {
+    const users = await readLocalUsers();
+    const user = users.find(item => Number(item.id) === Number(userId));
+    if (!user) return null;
+
+    let changed = false;
+    for (const field of allowed) {
+      if (data[field] !== undefined) {
+        user[field] = field === 'allergy_ids'
+          ? (Array.isArray(data[field]) ? data[field] : [])
+          : data[field];
+        changed = true;
+      }
+    }
+
+    if (!changed) return null;
+    user.updated_at = new Date().toISOString();
+    await writeLocalUsers(users);
+    return publicUser(user);
+  }
+
   const updates = [];
   const values = [];
   let idx = 1;

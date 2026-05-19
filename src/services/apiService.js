@@ -35,7 +35,7 @@ export async function analyzeProductWithApi(imageBase64, profile, language, toke
 
 export async function apiGetMe(token) {
   const response = await fetch(`${baseUrl()}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: appHeaders(token),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Failed');

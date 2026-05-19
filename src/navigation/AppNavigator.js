@@ -82,9 +82,9 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const { token, isLoaded: authLoaded } = useAuth();
-  const { isLoaded: appLoaded, profile } = useApp();
+  const { isLoaded: appLoaded, isProfileLoaded, profile } = useApp();
 
-  if (!authLoaded || !appLoaded) {
+  if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary }}>
         <ActivityIndicator color={Colors.white} size="large" />
