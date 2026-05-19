@@ -510,6 +510,41 @@ export async function updateUserPassword(userId, passwordHash) {
   await db.query(`update users set password_hash = $1 where id = $2`, [passwordHash, userId]);
 }
 
+export async function getAdminStats() {
+  const db = await getPool();
+  if (!db) return null;
+
+  const month = new Date().toISOString().slice(0, 7);
+
+  const [usersRes, totalScansRes, monthScansRes, recentRes, userStatsRes] = await Promise.all([
+    db.query(`SELECT COUNT(*) AS total FROM users`),
+    db.query(`SELECT COUNT(*) AS total FROM scan_events`),
+    db.query(`SELECT COALESCE(SUM(count), 0) AS total FROM scan_counters WHERE month = $1`, [month]),
+    db.query(`SELECT COUNT(*) AS total FROM scan_events WHERE created_at > now() - interval '24 hours'`),
+    db.query(`
+      SELECT
+        u.id, u.email, u.diet_id, u.created_at,
+        COUNT(se.id)::int AS total_scans,
+        MAX(se.created_at) AS last_scan,
+        COALESCE(sc.count, 0) AS scans_this_month
+      FROM users u
+      LEFT JOIN scan_events se ON se.user_id = u.id
+      LEFT JOIN scan_counters sc ON sc.user_id = u.id AND sc.month = $1
+      GROUP BY u.id, u.email, u.diet_id, u.created_at, sc.count
+      ORDER BY u.created_at DESC
+      LIMIT 200
+    `, [month]),
+  ]);
+
+  return {
+    total_users: Number(usersRes.rows[0].total),
+    total_scans: Number(totalScansRes.rows[0].total),
+    scans_this_month: Number(monthScansRes.rows[0].total),
+    scans_last_24h: Number(recentRes.rows[0].total),
+    users: userStatsRes.rows,
+  };
+}
+
 export async function getScanUsage(userId) {
   const db = await getPool();
   const limit = 50;

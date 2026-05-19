@@ -1,13 +1,15 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
+import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, getAdminStats, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail } from './email.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 8 * 1024 * 1024);
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'VeganLand2026!';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -86,6 +88,81 @@ function htmlResetForm(token) {
     }catch{msg.style.color='#ff4b4b';msg.textContent='Erro de conexão.';btn.disabled=false;}
   }
   </script></body></html>`;
+}
+
+function htmlAdminPage(stats) {
+  const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
+  const rows = stats.users.map(u => {
+    const diet = dietLabel[u.diet_id] || (u.diet_id || '—');
+    const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
+    const lastScan = u.last_scan ? new Date(u.last_scan).toLocaleDateString('pt-BR') : '—';
+    const monthBar = Math.min(100, Math.round((u.scans_this_month / 50) * 100));
+    return `<tr>
+      <td>${u.email}</td>
+      <td>${diet}</td>
+      <td style="text-align:center;font-weight:700">${u.total_scans}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:6px;background:#eee;border-radius:3px;overflow:hidden">
+            <div style="width:${monthBar}%;height:100%;background:#7CB518;border-radius:3px"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap">${u.scans_this_month}/50</span>
+        </div>
+      </td>
+      <td style="color:#888;font-size:13px">${lastScan}</td>
+      <td style="color:#888;font-size:13px">${joined}</td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html lang="pt"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin — VeganLand</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f0;min-height:100vh;color:#222}
+    header{background:#1C2B22;padding:18px 32px;display:flex;align-items:center;gap:12px}
+    header h1{color:#fff;font-size:20px;font-weight:800}
+    header span{background:#7CB518;color:#fff;font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px}
+    main{max-width:1100px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:28px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+    .card{background:#fff;border-radius:16px;padding:22px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .card .num{font-size:38px;font-weight:900;color:#1C2B22;line-height:1}
+    .card .lbl{font-size:13px;color:#888;font-weight:600;margin-top:6px}
+    .card.green .num{color:#7CB518}
+    .card.amber .num{color:#D4A843}
+    .section{background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .section h2{font-size:16px;font-weight:800;color:#1C2B22;margin-bottom:18px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th{text-align:left;font-size:11px;font-weight:800;color:#aaa;text-transform:uppercase;letter-spacing:.5px;padding:0 10px 12px}
+    td{padding:11px 10px;border-top:1px solid #f0f0f0;vertical-align:middle}
+    tr:hover td{background:#fafff5}
+    .badge{display:inline-block;background:#EEF5E8;color:#2E4736;font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px}
+    footer{text-align:center;color:#aaa;font-size:12px;padding:20px}
+  </style></head>
+  <body>
+  <header>
+    <h1>🌱 VeganLand</h1>
+    <span>ADMIN</span>
+  </header>
+  <main>
+    <div class="cards">
+      <div class="card green"><div class="num">${stats.total_users}</div><div class="lbl">Usuários registrados</div></div>
+      <div class="card"><div class="num">${stats.total_scans}</div><div class="lbl">Scans totais</div></div>
+      <div class="card amber"><div class="num">${stats.scans_this_month}</div><div class="lbl">Scans este mês</div></div>
+      <div class="card"><div class="num">${stats.scans_last_24h}</div><div class="lbl">Scans últimas 24h</div></div>
+    </div>
+    <div class="section">
+      <h2>Usuários</h2>
+      <table>
+        <thead><tr>
+          <th>Email</th><th>Dieta</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Nenhum usuário ainda</td></tr>'}</tbody>
+      </table>
+    </div>
+  </main>
+  <footer>Atualizado em ${new Date().toLocaleString('pt-BR')} &mdash; VeganLand Admin</footer>
+  </body></html>`;
 }
 
 function isAuthorized(req) {
@@ -362,6 +439,28 @@ const server = http.createServer(async (req, res) => {
       });
 
       sendJson(res, 200, result);
+      return;
+    }
+
+    // GET /admin
+    if (req.method === 'GET' && (req.url === '/admin' || req.url === '/admin/')) {
+      const authHeader = req.headers['authorization'] || '';
+      const b64 = authHeader.startsWith('Basic ') ? authHeader.slice(6) : '';
+      const [user, ...rest] = Buffer.from(b64, 'base64').toString().split(':');
+      const pass = rest.join(':');
+      if (user !== ADMIN_USER || pass !== ADMIN_PASSWORD) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="VeganLand Admin"', 'Content-Type': 'text/plain' });
+        res.end('Unauthorized');
+        return;
+      }
+      const stats = await getAdminStats();
+      if (!stats) {
+        res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Admin', '<p>Base de dados não configurada.</p>', '#FF4B4B'));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAdminPage(stats));
       return;
     }
 
