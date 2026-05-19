@@ -6,36 +6,38 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
-  const { language } = useApp();
+  const { language, setLanguage } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const pt = language === 'pt';
+  const languageIndex = LANGUAGES.findIndex(item => item.code === language);
+  const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
+  const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
 
   async function handleRegister() {
     if (!email.trim() || !password) {
-      Alert.alert('', pt ? 'Preencha todos os campos' : 'Fill in all fields');
+      Alert.alert('', t(language, 'auth.fill_all'));
       return;
     }
     if (password.length < 6) {
-      Alert.alert('', pt ? 'Senha precisa ter pelo menos 6 caracteres' : 'Password must be at least 6 characters');
+      Alert.alert('', t(language, 'auth.password_min'));
       return;
     }
     if (password !== confirm) {
-      Alert.alert('', pt ? 'As senhas não coincidem' : 'Passwords do not match');
+      Alert.alert('', t(language, 'auth.passwords_mismatch'));
       return;
     }
     setLoading(true);
     try {
       await register(email.trim(), password);
     } catch (e) {
-      Alert.alert('', e.message || (pt ? 'Erro ao criar conta' : 'Registration failed'));
+      Alert.alert('', e.message || t(language, 'auth.register_failed'));
     } finally {
       setLoading(false);
     }
@@ -52,15 +54,19 @@ export default function RegisterScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
+            <Text style={styles.langText}>{currentLanguage.flag} {currentLanguage.code.toUpperCase()}</Text>
+          </TouchableOpacity>
+
           <View style={styles.hero}>
             <View style={styles.logoCircle}>
               <Text style={styles.logoEmoji}>🐾</Text>
             </View>
             <Text style={styles.title}>
-              {pt ? 'Criar sua conta' : 'Create your account'}
+              {t(language, 'auth.register_title')}
             </Text>
             <Text style={styles.subtitle}>
-              {pt ? 'Seu histórico salvo em qualquer dispositivo' : 'Your history synced across devices'}
+              {t(language, 'auth.register_subtitle')}
             </Text>
           </View>
 
@@ -71,7 +77,7 @@ export default function RegisterScreen({ navigation }) {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder={pt ? 'seu@email.com' : 'your@email.com'}
+                placeholder={t(language, 'auth.email_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -80,24 +86,24 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>{pt ? 'Senha' : 'Password'}</Text>
+              <Text style={styles.fieldLabel}>{t(language, 'auth.password')}</Text>
               <TextInput
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder={pt ? 'Mínimo 6 caracteres' : 'At least 6 characters'}
+                placeholder={t(language, 'auth.min_password_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry
               />
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>{pt ? 'Confirmar senha' : 'Confirm password'}</Text>
+              <Text style={styles.fieldLabel}>{t(language, 'auth.confirm_password')}</Text>
               <TextInput
                 style={styles.input}
                 value={confirm}
                 onChangeText={setConfirm}
-                placeholder={pt ? 'Repita a senha' : 'Repeat password'}
+                placeholder={t(language, 'auth.confirm_password_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry
               />
@@ -110,18 +116,18 @@ export default function RegisterScreen({ navigation }) {
               disabled={loading}
             >
               <Text style={styles.btnText}>
-                {loading ? '⏳' : '🐾'} {pt ? 'Criar conta' : 'Create account'}
+                {loading ? '⏳' : '🐾'} {t(language, 'auth.create_account')}
               </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              {pt ? 'Já tem conta? ' : 'Already have an account? '}
+              {t(language, 'auth.already_have_account')}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
               <Text style={styles.footerLink}>
-                {pt ? 'Entrar' : 'Sign in'}
+                {t(language, 'auth.sign_in')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -134,6 +140,16 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flexGrow: 1, padding: 24, gap: 24, justifyContent: 'center' },
+  langBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
   hero: { alignItems: 'center', gap: 8, paddingVertical: 8 },
   logoCircle: {
     width: 80, height: 80, borderRadius: 40,

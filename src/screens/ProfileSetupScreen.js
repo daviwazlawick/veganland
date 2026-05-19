@@ -24,7 +24,7 @@ export default function ProfileSetupScreen({ navigation }) {
 
   async function handleSave() {
     if (!selectedDiet) {
-      Alert.alert('', language === 'pt' ? 'Selecione uma dieta' : 'Please select a diet');
+      Alert.alert('', t(language, 'profile_setup.select_diet'));
       return;
     }
     await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
@@ -40,9 +40,9 @@ export default function ProfileSetupScreen({ navigation }) {
           </TouchableOpacity>
         )}
         <View style={styles.stepTrack}>
-          <StepPill number={1} label={language === 'pt' ? 'Dieta' : 'Diet'} active={true} />
+          <StepPill number={1} label={t(language, 'profile_setup.diet_step')} active={true} />
           <View style={[styles.connector, step >= 2 && styles.connectorActive]} />
-          <StepPill number={2} label={language === 'pt' ? 'Alergias' : 'Allergies'} active={step >= 2} />
+          <StepPill number={2} label={t(language, 'profile_setup.allergies_step')} active={step >= 2} />
         </View>
       </View>
 
@@ -52,7 +52,7 @@ export default function ProfileSetupScreen({ navigation }) {
             <Text style={styles.stepEmoji}>🌿</Text>
             <Text style={styles.sectionTitle}>{t(language, 'profile_setup.diet_title')}</Text>
             <Text style={styles.sectionSub}>
-              {language === 'pt' ? 'Como você se alimenta?' : 'How do you eat?'}
+              {t(language, 'profile_setup.how_do_you_eat')}
             </Text>
             <View style={styles.dietGrid}>
               {DIETS.map(diet => {
@@ -73,10 +73,10 @@ export default function ProfileSetupScreen({ navigation }) {
                       <Text style={styles.dietEmoji}>{diet.icon}</Text>
                     </View>
                     <Text style={[styles.dietLabel, sel && styles.dietLabelSel]}>
-                      {diet.label[language]}
+                      {diet.label[language] || diet.label.en}
                     </Text>
                     <Text style={[styles.dietDesc, sel && styles.dietDescSel]} numberOfLines={2}>
-                      {diet.description[language]}
+                      {diet.description[language] || diet.description.en}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -100,7 +100,7 @@ export default function ProfileSetupScreen({ navigation }) {
                   >
                     <Text style={styles.allergyEmoji}>{allergy.icon}</Text>
                     <Text style={[styles.allergyLabel, sel && styles.allergyLabelSel]}>
-                      {allergy.label[language]}
+                      {allergy.label[language] || allergy.label.en}
                     </Text>
                     {sel && (
                       <View style={styles.allergyCheck}>

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { apiForgotPassword } from '../services/apiService';
 
@@ -14,11 +15,9 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const pt = language === 'pt';
-
   async function handleSubmit() {
     if (!email.trim()) {
-      Alert.alert('', pt ? 'Digite seu email' : 'Enter your email');
+      Alert.alert('', t(language, 'auth.enter_email'));
       return;
     }
     setLoading(true);
@@ -45,7 +44,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>← {pt ? 'Voltar' : 'Back'}</Text>
+            <Text style={styles.backText}>← {t(language, 'auth.back')}</Text>
           </TouchableOpacity>
 
           <View style={styles.hero}>
@@ -53,12 +52,10 @@ export default function ForgotPasswordScreen({ navigation }) {
               <Text style={styles.logoEmoji}>🔑</Text>
             </View>
             <Text style={styles.title}>
-              {pt ? 'Esqueceu a senha?' : 'Forgot password?'}
+              {t(language, 'auth.forgot_password')}
             </Text>
             <Text style={styles.subtitle}>
-              {pt
-                ? 'Enviaremos um link para você redefinir sua senha.'
-                : 'We\'ll send you a link to reset your password.'}
+              {t(language, 'auth.forgot_password_subtitle')}
             </Text>
           </View>
 
@@ -66,16 +63,14 @@ export default function ForgotPasswordScreen({ navigation }) {
             <View style={styles.card}>
               <Text style={styles.successEmoji}>✉️</Text>
               <Text style={styles.successTitle}>
-                {pt ? 'Email enviado!' : 'Email sent!'}
+                {t(language, 'auth.email_sent')}
               </Text>
               <Text style={styles.successText}>
-                {pt
-                  ? 'Se esse email estiver cadastrado, você receberá as instruções em breve. Verifique também a pasta de spam.'
-                  : 'If this email is registered, you\'ll receive instructions shortly. Check your spam folder too.'}
+                {t(language, 'auth.forgot_password_success')}
               </Text>
               <TouchableOpacity style={styles.btn} onPress={() => navigation.goBack()}>
                 <Text style={styles.btnText}>
-                  🌿 {pt ? 'Voltar ao login' : 'Back to login'}
+                  🌿 {t(language, 'auth.back_to_login')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -87,7 +82,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder={pt ? 'seu@email.com' : 'your@email.com'}
+                  placeholder={t(language, 'auth.email_placeholder')}
                   placeholderTextColor={Colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -103,7 +98,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 disabled={loading}
               >
                 <Text style={styles.btnText}>
-                  {loading ? '⏳' : '🔑'} {pt ? 'Enviar link' : 'Send link'}
+                  {loading ? '⏳' : '🔑'} {t(language, 'auth.send_link')}
                 </Text>
               </TouchableOpacity>
             </View>

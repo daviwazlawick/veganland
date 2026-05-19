@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { t } from '../i18n';
+import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
@@ -29,12 +29,12 @@ export default function HomeScreen({ navigation }) {
         <View>
           <Text style={styles.headerTitle}>VeganLand 🌱</Text>
           <Text style={styles.headerSub}>
-            {language === 'pt' ? 'O que vamos escanear hoje?' : "What are we scanning today?"}
+            {t(language, 'home.header_question')}
           </Text>
         </View>
         <View style={styles.scanCountBadge}>
           <Text style={styles.scanCountNum}>{scanHistory.length}</Text>
-          <Text style={styles.scanCountLabel}>{language === 'pt' ? 'scans' : 'scans'}</Text>
+          <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
         </View>
       </View>
 
@@ -46,8 +46,8 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.dietCircleEmoji}>{diet?.icon || '🌿'}</Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileDietName}>{diet?.label[language] || (language === 'pt' ? 'Configure seu perfil' : 'Set up your profile')}</Text>
-              <Text style={styles.profileDietDesc}>{diet?.description[language] || ''}</Text>
+              <Text style={styles.profileDietName}>{diet?.label[language] || diet?.label.en || t(language, 'home.setup_profile')}</Text>
+              <Text style={styles.profileDietDesc}>{diet?.description[language] || diet?.description.en || ''}</Text>
             </View>
             <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ProfileSetup')}>
               <Text style={styles.editBtnText}>✏️</Text>
@@ -59,7 +59,7 @@ export default function HomeScreen({ navigation }) {
               {allergies.map(a => (
                 <View key={a.id} style={styles.allergyChip}>
                   <Text style={styles.allergyChipIcon}>{a.icon}</Text>
-                  <Text style={styles.allergyChipText}>{a.label[language]}</Text>
+                  <Text style={styles.allergyChipText}>{a.label[language] || a.label.en}</Text>
                 </View>
               ))}
             </View>
@@ -67,7 +67,7 @@ export default function HomeScreen({ navigation }) {
 
           {allergies.length === 0 && diet && (
             <Text style={styles.noAllergies}>
-              {language === 'pt' ? '✅ Sem alergias configuradas' : '✅ No allergies configured'}
+              {t(language, 'home.no_allergies_configured')}
             </Text>
           )}
         </View>
@@ -110,7 +110,7 @@ export default function HomeScreen({ navigation }) {
                     </Text>
                     <Text style={styles.historyTitle} numberOfLines={1}>{scan.title}</Text>
                     <Text style={styles.historyDate}>
-                      📅 {new Date(scan.date).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')}
+                      📅 {new Date(scan.date).toLocaleDateString(localeFor(language))}
                     </Text>
                   </View>
                 </View>
@@ -129,7 +129,7 @@ export default function HomeScreen({ navigation }) {
               ))}
             </View>
             <Text style={styles.emptyTitle}>
-              {language === 'pt' ? 'Nenhuma análise ainda!' : 'No scans yet!'}
+              {t(language, 'home.empty_title')}
             </Text>
             <Text style={styles.emptyText}>{t(language, 'home.no_scans')}</Text>
           </View>

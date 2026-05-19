@@ -8,7 +8,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { t } from '../i18n';
+import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
 
@@ -67,10 +67,9 @@ export default function ScanScreen({ navigation }) {
       if (e.status === 429) {
         const resetDate = e.data?.usage?.resets_at;
         const limit = e.data?.usage?.limit || 50;
-        const reset = resetDate ? new Date(resetDate).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US') : null;
-        msg = language === 'pt'
-          ? `Limite de ${limit} scans mensais atingido.${reset ? `\nRenova em ${reset}.` : ''}`
-          : `Monthly limit of ${limit} scans reached.${reset ? `\nResets on ${reset}.` : ''}`;
+        const reset = resetDate ? new Date(resetDate).toLocaleDateString(localeFor(language)) : null;
+        msg = t(language, 'limits.monthly_reached', { limit });
+        if (reset) msg += `\n${t(language, 'limits.renews_on', { date: reset })}`;
       } else if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
         msg = t(language, 'errors.network_error');
       } else {

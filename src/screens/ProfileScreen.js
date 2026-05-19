@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { t } from '../i18n';
+import { LANGUAGES, localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
@@ -50,13 +50,13 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.dietIcon}>{diet.icon}</Text>
               </View>
               <View>
-                <Text style={styles.dietName}>{diet.label[language]}</Text>
-                <Text style={styles.dietDesc}>{diet.description[language]}</Text>
+                <Text style={styles.dietName}>{diet.label[language] || diet.label.en}</Text>
+                <Text style={styles.dietDesc}>{diet.description[language] || diet.description.en}</Text>
               </View>
             </View>
           ) : (
             <Text style={styles.noData}>
-              {language === 'pt' ? 'Nenhum perfil configurado' : 'No profile configured'}
+              {t(language, 'profile.no_profile')}
             </Text>
           )}
         </View>
@@ -68,7 +68,7 @@ export default function ProfileScreen({ navigation }) {
               {allergies.map(a => (
                 <View key={a.id} style={styles.allergyBadge}>
                   <Text style={styles.allergyIcon}>{a.icon}</Text>
-                  <Text style={styles.allergyLabel}>{a.label[language]}</Text>
+                  <Text style={styles.allergyLabel}>{a.label[language] || a.label.en}</Text>
                 </View>
               ))}
             </View>
@@ -80,36 +80,24 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{t(language, 'profile.language')}</Text>
           <View style={styles.langRow}>
-            <TouchableOpacity
-              style={[styles.langOption, language === 'pt' && styles.langOptionActive]}
-              onPress={() => setLanguage('pt')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.langFlag}>🇧🇷</Text>
-              <Text style={[styles.langLabel, language === 'pt' && styles.langLabelActive]}>
-                Português
-              </Text>
-              {language === 'pt' && (
-                <View style={styles.langCheck}>
-                  <Text style={styles.langCheckText}>✓</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.langOption, language === 'en' && styles.langOptionActive]}
-              onPress={() => setLanguage('en')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.langFlag}>🇺🇸</Text>
-              <Text style={[styles.langLabel, language === 'en' && styles.langLabelActive]}>
-                English
-              </Text>
-              {language === 'en' && (
-                <View style={styles.langCheck}>
-                  <Text style={styles.langCheckText}>✓</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            {LANGUAGES.map(item => (
+              <TouchableOpacity
+                key={item.code}
+                style={[styles.langOption, language === item.code && styles.langOptionActive]}
+                onPress={() => setLanguage(item.code)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.langFlag}>{item.flag}</Text>
+                <Text style={[styles.langLabel, language === item.code && styles.langLabelActive]}>
+                  {item.name}
+                </Text>
+                {language === item.code && (
+                  <View style={styles.langCheck}>
+                    <Text style={styles.langCheckText}>✓</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -121,14 +109,14 @@ export default function ProfileScreen({ navigation }) {
               </View>
               <View style={styles.accountInfo}>
                 <Text style={styles.accountLabel}>
-                  {language === 'pt' ? 'Conta' : 'Account'}
+                  {t(language, 'profile.account')}
                 </Text>
                 <Text style={styles.accountEmail}>{user.email}</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.85}>
               <Text style={styles.logoutText}>
-                {language === 'pt' ? '🚪 Sair da conta' : '🚪 Sign out'}
+                {t(language, 'profile.sign_out')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -138,7 +126,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.usageCard}>
             <View style={styles.usageHeader}>
               <Text style={styles.usageLabel}>
-                {language === 'pt' ? 'Scans este mês' : 'Scans this month'}
+                {t(language, 'profile.scans_this_month')}
               </Text>
               <Text style={styles.usageCount}>
                 {usage.count}
@@ -150,9 +138,9 @@ export default function ProfileScreen({ navigation }) {
             </View>
             {usage.resets_at && (
               <Text style={styles.usageReset}>
-                {language === 'pt'
-                  ? `Renova em ${new Date(usage.resets_at).toLocaleDateString('pt-BR')}`
-                  : `Resets on ${new Date(usage.resets_at).toLocaleDateString('en-US')}`}
+                {t(language, 'profile.renews_on', {
+                  date: new Date(usage.resets_at).toLocaleDateString(localeFor(language)),
+                })}
               </Text>
             )}
           </View>
@@ -162,9 +150,7 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.aboutEmoji}>🌱</Text>
           <Text style={styles.aboutTitle}>VeganLand</Text>
           <Text style={styles.aboutText}>
-            {language === 'pt'
-              ? 'Analise produtos com IA e saiba se são seguros para o seu perfil dietético.'
-              : "Analyze products with AI and know if they're safe for your dietary profile."}
+            {t(language, 'profile.about_text')}
           </Text>
         </View>
       </ScrollView>
@@ -236,9 +222,9 @@ const styles = StyleSheet.create({
   },
   allergyIcon: { fontSize: 15 },
   allergyLabel: { fontSize: 13, color: Colors.danger, fontWeight: '700' },
-  langRow: { flexDirection: 'row', gap: 10 },
+  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   langOption: {
-    flex: 1,
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

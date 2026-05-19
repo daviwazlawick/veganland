@@ -52,6 +52,76 @@ async function resolveProductIngredients(imageInspection) {
 
 const NON_FOOD_TYPES = ['cosmetic', 'clothing', 'cleaning', 'other'];
 
+const ALLERGEN_ALIASES = {
+  tree_nuts: ['tree_nuts', 'nuts'],
+  gluten: ['gluten', 'wheat'],
+};
+
+function resultText(language, key, params = {}) {
+  const messages = {
+    pt: {
+      product: 'Produto',
+      safeTitle: '{{product}} — adequado para seu perfil',
+      safeExplanation: 'Nenhum ingrediente incompatível com seu perfil foi encontrado.',
+      cautionTitle: '{{product}} — ingredientes ambíguos',
+      cautionExplanation: 'Ingredientes com origem incerta: {{concerns}}. Verifique o rótulo.',
+      notSafeTitle: '{{product}} — não recomendado',
+      notSafeExplanation: 'Ingredientes incompatíveis com seu perfil: {{concerns}}.',
+    },
+    en: {
+      product: 'Product',
+      safeTitle: '{{product}} — suitable for your profile',
+      safeExplanation: 'No ingredients incompatible with your profile were found.',
+      cautionTitle: '{{product}} — ambiguous ingredients',
+      cautionExplanation: 'Ingredients with uncertain origin: {{concerns}}. Check the label.',
+      notSafeTitle: '{{product}} — not recommended',
+      notSafeExplanation: 'Ingredients incompatible with your profile: {{concerns}}.',
+    },
+    de: {
+      product: 'Produkt',
+      safeTitle: '{{product}} — passend für dein Profil',
+      safeExplanation: 'Es wurden keine Zutaten gefunden, die mit deinem Profil unvereinbar sind.',
+      cautionTitle: '{{product}} — mehrdeutige Zutaten',
+      cautionExplanation: 'Zutaten mit unklarer Herkunft: {{concerns}}. Prüfe das Etikett.',
+      notSafeTitle: '{{product}} — nicht empfohlen',
+      notSafeExplanation: 'Mit deinem Profil unvereinbare Zutaten: {{concerns}}.',
+    },
+    fr: {
+      product: 'Produit',
+      safeTitle: '{{product}} — adapté à votre profil',
+      safeExplanation: 'Aucun ingrédient incompatible avec votre profil n’a été trouvé.',
+      cautionTitle: '{{product}} — ingrédients ambigus',
+      cautionExplanation: 'Ingrédients d’origine incertaine : {{concerns}}. Vérifiez l’étiquette.',
+      notSafeTitle: '{{product}} — non recommandé',
+      notSafeExplanation: 'Ingrédients incompatibles avec votre profil : {{concerns}}.',
+    },
+    it: {
+      product: 'Prodotto',
+      safeTitle: '{{product}} — adatto al tuo profilo',
+      safeExplanation: 'Non sono stati trovati ingredienti incompatibili con il tuo profilo.',
+      cautionTitle: '{{product}} — ingredienti ambigui',
+      cautionExplanation: 'Ingredienti di origine incerta: {{concerns}}. Controlla l’etichetta.',
+      notSafeTitle: '{{product}} — non consigliato',
+      notSafeExplanation: 'Ingredienti incompatibili con il tuo profilo: {{concerns}}.',
+    },
+    es: {
+      product: 'Producto',
+      safeTitle: '{{product}} — adecuado para tu perfil',
+      safeExplanation: 'No se encontraron ingredientes incompatibles con tu perfil.',
+      cautionTitle: '{{product}} — ingredientes ambiguos',
+      cautionExplanation: 'Ingredientes de origen incierto: {{concerns}}. Revisa la etiqueta.',
+      notSafeTitle: '{{product}} — no recomendado',
+      notSafeExplanation: 'Ingredientes incompatibles con tu perfil: {{concerns}}.',
+    },
+  };
+
+  const text = (messages[language] || messages.en)[key] || messages.en[key] || key;
+  return Object.entries(params).reduce(
+    (acc, [param, replacement]) => acc.replaceAll(`{{${param}}}`, String(replacement)),
+    text
+  );
+}
+
 function applyProfileToAnalysis(analysis, profile, language) {
   const diet = profile?.dietId || 'none';
   const allergyIds = Array.isArray(profile?.allergyIds) ? profile.allergyIds : [];
@@ -78,7 +148,8 @@ function applyProfileToAnalysis(analysis, profile, language) {
   }
 
   for (const allergyId of allergyIds) {
-    const found = analysis.allergens?.[allergyId] || [];
+    const keys = ALLERGEN_ALIASES[allergyId] || [allergyId];
+    const found = keys.flatMap(key => analysis.allergens?.[key] || []);
     if (found.length > 0) {
       status = 'NOT_SAFE';
       concerns.push(...found);
@@ -94,27 +165,21 @@ function applyProfileToAnalysis(analysis, profile, language) {
 
   concerns = [...new Set(concerns)];
 
-  const productName = analysis.product_name || (language === 'pt' ? 'Produto' : 'Product');
+  const productName = analysis.product_name || resultText(language, 'product');
   const summary = analysis.summary ? analysis.summary.trim() : '';
   const concernList = concerns.join(', ');
 
   let title, explanation;
 
   if (status === 'SAFE') {
-    title = language === 'pt' ? `${productName} — adequado para seu perfil` : `${productName} — suitable for your profile`;
-    explanation = language === 'pt'
-      ? `${summary}${summary ? ' ' : ''}Nenhum ingrediente incompatível com seu perfil foi encontrado.`
-      : `${summary}${summary ? ' ' : ''}No ingredients incompatible with your profile were found.`;
+    title = resultText(language, 'safeTitle', { product: productName });
+    explanation = `${summary}${summary ? ' ' : ''}${resultText(language, 'safeExplanation')}`;
   } else if (status === 'CAUTION') {
-    title = language === 'pt' ? `${productName} — ingredientes ambíguos` : `${productName} — ambiguous ingredients`;
-    explanation = language === 'pt'
-      ? `${summary}${summary ? ' ' : ''}Ingredientes com origem incerta: ${concernList}. Verifique o rótulo.`
-      : `${summary}${summary ? ' ' : ''}Ingredients with uncertain origin: ${concernList}. Check the label.`;
+    title = resultText(language, 'cautionTitle', { product: productName });
+    explanation = `${summary}${summary ? ' ' : ''}${resultText(language, 'cautionExplanation', { concerns: concernList })}`;
   } else {
-    title = language === 'pt' ? `${productName} — não recomendado` : `${productName} — not recommended`;
-    explanation = language === 'pt'
-      ? `${summary}${summary ? ' ' : ''}Ingredientes incompatíveis com seu perfil: ${concernList}.`
-      : `${summary}${summary ? ' ' : ''}Ingredients incompatible with your profile: ${concernList}.`;
+    title = resultText(language, 'notSafeTitle', { product: productName });
+    explanation = `${summary}${summary ? ' ' : ''}${resultText(language, 'notSafeExplanation', { concerns: concernList })}`;
   }
 
   return {

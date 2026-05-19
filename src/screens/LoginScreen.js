@@ -6,22 +6,24 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
-  const { language } = useApp();
+  const { language, setLanguage } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  const pt = language === 'pt';
+  const languageIndex = LANGUAGES.findIndex(item => item.code === language);
+  const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
+  const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
 
   async function handleLogin() {
     setErrorMessage('');
     if (!email.trim() || !password) {
-      Alert.alert('', pt ? 'Preencha email e senha' : 'Enter email and password');
+      Alert.alert('', t(language, 'auth.missing_login'));
       return;
     }
     setLoading(true);
@@ -29,8 +31,8 @@ export default function LoginScreen({ navigation }) {
       await login(email.trim(), password);
     } catch (e) {
       const message = e.status === 401
-        ? (pt ? 'Email ou senha incorretos.' : 'Incorrect email or password.')
-        : (e.message || (pt ? 'Erro ao entrar' : 'Login failed'));
+        ? t(language, 'auth.invalid_credentials')
+        : (e.message || t(language, 'auth.login_failed'));
       setErrorMessage(message);
       Alert.alert('', message);
     } finally {
@@ -49,19 +51,23 @@ export default function LoginScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
+            <Text style={styles.langText}>{currentLanguage.flag} {currentLanguage.code.toUpperCase()}</Text>
+          </TouchableOpacity>
+
           <View style={styles.hero}>
             <View style={styles.logoCircle}>
               <Text style={styles.logoEmoji}>🌱</Text>
             </View>
             <Text style={styles.appName}>VeganLand</Text>
             <Text style={styles.tagline}>
-              {pt ? 'Sua vida vegana, mais fácil' : 'Your vegan life, simpler'}
+              {t(language, 'auth.tagline')}
             </Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              {pt ? 'Entrar na sua conta' : 'Sign in to your account'}
+              {t(language, 'auth.login_title')}
             </Text>
 
             <View style={styles.field}>
@@ -73,7 +79,7 @@ export default function LoginScreen({ navigation }) {
                   setEmail(value);
                   if (errorMessage) setErrorMessage('');
                 }}
-                placeholder={pt ? 'seu@email.com' : 'your@email.com'}
+                placeholder={t(language, 'auth.email_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -82,7 +88,7 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>{pt ? 'Senha' : 'Password'}</Text>
+              <Text style={styles.fieldLabel}>{t(language, 'auth.password')}</Text>
               <TextInput
                 style={styles.input}
                 value={password}
@@ -90,7 +96,7 @@ export default function LoginScreen({ navigation }) {
                   setPassword(value);
                   if (errorMessage) setErrorMessage('');
                 }}
-                placeholder={pt ? 'Sua senha' : 'Your password'}
+                placeholder={t(language, 'auth.password_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry
               />
@@ -109,7 +115,7 @@ export default function LoginScreen({ navigation }) {
               disabled={loading}
             >
               <Text style={styles.btnText}>
-                {loading ? '⏳' : '🌿'} {pt ? 'Entrar' : 'Sign in'}
+                {loading ? '⏳' : '🌿'} {t(language, 'auth.sign_in')}
               </Text>
             </TouchableOpacity>
 
@@ -117,11 +123,11 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              {pt ? 'Não tem conta? ' : "Don't have an account? "}
+              {t(language, 'auth.no_account')}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
               <Text style={styles.footerLink}>
-                {pt ? 'Criar conta' : 'Create account'}
+                {t(language, 'auth.create_account')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -134,6 +140,16 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flexGrow: 1, padding: 24, gap: 24, justifyContent: 'center' },
+  langBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
   hero: { alignItems: 'center', gap: 10, paddingVertical: 16 },
   logoCircle: {
     width: 88, height: 88, borderRadius: 44,

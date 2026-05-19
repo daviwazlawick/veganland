@@ -122,7 +122,7 @@ export default function ResultScreen({ navigation, route }) {
           <View style={styles.noConcernsCard}>
             <Text style={styles.noConcernsEmojis}>🌿 💚 🥦</Text>
             <Text style={styles.noConcernsTitle}>
-              {language === 'pt' ? 'Nenhum problema encontrado!' : 'No issues found!'}
+            {t(language, 'result.no_issues')}
             </Text>
             <Text style={styles.noConcernsText}>{t(language, 'result.no_concerns')}</Text>
           </View>

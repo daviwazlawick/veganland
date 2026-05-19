@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { t } from '../i18n';
+import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 
 const FOOD_EMOJIS = [
@@ -16,14 +16,17 @@ const FOOD_EMOJIS = [
 
 export default function WelcomeScreen({ navigation }) {
   const { language, setLanguage } = useApp();
+  const languageIndex = LANGUAGES.findIndex(item => item.code === language);
+  const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
+  const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
 
       <SafeAreaView edges={['top']} style={styles.hero}>
-        <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(language === 'pt' ? 'en' : 'pt')}>
-          <Text style={styles.langText}>{language === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}</Text>
+        <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
+          <Text style={styles.langText}>{currentLanguage.flag} {currentLanguage.code.toUpperCase()}</Text>
         </TouchableOpacity>
 
         {FOOD_EMOJIS.map((f, i) => (
@@ -49,16 +52,16 @@ export default function WelcomeScreen({ navigation }) {
 
         <View style={styles.features}>
           <Feature
-            icon="📷" bg={Colors.primaryBg} label={language === 'pt' ? 'Tire uma foto' : 'Take a photo'}
-            detail={language === 'pt' ? 'Aponte para o rótulo do produto' : 'Point at the product label'}
+            icon="📷" bg={Colors.primaryBg} label={t(language, 'welcome.feature_photo_label')}
+            detail={t(language, 'welcome.feature_photo_detail')}
           />
           <Feature
-            icon="🔬" bg={Colors.accentLight} label={language === 'pt' ? 'IA analisa tudo' : 'AI analyzes everything'}
-            detail={language === 'pt' ? 'Ingredientes verificados por IA' : 'Ingredients verified by AI'}
+            icon="🔬" bg={Colors.accentLight} label={t(language, 'welcome.feature_ai_label')}
+            detail={t(language, 'welcome.feature_ai_detail')}
           />
           <Feature
-            icon="💚" bg="#E8F5E9" label={language === 'pt' ? 'Resultado instantâneo' : 'Instant result'}
-            detail={language === 'pt' ? 'Seguro, atenção ou evitar' : 'Safe, caution or avoid'}
+            icon="💚" bg="#E8F5E9" label={t(language, 'welcome.feature_result_label')}
+            detail={t(language, 'welcome.feature_result_detail')}
           />
         </View>
 
@@ -67,7 +70,7 @@ export default function WelcomeScreen({ navigation }) {
             <Text style={styles.primaryBtnText}>{t(language, 'welcome.start')} 🌿</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ghostBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
-            <Text style={styles.ghostBtnText}>{language === 'pt' ? 'Já tenho conta' : 'I already have an account'}</Text>
+            <Text style={styles.ghostBtnText}>{t(language, 'welcome.already_have_account')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
