@@ -14,10 +14,12 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const pt = language === 'pt';
 
   async function handleLogin() {
+    setErrorMessage('');
     if (!email.trim() || !password) {
       Alert.alert('', pt ? 'Preencha email e senha' : 'Enter email and password');
       return;
@@ -26,7 +28,11 @@ export default function LoginScreen({ navigation }) {
     try {
       await login(email.trim(), password);
     } catch (e) {
-      Alert.alert('', e.message || (pt ? 'Erro ao entrar' : 'Login failed'));
+      const message = e.status === 401
+        ? (pt ? 'Email ou senha incorretos.' : 'Incorrect email or password.')
+        : (e.message || (pt ? 'Erro ao entrar' : 'Login failed'));
+      setErrorMessage(message);
+      Alert.alert('', message);
     } finally {
       setLoading(false);
     }
@@ -63,7 +69,10 @@ export default function LoginScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder={pt ? 'seu@email.com' : 'your@email.com'}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="email-address"
@@ -77,12 +86,21 @@ export default function LoginScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder={pt ? 'Sua senha' : 'Your password'}
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry
               />
             </View>
+
+            {!!errorMessage && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.btn, loading && styles.btnDisabled]}
@@ -148,6 +166,15 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: '600',
   },
+  errorBox: {
+    backgroundColor: Colors.dangerLight || '#FEE2E2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.danger + '55',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorText: { color: Colors.dangerDark || Colors.danger, fontSize: 13, fontWeight: '800', textAlign: 'center' },
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 18,

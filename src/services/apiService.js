@@ -60,7 +60,12 @@ export async function apiLogin(email, password) {
     body: JSON.stringify({ email, password }),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `Login failed`);
+  if (!response.ok) {
+    const err = new Error(data.error || `Login failed`);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
