@@ -54,7 +54,7 @@ export default function WelcomeScreen({ navigation }) {
           />
           <Feature
             icon="🔬" bg={Colors.accentLight} label={language === 'pt' ? 'IA analisa tudo' : 'AI analyzes everything'}
-            detail={language === 'pt' ? 'Ingredientes verificados por Claude' : 'Ingredients verified by Claude'}
+            detail={language === 'pt' ? 'Ingredientes verificados por IA' : 'Ingredients verified by AI'}
           />
           <Feature
             icon="💚" bg="#E8F5E9" label={language === 'pt' ? 'Resultado instantâneo' : 'Instant result'}

@@ -132,8 +132,8 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.aboutTitle}>VeganLand</Text>
           <Text style={styles.aboutText}>
             {language === 'pt'
-              ? 'Analise produtos alimentícios com IA e saiba se são seguros para o seu perfil. Powered by Claude (Anthropic).'
-              : "Analyze food products with AI and know if they're safe for your profile. Powered by Claude (Anthropic)."}
+              ? 'Analise produtos com IA e saiba se são seguros para o seu perfil dietético.'
+              : "Analyze products with AI and know if they're safe for your dietary profile."}
           </Text>
         </View>
       </ScrollView>
