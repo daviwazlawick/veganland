@@ -85,7 +85,9 @@ function applyProfileToAnalysis(analysis, profile, language) {
     }
   }
 
-  if (status === 'SAFE' && analysis.ambiguous?.length > 0) {
+  const hasProfile = diet !== 'none' || allergyIds.length > 0;
+  const isKnowledgeBased = analysis.ingredients_source === 'knowledge';
+  if (hasProfile && !isKnowledgeBased && status === 'SAFE' && analysis.ambiguous?.length > 0) {
     status = 'CAUTION';
     concerns.push(...analysis.ambiguous);
   }
