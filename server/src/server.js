@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { analyzeProduct } from './analyze.js';
-import { pool, saveScanEvent, createUser, findUserByEmail, getUserById, getUserHistory } from './db.js';
+import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -113,12 +113,32 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 401, { error: 'Unauthorized' });
         return;
       }
-      const user = await getUserById(claims.userId);
+      const [user, usage] = await Promise.all([
+        getUserById(claims.userId),
+        getScanUsage(claims.userId),
+      ]);
       if (!user) {
         sendJson(res, 404, { error: 'User not found' });
         return;
       }
-      sendJson(res, 200, { user });
+      sendJson(res, 200, { user, usage });
+      return;
+    }
+
+    // PATCH /user/profile
+    if (req.method === 'PATCH' && req.url === '/user/profile') {
+      const claims = getAuthUser(req);
+      if (!claims) {
+        sendJson(res, 401, { error: 'Unauthorized' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      const updated = await updateUserProfile(claims.userId, body);
+      if (!updated) {
+        sendJson(res, 400, { error: 'No valid fields to update' });
+        return;
+      }
+      sendJson(res, 200, { user: updated });
       return;
     }
 
@@ -134,6 +154,27 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // GET /scan/:id
+    if (req.method === 'GET' && req.url.startsWith('/scan/')) {
+      const claims = getAuthUser(req);
+      if (!claims) {
+        sendJson(res, 401, { error: 'Unauthorized' });
+        return;
+      }
+      const scanId = req.url.slice('/scan/'.length);
+      if (!scanId) {
+        sendJson(res, 404, { error: 'Not found' });
+        return;
+      }
+      const scan = await getScanById(scanId, claims.userId);
+      if (!scan) {
+        sendJson(res, 404, { error: 'Scan not found' });
+        return;
+      }
+      sendJson(res, 200, { scan });
+      return;
+    }
+
     // POST /analyze-product
     if (req.method === 'POST' && req.url === '/analyze-product') {
       if (!isAuthorized(req)) {
@@ -142,20 +183,46 @@ const server = http.createServer(async (req, res) => {
       }
 
       const body = await readJsonBody(req);
-      if (!body.imageBase64 || !body.profile) {
-        sendJson(res, 400, { error: 'imageBase64 and profile are required' });
+      if (!body.imageBase64 && !body.barcode) {
+        sendJson(res, 400, { error: 'imageBase64 or barcode is required' });
         return;
       }
 
       const claims = getAuthUser(req);
       const userId = claims?.userId || null;
 
+      // Rate limiting: 50 scans/month per authenticated user
+      if (userId) {
+        const usage = await checkAndIncrementScanCounter(userId);
+        if (!usage.allowed) {
+          sendJson(res, 429, {
+            error: 'Monthly scan limit reached',
+            usage,
+          });
+          return;
+        }
+      }
+
+      // Use stored profile if none sent in request
+      let profile = body.profile;
+      if (!profile && userId) {
+        const user = await getUserById(userId);
+        if (user?.diet_id || user?.allergy_ids?.length) {
+          profile = { dietId: user.diet_id || 'none', allergyIds: user.allergy_ids || [] };
+        }
+      }
+      if (!profile) {
+        sendJson(res, 400, { error: 'profile is required' });
+        return;
+      }
+
       const result = await analyzeProduct({
-        imageBase64: body.imageBase64,
+        imageBase64: body.imageBase64 || null,
         mediaType: body.mediaType || 'image/jpeg',
-        profile: body.profile,
+        profile,
         language: body.language || 'pt',
         userId,
+        barcode: body.barcode || null,
       });
 
       sendJson(res, 200, result);

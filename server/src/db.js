@@ -160,7 +160,17 @@ export async function upsertProduct(product) {
     ]
   );
 
-  return result.rows[0];
+  const savedProduct = result.rows[0];
+
+  // Invalidate knowledge-based cache when actual ingredients are now available
+  if (savedProduct) {
+    await db.query(
+      `delete from product_analyses where product_id = $1 and result->>'ingredients_source' = 'knowledge'`,
+      [savedProduct.id]
+    );
+  }
+
+  return savedProduct;
 }
 
 export async function findAnalysis(productId, language) {
@@ -193,14 +203,14 @@ export async function saveAnalysis(productId, language, analysis) {
   );
 }
 
-export async function saveScanEvent({ productId, userId, profile, language, status, source, title }) {
+export async function saveScanEvent({ productId, userId, profile, language, status, source, title, result }) {
   const db = await getPool();
   if (!db) return;
 
   await db.query(
-    `insert into scan_events (product_id, user_id, profile_key, language, status, source, title)
-     values ($1, $2, $3, $4, $5, $6, $7)`,
-    [productId || null, userId || null, getProfileKey(profile, language), language, status || null, source || null, title || null]
+    `insert into scan_events (product_id, user_id, profile_key, language, status, source, title, result)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [productId || null, userId || null, getProfileKey(profile, language), language, status || null, source || null, title || null, result ? JSON.stringify(result) : null]
   );
 }
 
@@ -282,8 +292,37 @@ export async function getUserById(id) {
   }
 
   const result = await db.query(
-    `select id, email, created_at from users where id = $1`,
+    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, created_at, updated_at from users where id = $1`,
     [id]
+  );
+  return result.rows[0] || null;
+}
+
+export async function updateUserProfile(userId, data) {
+  const db = await getPool();
+  if (!db) throw new Error('Database not available');
+
+  const allowed = ['name', 'birth_date', 'country', 'city', 'address', 'phone', 'avatar_url', 'diet_id', 'allergy_ids'];
+  const updates = [];
+  const values = [];
+  let idx = 1;
+
+  for (const field of allowed) {
+    if (data[field] !== undefined) {
+      updates.push(`${field} = $${idx}`);
+      values.push(field === 'allergy_ids' ? JSON.stringify(data[field]) : data[field]);
+      idx++;
+    }
+  }
+
+  if (updates.length === 0) return null;
+  updates.push('updated_at = now()');
+  values.push(userId);
+
+  const result = await db.query(
+    `update users set ${updates.join(', ')} where id = $${idx}
+     returning id, email, name, birth_date, country, city, diet_id, allergy_ids, created_at, updated_at`,
+    values
   );
   return result.rows[0] || null;
 }
@@ -303,4 +342,68 @@ export async function getUserHistory(userId, limit = 50) {
     [userId, limit]
   );
   return result.rows;
+}
+
+export async function getScanById(scanId, userId) {
+  const db = await getPool();
+  if (!db) return null;
+
+  const result = await db.query(
+    `select se.id, se.status, se.title, se.language, se.source, se.result, se.created_at,
+            p.product_name, p.brand
+       from scan_events se
+       left join products p on p.id = se.product_id
+      where se.id = $1 and se.user_id = $2`,
+    [scanId, userId]
+  );
+  return result.rows[0] || null;
+}
+
+export async function checkAndIncrementScanCounter(userId) {
+  const db = await getPool();
+  const limit = 50;
+  if (!db) return { allowed: true, count: 0, limit };
+
+  const month = new Date().toISOString().slice(0, 7);
+  const client = await db.connect();
+  try {
+    await client.query('begin');
+    const existing = await client.query(
+      'select count from scan_counters where user_id = $1 and month = $2 for update',
+      [userId, month]
+    );
+    const current = existing.rows[0]?.count || 0;
+    if (current >= limit) {
+      await client.query('commit');
+      return { allowed: false, count: current, limit };
+    }
+    await client.query(
+      `insert into scan_counters (user_id, month, count) values ($1, $2, 1)
+       on conflict (user_id, month) do update set count = scan_counters.count + 1`,
+      [userId, month]
+    );
+    await client.query('commit');
+    return { allowed: true, count: current + 1, limit };
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getScanUsage(userId) {
+  const db = await getPool();
+  const limit = 50;
+  const month = new Date().toISOString().slice(0, 7);
+  const [year, mon] = month.split('-').map(Number);
+  const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
+
+  if (!db) return { count: 0, limit, resets_at };
+
+  const result = await db.query(
+    'select count from scan_counters where user_id = $1 and month = $2',
+    [userId, month]
+  );
+  return { count: result.rows[0]?.count || 0, limit, resets_at };
 }

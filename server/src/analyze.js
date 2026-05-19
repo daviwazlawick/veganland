@@ -126,9 +126,34 @@ function applyProfileToAnalysis(analysis, profile, language) {
   };
 }
 
-export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId }) {
+const NON_FOOD_SOURCES = new Set(['cosmetic', 'clothing', 'cleaning', 'other']);
+
+export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId, barcode }) {
   const lang = language || 'pt';
-  const imageInspection = await inspectProductImage(imageBase64, lang, mediaType);
+
+  // Barcode shortcut: skip image inspection for known products
+  let imageInspection = null;
+  if (barcode) {
+    const known = await findProduct({ barcode: String(barcode).replace(/\D/g, '') });
+    if (known) {
+      const src = known.source || 'processed_food';
+      imageInspection = {
+        product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
+        product_name: known.product_name,
+        brand: known.brand,
+        barcode: known.barcode,
+        lookup_query: known.lookup_query,
+        ingredients_visible: !!known.ingredients_text,
+        ingredients_text: known.ingredients_text || null,
+        confidence: 1.0,
+      };
+    }
+  }
+
+  if (!imageInspection) {
+    imageInspection = await inspectProductImage(imageBase64, lang, mediaType);
+  }
+
   const productType = imageInspection.product_type || 'processed_food';
 
   let result;
@@ -225,6 +250,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     status: result.status,
     source: result.ingredients_source || product?.source,
     title: result.title || null,
+    result,
   });
 
   return {
