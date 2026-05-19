@@ -24,7 +24,32 @@ export async function analyzeProductWithApi(imageBase64, profile, language, toke
     body: JSON.stringify({ imageBase64, mediaType: 'image/jpeg', profile, language }),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `API error ${response.status}`);
+  if (!response.ok) {
+    const err = new Error(data.error || `API error ${response.status}`);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+export async function apiGetMe(token) {
+  const response = await fetch(`${baseUrl()}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed');
+  return data;
+}
+
+export async function apiUpdateProfile(profileData, token) {
+  const response = await fetch(`${baseUrl()}/user/profile`, {
+    method: 'PATCH',
+    headers: appHeaders(token),
+    body: JSON.stringify(profileData),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to update profile');
   return data;
 }
 

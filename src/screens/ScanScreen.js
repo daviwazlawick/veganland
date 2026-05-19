@@ -63,9 +63,19 @@ export default function ScanScreen({ navigation }) {
       setCameraActive(false);
       navigation.replace('Result', { result: scan });
     } catch (e) {
-      const msg = e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')
-        ? t(language, 'errors.network_error')
-        : t(language, 'errors.analysis_failed');
+      let msg;
+      if (e.status === 429) {
+        const resetDate = e.data?.usage?.resets_at;
+        const limit = e.data?.usage?.limit || 50;
+        const reset = resetDate ? new Date(resetDate).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US') : null;
+        msg = language === 'pt'
+          ? `Limite de ${limit} scans mensais atingido.${reset ? `\nRenova em ${reset}.` : ''}`
+          : `Monthly limit of ${limit} scans reached.${reset ? `\nResets on ${reset}.` : ''}`;
+      } else if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
+        msg = t(language, 'errors.network_error');
+      } else {
+        msg = t(language, 'errors.analysis_failed');
+      }
       Alert.alert('', msg);
     } finally {
       setAnalyzing(false);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -7,10 +7,17 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
+import { apiGetMe } from '../services/apiService';
 
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
+  const [usage, setUsage] = useState(null);
+
+  useEffect(() => {
+    if (!token) return;
+    apiGetMe(token).then(data => setUsage(data.usage)).catch(() => {});
+  }, [token]);
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
   const allergies = profile
@@ -124,6 +131,30 @@ export default function ProfileScreen({ navigation }) {
                 {language === 'pt' ? '🚪 Sair da conta' : '🚪 Sign out'}
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {user && usage != null && (
+          <View style={styles.usageCard}>
+            <View style={styles.usageHeader}>
+              <Text style={styles.usageLabel}>
+                {language === 'pt' ? 'Scans este mês' : 'Scans this month'}
+              </Text>
+              <Text style={styles.usageCount}>
+                {usage.count}
+                <Text style={styles.usageLimit}>/{usage.limit}</Text>
+              </Text>
+            </View>
+            <View style={styles.usageBarBg}>
+              <View style={[styles.usageBarFill, { width: `${Math.min(100, (usage.count / usage.limit) * 100)}%` }]} />
+            </View>
+            {usage.resets_at && (
+              <Text style={styles.usageReset}>
+                {language === 'pt'
+                  ? `Renova em ${new Date(usage.resets_at).toLocaleDateString('pt-BR')}`
+                  : `Resets on ${new Date(usage.resets_at).toLocaleDateString('en-US')}`}
+              </Text>
+            )}
           </View>
         )}
 
@@ -278,4 +309,38 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '500',
   },
+  usageCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    gap: 10,
+  },
+  usageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  usageLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  usageCount: { fontSize: 20, fontWeight: '900', color: Colors.text },
+  usageLimit: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  usageBarBg: {
+    height: 8,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  usageBarFill: {
+    height: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 4,
+  },
+  usageReset: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
 });

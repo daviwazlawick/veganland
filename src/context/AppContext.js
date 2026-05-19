@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
-import { apiGetHistory } from '../services/apiService';
+import { apiGetHistory, apiUpdateProfile } from '../services/apiService';
 
 const AppContext = createContext(null);
 
@@ -66,6 +66,11 @@ export function AppProvider({ children }) {
   async function saveProfile(newProfile) {
     setProfileState(newProfile);
     await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(newProfile));
+    if (token) {
+      try {
+        await apiUpdateProfile({ diet_id: newProfile.dietId, allergy_ids: newProfile.allergyIds }, token);
+      } catch {}
+    }
   }
 
   async function addScanToHistory(scan) {
