@@ -146,6 +146,8 @@ export default {
     edit: 'Editar',
   },
   errors: {
+    not_a_product_title: 'Produto não identificado',
+    not_a_product: 'Não foi possível identificar um produto embalado nesta imagem. Aponte para o código de barras ou rótulo de um produto embalado.',
     no_api_key: 'A URL da API do VeganLand não está configurada no app.',
     analysis_failed: 'Não foi possível analisar o produto. Tente novamente.',
     network_error: 'Erro de conexão. Verifique sua internet.',

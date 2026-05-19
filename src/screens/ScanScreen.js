@@ -14,6 +14,7 @@ import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
 
 const TIP_KEYS = ['scan.tip_barcode', 'scan.tip_ingredients', 'scan.tip_product'];
+const VALID_STATUSES = new Set(['SAFE', 'CAUTION', 'NOT_SAFE']);
 
 export default function ScanScreen({ navigation }) {
   const { language, profile, addScanToHistory } = useApp();
@@ -67,6 +68,13 @@ export default function ScanScreen({ navigation }) {
     setAnalyzing(true);
     try {
       const result = await analyzeProductWithApi(base64, profile, language, token);
+      if (!result.status || !VALID_STATUSES.has(result.status)) {
+        Alert.alert(
+          t(language, 'errors.not_a_product_title'),
+          t(language, 'errors.not_a_product')
+        );
+        return;
+      }
       const scan = { ...result, date: new Date().toISOString(), imageUri };
       await addScanToHistory(scan);
       setCameraActive(false);
