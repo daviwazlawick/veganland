@@ -212,9 +212,9 @@ function PersonalHero({ profile, user, language, navigation }) {
 
 const heroStyles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.primaryBg,
     borderRadius: 28, padding: 18,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1, borderColor: Colors.primary + '30',
     gap: 16,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
@@ -231,10 +231,10 @@ const heroStyles = StyleSheet.create({
   },
   initials: { fontSize: 26, fontWeight: '800', color: Colors.white, fontFamily: 'serif' },
   info: { flex: 1, gap: 3 },
-  name: { fontSize: 20, fontWeight: '800', color: Colors.white },
-  namePlaceholder: { fontSize: 15, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' },
-  email: { fontSize: 12, color: 'rgba(255,255,255,0.52)', fontWeight: '600' },
-  bio: { fontSize: 13, color: 'rgba(255,255,255,0.72)', fontWeight: '500', marginTop: 2 },
+  name: { fontSize: 20, fontWeight: '800', color: Colors.primaryDark },
+  namePlaceholder: { fontSize: 15, color: Colors.textMuted, fontStyle: 'italic' },
+  email: { fontSize: 12, color: Colors.textLight, fontWeight: '600' },
+  bio: { fontSize: 13, color: Colors.textLight, fontWeight: '500', marginTop: 2 },
   editBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
@@ -245,21 +245,21 @@ const heroStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.darkSurface },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: Colors.darkSurface,
+    backgroundColor: Colors.background,
     borderBottomWidth: 0,
   },
-  headerTitle: { fontSize: 34, fontWeight: '700', color: Colors.white, fontFamily: 'serif' },
+  headerTitle: { fontSize: 34, fontWeight: '700', color: Colors.primaryDark, fontFamily: 'serif' },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.card,
     borderRadius: 28,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: Colors.border,
     gap: 14,
   },
   cardHeaderRow: {
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: 'rgba(255,255,255,0.58)',
+    color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -292,8 +292,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dietIcon: { fontSize: 28 },
-  dietName: { fontSize: 17, fontWeight: '800', color: Colors.white },
-  dietDesc: { fontSize: 12, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
+  dietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  dietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
   noData: { fontSize: 14, color: Colors.textMuted, fontStyle: 'italic' },
   allergiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   allergyBadge: {
@@ -313,18 +313,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.backgroundSecondary,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: Colors.border,
   },
   langOptionActive: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryBg,
   },
   langFlag: { fontSize: 22 },
-  langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.68)' },
+  langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.textLight },
   langLabelActive: { color: Colors.primaryDark },
   langCheck: {
     width: 22,
@@ -336,11 +336,11 @@ const styles = StyleSheet.create({
   },
   langCheckText: { color: Colors.white, fontSize: 12, fontWeight: '900' },
   accountCard: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: Colors.border,
     gap: 14,
   },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   accountIcon: { fontSize: 24 },
   accountInfo: { flex: 1 },
   accountLabel: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.white, marginTop: 2 },
+  accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
   logoutBtn: {
     backgroundColor: Colors.dangerLight,
     borderRadius: 14,
@@ -380,11 +380,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   usageCard: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.card,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: Colors.border,
     gap: 10,
   },
   usageHeader: {

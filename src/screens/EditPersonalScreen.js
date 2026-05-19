@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   avatarPlaceholder: {
     width: 110, height: 110, borderRadius: 55,
-    backgroundColor: Colors.darkSurface,
+    backgroundColor: Colors.forest,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: Colors.primary + '40',
   },

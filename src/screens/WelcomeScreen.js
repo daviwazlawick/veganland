@@ -16,6 +16,7 @@ export default function WelcomeScreen({ navigation }) {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
 
+
       <SafeAreaView edges={['top']} style={styles.hero}>
         <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
           <Text style={styles.langText}>{currentLanguage.flag}</Text>

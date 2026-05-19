@@ -64,7 +64,7 @@ export default {
     title: 'VeganLand',
     your_profile: 'Dein Profil',
     scan_button: 'Produkt scannen',
-    scan_subtitle: 'Foto vom Etikett oder den Zutaten machen',
+    scan_subtitle: 'Auf Barcode, Etikett oder Zutatenliste richten',
     no_allergies: 'Keine Allergien oder Empfindlichkeiten gespeichert',
     recent_scans: 'Letzte Scans',
     no_scans: 'Noch keine Produkte gescannt',

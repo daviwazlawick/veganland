@@ -73,21 +73,16 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
-          <View style={styles.scanBtnEmojis}>
-            <View style={styles.scanLight} />
+        <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
+          <View style={styles.scanBtnCameraCircle}>
+            <PremiumIcon name="scan" size={41} color={Colors.white} />
           </View>
-          <View style={styles.scanBtnRow}>
-            <View style={styles.scanBtnCameraCircle}>
-              <PremiumIcon name="scan" size={34} color={Colors.white} />
-            </View>
-            <View style={styles.scanBtnText}>
-              <Text style={styles.scanBtnTitle}>{t(language, 'home.scan_button')}</Text>
-              <Text style={styles.scanBtnSub}>{t(language, 'home.scan_subtitle')}</Text>
-            </View>
-            <View style={styles.scanBtnArrow}>
-              <Text style={styles.scanBtnArrowText}>›</Text>
-            </View>
+          <View style={styles.scanBtnText}>
+            <Text style={styles.scanBtnTitle}>{t(language, 'home.scan_button')}</Text>
+            <Text style={styles.scanBtnSub}>{t(language, 'home.scan_subtitle')}</Text>
+          </View>
+          <View style={styles.scanBtnArrow}>
+            <Text style={styles.scanBtnArrowText}>›</Text>
           </View>
         </TouchableOpacity>
 
@@ -210,47 +205,36 @@ const styles = StyleSheet.create({
   scanBtn: {
     backgroundColor: Colors.darkSurface,
     borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.24,
-    shadowRadius: 34,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 12,
-  },
-  scanBtnEmojis: {
-    height: 58,
-    backgroundColor: 'rgba(127,191,91,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanLight: {
-    width: '72%',
-    height: 2,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.42)',
-  },
-  scanBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
-    paddingTop: 14,
-    gap: 14,
+    padding: 21,
+    gap: 18,
+    borderBottomWidth: 5,
+    borderBottomColor: Colors.primary,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary + '60',
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.45,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 16,
   },
   scanBtnCameraCircle: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: Colors.primaryLight + '50',
   },
-  scanBtnCameraIcon: { fontSize: 26 },
   scanBtnText: { flex: 1 },
-  scanBtnTitle: { fontSize: 20, fontWeight: '900', color: Colors.white, marginBottom: 3 },
-  scanBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: '500' },
+  scanBtnTitle: { fontSize: 23, fontWeight: '900', color: Colors.white, marginBottom: 4 },
+  scanBtnSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', lineHeight: 18 },
   scanBtnArrow: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 41, height: 41, borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center', justifyContent: 'center',
   },
-  scanBtnArrowText: { color: Colors.white, fontSize: 26, fontWeight: '900', lineHeight: 32 },
+  scanBtnArrowText: { color: Colors.white, fontSize: 28, fontWeight: '900', lineHeight: 36 },
   historySection: { gap: 10 },
   historyHeading: { fontSize: 22, fontWeight: '700', color: Colors.text, fontFamily: 'serif' },
   historyItem: {
