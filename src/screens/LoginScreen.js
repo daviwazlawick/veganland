@@ -94,6 +94,7 @@ export default function LoginScreen({ navigation }) {
                 {loading ? '⏳' : '🌿'} {pt ? 'Entrar' : 'Sign in'}
               </Text>
             </TouchableOpacity>
+
           </View>
 
           <View style={styles.footer}>

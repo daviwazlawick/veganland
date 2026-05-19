@@ -8,9 +8,10 @@
     "db:migrate": "node src/migrate.js"
   },
   "dependencies": {
-    "pg": "^8.13.1",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^8.0.7",
+    "pg": "^8.13.1"
   },
   "engines": {
     "node": ">=18"

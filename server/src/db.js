@@ -392,6 +392,72 @@ export async function checkAndIncrementScanCounter(userId) {
   }
 }
 
+export async function storeEmailConfirmationToken(userId, token) {
+  const db = await getPool();
+  if (!db) return;
+  await db.query(
+    `update users set email_confirmation_token = $1, email_confirmation_sent_at = now() where id = $2`,
+    [token, userId]
+  );
+}
+
+export async function confirmEmailByToken(token) {
+  const db = await getPool();
+  if (!db) return null;
+  const result = await db.query(
+    `update users
+        set email_confirmed = true, email_confirmation_token = null
+      where email_confirmation_token = $1
+        and email_confirmation_sent_at > now() - interval '24 hours'
+     returning id, email`,
+    [token]
+  );
+  return result.rows[0] || null;
+}
+
+export async function createPasswordResetToken(userId, token) {
+  const db = await getPool();
+  if (!db) return;
+  await db.query(
+    `insert into password_reset_tokens (user_id, token, expires_at)
+     values ($1, $2, now() + interval '1 hour')`,
+    [userId, token]
+  );
+}
+
+export async function findValidPasswordResetToken(token) {
+  const db = await getPool();
+  if (!db) return null;
+  const result = await db.query(
+    `select id, user_id from password_reset_tokens
+      where token = $1
+        and expires_at > now()
+        and used_at is null`,
+    [token]
+  );
+  return result.rows[0] || null;
+}
+
+export async function markPasswordResetTokenUsed(tokenId) {
+  const db = await getPool();
+  if (!db) return;
+  await db.query(`update password_reset_tokens set used_at = now() where id = $1`, [tokenId]);
+}
+
+export async function updateUserPassword(userId, passwordHash) {
+  const db = await getPool();
+  if (!db) {
+    const users = await readLocalUsers();
+    const user = users.find(u => Number(u.id) === Number(userId));
+    if (user) {
+      user.password_hash = passwordHash;
+      await writeLocalUsers(users);
+    }
+    return;
+  }
+  await db.query(`update users set password_hash = $1 where id = $2`, [passwordHash, userId]);
+}
+
 export async function getScanUsage(userId) {
   const db = await getPool();
   const limit = 50;
