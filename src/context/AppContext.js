@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
-import { apiGetHistory, apiUpdateProfile } from '../services/apiService';
+import { apiGetHistory, apiGetMe, apiUpdateProfile } from '../services/apiService';
 
 const AppContext = createContext(null);
 
@@ -23,8 +23,24 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (token) loadServerHistory();
+    if (token) {
+      loadServerHistory();
+      loadServerProfile();
+    }
   }, [token]);
+
+  async function loadServerProfile() {
+    try {
+      const { user } = await apiGetMe(token);
+      if (user?.diet_id) {
+        const serverProfile = { dietId: user.diet_id, allergyIds: user.allergy_ids || [] };
+        setProfileState(serverProfile);
+        await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(serverProfile));
+      }
+    } catch {
+      // silently keep local profile if server fails
+    }
+  }
 
   async function loadAll() {
     try {
