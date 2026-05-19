@@ -12,7 +12,7 @@ export default function App() {
         <AppProvider>
           <View style={{ flex: 1 }}>
             <AppNavigator />
-            <BetaRibbon top={52} />
+            <BetaRibbon />
           </View>
         </AppProvider>
       </AuthProvider>

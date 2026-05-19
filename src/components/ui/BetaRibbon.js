@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 
-export default function BetaRibbon({ top = 52 }) {
+export default function BetaRibbon() {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.corner, { top }]} pointerEvents="none">
+    <View style={[styles.corner, { top: insets.top + 6 }]} pointerEvents="none">
       <View style={styles.strip}>
         <Text style={styles.label}>BETA</Text>
       </View>
