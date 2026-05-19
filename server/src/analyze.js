@@ -1,6 +1,7 @@
 import {
   analyzeFreshProduce,
   analyzeIngredients,
+  analyzeNonFoodByKnowledge,
   analyzeProductByKnowledge,
   buildMissingIngredientsResult,
   evaluateProductIngredients,
@@ -13,6 +14,7 @@ import {
   saveScanEvent,
   upsertFreshProduct,
   upsertProduct,
+  upsertProductByIdentity,
 } from './db.js';
 import { findProductIngredients } from './openFoodFacts.js';
 
@@ -148,18 +150,35 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     }
 
   } else if (NON_FOOD_TYPES.includes(productType)) {
-    // Cosméticos, roupas, limpeza: não busca no OpenFoodFacts
+    // Cosméticos, roupas, limpeza: cache global por produto+idioma, perfil aplicado localmente
     if (imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim()) {
-      result = await evaluateProductIngredients(
-        imageInspection.ingredients_text.trim(),
-        imageInspection,
-        profile,
-        lang,
-        'image',
-        productType
-      );
+      product = await upsertProduct({
+        ...imageInspection,
+        ingredients_text: imageInspection.ingredients_text.trim(),
+        source: 'image',
+      });
+      if (product?.id) {
+        let neutralAnalysis = await findAnalysis(product.id, lang);
+        if (!neutralAnalysis) {
+          neutralAnalysis = await analyzeIngredients(product.ingredients_text, product, lang, 'image', productType);
+          await saveAnalysis(product.id, lang, neutralAnalysis);
+        }
+        result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+      } else {
+        result = await evaluateProductIngredients(imageInspection.ingredients_text.trim(), imageInspection, profile, lang, 'image', productType);
+      }
     } else if (imageInspection.product_name || imageInspection.brand) {
-      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+      product = await upsertProductByIdentity(imageInspection, productType);
+      if (product?.id) {
+        let neutralAnalysis = await findAnalysis(product.id, lang);
+        if (!neutralAnalysis) {
+          neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
+          await saveAnalysis(product.id, lang, neutralAnalysis);
+        }
+        result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+      } else {
+        result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+      }
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }

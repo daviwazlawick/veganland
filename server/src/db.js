@@ -73,6 +73,31 @@ export async function upsertFreshProduct(product) {
   return result.rows[0];
 }
 
+export async function upsertProductByIdentity(product, source) {
+  const identityKey = getIdentityKey(product);
+  if (!identityKey) return null;
+
+  const db = await getPool();
+  if (!db) return { id: null, identity_key: identityKey, ...product };
+
+  const barcode = product?.barcode?.replace(/\D/g, '') || null;
+
+  const result = await db.query(
+    `insert into products (identity_key, barcode, brand, product_name, lookup_query, ingredients_text, source)
+     values ($1, $2, $3, $4, $5, '', $6)
+     on conflict (identity_key) do update set
+       barcode = coalesce(excluded.barcode, products.barcode),
+       brand = coalesce(excluded.brand, products.brand),
+       product_name = coalesce(excluded.product_name, products.product_name),
+       lookup_query = coalesce(excluded.lookup_query, products.lookup_query),
+       updated_at = now()
+     returning *`,
+    [identityKey, barcode, product.brand || null, product.product_name || null, product.lookup_query || null, source]
+  );
+
+  return result.rows[0];
+}
+
 export async function findProduct(product) {
   const db = await getPool();
   if (!db) return null;

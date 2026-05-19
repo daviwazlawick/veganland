@@ -234,10 +234,16 @@ export async function inspectProductImage(imageBase64, language, mediaType = 'im
 
 function buildNeutralEvaluationPrompt(ingredientsText, product, language, source, productType) {
   const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || (language === 'pt' ? 'produto desconhecido' : 'unknown product');
+  const isCosmetic = ['cosmetic', 'cleaning', 'supplement'].includes(productType);
+  const isClothing = productType === 'clothing';
 
   if (language === 'pt') {
-    return `Você é um especialista em composição de produtos. Analise os ingredientes abaixo e classifique cada componente por categoria — sem julgamento de perfil alimentar.
+    let context = '';
+    if (isCosmetic) context = `\nEste é um produto não-alimentar (${productType}).\n${ANIMAL_INGREDIENTS_COSMETICS_PT}\n`;
+    if (isClothing) context = `\nEste é um produto de vestuário/acessório.\n${ANIMAL_MATERIALS_CLOTHING_PT}\n`;
 
+    return `Você é um especialista em composição de produtos. Analise os ingredientes abaixo e classifique cada componente por categoria — sem julgamento de perfil alimentar.
+${context}
 Produto: ${productName}
 Origem: ${source}
 Composição/Ingredientes:
@@ -276,8 +282,12 @@ Responda APENAS com JSON válido:
 }`;
   }
 
-  return `You are an expert in product composition. Analyze the ingredients below and classify each component by category — without any dietary profile judgment.
+  let context = '';
+  if (isCosmetic) context = `\nThis is a non-food product (${productType}).\n${ANIMAL_INGREDIENTS_COSMETICS_EN}\n`;
+  if (isClothing) context = `\nThis is a clothing/accessory product.\n${ANIMAL_MATERIALS_CLOTHING_EN}\n`;
 
+  return `You are an expert in product composition. Analyze the ingredients below and classify each component by category — without any dietary profile judgment.
+${context}
 Product: ${productName}
 Source: ${source}
 Composition/Ingredients:
@@ -314,6 +324,104 @@ Respond ONLY with valid JSON:
   },
   "ambiguous": []
 }`;
+}
+
+function buildNonFoodKnowledgeNeutralPrompt(product, language, productType) {
+  const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || (language === 'pt' ? 'produto desconhecido' : 'unknown product');
+  const isCosmetic = ['cosmetic', 'cleaning', 'supplement'].includes(productType);
+  const isClothing = productType === 'clothing';
+
+  if (language === 'pt') {
+    let context = '';
+    if (isCosmetic) context = `\n${ANIMAL_INGREDIENTS_COSMETICS_PT}\n`;
+    if (isClothing) context = `\n${ANIMAL_MATERIALS_CLOTHING_PT}\n`;
+
+    return `Você é um especialista com amplo conhecimento de produtos do mercado. A composição não está visível — analise com base no seu conhecimento sobre este produto.
+${context}
+Produto: ${productName}
+Tipo: ${productType}
+
+Classifique os componentes PROVÁVEIS deste produto:
+- "animal_derived": derivados animais tipicamente presentes neste tipo de produto
+- "meat_fish": sempre vazio para este tipo de produto
+- "gluten": vazio, a não ser que haja ingrediente alimentar com glúten
+- "allergens": alérgenos conhecidos deste produto específico
+- "ambiguous": componentes sobre os quais há incerteza — prefira aqui em vez de "animal_derived" se não tiver certeza
+- "summary": descrição neutra em 2-3 frases
+
+Responda APENAS com JSON válido:
+{
+  "product_name": "${productName}",
+  "ingredients_source": "knowledge",
+  "cannot_read": false,
+  "summary": "descrição neutra em português",
+  "animal_derived": [],
+  "meat_fish": [],
+  "gluten": [],
+  "allergens": {
+    "dairy": [],
+    "eggs": [],
+    "gluten": [],
+    "nuts": [],
+    "peanuts": [],
+    "soy": [],
+    "shellfish": [],
+    "fish": [],
+    "sesame": [],
+    "wheat": []
+  },
+  "ambiguous": []
+}`;
+  }
+
+  let context = '';
+  if (isCosmetic) context = `\n${ANIMAL_INGREDIENTS_COSMETICS_EN}\n`;
+  if (isClothing) context = `\n${ANIMAL_MATERIALS_CLOTHING_EN}\n`;
+
+  return `You are an expert with broad knowledge of market products. The composition is not visible — analyze based on your knowledge of this product.
+${context}
+Product: ${productName}
+Type: ${productType}
+
+Classify the LIKELY components of this product:
+- "animal_derived": animal-derived ingredients typically present in this type of product
+- "meat_fish": always empty for this type of product
+- "gluten": empty unless there is a food ingredient with gluten
+- "allergens": known allergens in this specific product
+- "ambiguous": components you are uncertain about — prefer this over "animal_derived" when unsure
+- "summary": neutral description in 2-3 sentences
+
+Respond ONLY with valid JSON:
+{
+  "product_name": "${productName}",
+  "ingredients_source": "knowledge",
+  "cannot_read": false,
+  "summary": "neutral description in English",
+  "animal_derived": [],
+  "meat_fish": [],
+  "gluten": [],
+  "allergens": {
+    "dairy": [],
+    "eggs": [],
+    "gluten": [],
+    "nuts": [],
+    "peanuts": [],
+    "soy": [],
+    "shellfish": [],
+    "fish": [],
+    "sesame": [],
+    "wheat": []
+  },
+  "ambiguous": []
+}`;
+}
+
+export async function analyzeNonFoodByKnowledge(product, language, productType) {
+  const text = await callClaude([
+    { type: 'text', text: buildNonFoodKnowledgeNeutralPrompt(product, language, productType) },
+  ]);
+
+  return extractJson(text);
 }
 
 function buildFreshProduceNeutralPrompt(product, language) {
