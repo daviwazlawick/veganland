@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, getAdminStats, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
+import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail } from './email.js';
 
@@ -97,8 +97,8 @@ function htmlAdminPage(stats) {
     const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
     const lastScan = u.last_scan ? new Date(u.last_scan).toLocaleDateString('pt-BR') : '—';
     const monthBar = Math.min(100, Math.round((u.scans_this_month / 50) * 100));
-    return `<tr>
-      <td>${u.email}</td>
+    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}'">
+      <td><a href="/admin/user/${u.id}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a></td>
       <td>${diet}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
       <td>
@@ -162,6 +162,106 @@ function htmlAdminPage(stats) {
     </div>
   </main>
   <footer>Atualizado em ${new Date().toLocaleString('pt-BR')} &mdash; VeganLand Admin</footer>
+  </body></html>`;
+}
+
+function htmlAdminUserPage(data) {
+  const { user, scans, scans_this_month } = data;
+  const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
+  const statusCfg = {
+    SAFE:     { label: 'Seguro',   color: '#2E6B2E', bg: '#EDF7E7' },
+    CAUTION:  { label: 'Atenção',  color: '#9A6121', bg: '#FFF1E2' },
+    NOT_SAFE: { label: 'Evitar',   color: '#8A3D3D', bg: '#FBEAEA' },
+  };
+  const joined = user.created_at ? new Date(user.created_at).toLocaleString('pt-BR') : '—';
+  const diet = dietLabel[user.diet_id] || (user.diet_id || '—');
+  const allergies = Array.isArray(user.allergy_ids) && user.allergy_ids.length
+    ? user.allergy_ids.join(', ')
+    : '—';
+  const monthBar = Math.min(100, Math.round((scans_this_month / 50) * 100));
+
+  const scanRows = scans.map(s => {
+    const cfg = statusCfg[s.status] || { label: s.status || '—', color: '#888', bg: '#f5f5f5' };
+    const date = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '—';
+    const product = s.product_name || s.title || '—';
+    const brand = s.brand ? `<span style="color:#aaa;font-size:12px"> · ${s.brand}</span>` : '';
+    const result = s.result ? JSON.parse(typeof s.result === 'string' ? s.result : JSON.stringify(s.result)) : null;
+    const explanation = result?.explanation || '—';
+    const concerns = Array.isArray(result?.concerns) && result.concerns.length
+      ? result.concerns.map(c => `<span style="background:#FBEAEA;color:#8A3D3D;padding:2px 7px;border-radius:5px;font-size:12px;font-weight:700">${c}</span>`).join(' ')
+      : '';
+    return `<tr>
+      <td style="white-space:nowrap;color:#888;font-size:12px">${date}</td>
+      <td><strong>${product}</strong>${brand}</td>
+      <td><span style="background:${cfg.bg};color:${cfg.color};padding:3px 10px;border-radius:6px;font-size:12px;font-weight:800">${cfg.label}</span></td>
+      <td style="color:#aaa;font-size:12px">${s.source || '—'}</td>
+      <td style="font-size:13px;color:#555;max-width:300px">${explanation.length > 120 ? explanation.slice(0, 120) + '…' : explanation}</td>
+      <td>${concerns}</td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html lang="pt"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${user.email} — VeganLand Admin</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f0;min-height:100vh;color:#222}
+    header{background:#1C2B22;padding:18px 32px;display:flex;align-items:center;gap:16px}
+    header a{color:rgba(255,255,255,.6);text-decoration:none;font-size:14px;font-weight:600}
+    header a:hover{color:#fff}
+    header h1{color:#fff;font-size:18px;font-weight:800}
+    header span{background:#7CB518;color:#fff;font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px}
+    main{max-width:1100px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+    .card{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .card .num{font-size:32px;font-weight:900;color:#1C2B22;line-height:1}
+    .card .lbl{font-size:12px;color:#888;font-weight:600;margin-top:5px}
+    .card.green .num{color:#7CB518}
+    .profile{background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.06);display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .profile h2{font-size:15px;font-weight:800;color:#1C2B22;grid-column:1/-1;margin-bottom:4px}
+    .field label{font-size:11px;font-weight:800;color:#aaa;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+    .field span{font-size:14px;font-weight:600;color:#222}
+    .bar-wrap{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin-top:6px}
+    .bar-fill{height:100%;background:#7CB518;border-radius:4px}
+    .section{background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .section h2{font-size:15px;font-weight:800;color:#1C2B22;margin-bottom:18px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;font-size:11px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.5px;padding:0 10px 10px}
+    td{padding:10px;border-top:1px solid #f0f0f0;vertical-align:top}
+    tr:hover td{background:#fafff5}
+    footer{text-align:center;color:#aaa;font-size:12px;padding:20px}
+  </style></head>
+  <body>
+  <header>
+    <a href="/admin">← Voltar</a>
+    <h1>${user.email}</h1>
+    <span>ADMIN</span>
+  </header>
+  <main>
+    <div class="cards">
+      <div class="card green"><div class="num">${scans.length}</div><div class="lbl">Scans totais</div></div>
+      <div class="card"><div class="num">${scans_this_month}<span style="font-size:16px;color:#aaa">/50</span></div><div class="lbl">Scans este mês</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${monthBar}%"></div></div>
+      </div>
+      <div class="card"><div class="num">${scans.filter(s => s.status === 'SAFE').length}</div><div class="lbl">✅ Seguros</div></div>
+      <div class="card"><div class="num">${scans.filter(s => s.status === 'NOT_SAFE').length}</div><div class="lbl">🚫 Evitar</div></div>
+    </div>
+    <div class="profile">
+      <h2>Perfil</h2>
+      <div class="field"><label>Email</label><span>${user.email}</span></div>
+      <div class="field"><label>Cadastro</label><span>${joined}</span></div>
+      <div class="field"><label>Dieta</label><span>${diet}</span></div>
+      <div class="field"><label>Alergias / Sensibilidades</label><span>${allergies}</span></div>
+    </div>
+    <div class="section">
+      <h2>Histórico de scans</h2>
+      <table>
+        <thead><tr><th>Data</th><th>Produto</th><th>Resultado</th><th>Fonte</th><th>Explicação</th><th>Atenções</th></tr></thead>
+        <tbody>${scanRows || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Nenhum scan ainda</td></tr>'}</tbody>
+      </table>
+    </div>
+  </main>
+  <footer>VeganLand Admin</footer>
   </body></html>`;
 }
 
@@ -461,6 +561,29 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(htmlAdminPage(stats));
+      return;
+    }
+
+    // GET /admin/user/:id
+    if (req.method === 'GET' && req.url.startsWith('/admin/user/')) {
+      const authHeader = req.headers['authorization'] || '';
+      const b64 = authHeader.startsWith('Basic ') ? authHeader.slice(6) : '';
+      const [user, ...rest] = Buffer.from(b64, 'base64').toString().split(':');
+      const pass = rest.join(':');
+      if (user !== ADMIN_USER || pass !== ADMIN_PASSWORD) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="VeganLand Admin"', 'Content-Type': 'text/plain' });
+        res.end('Unauthorized');
+        return;
+      }
+      const userId = req.url.slice('/admin/user/'.length);
+      const data = await getAdminUserDetail(userId);
+      if (!data) {
+        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Usuário não encontrado', '<p>Este usuário não existe.</p>', '#FF4B4B'));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAdminUserPage(data));
       return;
     }
 

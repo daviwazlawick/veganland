@@ -545,6 +545,43 @@ export async function getAdminStats() {
   };
 }
 
+export async function getAdminUserDetail(userId) {
+  const db = await getPool();
+  if (!db) return null;
+
+  const month = new Date().toISOString().slice(0, 7);
+
+  const [userRes, scansRes, monthRes] = await Promise.all([
+    db.query(
+      `SELECT id, email, diet_id, allergy_ids, created_at, updated_at FROM users WHERE id = $1`,
+      [userId]
+    ),
+    db.query(
+      `SELECT se.id, se.status, se.title, se.source, se.language, se.created_at,
+              p.product_name, p.brand, p.barcode,
+              se.result
+         FROM scan_events se
+         LEFT JOIN products p ON p.id = se.product_id
+        WHERE se.user_id = $1
+        ORDER BY se.created_at DESC
+        LIMIT 200`,
+      [userId]
+    ),
+    db.query(
+      `SELECT COALESCE(count, 0) AS count FROM scan_counters WHERE user_id = $1 AND month = $2`,
+      [userId, month]
+    ),
+  ]);
+
+  if (!userRes.rows[0]) return null;
+
+  return {
+    user: userRes.rows[0],
+    scans: scansRes.rows,
+    scans_this_month: Number(monthRes.rows[0]?.count || 0),
+  };
+}
+
 export async function getScanUsage(userId) {
   const db = await getPool();
   const limit = 50;
