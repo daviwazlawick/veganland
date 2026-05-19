@@ -201,7 +201,17 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       }
       result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
     } else if (imageInspection.product_name || imageInspection.brand || imageInspection.barcode) {
-      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+      product = await upsertProductByIdentity(imageInspection, productType);
+      if (product?.id) {
+        let neutralAnalysis = await findAnalysis(product.id, lang);
+        if (!neutralAnalysis) {
+          neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
+          await saveAnalysis(product.id, lang, neutralAnalysis);
+        }
+        result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+      } else {
+        result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+      }
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }
