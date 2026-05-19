@@ -50,6 +50,29 @@ export function getProfileKey(profile, language) {
   return `${language}:${profile?.dietId || 'none'}:${allergyIds}`;
 }
 
+export async function upsertFreshProduct(product) {
+  const name = normalize(product?.product_name || product?.lookup_query || '');
+  if (!name) return null;
+
+  const identityKey = `fresh:${name}`;
+  const db = await getPool();
+
+  if (!db) return { id: null, identity_key: identityKey, ...product };
+
+  const result = await db.query(
+    `insert into products (identity_key, product_name, lookup_query, ingredients_text, source)
+     values ($1, $2, $3, '', 'fresh_produce')
+     on conflict (identity_key) do update set
+       product_name = coalesce(excluded.product_name, products.product_name),
+       lookup_query = coalesce(excluded.lookup_query, products.lookup_query),
+       updated_at = now()
+     returning *`,
+    [identityKey, product.product_name || null, product.lookup_query || null]
+  );
+
+  return result.rows[0];
+}
+
 export async function findProduct(product) {
   const db = await getPool();
   if (!db) return null;
@@ -115,36 +138,33 @@ export async function upsertProduct(product) {
   return result.rows[0];
 }
 
-export async function findAnalysis(productId, profile, language) {
+export async function findAnalysis(productId, language) {
   const db = await getPool();
   if (!db || !productId) return null;
 
-  const profileKey = getProfileKey(profile, language);
   const result = await db.query(
     `select result
        from product_analyses
       where product_id = $1
-        and profile_key = $2
-        and language = $3
+        and language = $2
       limit 1`,
-    [productId, profileKey, language]
+    [productId, language]
   );
 
   return result.rows[0]?.result || null;
 }
 
-export async function saveAnalysis(productId, profile, language, analysis) {
+export async function saveAnalysis(productId, language, analysis) {
   const db = await getPool();
   if (!db || !productId) return;
 
-  const profileKey = getProfileKey(profile, language);
   await db.query(
-    `insert into product_analyses (product_id, profile_key, language, result)
-     values ($1, $2, $3, $4)
-     on conflict (product_id, profile_key, language) do update set
+    `insert into product_analyses (product_id, language, result)
+     values ($1, $2, $3)
+     on conflict (product_id, language) do update set
        result = excluded.result,
        updated_at = now()`,
-    [productId, profileKey, language, analysis]
+    [productId, language, analysis]
   );
 }
 

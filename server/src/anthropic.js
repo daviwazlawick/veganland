@@ -232,6 +232,187 @@ export async function inspectProductImage(imageBase64, language, mediaType = 'im
   return extractJson(text);
 }
 
+function buildNeutralEvaluationPrompt(ingredientsText, product, language, source, productType) {
+  const productName = [product?.brand, product?.product_name].filter(Boolean).join(' ') || (language === 'pt' ? 'produto desconhecido' : 'unknown product');
+
+  if (language === 'pt') {
+    return `Você é um especialista em composição de produtos. Analise os ingredientes abaixo e classifique cada componente por categoria — sem julgamento de perfil alimentar.
+
+Produto: ${productName}
+Origem: ${source}
+Composição/Ingredientes:
+${ingredientsText}
+
+Classifique:
+- "animal_derived": todos de origem animal (laticínios, ovos, mel, gelatina, cera de abelha, carmim, colágeno, etc.)
+- "meat_fish": carnes, aves, peixes e frutos do mar especificamente
+- "gluten": fontes de glúten (trigo, centeio, cevada, aveia)
+- "allergens": ingredientes por categoria padrão de alergia
+- "ambiguous": ingredientes que PODEM ser animais mas sem especificação de origem (ex: "lecitina", "glicerina")
+- "summary": descrição neutra da composição em 2-3 frases
+
+Responda APENAS com JSON válido:
+{
+  "product_name": "${productName}",
+  "ingredients_source": "${source}",
+  "cannot_read": false,
+  "summary": "descrição neutra em português",
+  "animal_derived": [],
+  "meat_fish": [],
+  "gluten": [],
+  "allergens": {
+    "dairy": [],
+    "eggs": [],
+    "gluten": [],
+    "nuts": [],
+    "peanuts": [],
+    "soy": [],
+    "shellfish": [],
+    "fish": [],
+    "sesame": [],
+    "wheat": []
+  },
+  "ambiguous": []
+}`;
+  }
+
+  return `You are an expert in product composition. Analyze the ingredients below and classify each component by category — without any dietary profile judgment.
+
+Product: ${productName}
+Source: ${source}
+Composition/Ingredients:
+${ingredientsText}
+
+Classify:
+- "animal_derived": all animal-derived (dairy, eggs, honey, gelatin, beeswax, carmine, collagen, etc.)
+- "meat_fish": meats, poultry, fish, and seafood specifically
+- "gluten": gluten sources (wheat, rye, barley, oats)
+- "allergens": ingredients by standard allergen category
+- "ambiguous": ingredients that MAY be animal-derived without specified origin (e.g. "lecithin", "glycerin")
+- "summary": neutral description of composition in 2-3 sentences
+
+Respond ONLY with valid JSON:
+{
+  "product_name": "${productName}",
+  "ingredients_source": "${source}",
+  "cannot_read": false,
+  "summary": "neutral description in English",
+  "animal_derived": [],
+  "meat_fish": [],
+  "gluten": [],
+  "allergens": {
+    "dairy": [],
+    "eggs": [],
+    "gluten": [],
+    "nuts": [],
+    "peanuts": [],
+    "soy": [],
+    "shellfish": [],
+    "fish": [],
+    "sesame": [],
+    "wheat": []
+  },
+  "ambiguous": []
+}`;
+}
+
+function buildFreshProduceNeutralPrompt(product, language) {
+  const productName = product?.product_name || (language === 'pt' ? 'alimento in natura' : 'fresh produce');
+
+  if (language === 'pt') {
+    return `Você é um especialista em nutrição. Analise o alimento in natura identificado abaixo.
+
+Alimento: ${productName}
+
+Classifique:
+- "animal_derived": vazio para frutas/vegetais/cogumelos (são de origem vegetal por natureza)
+- "meat_fish": sempre vazio para alimentos in natura
+- "gluten": apenas se for cereal com glúten (trigo, cevada, centeio)
+- "allergens": apenas se este alimento for um alérgeno comum (amendoim → peanuts, castanhas → nuts, etc.)
+- "ambiguous": geralmente vazio; mencione apenas se houver cobertura de cera comercial com shellac/E904
+- "summary": descrição neutra em 1-2 frases
+
+Responda APENAS com JSON válido:
+{
+  "product_name": "${productName}",
+  "ingredients_source": "knowledge",
+  "cannot_read": false,
+  "summary": "descrição neutra em português",
+  "animal_derived": [],
+  "meat_fish": [],
+  "gluten": [],
+  "allergens": {
+    "dairy": [],
+    "eggs": [],
+    "gluten": [],
+    "nuts": [],
+    "peanuts": [],
+    "soy": [],
+    "shellfish": [],
+    "fish": [],
+    "sesame": [],
+    "wheat": []
+  },
+  "ambiguous": []
+}`;
+  }
+
+  return `You are a nutrition expert. Analyze the fresh produce item identified below.
+
+Item: ${productName}
+
+Classify:
+- "animal_derived": empty for fruits/vegetables/mushrooms (plant-based by nature)
+- "meat_fish": always empty for fresh produce
+- "gluten": only if it is a gluten-containing grain (wheat, barley, rye)
+- "allergens": only if this specific food is a common allergen (peanuts → peanuts, tree nuts → nuts, etc.)
+- "ambiguous": generally empty; mention only if commercial wax coating with shellac/E904 is likely
+- "summary": neutral description in 1-2 sentences
+
+Respond ONLY with valid JSON:
+{
+  "product_name": "${productName}",
+  "ingredients_source": "knowledge",
+  "cannot_read": false,
+  "summary": "neutral description in English",
+  "animal_derived": [],
+  "meat_fish": [],
+  "gluten": [],
+  "allergens": {
+    "dairy": [],
+    "eggs": [],
+    "gluten": [],
+    "nuts": [],
+    "peanuts": [],
+    "soy": [],
+    "shellfish": [],
+    "fish": [],
+    "sesame": [],
+    "wheat": []
+  },
+  "ambiguous": []
+}`;
+}
+
+export async function analyzeFreshProduce(product, language) {
+  const text = await callClaude([
+    { type: 'text', text: buildFreshProduceNeutralPrompt(product, language) },
+  ]);
+
+  return extractJson(text);
+}
+
+export async function analyzeIngredients(ingredientsText, product, language, source, productType = 'processed_food') {
+  const text = await callClaude([
+    {
+      type: 'text',
+      text: buildNeutralEvaluationPrompt(ingredientsText, product, language, source, productType),
+    },
+  ]);
+
+  return extractJson(text);
+}
+
 export async function evaluateProductIngredients(ingredientsText, product, profile, language, source, productType = 'processed_food') {
   const text = await callClaude([
     {
