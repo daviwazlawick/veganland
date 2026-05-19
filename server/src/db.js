@@ -121,7 +121,6 @@ export async function findProduct(product) {
 export async function upsertProduct(product) {
   const db = await getPool();
   if (!db) {
-    // Without DB, return a synthetic product object so analysis still proceeds
     return { id: null, ...product };
   }
 
@@ -161,14 +160,36 @@ export async function upsertProduct(product) {
   );
 
   const savedProduct = result.rows[0];
+  if (!savedProduct) return null;
 
-  // Invalidate knowledge-based cache when actual ingredients are now available
-  if (savedProduct) {
-    await db.query(
-      `delete from product_analyses where product_id = $1 and result->>'ingredients_source' = 'knowledge'`,
-      [savedProduct.id]
-    );
+  // Merge any name-keyed duplicates into this (authoritative) barcode-keyed row
+  // BEFORE invalidating caches, so the delete below also cleans up moved analyses.
+  // When the same product was previously scanned without a barcode it gets a
+  // separate name: row. We consolidate by re-pointing their analyses here and
+  // deleting the stale rows (scan_events already use ON DELETE SET NULL).
+  if (barcode) {
+    const nameKey = getIdentityKey({ ...product, barcode: null });
+    if (nameKey && nameKey !== identityKey) {
+      const dup = await db.query(
+        `select id from products where identity_key = $1 and id != $2`,
+        [nameKey, savedProduct.id]
+      );
+      for (const row of dup.rows) {
+        await db.query(
+          `update product_analyses set product_id = $1 where product_id = $2`,
+          [savedProduct.id, row.id]
+        );
+        await db.query(`delete from products where id = $1`, [row.id]);
+      }
+    }
   }
+
+  // Invalidate knowledge-based cache now that real ingredients are available
+  // (covers both original row and any analyses just merged in from name-keyed rows)
+  await db.query(
+    `delete from product_analyses where product_id = $1 and result->>'ingredients_source' = 'knowledge'`,
+    [savedProduct.id]
+  );
 
   return savedProduct;
 }
