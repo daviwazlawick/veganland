@@ -10,7 +10,6 @@ function BetaBadge() {
       <View style={styles.betaBadge}>
         <Text style={styles.betaText}>BETA</Text>
       </View>
-      <Text style={styles.betaDisclaimer}>AI may make mistakes — always verify</Text>
     </View>
   );
 }
@@ -33,9 +32,8 @@ export default function App() {
 const styles = StyleSheet.create({
   betaWrapper: {
     position: 'absolute',
-    top: 52,
-    right: 12,
-    alignItems: 'flex-end',
+    top: 12,
+    left: 12,
     zIndex: 9999,
   },
   betaBadge: {
@@ -53,12 +51,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.2,
-  },
-  betaDisclaimer: {
-    fontSize: 9,
-    color: '#92400E',
-    fontWeight: '600',
-    marginTop: 2,
-    opacity: 0.8,
   },
 });
