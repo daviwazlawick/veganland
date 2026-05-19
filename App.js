@@ -1,16 +1,64 @@
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
+
+function BetaBadge() {
+  return (
+    <View style={styles.betaWrapper} pointerEvents="none">
+      <View style={styles.betaBadge}>
+        <Text style={styles.betaText}>BETA</Text>
+      </View>
+      <Text style={styles.betaDisclaimer}>AI may make mistakes — always verify</Text>
+    </View>
+  );
+}
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <AppProvider>
-          <AppNavigator />
+          <View style={{ flex: 1 }}>
+            <AppNavigator />
+            <BetaBadge />
+          </View>
         </AppProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  betaWrapper: {
+    position: 'absolute',
+    top: 52,
+    right: 12,
+    alignItems: 'flex-end',
+    zIndex: 9999,
+  },
+  betaBadge: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  betaText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  betaDisclaimer: {
+    fontSize: 9,
+    color: '#92400E',
+    fontWeight: '600',
+    marginTop: 2,
+    opacity: 0.8,
+  },
+});
