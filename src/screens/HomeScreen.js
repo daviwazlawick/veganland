@@ -6,14 +6,15 @@ import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
+import { PremiumIcon } from '../components/ui';
 
 const STATUS_CONFIG = {
-  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: '💚', labelKey: 'result.safe' },
-  CAUTION:  { color: Colors.cautionDark, bg: Colors.cautionLight, strip: Colors.caution, icon: '⚡', labelKey: 'result.caution' },
-  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: '🚫', labelKey: 'result.not_safe' },
+  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe', labelKey: 'result.safe' },
+  CAUTION:  { color: Colors.cautionDark, bg: Colors.cautionLight, strip: Colors.caution, icon: 'caution', labelKey: 'result.caution' },
+  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger', labelKey: 'result.not_safe' },
 };
 
-const EMPTY_FOODS = ['🥦', '🥕', '🍎', '🫑', '🫐', '🥑', '🌽', '🍇'];
+const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory } = useApp();
@@ -27,7 +28,7 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>VeganLand 🌱</Text>
+          <Text style={styles.headerTitle}>VeganLand</Text>
           <Text style={styles.headerSub}>
             {t(language, 'home.header_question')}
           </Text>
@@ -43,14 +44,14 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.profileCard}>
           <View style={styles.profileCardTop}>
             <View style={styles.dietCircle}>
-              <Text style={styles.dietCircleEmoji}>{diet?.icon || '🌿'}</Text>
+              <PremiumIcon name={diet?.icon || 'vegan'} size={46} />
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileDietName}>{diet?.label[language] || diet?.label.en || t(language, 'home.setup_profile')}</Text>
               <Text style={styles.profileDietDesc}>{diet?.description[language] || diet?.description.en || ''}</Text>
             </View>
             <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ProfileSetup')}>
-              <Text style={styles.editBtnText}>✏️</Text>
+              <PremiumIcon name="settings" size={22} />
             </TouchableOpacity>
           </View>
 
@@ -58,7 +59,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.allergiesRow}>
               {allergies.map(a => (
                 <View key={a.id} style={styles.allergyChip}>
-                  <Text style={styles.allergyChipIcon}>{a.icon}</Text>
+                  <PremiumIcon name={a.icon} size={18} />
                   <Text style={styles.allergyChipText}>{a.label[language] || a.label.en}</Text>
                 </View>
               ))}
@@ -74,13 +75,11 @@ export default function HomeScreen({ navigation }) {
 
         <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
           <View style={styles.scanBtnEmojis}>
-            {['🥦', '🥕', '🍎', '🫑', '🫐'].map(e => (
-              <Text key={e} style={styles.scanBtnEmoji}>{e}</Text>
-            ))}
+            <View style={styles.scanLight} />
           </View>
           <View style={styles.scanBtnRow}>
             <View style={styles.scanBtnCameraCircle}>
-              <Text style={styles.scanBtnCameraIcon}>📷</Text>
+              <PremiumIcon name="scan" size={34} color={Colors.white} />
             </View>
             <View style={styles.scanBtnText}>
               <Text style={styles.scanBtnTitle}>{t(language, 'home.scan_button')}</Text>
@@ -100,9 +99,14 @@ export default function HomeScreen({ navigation }) {
             {scanHistory.slice(0, 5).map((scan, i) => {
               const cfg = STATUS_CONFIG[scan.status] || STATUS_CONFIG.CAUTION;
               return (
-                <View key={i} style={[styles.historyItem, { borderLeftColor: cfg.strip }]}>
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.historyItem, { borderLeftColor: cfg.strip }]}
+                  onPress={() => navigation.navigate('Result', { result: scan })}
+                  activeOpacity={0.75}
+                >
                   <View style={[styles.historyIconWrap, { backgroundColor: cfg.bg }]}>
-                    <Text style={styles.historyIcon}>{cfg.icon}</Text>
+                    <PremiumIcon name={cfg.icon} size={28} />
                   </View>
                   <View style={styles.historyContent}>
                     <Text style={[styles.historyStatus, { color: cfg.color }]}>
@@ -110,10 +114,11 @@ export default function HomeScreen({ navigation }) {
                     </Text>
                     <Text style={styles.historyTitle} numberOfLines={1}>{scan.title}</Text>
                     <Text style={styles.historyDate}>
-                      📅 {new Date(scan.date).toLocaleDateString(localeFor(language))}
+                      {new Date(scan.date).toLocaleDateString(localeFor(language))}
                     </Text>
                   </View>
-                </View>
+                  <Text style={[styles.historyArrow, { color: cfg.color }]}>›</Text>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -122,9 +127,9 @@ export default function HomeScreen({ navigation }) {
         {scanHistory.length === 0 && (
           <View style={styles.emptyState}>
             <View style={styles.emptyEmojiGrid}>
-              {EMPTY_FOODS.map(e => (
+              {EMPTY_MARKS.map(e => (
                 <View key={e} style={styles.emptyEmojiWrap}>
-                  <Text style={styles.emptyEmoji}>{e}</Text>
+                  <PremiumIcon name={e} size={28} muted />
                 </View>
               ))}
             </View>
@@ -147,81 +152,83 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: Colors.card,
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.border,
+    paddingVertical: 20,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 0,
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: Colors.primary },
-  headerSub: { fontSize: 12, fontWeight: '600', color: Colors.textMuted, marginTop: 1 },
+  headerTitle: { fontSize: 34, fontWeight: '700', color: Colors.primaryDark, fontFamily: 'serif' },
+  headerSub: { fontSize: 14, fontWeight: '500', color: Colors.textMuted, marginTop: 3 },
   scanCountBadge: {
-    backgroundColor: Colors.accentLight,
-    borderRadius: 14,
+    backgroundColor: Colors.darkSurface,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.accent + '30',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  scanCountNum: { fontSize: 20, fontWeight: '900', color: Colors.accent },
-  scanCountLabel: { fontSize: 10, fontWeight: '700', color: Colors.accent, marginTop: -2 },
-  scroll: { padding: 16, gap: 14, paddingBottom: 32 },
+  scanCountNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
+  scanCountLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -2 },
+  scroll: { padding: 20, gap: 18, paddingBottom: 130 },
   profileCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    gap: 14,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: Colors.glass,
+    borderRadius: 28,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
+    gap: 16,
+    shadowColor: Colors.darkSurface,
+    shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 30,
+    elevation: 8,
   },
   profileCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   dietCircle: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: Colors.primaryBg,
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.7)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: Colors.primary + '30',
+    borderWidth: 1, borderColor: Colors.primary + '30',
   },
-  dietCircleEmoji: { fontSize: 32 },
   profileInfo: { flex: 1 },
-  profileDietName: { fontSize: 17, fontWeight: '900', color: Colors.text },
-  profileDietDesc: { fontSize: 12, color: Colors.textLight, fontWeight: '500', marginTop: 2 },
+  profileDietName: { fontSize: 19, fontWeight: '800', color: Colors.text },
+  profileDietDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500', marginTop: 3 },
   editBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: Colors.backgroundSecondary,
     alignItems: 'center', justifyContent: 'center',
   },
-  editBtnText: { fontSize: 18 },
   allergiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   allergyChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.dangerLight,
+    backgroundColor: 'rgba(255,255,255,0.58)',
     borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 1.5, borderColor: Colors.danger + '30',
+    borderWidth: 1, borderColor: Colors.border,
   },
-  allergyChipIcon: { fontSize: 15 },
-  allergyChipText: { fontSize: 12, color: Colors.dangerDark, fontWeight: '700' },
+  allergyChipText: { fontSize: 12, color: Colors.textLight, fontWeight: '700' },
   noAllergies: { fontSize: 13, color: Colors.safeDark, fontWeight: '600' },
   scanBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 22,
+    backgroundColor: Colors.darkSurface,
+    borderRadius: 30,
     overflow: 'hidden',
-    borderBottomWidth: 5,
-    borderBottomColor: Colors.primaryDark,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 34,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 12,
   },
   scanBtnEmojis: {
-    flexDirection: 'row',
+    height: 58,
+    backgroundColor: 'rgba(127,191,91,0.16)',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingTop: 14,
-    paddingBottom: 4,
-    backgroundColor: Colors.primaryDark + '30',
   },
-  scanBtnEmoji: { fontSize: 22 },
+  scanLight: {
+    width: '72%',
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.42)',
+  },
   scanBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -245,17 +252,17 @@ const styles = StyleSheet.create({
   },
   scanBtnArrowText: { color: Colors.white, fontSize: 26, fontWeight: '900', lineHeight: 32 },
   historySection: { gap: 10 },
-  historyHeading: { fontSize: 17, fontWeight: '900', color: Colors.text },
+  historyHeading: { fontSize: 22, fontWeight: '700', color: Colors.text, fontFamily: 'serif' },
   historyItem: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
+    backgroundColor: Colors.glass,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
+    borderLeftWidth: 3,
   },
   historyIconWrap: {
     width: 44, height: 44, borderRadius: 22,
@@ -266,16 +273,16 @@ const styles = StyleSheet.create({
   historyStatus: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
   historyTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginVertical: 2 },
   historyDate: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
+  historyArrow: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
   emptyState: { alignItems: 'center', paddingVertical: 24, gap: 16 },
   emptyEmojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: 220 },
   emptyEmojiWrap: {
     width: 52, height: 52, borderRadius: 18,
-    backgroundColor: Colors.card,
-    borderWidth: 2, borderColor: Colors.border,
+    backgroundColor: Colors.glass,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  emptyEmoji: { fontSize: 26 },
-  emptyTitle: { fontSize: 20, fontWeight: '900', color: Colors.text },
+  emptyTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, fontFamily: 'serif' },
   emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', lineHeight: 20, fontWeight: '500' },
 });

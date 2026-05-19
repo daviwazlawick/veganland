@@ -8,12 +8,12 @@ import es from './es';
 const translations = { pt, en, de, fr, it, es };
 
 export const LANGUAGES = [
-  { code: 'pt', name: 'Português', flag: '🇧🇷', locale: 'pt-BR' },
-  { code: 'en', name: 'English', flag: '🇺🇸', locale: 'en-US' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪', locale: 'de-DE' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷', locale: 'fr-FR' },
-  { code: 'it', name: 'Italiano', flag: '🇮🇹', locale: 'it-IT' },
-  { code: 'es', name: 'Español', flag: '🇪🇸', locale: 'es-ES' },
+  { code: 'pt', name: 'Português', flag: 'PT', locale: 'pt-BR' },
+  { code: 'en', name: 'English', flag: 'EN', locale: 'en-US' },
+  { code: 'de', name: 'Deutsch', flag: 'DE', locale: 'de-DE' },
+  { code: 'fr', name: 'Français', flag: 'FR', locale: 'fr-FR' },
+  { code: 'it', name: 'Italiano', flag: 'IT', locale: 'it-IT' },
+  { code: 'es', name: 'Español', flag: 'ES', locale: 'es-ES' },
 ];
 
 export const t = (lang, key, params = {}) => {

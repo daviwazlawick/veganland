@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { PremiumIcon } from '../components/ui';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -55,12 +56,12 @@ export default function RegisterScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
-            <Text style={styles.langText}>{currentLanguage.flag} {currentLanguage.code.toUpperCase()}</Text>
+            <Text style={styles.langText}>{currentLanguage.flag}</Text>
           </TouchableOpacity>
 
           <View style={styles.hero}>
             <View style={styles.logoCircle}>
-              <Text style={styles.logoEmoji}>🐾</Text>
+              <PremiumIcon name="profile" size={50} />
             </View>
             <Text style={styles.title}>
               {t(language, 'auth.register_title')}
@@ -116,7 +117,7 @@ export default function RegisterScreen({ navigation }) {
               disabled={loading}
             >
               <Text style={styles.btnText}>
-                {loading ? '⏳' : '🐾'} {t(language, 'auth.create_account')}
+                {loading ? '...' : t(language, 'auth.create_account')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -142,38 +143,47 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 24, gap: 24, justifyContent: 'center' },
   langBtn: {
     alignSelf: 'flex-end',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.64)',
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 8, paddingVertical: 8 },
+  hero: { alignItems: 'center', gap: 10, paddingVertical: 10 },
   logoCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: Colors.accentLight,
+    width: 94, height: 94, borderRadius: 47,
+    backgroundColor: 'rgba(255,255,255,0.72)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: Colors.accent + '40',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+    shadowColor: Colors.darkSurface,
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
   },
-  logoEmoji: { fontSize: 42 },
-  title: { fontSize: 28, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  subtitle: { fontSize: 13, color: Colors.textMuted, fontWeight: '500', textAlign: 'center' },
+  title: { fontSize: 32, fontWeight: '700', color: Colors.text, textAlign: 'center', fontFamily: 'serif' },
+  subtitle: { fontSize: 14, color: Colors.textMuted, fontWeight: '500', textAlign: 'center', lineHeight: 21 },
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    gap: 14,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: 28,
+    padding: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.85)',
+    gap: 16,
+    shadowColor: Colors.darkSurface,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.08,
+    shadowRadius: 30,
+    elevation: 10,
   },
   field: { gap: 6 },
   fieldLabel: { fontSize: 13, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3 },
   input: {
-    backgroundColor: Colors.background,
-    borderRadius: 14,
-    borderWidth: 2,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 18,
+    borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -182,13 +192,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   btn: {
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primaryDark,
     borderRadius: 18,
     paddingVertical: 18,
     alignItems: 'center',
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.accentDark,
     marginTop: 4,
+    shadowColor: Colors.darkSurface,
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },

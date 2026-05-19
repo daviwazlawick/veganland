@@ -37,7 +37,15 @@ export function AppProvider({ children }) {
     try {
       const { user } = await apiGetMe(token);
       if (user?.diet_id) {
-        const serverProfile = { dietId: user.diet_id, allergyIds: user.allergy_ids || [] };
+        const localRaw = await AsyncStorage.getItem(STORAGE_KEYS.profile);
+        const local = localRaw ? JSON.parse(localRaw) : {};
+        const serverProfile = {
+          name: local.name,
+          bio: local.bio,
+          photoUri: local.photoUri,
+          dietId: user.diet_id,
+          allergyIds: user.allergy_ids || [],
+        };
         setProfileState(serverProfile);
         await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(serverProfile));
       } else {
@@ -104,6 +112,11 @@ export function AppProvider({ children }) {
       title: scan.title,
       date: scan.date || new Date().toISOString(),
       ingredients_source: scan.ingredients_source,
+      explanation: scan.explanation,
+      concerns: scan.concerns,
+      product_name: scan.product_name,
+      imageUri: scan.imageUri,
+      ingredients_text: scan.productInfo?.ingredients_text || null,
     };
     const updated = [entry, ...scanHistory].slice(0, 50);
     setScanHistoryState(updated);

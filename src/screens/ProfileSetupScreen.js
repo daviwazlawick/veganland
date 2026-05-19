@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
+import { PremiumIcon } from '../components/ui';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 12) / 2;
@@ -49,7 +50,7 @@ export default function ProfileSetupScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {step === 1 ? (
           <>
-            <Text style={styles.stepEmoji}>🌿</Text>
+            <PremiumIcon name="vegan" size={72} />
             <Text style={styles.sectionTitle}>{t(language, 'profile_setup.diet_title')}</Text>
             <Text style={styles.sectionSub}>
               {t(language, 'profile_setup.how_do_you_eat')}
@@ -70,7 +71,7 @@ export default function ProfileSetupScreen({ navigation }) {
                       </View>
                     )}
                     <View style={[styles.dietEmojiWrap, sel && styles.dietEmojiWrapSel]}>
-                      <Text style={styles.dietEmoji}>{diet.icon}</Text>
+                      <PremiumIcon name={diet.icon} size={44} />
                     </View>
                     <Text style={[styles.dietLabel, sel && styles.dietLabelSel]}>
                       {diet.label[language] || diet.label.en}
@@ -85,7 +86,7 @@ export default function ProfileSetupScreen({ navigation }) {
           </>
         ) : (
           <>
-            <Text style={styles.stepEmoji}>🛡️</Text>
+            <PremiumIcon name="profile" size={72} />
             <Text style={styles.sectionTitle}>{t(language, 'profile_setup.allergy_title')}</Text>
             <Text style={styles.sectionSub}>{t(language, 'profile_setup.allergy_subtitle')}</Text>
             <View style={styles.allergyGrid}>
@@ -98,7 +99,7 @@ export default function ProfileSetupScreen({ navigation }) {
                     onPress={() => toggleAllergy(allergy.id)}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.allergyEmoji}>{allergy.icon}</Text>
+                    <PremiumIcon name={allergy.icon} size={34} />
                     <Text style={[styles.allergyLabel, sel && styles.allergyLabelSel]}>
                       {allergy.label[language] || allergy.label.en}
                     </Text>
@@ -128,7 +129,7 @@ export default function ProfileSetupScreen({ navigation }) {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.btn} onPress={handleSave} activeOpacity={0.9}>
-            <Text style={styles.btnText}>💾  {t(language, 'profile_setup.save')}</Text>
+            <Text style={styles.btnText}>{t(language, 'profile_setup.save')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -152,9 +153,8 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: Colors.card,
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 0,
     alignItems: 'center',
   },
   backBtn: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   connectorActive: { backgroundColor: Colors.accent },
   content: { padding: 20, paddingBottom: 130, alignItems: 'center' },
   stepEmoji: { fontSize: 48, marginBottom: 4, marginTop: 8 },
-  sectionTitle: { fontSize: 26, fontWeight: '900', color: Colors.text, textAlign: 'center', marginBottom: 4 },
+  sectionTitle: { fontSize: 32, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 6, fontFamily: 'serif' },
   sectionSub: { fontSize: 14, color: Colors.textLight, fontWeight: '500', textAlign: 'center', marginBottom: 24 },
   dietGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
   },
   dietCard: {
     width: CARD_WIDTH,
-    backgroundColor: Colors.card,
-    borderRadius: 22,
+    backgroundColor: Colors.glass,
+    borderRadius: 28,
     padding: 18,
     alignItems: 'center',
-    borderWidth: 2.5,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
     gap: 8,
     position: 'relative',
     shadowColor: '#000',
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   dietCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.primaryBg,
+    backgroundColor: 'rgba(255,255,255,0.7)',
     shadowColor: Colors.primary,
     shadowOpacity: 0.15,
     elevation: 4,
@@ -230,7 +230,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryLight + '30',
     borderColor: Colors.primary + '60',
   },
-  dietEmoji: { fontSize: 34 },
   dietLabel: { fontSize: 15, fontWeight: '900', color: Colors.text, textAlign: 'center' },
   dietLabelSel: { color: Colors.primaryDark },
   dietDesc: { fontSize: 11, color: Colors.textLight, textAlign: 'center', fontWeight: '500', lineHeight: 15 },
@@ -241,13 +240,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   allergyCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 18,
+    backgroundColor: Colors.glass,
+    borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: 'center',
-    borderWidth: 2.5,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
     minWidth: 90,
     gap: 4,
     position: 'relative',
@@ -256,7 +255,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.accent,
     backgroundColor: Colors.accentLight,
   },
-  allergyEmoji: { fontSize: 28 },
   allergyLabel: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'center' },
   allergyLabelSel: { color: Colors.accentDark },
   allergyCheck: {
@@ -270,14 +268,18 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
-    backgroundColor: Colors.card,
-    borderTopWidth: 2, borderTopColor: Colors.border,
+    backgroundColor: 'rgba(250,248,244,0.94)',
+    borderTopWidth: 0,
   },
   btn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryDark,
     borderRadius: 18, paddingVertical: 18,
     alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
+    shadowColor: Colors.darkSurface,
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   btnDisabled: {
     backgroundColor: Colors.border,

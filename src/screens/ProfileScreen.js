@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { LANGUAGES, localeFor, t } from '../i18n';
@@ -8,6 +9,7 @@ import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe } from '../services/apiService';
+import { PremiumIcon } from '../components/ui';
 
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
@@ -31,6 +33,9 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+
+        <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
+
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardLabelWrap}>
@@ -47,7 +52,7 @@ export default function ProfileScreen({ navigation }) {
           {diet ? (
             <View style={styles.dietRow}>
               <View style={styles.dietIconWrap}>
-                <Text style={styles.dietIcon}>{diet.icon}</Text>
+                <PremiumIcon name={diet.icon} size={42} />
               </View>
               <View>
                 <Text style={styles.dietName}>{diet.label[language] || diet.label.en}</Text>
@@ -68,6 +73,7 @@ export default function ProfileScreen({ navigation }) {
               {allergies.map(a => (
                 <View key={a.id} style={styles.allergyBadge}>
                   <Text style={styles.allergyIcon}>{a.icon}</Text>
+                  <PremiumIcon name={a.icon} size={18} />
                   <Text style={styles.allergyLabel}>{a.label[language] || a.label.en}</Text>
                 </View>
               ))}
@@ -105,7 +111,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.accountCard}>
             <View style={styles.accountRow}>
               <View style={styles.accountIconWrap}>
-                <Text style={styles.accountIcon}>👤</Text>
+                <PremiumIcon name="profile" size={34} />
               </View>
               <View style={styles.accountInfo}>
                 <Text style={styles.accountLabel}>
@@ -147,7 +153,7 @@ export default function ProfileScreen({ navigation }) {
         )}
 
         <View style={styles.aboutCard}>
-          <Text style={styles.aboutEmoji}>🌱</Text>
+          <PremiumIcon name="vegan" size={54} color={Colors.white} />
           <Text style={styles.aboutTitle}>VeganLand</Text>
           <Text style={styles.aboutText}>
             {t(language, 'profile.about_text')}
@@ -158,23 +164,102 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
+function PersonalHero({ profile, user, language, navigation }) {
+  const name = profile?.name;
+  const bio = profile?.bio;
+  const photoUri = profile?.photoUri;
+  const initials = name
+    ? name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : null;
+
+  return (
+    <View style={heroStyles.card}>
+      <View style={heroStyles.row}>
+        <View style={heroStyles.avatarWrap}>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={heroStyles.avatarImage} />
+          ) : (
+            <View style={heroStyles.avatarPlaceholder}>
+              {initials ? (
+                <Text style={heroStyles.initials}>{initials}</Text>
+              ) : (
+                <Ionicons name="person" size={32} color="rgba(255,255,255,0.7)" />
+              )}
+            </View>
+          )}
+        </View>
+        <View style={heroStyles.info}>
+          {name ? (
+            <Text style={heroStyles.name} numberOfLines={1}>{name}</Text>
+          ) : (
+            <Text style={heroStyles.namePlaceholder}>{t(language, 'personal.name_placeholder')}</Text>
+          )}
+          {user?.email && (
+            <Text style={heroStyles.email} numberOfLines={1}>{user.email}</Text>
+          )}
+          {bio ? (
+            <Text style={heroStyles.bio} numberOfLines={2}>{bio}</Text>
+          ) : null}
+        </View>
+      </View>
+      <TouchableOpacity style={heroStyles.editBtn} onPress={() => navigation.navigate('EditPersonal')} activeOpacity={0.85}>
+        <Ionicons name="pencil" size={14} color={Colors.accent} />
+        <Text style={heroStyles.editBtnText}>{t(language, 'personal.edit')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const heroStyles = StyleSheet.create({
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 28, padding: 18,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
+    gap: 16,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  avatarWrap: { flexShrink: 0 },
+  avatarImage: {
+    width: 72, height: 72, borderRadius: 36,
+    borderWidth: 3, borderColor: Colors.primary + '60',
+  },
+  avatarPlaceholder: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: Colors.forest,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.primary + '40',
+  },
+  initials: { fontSize: 26, fontWeight: '800', color: Colors.white, fontFamily: 'serif' },
+  info: { flex: 1, gap: 3 },
+  name: { fontSize: 20, fontWeight: '800', color: Colors.white },
+  namePlaceholder: { fontSize: 15, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' },
+  email: { fontSize: 12, color: 'rgba(255,255,255,0.52)', fontWeight: '600' },
+  bio: { fontSize: 13, color: 'rgba(255,255,255,0.72)', fontWeight: '500', marginTop: 2 },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accentLight,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  editBtnText: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.darkSurface },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: Colors.card,
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.darkSurface,
+    borderBottomWidth: 0,
   },
-  headerTitle: { fontSize: 28, fontWeight: '900', color: Colors.primary },
+  headerTitle: { fontSize: 34, fontWeight: '700', color: Colors.white, fontFamily: 'serif' },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 28,
     padding: 18,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     gap: 14,
   },
   cardHeaderRow: {
@@ -186,7 +271,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: Colors.textMuted,
+    color: 'rgba(255,255,255,0.58)',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -207,8 +292,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dietIcon: { fontSize: 28 },
-  dietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
-  dietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  dietName: { fontSize: 17, fontWeight: '800', color: Colors.white },
+  dietDesc: { fontSize: 12, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
   noData: { fontSize: 14, color: Colors.textMuted, fontStyle: 'italic' },
   allergiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   allergyBadge: {
@@ -220,7 +305,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  allergyIcon: { fontSize: 15 },
+  allergyIcon: { display: 'none' },
   allergyLabel: { fontSize: 13, color: Colors.danger, fontWeight: '700' },
   langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   langOption: {
@@ -228,18 +313,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.background,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 14,
     padding: 12,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   langOptionActive: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryBg,
   },
   langFlag: { fontSize: 22 },
-  langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.textLight },
+  langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.68)' },
   langLabelActive: { color: Colors.primaryDark },
   langCheck: {
     width: 22,
@@ -251,11 +336,11 @@ const styles = StyleSheet.create({
   },
   langCheckText: { color: Colors.white, fontSize: 12, fontWeight: '900' },
   accountCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
     padding: 18,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     gap: 14,
   },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -267,7 +352,7 @@ const styles = StyleSheet.create({
   accountIcon: { fontSize: 24 },
   accountInfo: { flex: 1 },
   accountLabel: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
+  accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.white, marginTop: 2 },
   logoutBtn: {
     backgroundColor: Colors.dangerLight,
     borderRadius: 14,
@@ -286,7 +371,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 4,
     borderBottomColor: Colors.accentDark,
   },
-  aboutEmoji: { fontSize: 36 },
   aboutTitle: { fontSize: 22, fontWeight: '900', color: Colors.white },
   aboutText: {
     fontSize: 13,
@@ -296,11 +380,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   usageCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
     padding: 18,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     gap: 10,
   },
   usageHeader: {

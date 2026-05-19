@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert,
@@ -11,6 +11,9 @@ import { useAuth } from '../context/AuthContext';
 import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
+import { PremiumIcon } from '../components/ui';
+
+const TIP_KEYS = ['scan.tip_barcode', 'scan.tip_ingredients', 'scan.tip_product'];
 
 export default function ScanScreen({ navigation }) {
   const { language, profile, addScanToHistory } = useApp();
@@ -18,11 +21,17 @@ export default function ScanScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
   const [cameraActive, setCameraActive] = useState(true);
+  const [tipIndex, setTipIndex] = useState(0);
   const cameraRef = useRef(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setTipIndex(i => (i + 1) % TIP_KEYS.length), 3500);
+    return () => clearInterval(id);
+  }, []);
 
   function handleClose() {
     setCameraActive(false);
-    navigation.navigate('Main');
+    navigation.goBack();
   }
 
   async function handleCapture() {
@@ -87,7 +96,7 @@ export default function ScanScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
         <View style={styles.permissionIconWrap}>
-          <Text style={styles.permissionIcon}>📷</Text>
+          <PremiumIcon name="scan" size={54} />
         </View>
         <Text style={styles.permissionText}>{t(language, 'scan.camera_permission')}</Text>
         <TouchableOpacity style={styles.allowButton} onPress={requestPermission} activeOpacity={0.9}>
@@ -109,7 +118,12 @@ export default function ScanScreen({ navigation }) {
       {cameraActive && (
         <SafeAreaView style={styles.overlay} pointerEvents="box-none">
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={analyzing}>
+            <TouchableOpacity
+              onPress={handleClose}
+              style={styles.closeBtn}
+              disabled={analyzing}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
@@ -126,9 +140,16 @@ export default function ScanScreen({ navigation }) {
             <Text style={styles.frameHint}>{t(language, 'scan.instruction')}</Text>
           </View>
 
+          <View style={styles.tipsRow} pointerEvents="none">
+            <View style={styles.tipPill}>
+              <Text style={styles.tipIcon}>💡</Text>
+              <Text style={styles.tipText}>{t(language, TIP_KEYS[tipIndex])}</Text>
+            </View>
+          </View>
+
           <View style={styles.bottomBar}>
             <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
-              <Text style={styles.galleryBtnIcon}>🖼️</Text>
+              <PremiumIcon name="scan" size={28} color={Colors.white} muted />
               <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
             </TouchableOpacity>
 
@@ -152,7 +173,7 @@ export default function ScanScreen({ navigation }) {
       {analyzing && (
         <View style={styles.analyzingOverlay}>
           <View style={styles.analyzingCard}>
-            <Text style={styles.analyzingIcon}>🤖</Text>
+            <PremiumIcon name="ai" size={58} />
             <Text style={styles.analyzingText}>{t(language, 'scan.analyzing')}</Text>
             <Text style={styles.analyzingSubtitle}>{t(language, 'scan.analyzing_subtitle')}</Text>
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 16 }} />
@@ -167,20 +188,21 @@ const CORNER_SIZE = 26;
 const CORNER_THICKNESS = 4;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: Colors.darkSurface },
   overlay: { ...StyleSheet.absoluteFillObject, flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   closeBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(16,40,34,0.62)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -194,7 +216,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CORNER_SIZE,
     height: CORNER_SIZE,
-    borderColor: Colors.primary,
+    borderColor: Colors.accent,
   },
   topLeft: { top: 0, left: 0, borderTopWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
   topRight: { top: 0, right: 0, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
@@ -216,14 +238,36 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingTop: 16,
   },
+  tipsRow: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+  },
+  tipPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(16,40,34,0.62)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  tipIcon: { fontSize: 14 },
+  tipText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
   galleryBtn: { alignItems: 'center', width: 72 },
-  galleryBtnIcon: { fontSize: 28 },
   galleryBtnText: { color: '#fff', fontSize: 12, marginTop: 4, fontWeight: '600' },
   captureBtn: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
@@ -236,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     backgroundColor: '#fff',
     borderWidth: 3,
-    borderColor: Colors.primary,
+    borderColor: Colors.accent,
   },
   analyzingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -245,16 +289,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   analyzingCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.glass,
     borderRadius: 28,
     padding: 36,
     alignItems: 'center',
     width: '82%',
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.border,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
   },
-  analyzingIcon: { fontSize: 52, marginBottom: 14 },
-  analyzingText: { fontSize: 20, fontWeight: '900', color: Colors.text, marginBottom: 6 },
+  analyzingText: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 14, fontFamily: 'serif' },
   analyzingSubtitle: { fontSize: 14, color: Colors.textLight, textAlign: 'center', fontWeight: '500' },
   permissionContainer: {
     flex: 1,
@@ -272,7 +315,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  permissionIcon: { fontSize: 44 },
   permissionText: {
     fontSize: 18,
     color: Colors.text,

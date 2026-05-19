@@ -74,12 +74,12 @@ export default {
     header_question: 'Que scanne-t-on aujourd’hui ?',
     scans_label: 'scans',
     setup_profile: 'Configurer votre profil',
-    no_allergies_configured: '✅ Aucune allergie ou sensibilité configurée',
+    no_allergies_configured: 'Aucune allergie ou sensibilité configurée',
     empty_title: 'Aucune analyse pour le moment !',
   },
   scan: {
     title: 'Scanner un produit',
-    instruction: 'Visez l’étiquette ou la liste des ingrédients',
+    instruction: "Meilleurs résultats en visant le code-barres ou la liste des ingrédients",
     take_photo: 'Prendre une photo',
     gallery: 'Galerie',
     analyzing: 'Analyse du produit...',
@@ -88,6 +88,9 @@ export default {
     camera_permission: 'Nous avons besoin de la caméra pour scanner les produits',
     allow: 'Autoriser',
     or: 'ou',
+    tip_barcode: 'Photo du code-barres = résultat le plus précis',
+    tip_ingredients: 'Liste des ingrédients visible ? Encore mieux !',
+    tip_product: 'La face du produit fonctionne aussi — l\'IA connaît beaucoup de marques',
   },
   result: {
     safe: 'SÛR',
@@ -110,6 +113,7 @@ export default {
     source_unknown: 'source incertaine',
     source_missing: 'introuvable',
     no_issues: 'Aucun problème trouvé !',
+    ingredients: 'Ingrédients',
   },
   profile: {
     title: 'Mon profil',
@@ -122,7 +126,7 @@ export default {
     about: 'À propos de VeganLand',
     no_profile: 'Aucun profil configuré',
     account: 'Compte',
-    sign_out: '🚪 Se déconnecter',
+    sign_out: 'Se déconnecter',
     scans_this_month: 'Scans ce mois-ci',
     renews_on: 'Renouvelé le {{date}}',
     about_text: 'Analysez des produits avec l’IA et sachez s’ils conviennent à votre profil alimentaire.',
@@ -130,6 +134,16 @@ export default {
   limits: {
     monthly_reached: 'Limite mensuelle de {{limit}} scans atteinte.',
     renews_on: 'Renouvelé le {{date}}.',
+  },
+  personal: {
+    title: 'Informations personnelles',
+    name: 'Nom',
+    name_placeholder: 'Votre nom',
+    bio: 'Bio',
+    bio_placeholder: 'Une courte description de vous',
+    save: 'Enregistrer',
+    tap_to_change: 'Appuyez pour changer la photo',
+    edit: 'Modifier',
   },
   errors: {
     no_api_key: 'L’URL de l’API VeganLand n’est pas configurée dans l’app.',

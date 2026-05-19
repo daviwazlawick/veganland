@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { PremiumIcon } from '../components/ui';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -52,12 +53,12 @@ export default function LoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
-            <Text style={styles.langText}>{currentLanguage.flag} {currentLanguage.code.toUpperCase()}</Text>
+            <Text style={styles.langText}>{currentLanguage.flag}</Text>
           </TouchableOpacity>
 
           <View style={styles.hero}>
             <View style={styles.logoCircle}>
-              <Text style={styles.logoEmoji}>🌱</Text>
+              <PremiumIcon name="vegan" size={54} />
             </View>
             <Text style={styles.appName}>VeganLand</Text>
             <Text style={styles.tagline}>
@@ -115,7 +116,7 @@ export default function LoginScreen({ navigation }) {
               disabled={loading}
             >
               <Text style={styles.btnText}>
-                {loading ? '⏳' : '🌿'} {t(language, 'auth.sign_in')}
+                {loading ? '...' : t(language, 'auth.sign_in')}
               </Text>
             </TouchableOpacity>
 
@@ -139,43 +140,52 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, padding: 24, gap: 24, justifyContent: 'center' },
+  scroll: { flexGrow: 1, padding: 24, gap: 28, justifyContent: 'center' },
   langBtn: {
     alignSelf: 'flex-end',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.64)',
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 10, paddingVertical: 16 },
+  hero: { alignItems: 'center', gap: 12, paddingVertical: 20 },
   logoCircle: {
-    width: 88, height: 88, borderRadius: 44,
-    backgroundColor: Colors.primaryBg,
+    width: 104, height: 104, borderRadius: 52,
+    backgroundColor: 'rgba(255,255,255,0.72)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: Colors.primary + '40',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+    shadowColor: Colors.darkSurface,
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 8,
   },
-  logoEmoji: { fontSize: 48 },
-  appName: { fontSize: 36, fontWeight: '900', color: Colors.primary },
-  tagline: { fontSize: 14, color: Colors.textMuted, fontWeight: '500', textAlign: 'center' },
+  appName: { fontSize: 42, fontWeight: '700', color: Colors.primaryDark, fontFamily: 'serif', letterSpacing: 0 },
+  tagline: { fontSize: 15, color: Colors.textLight, fontWeight: '500', textAlign: 'center', lineHeight: 22 },
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    gap: 16,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: 28,
+    padding: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.85)',
+    gap: 18,
+    shadowColor: Colors.darkSurface,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.08,
+    shadowRadius: 30,
+    elevation: 10,
   },
-  cardTitle: { fontSize: 20, fontWeight: '900', color: Colors.text, textAlign: 'center', marginBottom: 4 },
-  field: { gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3 },
+  cardTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 4, fontFamily: 'serif' },
+  field: { gap: 8 },
+  fieldLabel: { fontSize: 12, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.5, textTransform: 'uppercase' },
   input: {
-    backgroundColor: Colors.background,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(232,225,213,0.9)',
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
@@ -192,17 +202,20 @@ const styles = StyleSheet.create({
   },
   errorText: { color: Colors.dangerDark || Colors.danger, fontSize: 13, fontWeight: '800', textAlign: 'center' },
   btn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryDark,
     borderRadius: 18,
     paddingVertical: 18,
     alignItems: 'center',
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.primaryDark,
     marginTop: 4,
+    shadowColor: Colors.darkSurface,
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
-  footerLink: { fontSize: 14, color: Colors.accent, fontWeight: '800' },
+  footerLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '800' },
 });

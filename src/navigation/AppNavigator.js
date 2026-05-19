@@ -16,14 +16,16 @@ import HomeScreen from '../screens/HomeScreen';
 import ScanScreen from '../screens/ScanScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import EditPersonalScreen from '../screens/EditPersonalScreen';
 import { t } from '../i18n';
+import { PremiumIcon } from '../components/ui';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TABS = {
-  Home:    { active: '🌿', inactive: '🌿', activeBg: Colors.primaryBg },
-  Profile: { active: '🐾', inactive: '🐾', activeBg: Colors.accentLight },
+  Home:    { icon: 'home', activeBg: Colors.primaryBg },
+  Profile: { icon: 'profile', activeBg: Colors.accentLight },
 };
 
 function TabIcon({ name, focused }) {
@@ -37,7 +39,7 @@ function TabIcon({ name, focused }) {
       alignItems: 'center',
       justifyContent: 'center',
     }}>
-      <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.35 }}>{cfg.active}</Text>
+      <PremiumIcon name={cfg.icon} size={26} muted={!focused} />
     </View>
   );
 }
@@ -51,18 +53,25 @@ function MainTabs() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.card,
-          borderTopWidth: 2,
-          borderTopColor: Colors.border,
-          height: 90,
-          paddingBottom: 22,
+          position: 'absolute',
+          left: 24,
+          right: 24,
+          bottom: 18,
+          backgroundColor: Colors.glass,
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.65)',
+          height: 74,
+          paddingBottom: 12,
           paddingTop: 10,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowRadius: 10,
-          elevation: 8,
+          borderRadius: 999,
+          shadowColor: Colors.darkSurface,
+          shadowOpacity: 0.12,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: 12 },
+          elevation: 12,
         },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '900' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '800' },
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
       })}
     >
@@ -111,6 +120,7 @@ export default function AppNavigator() {
               options={{ presentation: 'fullScreenModal' }}
             />
             <Stack.Screen name="Result" component={ResultScreen} />
+            <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
           </>
         ) : (
           <>
@@ -122,6 +132,7 @@ export default function AppNavigator() {
             />
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+            <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
           </>
         )}
       </Stack.Navigator>

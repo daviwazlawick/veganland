@@ -4,42 +4,44 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { PremiumIcon } from '../components/ui';
 
 const STATUS_CONFIG = {
   SAFE: {
-    icon: '💚',
-    bannerIcon: '🥳',
+    icon: 'safe',
     color: Colors.safeDark,
     bannerBg: Colors.safe,
     cardBg: Colors.safeLight,
     cardBorder: Colors.primary + '40',
     titleKey: 'result.safe',
     subtitleKey: 'result.safe_subtitle',
-    celebration: ['🎉', '🌿', '✨', '🥦', '✨', '🌿', '🎉'],
   },
   CAUTION: {
-    icon: '⚡',
-    bannerIcon: '🤔',
+    icon: 'caution',
     color: Colors.cautionDark,
     bannerBg: Colors.caution,
     cardBg: Colors.cautionLight,
     cardBorder: Colors.caution + '40',
     titleKey: 'result.caution',
     subtitleKey: 'result.caution_subtitle',
-    celebration: ['⚡', '🔍', '⚡'],
   },
   NOT_SAFE: {
-    icon: '🚫',
-    bannerIcon: '😟',
+    icon: 'danger',
     color: Colors.dangerDark,
     bannerBg: Colors.danger,
     cardBg: Colors.dangerLight,
     cardBorder: Colors.danger + '40',
     titleKey: 'result.not_safe',
     subtitleKey: 'result.not_safe_subtitle',
-    celebration: ['🚫', '⚠️', '🚫'],
   },
 };
+
+const KNOWN_SOURCES = new Set(['image', 'cache', 'database', 'open_food_facts', 'unknown', 'missing']);
+
+function parseIngredients(text) {
+  if (!text) return [];
+  return text.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+}
 
 export default function ResultScreen({ navigation, route }) {
   const { language } = useApp();
@@ -47,6 +49,9 @@ export default function ResultScreen({ navigation, route }) {
   const cfg = STATUS_CONFIG[result.status] || STATUS_CONFIG.CAUTION;
   const sourceKey = result.ingredients_source || result.productInfo?.source;
   const productName = result.product_name || result.productInfo?.product_name;
+  const ingredientsText = result.productInfo?.ingredients_text || result.ingredients_text;
+  const ingredients = parseIngredients(ingredientsText);
+  const concerns = result.concerns || [];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,18 +65,14 @@ export default function ResultScreen({ navigation, route }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={[styles.banner, { backgroundColor: cfg.bannerBg }]}>
-          <View style={styles.celebrationRow}>
-            {cfg.celebration.map((e, i) => (
-              <Text key={i} style={styles.celebrationEmoji}>{e}</Text>
-            ))}
-          </View>
+          <View style={styles.lightLine} />
           <View style={styles.bannerIconCircle}>
-            <Text style={styles.bannerBigIcon}>{cfg.bannerIcon}</Text>
+            <PremiumIcon name={cfg.icon} size={64} color={Colors.white} />
           </View>
           <Text style={styles.bannerTitle}>{t(language, cfg.titleKey)}</Text>
           <Text style={styles.bannerSub}>{t(language, cfg.subtitleKey)}</Text>
           <View style={styles.statusBadge}>
-            <Text style={styles.statusBadgeIcon}>{cfg.icon}</Text>
+            <PremiumIcon name={cfg.icon} size={22} />
           </View>
         </View>
 
@@ -84,11 +85,11 @@ export default function ResultScreen({ navigation, route }) {
             <View style={styles.metaRow}>
               {productName && (
                 <View style={styles.productNameWrap}>
-                  <Text style={styles.productNameIcon}>🏷️</Text>
+                  <PremiumIcon name="scan" size={16} muted />
                   <Text style={styles.productName} numberOfLines={1}>{productName}</Text>
                 </View>
               )}
-              {sourceKey && (
+              {sourceKey && KNOWN_SOURCES.has(sourceKey) && (
                 <View style={styles.sourceBadge}>
                   <Text style={styles.sourceBadgeText}>
                     {t(language, `result.source_${sourceKey}`)}
@@ -103,15 +104,35 @@ export default function ResultScreen({ navigation, route }) {
           </Text>
         </View>
 
+        {ingredients.length > 0 && (
+          <View style={styles.ingredientsCard}>
+            <Text style={styles.ingredientsTitle}>{t(language, 'result.ingredients')}</Text>
+            <View style={styles.ingredientsWrap}>
+              {ingredients.map((item, i) => {
+                const lower = item.toLowerCase();
+                const flagged = concerns.some(c => {
+                  const cl = c.toLowerCase();
+                  return lower.includes(cl) || cl.includes(lower);
+                });
+                return (
+                  <View key={i} style={[styles.ingredientChip, flagged && styles.ingredientChipFlagged]}>
+                    <Text style={[styles.ingredientText, flagged && styles.ingredientTextFlagged]}>{item}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {result.concerns && result.concerns.length > 0 && (
           <View style={styles.concernsCard}>
             <View style={styles.concernsHeader}>
-              <Text style={styles.concernsIcon}>⚠️</Text>
+              <PremiumIcon name="caution" size={24} />
               <Text style={styles.concernsTitle}>{t(language, 'result.concerns')}</Text>
             </View>
             {result.concerns.map((item, i) => (
               <View key={i} style={styles.concernItem}>
-                <Text style={styles.concernBullet}>🔴</Text>
+                <View style={styles.concernBullet} />
                 <Text style={styles.concernText}>{item}</Text>
               </View>
             ))}
@@ -120,7 +141,7 @@ export default function ResultScreen({ navigation, route }) {
 
         {(!result.concerns || result.concerns.length === 0) && result.status === 'SAFE' && (
           <View style={styles.noConcernsCard}>
-            <Text style={styles.noConcernsEmojis}>🌿 💚 🥦</Text>
+            <PremiumIcon name="safe" size={52} />
             <Text style={styles.noConcernsTitle}>
             {t(language, 'result.no_issues')}
             </Text>
@@ -133,7 +154,7 @@ export default function ResultScreen({ navigation, route }) {
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
-          <Text style={styles.scanAgainText}>📷  {t(language, 'result.scan_again')}</Text>
+          <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -145,33 +166,37 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: Colors.card,
-    borderBottomWidth: 2, borderBottomColor: Colors.border,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 0,
   },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 26, color: Colors.accent, fontWeight: '800' },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: Colors.text },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: Colors.text },
   content: { paddingBottom: 20 },
   banner: {
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 30,
+    margin: 16,
+    borderRadius: 32,
+    paddingTop: 30,
+    paddingBottom: 34,
     paddingHorizontal: 24,
     gap: 10,
     position: 'relative',
   },
-  celebrationRow: {
-    flexDirection: 'row', gap: 6, marginBottom: 4,
+  lightLine: {
+    width: '68%',
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.38)',
+    marginBottom: 6,
   },
-  celebrationEmoji: { fontSize: 18 },
   bannerIconCircle: {
     width: 90, height: 90, borderRadius: 45,
     backgroundColor: 'rgba(255,255,255,0.28)',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)',
   },
-  bannerBigIcon: { fontSize: 48 },
-  bannerTitle: { fontSize: 32, fontWeight: '900', color: Colors.white, letterSpacing: 0.5 },
+  bannerTitle: { fontSize: 38, fontWeight: '700', color: Colors.white, fontFamily: 'serif', letterSpacing: 0 },
   bannerSub: { fontSize: 14, color: 'rgba(255,255,255,0.88)', fontWeight: '600', textAlign: 'center' },
   statusBadge: {
     position: 'absolute', bottom: -16,
@@ -180,7 +205,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, elevation: 4,
   },
-  statusBadgeIcon: { fontSize: 18 },
   productImage: {
     width: '100%', height: 200,
     backgroundColor: Colors.border,
@@ -189,9 +213,9 @@ const styles = StyleSheet.create({
   analysisCard: {
     margin: 16,
     marginTop: 28,
-    borderRadius: 22,
+    borderRadius: 28,
     padding: 20,
-    borderWidth: 2,
+    borderWidth: 1,
     gap: 10,
   },
   metaRow: {
@@ -199,7 +223,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', gap: 10,
   },
   productNameWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  productNameIcon: { fontSize: 14 },
   productName: { flex: 1, fontSize: 13, color: Colors.textLight, fontWeight: '700' },
   sourceBadge: {
     backgroundColor: 'rgba(255,255,255,0.6)',
@@ -208,44 +231,66 @@ const styles = StyleSheet.create({
   sourceBadgeText: { fontSize: 11, fontWeight: '800', color: Colors.textLight },
   analysisTitle: { fontSize: 19, fontWeight: '900', color: Colors.text },
   explanation: { fontSize: 15, color: Colors.textLight, lineHeight: 24, fontWeight: '500' },
+  ingredientsCard: {
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 28, padding: 20,
+    borderWidth: 1, borderColor: Colors.border,
+    gap: 14,
+  },
+  ingredientsTitle: { fontSize: 16, fontWeight: '900', color: Colors.text },
+  ingredientsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  ingredientChip: {
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  ingredientChipFlagged: {
+    backgroundColor: Colors.dangerLight,
+    borderColor: Colors.danger + '60',
+  },
+  ingredientText: { fontSize: 13, color: Colors.textLight, fontWeight: '600' },
+  ingredientTextFlagged: { color: Colors.dangerDark, fontWeight: '800' },
   concernsCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: Colors.card,
-    borderRadius: 22, padding: 18,
-    borderWidth: 2, borderColor: Colors.dangerLight,
+    borderRadius: 28, padding: 20,
+    borderWidth: 1, borderColor: Colors.dangerLight,
     gap: 10,
   },
   concernsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  concernsIcon: { fontSize: 20 },
   concernsTitle: { fontSize: 16, fontWeight: '900', color: Colors.text },
   concernItem: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: Colors.dangerLight,
     borderRadius: 14, padding: 12,
   },
-  concernBullet: { fontSize: 14 },
+  concernBullet: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.danger, marginTop: 6 },
   concernText: { flex: 1, fontSize: 14, color: Colors.dangerDark, fontWeight: '700', lineHeight: 20 },
   noConcernsCard: {
     marginHorizontal: 16,
     backgroundColor: Colors.safeLight,
-    borderRadius: 22, padding: 24,
+    borderRadius: 28, padding: 26,
     alignItems: 'center', gap: 8,
     borderWidth: 2, borderColor: Colors.primary + '30',
   },
-  noConcernsEmojis: { fontSize: 28 },
   noConcernsTitle: { fontSize: 17, fontWeight: '900', color: Colors.safeDark },
   noConcernsText: { fontSize: 14, color: Colors.safeDark, fontWeight: '600', textAlign: 'center' },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
-    backgroundColor: Colors.card,
-    borderTopWidth: 2, borderTopColor: Colors.border,
+    backgroundColor: 'rgba(250,248,244,0.94)',
+    borderTopWidth: 0,
   },
   scanAgainBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryDark,
     borderRadius: 18, paddingVertical: 18,
     alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
+    shadowColor: Colors.darkSurface,
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   scanAgainText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
 });

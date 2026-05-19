@@ -74,12 +74,12 @@ export default {
     header_question: 'What are we scanning today?',
     scans_label: 'scans',
     setup_profile: 'Set up your profile',
-    no_allergies_configured: '✅ No allergies or sensitivities configured',
+    no_allergies_configured: 'No allergies or sensitivities configured',
     empty_title: 'No scans yet!',
   },
   scan: {
     title: 'Scan Product',
-    instruction: 'Point at the label or ingredient list',
+    instruction: 'Best results pointing at the barcode or ingredient list',
     take_photo: 'Take Photo',
     gallery: 'Gallery',
     analyzing: 'Analyzing product...',
@@ -88,6 +88,9 @@ export default {
     camera_permission: 'We need camera access to scan products',
     allow: 'Allow',
     or: 'or',
+    tip_barcode: 'Barcode photo = most accurate result',
+    tip_ingredients: 'Ingredient list visible? Even better!',
+    tip_product: 'Product front works too — AI knows many brands',
   },
   result: {
     safe: 'SAFE',
@@ -110,6 +113,7 @@ export default {
     source_unknown: 'uncertain source',
     source_missing: 'not found',
     no_issues: 'No issues found!',
+    ingredients: 'Ingredients',
   },
   profile: {
     title: 'My Profile',
@@ -122,7 +126,7 @@ export default {
     about: 'About VeganLand',
     no_profile: 'No profile configured',
     account: 'Account',
-    sign_out: '🚪 Sign out',
+    sign_out: 'Sign out',
     scans_this_month: 'Scans this month',
     renews_on: 'Resets on {{date}}',
     about_text: "Analyze products with AI and know if they're safe for your dietary profile.",
@@ -130,6 +134,16 @@ export default {
   limits: {
     monthly_reached: 'Monthly limit of {{limit}} scans reached.',
     renews_on: 'Resets on {{date}}.',
+  },
+  personal: {
+    title: 'Personal Info',
+    name: 'Name',
+    name_placeholder: 'Your name',
+    bio: 'Bio',
+    bio_placeholder: 'A short description about yourself',
+    save: 'Save',
+    tap_to_change: 'Tap to change photo',
+    edit: 'Edit',
   },
   errors: {
     no_api_key: 'The VeganLand API URL is not configured in the app.',
