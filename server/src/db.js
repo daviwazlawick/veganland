@@ -115,7 +115,27 @@ export async function findProduct(product) {
     [barcode || null, identityKey]
   );
 
-  return result.rows[0] || null;
+  if (result.rows[0]) return result.rows[0];
+
+  // Fuzzy fallback: find a stored product with ingredients that matches brand + name
+  // (covers the case where the product was stored by barcode but is now looked up by name)
+  const brand = (product?.brand || '').trim();
+  const nameRaw = (product?.product_name || product?.lookup_query || '').trim();
+  const nameWords = nameRaw.split(/\s+/).slice(0, 3).join(' ');
+  if (!barcode && brand && nameWords) {
+    const fuzzy = await db.query(
+      `select * from products
+        where ingredients_text is not null
+          and brand ilike $1
+          and product_name ilike $2
+        order by updated_at desc
+        limit 1`,
+      [`%${brand}%`, `%${nameWords}%`]
+    );
+    if (fuzzy.rows[0]) return fuzzy.rows[0];
+  }
+
+  return null;
 }
 
 export async function upsertProduct(product) {
