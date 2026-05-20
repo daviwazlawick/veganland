@@ -182,6 +182,10 @@ function applyProfileToAnalysis(analysis, profile, language) {
     explanation = `${summary}${summary ? ' ' : ''}${resultText(language, 'notSafeExplanation', { concerns: concernList })}`;
   }
 
+  const identified_allergens = Object.entries(analysis.allergens || {})
+    .filter(([, items]) => Array.isArray(items) && items.length > 0)
+    .map(([key]) => key);
+
   return {
     status,
     title,
@@ -190,6 +194,7 @@ function applyProfileToAnalysis(analysis, profile, language) {
     cannot_read: analysis.cannot_read || false,
     product_name: analysis.product_name,
     ingredients_source: analysis.ingredients_source,
+    identified_allergens,
   };
 }
 

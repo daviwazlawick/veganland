@@ -124,6 +124,7 @@ export default {
     source_missing: 'não encontrado',
     no_issues: 'Nenhum problema encontrado!',
     ingredients: 'Ingredientes',
+    allergens_found: 'Alergénios neste produto',
   },
   profile: {
     title: 'Meu Perfil',

@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
+import { ALLERGIES } from '../constants/allergies';
 
 const STATUS_CONFIG = {
   SAFE: {
@@ -52,6 +53,13 @@ export default function ResultScreen({ navigation, route }) {
   const ingredientsText = result.productInfo?.ingredients_text || result.ingredients_text;
   const ingredients = parseIngredients(ingredientsText);
   const concerns = result.concerns || [];
+
+  const ALLERGEN_ID_MAP = { nuts: 'tree_nuts', wheat: 'gluten' };
+  const identifiedAllergens = (result.identified_allergens || [])
+    .map(id => ALLERGEN_ID_MAP[id] || id)
+    .filter((id, idx, arr) => arr.indexOf(id) === idx)
+    .map(id => ALLERGIES.find(a => a.id === id))
+    .filter(Boolean);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -120,6 +128,19 @@ export default function ResultScreen({ navigation, route }) {
                   </View>
                 );
               })}
+            </View>
+          </View>
+        )}
+
+        {identifiedAllergens.length > 0 && (
+          <View style={styles.allergensCard}>
+            <Text style={styles.allergensTitle}>{t(language, 'result.allergens_found')}</Text>
+            <View style={styles.allergensWrap}>
+              {identifiedAllergens.map((allergen, i) => (
+                <View key={i} style={styles.allergenChip}>
+                  <Text style={styles.allergenText}>{allergen.label[language] || allergen.label.en}</Text>
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -251,6 +272,21 @@ const styles = StyleSheet.create({
   },
   ingredientText: { fontSize: 13, color: Colors.textLight, fontWeight: '600' },
   ingredientTextFlagged: { color: Colors.dangerDark, fontWeight: '800' },
+  allergensCard: {
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: '#FFF8ED',
+    borderRadius: 28, padding: 20,
+    borderWidth: 1, borderColor: '#F59E0B40',
+    gap: 14,
+  },
+  allergensTitle: { fontSize: 16, fontWeight: '900', color: Colors.text },
+  allergensWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  allergenChip: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: '#F59E0B60',
+  },
+  allergenText: { fontSize: 13, color: '#92400E', fontWeight: '800' },
   concernsCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: Colors.card,
