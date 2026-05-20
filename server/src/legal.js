@@ -1,8 +1,8 @@
 const PRIMARY_COLOR = '#7CB518';
 const DARK = '#1C2B22';
 
-const OWNER_NAME    = process.env.LEGAL_OWNER_NAME    || '[YOUR FULL NAME]';
-const OWNER_ADDRESS = process.env.LEGAL_OWNER_ADDRESS || '[STREET, POSTCODE CITY, GERMANY]';
+const OWNER_NAME    = process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick';
+const OWNER_ADDRESS = process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany';
 const OWNER_EMAIL   = process.env.LEGAL_OWNER_EMAIL   || 'legal@veganland.app';
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL       || 'hello@veganland.app';
 const APP_URL       = process.env.APP_URL              || 'https://veganland.app';
