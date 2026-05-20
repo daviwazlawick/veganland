@@ -17,6 +17,7 @@ import ScanScreen from '../screens/ScanScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditPersonalScreen from '../screens/EditPersonalScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -109,6 +110,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         ) : !profile ? (
           <>
