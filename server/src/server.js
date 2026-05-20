@@ -4,6 +4,7 @@ import { analyzeProduct } from './analyze.js';
 import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail } from './email.js';
+import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
@@ -584,6 +585,16 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(htmlAdminUserPage(data));
+      return;
+    }
+
+    // GET /legal/terms | /legal/privacy | /legal/imprint
+    if (req.method === 'GET' && req.url.startsWith('/legal/')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      if (req.url === '/legal/terms') res.end(htmlTerms());
+      else if (req.url === '/legal/privacy') res.end(htmlPrivacy());
+      else if (req.url === '/legal/imprint') res.end(htmlImprint());
+      else { sendJson(res, 404, { error: 'Not found' }); }
       return;
     }
 

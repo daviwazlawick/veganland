@@ -43,6 +43,11 @@ export default {
     email_sent: 'Email inviata!',
     back_to_login: 'Torna al login',
     send_link: 'Invia link',
+    terms_required: 'Devi accettare i Termini e Condizioni per continuare',
+    terms_agree_prefix: 'Accetto i ',
+    terms_link: 'Termini e Condizioni',
+    terms_agree_middle: ' e la ',
+    privacy_link: 'Informativa sulla Privacy',
   },
   profile_setup: {
     title: 'Il tuo profilo',
@@ -129,7 +134,10 @@ export default {
     sign_out: 'Esci',
     scans_this_month: 'Scansioni questo mese',
     renews_on: 'Si rinnova il {{date}}',
-    about_text: 'Analizza prodotti con l’IA e scopri se sono adatti al tuo profilo alimentare.',
+    about_text: "Analizza prodotti con l’IA e scopri se sono adatti al tuo profilo alimentare.",
+    terms: "Termini e Condizioni",
+    privacy: "Informativa Privacy",
+    imprint: "Note Legali",
   },
   limits: {
     monthly_reached: 'Limite mensile di {{limit}} scansioni raggiunto.',

@@ -49,7 +49,8 @@
         {
           "photosPermission": "VeganLand needs photo access to analyze product images."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

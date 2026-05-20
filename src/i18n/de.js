@@ -43,6 +43,11 @@ export default {
     email_sent: 'E-Mail gesendet!',
     back_to_login: 'Zurück zum Login',
     send_link: 'Link senden',
+    terms_required: 'Du musst die AGB akzeptieren, um fortzufahren',
+    terms_agree_prefix: 'Ich akzeptiere die ',
+    terms_link: 'AGB',
+    terms_agree_middle: ' und die ',
+    privacy_link: 'Datenschutzerklärung',
   },
   profile_setup: {
     title: 'Dein Profil',
@@ -130,6 +135,9 @@ export default {
     scans_this_month: 'Scans diesen Monat',
     renews_on: 'Erneuert am {{date}}',
     about_text: 'Analysiere Produkte mit KI und erfahre, ob sie zu deinem Ernährungsprofil passen.',
+    terms: 'AGB',
+    privacy: 'Datenschutz',
+    imprint: 'Impressum',
   },
   limits: {
     monthly_reached: 'Monatliches Limit von {{limit}} Scans erreicht.',

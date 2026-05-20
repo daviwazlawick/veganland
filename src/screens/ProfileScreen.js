@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
   const { user, token, logout } = useAuth();
   const [usage, setUsage] = useState(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!token) return;
@@ -32,7 +34,7 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.headerTitle}>{t(language, 'profile.title')}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
 
         <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
 
@@ -158,6 +160,20 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.aboutText}>
             {t(language, 'profile.about_text')}
           </Text>
+        </View>
+
+        <View style={styles.legalFooter}>
+          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/terms')}>
+            <Text style={styles.legalLink}>{t(language, 'profile.terms')}</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalDot}>·</Text>
+          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/privacy')}>
+            <Text style={styles.legalLink}>{t(language, 'profile.privacy')}</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalDot}>·</Text>
+          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/imprint')}>
+            <Text style={styles.legalLink}>{t(language, 'profile.imprint')}</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -413,4 +429,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   usageReset: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  legalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  legalLink: { fontSize: 12, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
+  legalDot: { fontSize: 12, color: Colors.border },
 });

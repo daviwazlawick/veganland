@@ -43,6 +43,11 @@ export default {
     email_sent: '¡Email enviado!',
     back_to_login: 'Volver al login',
     send_link: 'Enviar enlace',
+    terms_required: 'Debes aceptar los Términos y Condiciones para continuar',
+    terms_agree_prefix: 'Acepto los ',
+    terms_link: 'Términos y Condiciones',
+    terms_agree_middle: ' y la ',
+    privacy_link: 'Política de Privacidad',
   },
   profile_setup: {
     title: 'Tu perfil',
@@ -130,6 +135,9 @@ export default {
     scans_this_month: 'Escaneos este mes',
     renews_on: 'Se renueva el {{date}}',
     about_text: 'Analiza productos con IA y descubre si son seguros para tu perfil alimentario.',
+    terms: 'Términos y Condiciones',
+    privacy: 'Política de Privacidad',
+    imprint: 'Aviso Legal',
   },
   limits: {
     monthly_reached: 'Límite mensual de {{limit}} escaneos alcanzado.',

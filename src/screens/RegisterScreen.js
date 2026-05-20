@@ -4,6 +4,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
@@ -17,6 +18,7 @@ export default function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const languageIndex = LANGUAGES.findIndex(item => item.code === language);
   const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
   const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
@@ -24,6 +26,10 @@ export default function RegisterScreen({ navigation }) {
   async function handleRegister() {
     if (!email.trim() || !password) {
       Alert.alert('', t(language, 'auth.fill_all'));
+      return;
+    }
+    if (!termsAccepted) {
+      Alert.alert('', t(language, 'auth.terms_required'));
       return;
     }
     if (password.length < 6) {
@@ -111,7 +117,29 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <TouchableOpacity
-              style={[styles.btn, loading && styles.btnDisabled]}
+              style={styles.termsRow}
+              onPress={() => setTermsAccepted(v => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                {termsAccepted && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.termsText}>
+                <Text>{t(language, 'auth.terms_agree_prefix')}</Text>
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/terms')}
+                >{t(language, 'auth.terms_link')}</Text>
+                <Text>{t(language, 'auth.terms_agree_middle')}</Text>
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/privacy')}
+                >{t(language, 'auth.privacy_link')}</Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.btn, (!termsAccepted || loading) && styles.btnDisabled]}
               onPress={handleRegister}
               activeOpacity={0.9}
               disabled={loading}
@@ -205,6 +233,18 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: Colors.border,
+    backgroundColor: Colors.backgroundSecondary,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
+  },
+  checkboxChecked: { borderColor: Colors.primary, backgroundColor: Colors.primary },
+  checkmark: { color: Colors.white, fontSize: 13, fontWeight: '900', lineHeight: 16 },
+  termsText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 20, fontWeight: '500' },
+  termsLink: { color: Colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
   footerLink: { fontSize: 14, color: Colors.primary, fontWeight: '800' },

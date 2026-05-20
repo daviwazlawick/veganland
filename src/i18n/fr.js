@@ -43,6 +43,11 @@ export default {
     email_sent: 'E-mail envoyé !',
     back_to_login: 'Retour à la connexion',
     send_link: 'Envoyer le lien',
+    terms_required: 'Vous devez accepter les CGU pour continuer',
+    terms_agree_prefix: "J'accepte les ",
+    terms_link: 'Conditions Générales',
+    terms_agree_middle: ' et la ',
+    privacy_link: 'Politique de Confidentialité',
   },
   profile_setup: {
     title: 'Votre profil',
@@ -129,7 +134,10 @@ export default {
     sign_out: 'Se déconnecter',
     scans_this_month: 'Scans ce mois-ci',
     renews_on: 'Renouvelé le {{date}}',
-    about_text: 'Analysez des produits avec l’IA et sachez s’ils conviennent à votre profil alimentaire.',
+    about_text: "Analysez des produits avec l’IA et sachez s’ils conviennent à votre profil alimentaire.",
+    terms: "Conditions Générales",
+    privacy: "Confidentialité",
+    imprint: "Mentions Légales",
   },
   limits: {
     monthly_reached: 'Limite mensuelle de {{limit}} scans atteinte.',
