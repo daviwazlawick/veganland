@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
+import { apiResendConfirmationByEmail } from '../services/apiService';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -19,6 +20,9 @@ export default function RegisterScreen({ navigation }) {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState(null);
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
   const languageIndex = LANGUAGES.findIndex(item => item.code === language);
   const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
   const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
@@ -44,10 +48,62 @@ export default function RegisterScreen({ navigation }) {
     try {
       await register(email.trim(), password);
     } catch (e) {
-      Alert.alert('', e.message || t(language, 'auth.register_failed'));
+      if (e.code === 'EMAIL_CONFIRMATION_REQUIRED') {
+        setConfirmationEmail(e.email);
+      } else {
+        Alert.alert('', e.message || t(language, 'auth.register_failed'));
+      }
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await apiResendConfirmationByEmail(confirmationEmail);
+      setResendDone(true);
+      setTimeout(() => setResendDone(false), 3000);
+    } catch (e) {
+      // silent — always show success to not reveal account existence
+      setResendDone(true);
+      setTimeout(() => setResendDone(false), 3000);
+    } finally {
+      setResending(false);
+    }
+  }
+
+  if (confirmationEmail) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={[styles.scroll, { justifyContent: 'center', gap: 28 }]} showsVerticalScrollIndicator={false}>
+          <View style={styles.hero}>
+            <View style={[styles.logoCircle, { backgroundColor: Colors.primaryBg }]}>
+              <Text style={{ fontSize: 48 }}>📧</Text>
+            </View>
+            <Text style={styles.title}>{t(language, 'auth.check_email_title')}</Text>
+            <Text style={[styles.subtitle, { textAlign: 'center' }]}>
+              {t(language, 'auth.check_email_body', { email: confirmationEmail })}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.btn, resending && styles.btnDisabled]}
+            onPress={handleResend}
+            activeOpacity={0.9}
+            disabled={resending}
+          >
+            <Text style={styles.btnText}>
+              {resendDone ? t(language, 'auth.resend_done') : resending ? '...' : t(language, 'auth.resend_confirmation')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.footer} onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.footerLink}>{t(language, 'auth.back_to_login')}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (

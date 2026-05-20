@@ -101,6 +101,17 @@ export async function apiResendConfirmation(token) {
   return data;
 }
 
+export async function apiResendConfirmationByEmail(email) {
+  const response = await fetch(`${baseUrl()}/auth/resend-confirmation-by-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
 export async function apiGetHistory(token) {
   const response = await fetch(`${baseUrl()}/user/history`, {
     headers: { Authorization: `Bearer ${token}` },

@@ -309,13 +309,15 @@ const server = http.createServer(async (req, res) => {
       }
       const passwordHash = await hashPassword(password);
       const user = await createUser(email, passwordHash);
-      const token = generateToken(user.id, user.email);
       if (emailsEnabled()) {
         const confirmToken = crypto.randomBytes(32).toString('hex');
         await storeEmailConfirmationToken(user.id, confirmToken);
         sendConfirmationEmail(user.email, confirmToken).catch(console.error);
+        sendJson(res, 201, { emailConfirmationSent: true, email: user.email });
+      } else {
+        const token = generateToken(user.id, user.email);
+        sendJson(res, 201, { token, user: { id: user.id, email: user.email }, emailConfirmationSent: false });
       }
-      sendJson(res, 201, { token, user: { id: user.id, email: user.email }, emailConfirmationSent: emailsEnabled() });
       return;
     }
 
@@ -330,6 +332,21 @@ const server = http.createServer(async (req, res) => {
         const confirmToken = crypto.randomBytes(32).toString('hex');
         await storeEmailConfirmationToken(claims.userId, confirmToken);
         sendConfirmationEmail(claims.email, confirmToken).catch(console.error);
+      }
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    // POST /auth/resend-confirmation-by-email — for unconfirmed users at login (no JWT)
+    if (req.method === 'POST' && req.url === '/auth/resend-confirmation-by-email') {
+      const { email } = await readJsonBody(req);
+      if (email && emailsEnabled()) {
+        const user = await findUserByEmail(email);
+        if (user && !user.email_confirmed) {
+          const confirmToken = crypto.randomBytes(32).toString('hex');
+          await storeEmailConfirmationToken(user.id, confirmToken);
+          sendConfirmationEmail(user.email, confirmToken).catch(console.error);
+        }
       }
       sendJson(res, 200, { ok: true });
       return;
@@ -413,6 +430,10 @@ const server = http.createServer(async (req, res) => {
       const valid = await verifyPassword(password, user.password_hash);
       if (!valid) {
         sendJson(res, 401, { error: 'Invalid email or password' });
+        return;
+      }
+      if (emailsEnabled() && !user.email_confirmed) {
+        sendJson(res, 403, { error: 'email_not_confirmed' });
         return;
       }
       const token = generateToken(user.id, user.email);

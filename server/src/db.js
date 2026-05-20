@@ -309,7 +309,7 @@ export async function findUserByEmail(email) {
   }
 
   const result = await db.query(
-    `select id, email, password_hash, created_at from users where email = $1`,
+    `select id, email, password_hash, email_confirmed, created_at from users where email = $1`,
     [normalizedEmail]
   );
   return result.rows[0] || null;

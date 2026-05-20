@@ -49,9 +49,15 @@ export function AuthProvider({ children }) {
   }
 
   async function register(email, password) {
-    const { token: t, user: u } = await apiRegister(email, password);
-    await persistAuth(t, u);
-    return u;
+    const data = await apiRegister(email, password);
+    if (data.emailConfirmationSent) {
+      const err = new Error('email_confirmation_required');
+      err.code = 'EMAIL_CONFIRMATION_REQUIRED';
+      err.email = data.email;
+      throw err;
+    }
+    await persistAuth(data.token, data.user);
+    return data.user;
   }
 
   async function logout() {

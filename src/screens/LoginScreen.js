@@ -9,6 +9,7 @@ import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
+import { apiResendConfirmationByEmail } from '../services/apiService';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -17,12 +18,16 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
   const languageIndex = LANGUAGES.findIndex(item => item.code === language);
   const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
   const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
 
   async function handleLogin() {
     setErrorMessage('');
+    setNeedsConfirmation(false);
     if (!email.trim() || !password) {
       Alert.alert('', t(language, 'auth.missing_login'));
       return;
@@ -31,13 +36,30 @@ export default function LoginScreen({ navigation }) {
     try {
       await login(email.trim(), password);
     } catch (e) {
-      const message = e.status === 401
-        ? t(language, 'auth.invalid_credentials')
-        : (e.message || t(language, 'auth.login_failed'));
-      setErrorMessage(message);
-      Alert.alert('', message);
+      if (e.status === 403 && e.data?.error === 'email_not_confirmed') {
+        setNeedsConfirmation(true);
+      } else {
+        const message = e.status === 401
+          ? t(language, 'auth.invalid_credentials')
+          : (e.message || t(language, 'auth.login_failed'));
+        setErrorMessage(message);
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await apiResendConfirmationByEmail(email.trim());
+      setResendDone(true);
+      setTimeout(() => setResendDone(false), 3000);
+    } catch (e) {
+      setResendDone(true);
+      setTimeout(() => setResendDone(false), 3000);
+    } finally {
+      setResending(false);
     }
   }
 
@@ -106,6 +128,17 @@ export default function LoginScreen({ navigation }) {
             {!!errorMessage && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            )}
+
+            {needsConfirmation && (
+              <View style={styles.confirmationBox}>
+                <Text style={styles.confirmationText}>{t(language, 'auth.email_not_confirmed')}</Text>
+                <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.resendBtn}>
+                  <Text style={styles.resendText}>
+                    {resendDone ? t(language, 'auth.resend_done') : resending ? '...' : t(language, 'auth.resend_confirmation')}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -224,6 +257,19 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  confirmationBox: {
+    backgroundColor: '#FEF9C3',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE047',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    alignItems: 'center',
+  },
+  confirmationText: { color: '#854D0E', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  resendBtn: { paddingVertical: 4 },
+  resendText: { color: Colors.primaryDark, fontSize: 13, fontWeight: '800' },
   forgotBtn: { alignItems: 'center', paddingVertical: 4 },
   forgotText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
