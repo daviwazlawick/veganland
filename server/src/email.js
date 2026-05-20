@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import './env.js';
 
-const FROM = process.env.SMTP_FROM || 'VeganLand <noreply@veganland.app>';
+const FROM = process.env.SMTP_FROM || 'VeganLand <contact@veganland.app>';
 const APP_URL = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 export function emailsEnabled() {
