@@ -17,7 +17,7 @@ export default function BetaRibbon() {
 const styles = StyleSheet.create({
   corner: {
     position: 'absolute',
-    left: 0,
+    right: 0,
     width: 82,
     height: 82,
     overflow: 'hidden',
@@ -26,12 +26,12 @@ const styles = StyleSheet.create({
   strip: {
     position: 'absolute',
     top: 18,
-    left: -28,
+    right: -28,
     width: 100,
     backgroundColor: Colors.accent,
     paddingVertical: 6,
     alignItems: 'center',
-    transform: [{ rotate: '-45deg' }],
+    transform: [{ rotate: '45deg' }],
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 4,
