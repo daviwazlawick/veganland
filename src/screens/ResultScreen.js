@@ -51,7 +51,6 @@ export default function ResultScreen({ navigation, route }) {
   const sourceKey = result.ingredients_source || result.productInfo?.source;
   const productName = result.product_name || result.productInfo?.product_name;
   const ingredientsText = result.productInfo?.ingredients_text || result.ingredients_text;
-  const ingredients = parseIngredients(ingredientsText);
   const concerns = result.concerns || [];
 
   const ALLERGEN_ID_MAP = { nuts: 'tree_nuts', wheat: 'gluten' };
@@ -60,6 +59,10 @@ export default function ResultScreen({ navigation, route }) {
     .filter((id, idx, arr) => arr.indexOf(id) === idx)
     .map(id => ALLERGIES.find(a => a.id === id))
     .filter(Boolean);
+
+  const ingredients = Array.isArray(result.normalized_ingredients) && result.normalized_ingredients.length > 0
+    ? result.normalized_ingredients
+    : parseIngredients(ingredientsText);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -112,9 +115,9 @@ export default function ResultScreen({ navigation, route }) {
           </Text>
         </View>
 
-        {ingredients.length > 0 && (
-          <View style={styles.ingredientsCard}>
-            <Text style={styles.ingredientsTitle}>{t(language, 'result.ingredients')}</Text>
+        <View style={styles.ingredientsCard}>
+          <Text style={styles.ingredientsTitle}>{t(language, 'result.ingredients')}</Text>
+          {ingredients.length > 0 ? (
             <View style={styles.ingredientsWrap}>
               {ingredients.map((item, i) => {
                 const lower = item.toLowerCase();
@@ -129,12 +132,14 @@ export default function ResultScreen({ navigation, route }) {
                 );
               })}
             </View>
-          </View>
-        )}
+          ) : (
+            <Text style={styles.ingredientsEmpty}>{t(language, 'result.ingredients_unavailable')}</Text>
+          )}
+        </View>
 
-        {identifiedAllergens.length > 0 && (
-          <View style={styles.allergensCard}>
-            <Text style={styles.allergensTitle}>{t(language, 'result.allergens_found')}</Text>
+        <View style={styles.allergensCard}>
+          <Text style={styles.allergensTitle}>{t(language, 'result.allergens_found')}</Text>
+          {identifiedAllergens.length > 0 ? (
             <View style={styles.allergensWrap}>
               {identifiedAllergens.map((allergen, i) => (
                 <View key={i} style={styles.allergenChip}>
@@ -142,8 +147,10 @@ export default function ResultScreen({ navigation, route }) {
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          ) : (
+            <Text style={styles.allergensNone}>{t(language, 'result.allergens_none')}</Text>
+          )}
+        </View>
 
         {result.concerns && result.concerns.length > 0 && (
           <View style={styles.concernsCard}>
@@ -272,6 +279,7 @@ const styles = StyleSheet.create({
   },
   ingredientText: { fontSize: 13, color: Colors.textLight, fontWeight: '600' },
   ingredientTextFlagged: { color: Colors.dangerDark, fontWeight: '800' },
+  ingredientsEmpty: { fontSize: 14, color: Colors.textLight, fontStyle: 'italic' },
   allergensCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: '#FFF8ED',
@@ -287,6 +295,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#F59E0B60',
   },
   allergenText: { fontSize: 13, color: '#92400E', fontWeight: '800' },
+  allergensNone: { fontSize: 14, color: Colors.textLight, fontStyle: 'italic' },
   concernsCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: Colors.card,

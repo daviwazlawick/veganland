@@ -195,6 +195,7 @@ function applyProfileToAnalysis(analysis, profile, language) {
     product_name: analysis.product_name,
     ingredients_source: analysis.ingredients_source,
     identified_allergens,
+    normalized_ingredients: Array.isArray(analysis.normalized_ingredients) ? analysis.normalized_ingredients : [],
   };
 }
 

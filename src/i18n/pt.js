@@ -125,6 +125,8 @@ export default {
     no_issues: 'Nenhum problema encontrado!',
     ingredients: 'Ingredientes',
     allergens_found: 'Alergénios neste produto',
+    allergens_none: 'Nenhum alérgeno detectado',
+    ingredients_unavailable: 'Ingredientes não disponíveis',
   },
   profile: {
     title: 'Meu Perfil',

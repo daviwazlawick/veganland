@@ -170,7 +170,8 @@ Responda APENAS com JSON válido neste formato exato:
   "concerns": ["ingrediente ou material problemático"],
   "cannot_read": false,
   "product_name": "${productName}",
-  "ingredients_source": "${source}"
+  "ingredients_source": "${source}",
+  "normalized_ingredients": []
 }`;
   }
 
@@ -204,7 +205,8 @@ Respond ONLY with valid JSON in this exact format:
   "concerns": ["problematic ingredient or material"],
   "cannot_read": false,
   "product_name": "${productName}",
-  "ingredients_source": "${source}"
+  "ingredients_source": "${source}",
+  "normalized_ingredients": []
 }`;
 }
 
@@ -269,6 +271,7 @@ Classifique:
 - "allergens": ingredientes/materiais por categoria padrão de alergia ou sensibilidade, incluindo alimentos, cosméticos, higiene e roupas
 - "ambiguous": ingredientes que PODEM ser animais mas sem especificação de origem (ex: "lecitina", "glicerina")
 - "summary": descrição neutra da composição em 2-3 frases
+- "normalized_ingredients": lista dos ingredientes em português (traduza e normalize do rótulo original, mantendo nomes técnicos)
 
 Responda APENAS com JSON válido:
 {
@@ -302,7 +305,8 @@ Responda APENAS com JSON válido:
     "dyes": [],
     "wool": []
   },
-  "ambiguous": []
+  "ambiguous": [],
+  "normalized_ingredients": []
 }`;
   }
 
@@ -324,6 +328,7 @@ Classify:
 - "allergens": ingredients/materials by standard allergy or sensitivity category, including food, cosmetics, hygiene, and clothing
 - "ambiguous": ingredients that MAY be animal-derived without specified origin (e.g. "lecithin", "glycerin")
 - "summary": neutral description of composition in 2-3 sentences
+- "normalized_ingredients": list of ingredient names in ${outputLanguage} (translated and normalized from the original label, keeping technical names)
 
 Respond ONLY with valid JSON:
 {
@@ -357,7 +362,8 @@ Respond ONLY with valid JSON:
     "dyes": [],
     "wool": []
   },
-  "ambiguous": []
+  "ambiguous": [],
+  "normalized_ingredients": []
 }`;
 }
 
@@ -384,6 +390,7 @@ Classifique os componentes PROVÁVEIS deste produto:
 - "allergens": alérgenos/sensibilizantes conhecidos deste produto específico, incluindo alimentos, cosméticos, higiene e roupas
 - "ambiguous": componentes sobre os quais há incerteza — prefira aqui em vez de "animal_derived" se não tiver certeza
 - "summary": descrição neutra em 2-3 frases
+- "normalized_ingredients": prováveis ingredientes/componentes deste produto em português
 
 Responda APENAS com JSON válido:
 {
@@ -417,7 +424,8 @@ Responda APENAS com JSON válido:
     "dyes": [],
     "wool": []
   },
-  "ambiguous": []
+  "ambiguous": [],
+  "normalized_ingredients": []
 }`;
   }
 
@@ -437,6 +445,7 @@ Classify the LIKELY components of this product:
 - "allergens": known allergens/sensitizers in this specific product, including food, cosmetics, hygiene, and clothing
 - "ambiguous": components you are uncertain about — prefer this over "animal_derived" when unsure
 - "summary": neutral description in 2-3 sentences
+- "normalized_ingredients": likely ingredients/components of this product in ${outputLanguage}
 
 Respond ONLY with valid JSON:
 {
@@ -470,7 +479,8 @@ Respond ONLY with valid JSON:
     "dyes": [],
     "wool": []
   },
-  "ambiguous": []
+  "ambiguous": [],
+  "normalized_ingredients": []
 }`;
 }
 
@@ -498,6 +508,7 @@ Classifique:
 - "allergens": apenas se este alimento for um alérgeno comum (amendoim → peanuts, castanhas → nuts, etc.)
 - "ambiguous": geralmente vazio; mencione apenas se houver cobertura de cera comercial com shellac/E904
 - "summary": descrição neutra em 1-2 frases
+- "normalized_ingredients": nome do alimento em português (ex: ["Maçã Fuji"])
 
 Responda APENAS com JSON válido:
 {
@@ -531,7 +542,8 @@ Responda APENAS com JSON válido:
     "dyes": [],
     "wool": []
   },
-  "ambiguous": []
+  "ambiguous": [],
+  "normalized_ingredients": []
 }`;
   }
 
@@ -546,6 +558,7 @@ Classify:
 - "allergens": only if this specific food is a common allergen (peanuts → peanuts, tree nuts → nuts, etc.); keep non-food sensitivity arrays empty for fresh produce
 - "ambiguous": generally empty; mention only if commercial wax coating with shellac/E904 is likely
 - "summary": neutral description in 1-2 sentences
+- "normalized_ingredients": food item name in ${outputLanguage} (e.g. ["Fuji Apple"])
 
 Respond ONLY with valid JSON:
 {
@@ -579,7 +592,8 @@ Respond ONLY with valid JSON:
     "dyes": [],
     "wool": []
   },
-  "ambiguous": []
+  "ambiguous": [],
+  "normalized_ingredients": []
 }`;
 }
 
@@ -644,7 +658,8 @@ Responda APENAS com JSON válido:
   "cannot_read": false,
   "knowledge_based": true,
   "product_name": "${productName || 'alimento in natura'}",
-  "ingredients_source": "knowledge"
+  "ingredients_source": "knowledge",
+  "normalized_ingredients": ["${productName || 'alimento in natura'}"]
 }`;
     }
 
@@ -669,6 +684,7 @@ Regras:
 - Para "vegetarian": carne/peixe = NOT_SAFE
 - Para alergias/sensibilidades: ingrediente, material ou sensibilizante específico = NOT_SAFE
 - Se incerto sobre a composição do produto, use CAUTION
+- Liste os ingredientes típicos conhecidos deste produto em português no campo "normalized_ingredients"
 
 Responda APENAS com JSON válido:
 {
@@ -679,7 +695,8 @@ Responda APENAS com JSON válido:
   "cannot_read": false,
   "knowledge_based": true,
   "product_name": "${productName || 'desconhecido'}",
-  "ingredients_source": "knowledge"
+  "ingredients_source": "knowledge",
+  "normalized_ingredients": ["ingrediente típico 1", "ingrediente típico 2"]
 }`;
   }
 
@@ -705,7 +722,8 @@ Respond ONLY with valid JSON:
   "cannot_read": false,
   "knowledge_based": true,
   "product_name": "${productName || 'fresh produce'}",
-  "ingredients_source": "knowledge"
+  "ingredients_source": "knowledge",
+  "normalized_ingredients": ["${productName || 'fresh produce'}"]
 }`;
   }
 
@@ -730,6 +748,7 @@ Rules:
 - For "vegetarian": meat/fish = NOT_SAFE
 - For allergies/sensitivities: the specific allergen ingredient, material, or sensitizer = NOT_SAFE
 - If unsure about product composition, use CAUTION
+- List typical known ingredients for this product in ${outputLanguage} under "normalized_ingredients"
 
 Respond ONLY with valid JSON:
 {
@@ -740,7 +759,8 @@ Respond ONLY with valid JSON:
   "cannot_read": false,
   "knowledge_based": true,
   "product_name": "${productName || 'unknown'}",
-  "ingredients_source": "knowledge"
+  "ingredients_source": "knowledge",
+  "normalized_ingredients": ["typical ingredient 1", "typical ingredient 2"]
 }`;
 }
 
@@ -799,5 +819,6 @@ export function buildMissingIngredientsResult(product, language) {
     cannot_read: true,
     product_name: productName || null,
     ingredients_source: 'missing',
+    normalized_ingredients: [],
   };
 }
