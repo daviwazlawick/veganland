@@ -8,7 +8,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { localeFor, t } from '../i18n';
+import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
@@ -82,11 +82,15 @@ export default function ScanScreen({ navigation }) {
     } catch (e) {
       let msg;
       if (e.status === 429) {
-        const resetDate = e.data?.usage?.resets_at;
-        const limit = e.data?.usage?.limit || 50;
-        const reset = resetDate ? new Date(resetDate).toLocaleDateString(localeFor(language)) : null;
+        const usage = e.data?.usage;
+        const limit = usage?.limit || 30;
         msg = t(language, 'limits.monthly_reached', { limit });
-        if (reset) msg += `\n${t(language, 'limits.renews_on', { date: reset })}`;
+        if (usage?.resets_at) {
+          const days = Math.ceil((new Date(usage.resets_at) - new Date()) / 86400000);
+          msg += '\n' + (days <= 1
+            ? t(language, 'limits.resets_tomorrow')
+            : t(language, 'limits.resets_in_days', { days }));
+        }
       } else if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
         msg = t(language, 'errors.network_error');
       } else {

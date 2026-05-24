@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
@@ -91,23 +91,36 @@ function htmlResetForm(token) {
   </script></body></html>`;
 }
 
+function planBadge(userType) {
+  const cfg = {
+    basic:   { label: 'Básico',   bg: '#EEF5E8', color: '#2E4736' },
+    premium: { label: 'Premium',  bg: '#FFF1E2', color: '#9A6121' },
+    admin:   { label: 'Admin',    bg: '#E8F0FF', color: '#1A3A8F' },
+  }[userType] || { label: userType || 'básico', bg: '#f0f0f0', color: '#888' };
+  return `<span style="background:${cfg.bg};color:${cfg.color};font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap">${cfg.label}</span>`;
+}
+
 function htmlAdminPage(stats) {
   const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
   const rows = stats.users.map(u => {
     const diet = dietLabel[u.diet_id] || (u.diet_id || '—');
     const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
     const lastScan = u.last_scan ? new Date(u.last_scan).toLocaleDateString('pt-BR') : '—';
-    const monthBar = Math.min(100, Math.round((u.scans_this_month / 50) * 100));
+    const userType = u.user_type || 'basic';
+    const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+    const monthBar = limit === null ? 0 : Math.min(100, Math.round((u.scans_this_month / limit) * 100));
+    const monthLabel = limit === null ? `${u.scans_this_month}/∞` : `${u.scans_this_month}/${limit}`;
     return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}'">
       <td><a href="/admin/user/${u.id}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a></td>
       <td>${diet}</td>
+      <td>${planBadge(userType)}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
           <div style="flex:1;height:6px;background:#eee;border-radius:3px;overflow:hidden">
             <div style="width:${monthBar}%;height:100%;background:#7CB518;border-radius:3px"></div>
           </div>
-          <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap">${u.scans_this_month}/50</span>
+          <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap">${monthLabel}</span>
         </div>
       </td>
       <td style="color:#888;font-size:13px">${lastScan}</td>
@@ -156,7 +169,7 @@ function htmlAdminPage(stats) {
       <h2>Usuários</h2>
       <table>
         <thead><tr>
-          <th>Email</th><th>Dieta</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
+          <th>Email</th><th>Dieta</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
         </tr></thead>
         <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Nenhum usuário ainda</td></tr>'}</tbody>
       </table>
@@ -179,7 +192,10 @@ function htmlAdminUserPage(data) {
   const allergies = Array.isArray(user.allergy_ids) && user.allergy_ids.length
     ? user.allergy_ids.join(', ')
     : '—';
-  const monthBar = Math.min(100, Math.round((scans_this_month / 50) * 100));
+  const userType = user.user_type || 'basic';
+  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+  const monthBar = limit === null ? 0 : Math.min(100, Math.round((scans_this_month / limit) * 100));
+  const monthLabel = limit === null ? `${scans_this_month}/∞` : `${scans_this_month}/${limit}`;
 
   const scanRows = scans.map(s => {
     const cfg = statusCfg[s.status] || { label: s.status || '—', color: '#888', bg: '#f5f5f5' };
@@ -241,7 +257,7 @@ function htmlAdminUserPage(data) {
   <main>
     <div class="cards">
       <div class="card green"><div class="num">${scans.length}</div><div class="lbl">Scans totais</div></div>
-      <div class="card"><div class="num">${scans_this_month}<span style="font-size:16px;color:#aaa">/50</span></div><div class="lbl">Scans este mês</div>
+      <div class="card"><div class="num">${monthLabel}</div><div class="lbl">Scans este mês</div>
         <div class="bar-wrap"><div class="bar-fill" style="width:${monthBar}%"></div></div>
       </div>
       <div class="card"><div class="num">${scans.filter(s => s.status === 'SAFE').length}</div><div class="lbl">✅ Seguros</div></div>
@@ -253,6 +269,15 @@ function htmlAdminUserPage(data) {
       <div class="field"><label>Cadastro</label><span>${joined}</span></div>
       <div class="field"><label>Dieta</label><span>${diet}</span></div>
       <div class="field"><label>Alergias / Sensibilidades</label><span>${allergies}</span></div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Plano</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+          ${planBadge(userType)}
+          <form method="POST" action="/admin/user/${user.id}/set-type" style="display:flex;gap:8px;flex-wrap:wrap">
+            ${['basic','premium','admin'].map(t => `<button type="submit" name="type" value="${t}" style="padding:5px 14px;border-radius:8px;border:2px solid ${t === userType ? '#1C2B22' : '#ddd'};background:${t === userType ? '#1C2B22' : '#fff'};color:${t === userType ? '#fff' : '#555'};font-size:12px;font-weight:700;cursor:pointer">${t === 'basic' ? 'Básico' : t === 'premium' ? 'Premium' : 'Admin'}</button>`).join('')}
+          </form>
+        </div>
+      </div>
     </div>
     <div class="section">
       <h2>Histórico de scans</h2>
@@ -606,6 +631,36 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(htmlAdminUserPage(data));
+      return;
+    }
+
+    // POST /admin/user/:id/set-type
+    if (req.method === 'POST' && req.url.match(/^\/admin\/user\/\d+\/set-type$/)) {
+      const authHeader = req.headers['authorization'] || '';
+      const b64 = authHeader.startsWith('Basic ') ? authHeader.slice(6) : '';
+      const [adminUser, ...rest] = Buffer.from(b64, 'base64').toString().split(':');
+      const pass = rest.join(':');
+      if (adminUser !== ADMIN_USER || pass !== ADMIN_PASSWORD) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="VeganLand Admin"', 'Content-Type': 'text/plain' });
+        res.end('Unauthorized');
+        return;
+      }
+      const userId = req.url.split('/')[3];
+      const raw = await new Promise(resolve => {
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', () => resolve(body));
+      });
+      const params = new URLSearchParams(raw);
+      const newType = params.get('type');
+      if (!['basic', 'premium', 'admin'].includes(newType)) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Invalid type');
+        return;
+      }
+      await setUserType(userId, newType);
+      res.writeHead(302, { Location: `/admin/user/${userId}` });
+      res.end();
       return;
     }
 

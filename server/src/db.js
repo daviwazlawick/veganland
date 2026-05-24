@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+export const SCAN_LIMITS = { basic: 30, premium: 100, admin: null }; // null = unlimited
+
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL_DATA_DIR = path.join(__dirname, '..', '.data');
@@ -343,7 +345,7 @@ export async function getUserById(id) {
   }
 
   const result = await db.query(
-    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, created_at, updated_at from users where id = $1`,
+    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, user_type, created_at, updated_at from users where id = $1`,
     [id]
   );
   return result.rows[0] || null;
@@ -433,10 +435,18 @@ export async function getScanById(scanId, userId) {
 
 export async function checkAndIncrementScanCounter(userId) {
   const db = await getPool();
-  const limit = 50;
-  if (!db) return { allowed: true, count: 0, limit };
+  if (!db) return { allowed: true, count: 0, limit: SCAN_LIMITS.basic };
 
   const month = new Date().toISOString().slice(0, 7);
+  const [year, mon] = month.split('-').map(Number);
+  const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
+
+  const userRes = await db.query('select user_type from users where id = $1', [userId]);
+  const userType = userRes.rows[0]?.user_type || 'basic';
+  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+
+  if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
+
   const client = await db.connect();
   try {
     await client.query('begin');
@@ -447,7 +457,7 @@ export async function checkAndIncrementScanCounter(userId) {
     const current = existing.rows[0]?.count || 0;
     if (current >= limit) {
       await client.query('commit');
-      return { allowed: false, count: current, limit };
+      return { allowed: false, count: current, limit, resets_at };
     }
     await client.query(
       `insert into scan_counters (user_id, month, count) values ($1, $2, 1)
@@ -455,13 +465,19 @@ export async function checkAndIncrementScanCounter(userId) {
       [userId, month]
     );
     await client.query('commit');
-    return { allowed: true, count: current + 1, limit };
+    return { allowed: true, count: current + 1, limit, resets_at };
   } catch (e) {
     await client.query('rollback');
     throw e;
   } finally {
     client.release();
   }
+}
+
+export async function setUserType(userId, userType) {
+  const db = await getPool();
+  if (!db) return;
+  await db.query('update users set user_type = $1 where id = $2', [userType, userId]);
 }
 
 export async function storeEmailConfirmationToken(userId, token) {
@@ -543,14 +559,14 @@ export async function getAdminStats() {
     db.query(`SELECT COUNT(*) AS total FROM scan_events WHERE created_at > now() - interval '24 hours'`),
     db.query(`
       SELECT
-        u.id, u.email, u.diet_id, u.created_at,
+        u.id, u.email, u.diet_id, u.user_type, u.created_at,
         COUNT(se.id)::int AS total_scans,
         MAX(se.created_at) AS last_scan,
         COALESCE(sc.count, 0) AS scans_this_month
       FROM users u
       LEFT JOIN scan_events se ON se.user_id = u.id
       LEFT JOIN scan_counters sc ON sc.user_id = u.id AND sc.month = $1
-      GROUP BY u.id, u.email, u.diet_id, u.created_at, sc.count
+      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.created_at, sc.count
       ORDER BY u.created_at DESC
       LIMIT 200
     `, [month]),
@@ -573,7 +589,7 @@ export async function getAdminUserDetail(userId) {
 
   const [userRes, scansRes, monthRes] = await Promise.all([
     db.query(
-      `SELECT id, email, diet_id, allergy_ids, created_at, updated_at FROM users WHERE id = $1`,
+      `SELECT id, email, diet_id, allergy_ids, user_type, created_at, updated_at FROM users WHERE id = $1`,
       [userId]
     ),
     db.query(
@@ -604,16 +620,20 @@ export async function getAdminUserDetail(userId) {
 
 export async function getScanUsage(userId) {
   const db = await getPool();
-  const limit = 50;
   const month = new Date().toISOString().slice(0, 7);
   const [year, mon] = month.split('-').map(Number);
   const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
 
-  if (!db) return { count: 0, limit, resets_at };
+  if (!db) return { count: 0, limit: SCAN_LIMITS.basic, resets_at };
 
-  const result = await db.query(
-    'select count from scan_counters where user_id = $1 and month = $2',
-    [userId, month]
-  );
-  return { count: result.rows[0]?.count || 0, limit, resets_at };
+  const [usageRes, userRes] = await Promise.all([
+    db.query('select count from scan_counters where user_id = $1 and month = $2', [userId, month]),
+    db.query('select user_type from users where id = $1', [userId]),
+  ]);
+  const userType = userRes.rows[0]?.user_type || 'basic';
+  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+
+  if (limit === null) return { count: 0, limit: null, resets_at: null };
+
+  return { count: Number(usageRes.rows[0]?.count || 0), limit, resets_at };
 }

@@ -16,11 +16,15 @@ export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
   const { user, token, logout } = useAuth();
   const [usage, setUsage] = useState(null);
+  const [userType, setUserType] = useState('basic');
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!token) return;
-    apiGetMe(token).then(data => setUsage(data.usage)).catch(() => {});
+    apiGetMe(token).then(data => {
+      setUsage(data.usage);
+      if (data.user?.user_type) setUserType(data.user.user_type);
+    }).catch(() => {});
   }, [token]);
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
@@ -133,17 +137,30 @@ export default function ProfileScreen({ navigation }) {
         {user && usage != null && (
           <View style={styles.usageCard}>
             <View style={styles.usageHeader}>
-              <Text style={styles.usageLabel}>
-                {t(language, 'profile.scans_this_month')}
-              </Text>
-              <Text style={styles.usageCount}>
-                {usage.count}
-                <Text style={styles.usageLimit}>/{usage.limit}</Text>
-              </Text>
+              <View style={styles.usageTitleRow}>
+                <Text style={styles.usageLabel}>
+                  {t(language, 'profile.scans_this_month')}
+                </Text>
+                <View style={[styles.planBadge, userType === 'premium' && styles.planBadgePremium, userType === 'admin' && styles.planBadgeAdmin]}>
+                  <Text style={[styles.planBadgeText, userType === 'premium' && styles.planBadgeTextPremium, userType === 'admin' && styles.planBadgeTextAdmin]}>
+                    {userType === 'basic' ? t(language, 'profile.plan_basic') : userType === 'premium' ? t(language, 'profile.plan_premium') : t(language, 'profile.plan_admin')}
+                  </Text>
+                </View>
+              </View>
+              {usage.limit === null ? (
+                <Text style={styles.usageCount}>{t(language, 'profile.plan_unlimited')}</Text>
+              ) : (
+                <Text style={styles.usageCount}>
+                  {usage.count}
+                  <Text style={styles.usageLimit}>/{usage.limit}</Text>
+                </Text>
+              )}
             </View>
-            <View style={styles.usageBarBg}>
-              <View style={[styles.usageBarFill, { width: `${Math.min(100, (usage.count / usage.limit) * 100)}%` }]} />
-            </View>
+            {usage.limit !== null && (
+              <View style={styles.usageBarBg}>
+                <View style={[styles.usageBarFill, { width: `${Math.min(100, (usage.count / usage.limit) * 100)}%` }]} />
+              </View>
+            )}
             {usage.resets_at && (
               <Text style={styles.usageReset}>
                 {t(language, 'profile.renews_on', {
@@ -406,8 +423,20 @@ const styles = StyleSheet.create({
   usageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
+  usageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  planBadge: {
+    backgroundColor: Colors.accentLight,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  planBadgePremium: { backgroundColor: '#FFF1E2' },
+  planBadgeAdmin: { backgroundColor: '#E8F0FF' },
+  planBadgeText: { fontSize: 11, fontWeight: '800', color: Colors.primaryDark },
+  planBadgeTextPremium: { color: '#9A6121' },
+  planBadgeTextAdmin: { color: '#1A3A8F' },
   usageLabel: {
     fontSize: 13,
     fontWeight: '800',
