@@ -101,6 +101,7 @@ export default {
     tip_barcode: 'Barcode photo = most accurate result',
     tip_ingredients: 'Ingredient list visible? Even better!',
     tip_product: 'Product front works too — AI knows many brands',
+    dismiss: 'OK',
   },
   result: {
     safe: 'SAFE',

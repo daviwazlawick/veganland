@@ -101,6 +101,7 @@ export default {
     tip_barcode: 'Foto del código de barras = resultado más preciso',
     tip_ingredients: '¿Lista de ingredientes visible? ¡Aún mejor!',
     tip_product: 'La portada del producto también funciona — la IA conoce muchas marcas',
+    dismiss: 'OK',
   },
   result: {
     safe: 'SEGURO',

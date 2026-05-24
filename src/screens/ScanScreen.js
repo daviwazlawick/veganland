@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -23,6 +23,7 @@ export default function ScanScreen({ navigation }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [cameraActive, setCameraActive] = useState(true);
   const [tipIndex, setTipIndex] = useState(0);
+  const [scanError, setScanError] = useState(null);
   const cameraRef = useRef(null);
 
   useEffect(() => {
@@ -37,20 +38,20 @@ export default function ScanScreen({ navigation }) {
 
   async function handleCapture() {
     if (!hasApiConfig()) {
-      Alert.alert('', t(language, 'errors.no_api_key'));
+      setScanError(t(language, 'errors.no_api_key'));
       return;
     }
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.7 });
       await runAnalysis(photo.base64, photo.uri);
     } catch (e) {
-      Alert.alert('', t(language, 'errors.camera_error'));
+      setScanError(t(language, 'errors.camera_error'));
     }
   }
 
   async function handleGallery() {
     if (!hasApiConfig()) {
-      Alert.alert('', t(language, 'errors.no_api_key'));
+      setScanError(t(language, 'errors.no_api_key'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -65,14 +66,12 @@ export default function ScanScreen({ navigation }) {
   }
 
   async function runAnalysis(base64, imageUri) {
+    setScanError(null);
     setAnalyzing(true);
     try {
       const result = await analyzeProductWithApi(base64, profile, language, token);
       if (!result.status || !VALID_STATUSES.has(result.status)) {
-        Alert.alert(
-          t(language, 'errors.not_a_product_title'),
-          t(language, 'errors.not_a_product')
-        );
+        setScanError(t(language, 'errors.not_a_product'));
         return;
       }
       const scan = { ...result, date: new Date().toISOString(), imageUri };
@@ -96,7 +95,7 @@ export default function ScanScreen({ navigation }) {
       } else {
         msg = t(language, 'errors.analysis_failed');
       }
-      Alert.alert('', msg);
+      setScanError(msg);
     } finally {
       setAnalyzing(false);
     }
@@ -189,6 +188,17 @@ export default function ScanScreen({ navigation }) {
             <Text style={styles.analyzingText}>{t(language, 'scan.analyzing')}</Text>
             <Text style={styles.analyzingSubtitle}>{t(language, 'scan.analyzing_subtitle')}</Text>
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 16 }} />
+          </View>
+        </View>
+      )}
+
+      {scanError && (
+        <View style={styles.errorOverlay}>
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{scanError}</Text>
+            <TouchableOpacity style={styles.errorBtn} onPress={() => setScanError(null)} activeOpacity={0.85}>
+              <Text style={styles.errorBtnText}>{t(language, 'scan.dismiss')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -311,6 +321,32 @@ const styles = StyleSheet.create({
   },
   analyzingText: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 14, fontFamily: 'serif' },
   analyzingSubtitle: { fontSize: 14, color: Colors.textLight, textAlign: 'center', fontWeight: '500' },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorCard: {
+    backgroundColor: Colors.glass,
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    width: '82%',
+    gap: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
+  },
+  errorText: { fontSize: 15, fontWeight: '600', color: Colors.text, textAlign: 'center', lineHeight: 22 },
+  errorBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: Colors.primaryDark,
+  },
+  errorBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   permissionContainer: {
     flex: 1,
     backgroundColor: Colors.background,

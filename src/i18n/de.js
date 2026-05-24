@@ -101,6 +101,7 @@ export default {
     tip_barcode: 'Barcode-Foto = genauestes Ergebnis',
     tip_ingredients: 'Zutatenliste sichtbar? Noch besser!',
     tip_product: 'Produktvorderseite funktioniert auch — KI kennt viele Marken',
+    dismiss: 'OK',
   },
   result: {
     safe: 'SICHER',
