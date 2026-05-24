@@ -443,7 +443,7 @@ export async function checkAndIncrementScanCounter(userId) {
 
   const userRes = await db.query('select user_type from users where id = $1', [userId]);
   const userType = userRes.rows[0]?.user_type || 'basic';
-  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.basic;
 
   if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
 
@@ -631,7 +631,7 @@ export async function getScanUsage(userId) {
     db.query('select user_type from users where id = $1', [userId]),
   ]);
   const userType = userRes.rows[0]?.user_type || 'basic';
-  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.basic;
 
   if (limit === null) return { count: 0, limit: null, resets_at: null };
 
