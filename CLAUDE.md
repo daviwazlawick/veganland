@@ -100,10 +100,22 @@ server/src/
 ### Resultado
 - 3 estados: SAFE / CAUTION / NOT_SAFE
 - Card de análise com título + explicação
-- Card de ingredientes (chips, flagged em vermelho)
-- **Card de alergénios encontrados** (chips âmbar) — mostra alergénios detetados no produto independente do perfil
+- Card de ingredientes — usa `normalized_ingredients` do resultado (lista traduzida/normalizada pelo Claude); fallback para parse do `ingredients_text` bruto; sempre visível (mostra placeholder se vazio)
+- **Card de alergénios encontrados** (chips âmbar) — mostra alergénios detetados no produto independente do perfil; sempre visível
 - Card de concerns (ingredientes problemáticos para o perfil)
 - Card "no issues" para SAFE sem concerns
+
+### Planos de utilizador
+- 3 tipos: `basic` (30 scans/mês), `premium` (100 scans/mês), `admin` (ilimitado)
+- Coluna `user_type TEXT NOT NULL DEFAULT 'basic'` na tabela `users`
+- `SCAN_LIMITS` exportado de `db.js`: `{ basic: 30, premium: 100, admin: null }` — `null` = ilimitado
+- `checkAndIncrementScanCounter`: lê `user_type`, aplica limite correto; admin bypassa o contador completamente
+- `setUserType(userId, type)` em `db.js` para mudar o plano
+- `POST /admin/user/:id/set-type` — endpoint de admin para mudar plano (Basic Auth)
+- Admin panel: badge de plano na lista; botões Básico/Premium/Admin na página de cada utilizador
+- Alerta 429: "Você já usou todos os seus 30 scans deste mês. Seus scans serão renovados em X dias." (calcula dias exatos até o 1º do próximo mês)
+- `ProfileScreen`: badge do plano junto ao contador; admin vê "Ilimitado" sem barra de progresso
+- `getScanUsage` devolve `{ count, limit, resets_at }` — `limit: null` e `resets_at: null` para admin
 
 ### Legal
 - Páginas `/legal/terms`, `/legal/privacy`, `/legal/imprint` servidas pelo servidor Node.js
@@ -176,6 +188,7 @@ SMTP_FROM=VeganLand <contact@veganland.app>
 - `email_confirmation_token TEXT`
 - `email_confirmation_sent_at TIMESTAMPTZ`
 - `diet_id TEXT`, `allergy_ids TEXT[]`
+- `user_type TEXT NOT NULL DEFAULT 'basic'` — valores: `basic`, `premium`, `admin`
 
 **`products`**
 - `identity_key TEXT UNIQUE` — `barcode:{barcode}` ou `name:{normalized}`
@@ -183,7 +196,10 @@ SMTP_FROM=VeganLand <contact@veganland.app>
 - `ingredients_text TEXT`, `source TEXT`
 
 **`product_analyses`**
-- `product_id`, `language`, `result JSONB` — análise neutral cached
+- `product_id`, `language`, `result JSONB` — análise neutral cached; inclui campo `normalized_ingredients` (lista traduzida/normalizada)
+
+**`scan_counters`**
+- `user_id`, `month` (formato `YYYY-MM`), `count INT` — contador mensal por utilizador
 
 ---
 
@@ -215,10 +231,19 @@ Após editar: `sudo nginx -t && sudo systemctl reload nginx`
 
 ---
 
+## Deploy — nota sobre migrações
+
+Sempre que houver nova migration em `server/src/migrations/`, correr no servidor após `git pull`:
+```bash
+cd /opt/veganland && node server/src/migrate.js
+```
+
+---
+
 ## Pendente / Próximas ideias
 
 - [ ] Testes end-to-end do fluxo de confirmação de email
 - [ ] Admin: endpoint para inserir/editar produtos manualmente na BD
-- [ ] Melhorar análise knowledge-based para incluir ingredientes típicos
 - [ ] Push notifications
 - [ ] App Store / Play Store build (EAS)
+- [ ] Integração de pagamento para plano Premium (Stripe)
