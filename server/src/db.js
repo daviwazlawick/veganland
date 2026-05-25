@@ -407,6 +407,10 @@ export async function getUserHistory(userId, limit = 50) {
 
   const result = await db.query(
     `select se.id, se.status, se.title, se.language, se.source, se.created_at,
+            se.result->>'explanation' as explanation,
+            se.result->'concerns' as concerns,
+            se.result->'normalized_ingredients' as normalized_ingredients,
+            se.result->'identified_allergens' as identified_allergens,
             p.product_name, p.brand
        from scan_events se
        left join products p on p.id = se.product_id
