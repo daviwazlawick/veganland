@@ -7,10 +7,12 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { LANGUAGES, localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { BrandFonts } from '../brand';
+import Brand from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe } from '../services/apiService';
-import { PremiumIcon } from '../components/ui';
+import { PremiumIcon, BrandName } from '../components/ui';
 
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
@@ -32,6 +34,8 @@ export default function ProfileScreen({ navigation }) {
     ? (profile.allergyIds || []).map(id => ALLERGIES.find(a => a.id === id)).filter(Boolean)
     : [];
 
+  const legalBase = `https://${Brand.domain}/legal`;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -44,17 +48,11 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <View style={styles.cardLabelWrap}>
-              <Text style={styles.cardLabel}>{t(language, 'profile.diet')}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.editBtn}
-              onPress={() => navigation.navigate('ProfileSetup')}
-            >
+            <Text style={styles.cardLabel}>{t(language, 'profile.diet')}</Text>
+            <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ProfileSetup')}>
               <Text style={styles.editBtnText}>{t(language, 'profile.edit')}</Text>
             </TouchableOpacity>
           </View>
-
           {diet ? (
             <View style={styles.dietRow}>
               <View style={styles.dietIconWrap}>
@@ -66,9 +64,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           ) : (
-            <Text style={styles.noData}>
-              {t(language, 'profile.no_profile')}
-            </Text>
+            <Text style={styles.noData}>{t(language, 'profile.no_profile')}</Text>
           )}
         </View>
 
@@ -78,7 +74,6 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.allergiesWrap}>
               {allergies.map(a => (
                 <View key={a.id} style={styles.allergyBadge}>
-                  <Text style={styles.allergyIcon}>{a.icon}</Text>
                   <PremiumIcon name={a.icon} size={18} />
                   <Text style={styles.allergyLabel}>{a.label[language] || a.label.en}</Text>
                 </View>
@@ -120,16 +115,12 @@ export default function ProfileScreen({ navigation }) {
                 <PremiumIcon name="profile" size={34} />
               </View>
               <View style={styles.accountInfo}>
-                <Text style={styles.accountLabel}>
-                  {t(language, 'profile.account')}
-                </Text>
+                <Text style={styles.accountLabel}>{t(language, 'profile.account')}</Text>
                 <Text style={styles.accountEmail}>{user.email}</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.85}>
-              <Text style={styles.logoutText}>
-                {t(language, 'profile.sign_out')}
-              </Text>
+              <Text style={styles.logoutText}>{t(language, 'profile.sign_out')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -138,12 +129,22 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.usageCard}>
             <View style={styles.usageHeader}>
               <View style={styles.usageTitleRow}>
-                <Text style={styles.usageLabel}>
-                  {t(language, 'profile.scans_this_month')}
-                </Text>
-                <View style={[styles.planBadge, userType === 'premium' && styles.planBadgePremium, userType === 'admin' && styles.planBadgeAdmin]}>
-                  <Text style={[styles.planBadgeText, userType === 'premium' && styles.planBadgeTextPremium, userType === 'admin' && styles.planBadgeTextAdmin]}>
-                    {userType === 'basic' ? t(language, 'profile.plan_basic') : userType === 'premium' ? t(language, 'profile.plan_premium') : t(language, 'profile.plan_admin')}
+                <Text style={styles.usageLabel}>{t(language, 'profile.scans_this_month')}</Text>
+                <View style={[
+                  styles.planBadge,
+                  userType === 'premium' && styles.planBadgePremium,
+                  userType === 'admin' && styles.planBadgeAdmin,
+                ]}>
+                  <Text style={[
+                    styles.planBadgeText,
+                    userType === 'premium' && styles.planBadgeTextPremium,
+                    userType === 'admin' && styles.planBadgeTextAdmin,
+                  ]}>
+                    {userType === 'basic'
+                      ? t(language, 'profile.plan_basic')
+                      : userType === 'premium'
+                        ? t(language, 'profile.plan_premium')
+                        : t(language, 'profile.plan_admin')}
                   </Text>
                 </View>
               </View>
@@ -151,8 +152,7 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.usageCount}>{t(language, 'profile.plan_unlimited')}</Text>
               ) : (
                 <Text style={styles.usageCount}>
-                  {usage.count}
-                  <Text style={styles.usageLimit}>/{usage.limit}</Text>
+                  {usage.count}<Text style={styles.usageLimit}>/{usage.limit}</Text>
                 </Text>
               )}
             </View>
@@ -172,23 +172,25 @@ export default function ProfileScreen({ navigation }) {
         )}
 
         <View style={styles.aboutCard}>
-          <PremiumIcon name="vegan" size={54} color={Colors.white} />
-          <Text style={styles.aboutTitle}>VeganLand</Text>
-          <Text style={styles.aboutText}>
-            {t(language, 'profile.about_text')}
-          </Text>
+          <PremiumIcon name="scan" size={54} color={Colors.primary} />
+          <BrandName
+            style={styles.aboutTitle}
+            prefixColor={Colors.white}
+            suffixColor={Colors.primary}
+          />
+          <Text style={styles.aboutText}>{t(language, 'profile.about_text')}</Text>
         </View>
 
         <View style={styles.legalFooter}>
-          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/terms')}>
+          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)}>
             <Text style={styles.legalLink}>{t(language, 'profile.terms')}</Text>
           </TouchableOpacity>
           <Text style={styles.legalDot}>·</Text>
-          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/privacy')}>
+          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)}>
             <Text style={styles.legalLink}>{t(language, 'profile.privacy')}</Text>
           </TouchableOpacity>
           <Text style={styles.legalDot}>·</Text>
-          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://veganland.app/legal/imprint')}>
+          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/imprint`)}>
             <Text style={styles.legalLink}>{t(language, 'profile.imprint')}</Text>
           </TouchableOpacity>
         </View>
@@ -230,13 +232,11 @@ function PersonalHero({ profile, user, language, navigation }) {
           {user?.email && (
             <Text style={heroStyles.email} numberOfLines={1}>{user.email}</Text>
           )}
-          {bio ? (
-            <Text style={heroStyles.bio} numberOfLines={2}>{bio}</Text>
-          ) : null}
+          {bio ? <Text style={heroStyles.bio} numberOfLines={2}>{bio}</Text> : null}
         </View>
       </View>
       <TouchableOpacity style={heroStyles.editBtn} onPress={() => navigation.navigate('EditPersonal')} activeOpacity={0.85}>
-        <Ionicons name="pencil" size={14} color={Colors.accent} />
+        <Ionicons name="pencil" size={14} color={Colors.primary} />
         <Text style={heroStyles.editBtnText}>{t(language, 'personal.edit')}</Text>
       </TouchableOpacity>
     </View>
@@ -247,7 +247,7 @@ const heroStyles = StyleSheet.create({
   card: {
     backgroundColor: Colors.primaryBg,
     borderRadius: 28, padding: 18,
-    borderWidth: 1, borderColor: Colors.primary + '30',
+    borderWidth: 1, borderColor: Colors.primaryLight,
     gap: 16,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
@@ -258,23 +258,29 @@ const heroStyles = StyleSheet.create({
   },
   avatarPlaceholder: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.forest,
+    backgroundColor: Colors.navy,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.primary + '40',
+    borderWidth: 2, borderColor: Colors.primaryLight,
   },
-  initials: { fontSize: 26, fontWeight: '800', color: Colors.white, fontFamily: 'serif' },
+  initials: {
+    fontSize: 26, fontWeight: '800', color: Colors.white,
+    fontFamily: BrandFonts.heading || 'serif',
+  },
   info: { flex: 1, gap: 3 },
-  name: { fontSize: 20, fontWeight: '800', color: Colors.primaryDark },
+  name: {
+    fontSize: 20, fontWeight: '800', color: Colors.text,
+    fontFamily: BrandFonts.headingMed || undefined,
+  },
   namePlaceholder: { fontSize: 15, color: Colors.textMuted, fontStyle: 'italic' },
   email: { fontSize: 12, color: Colors.textLight, fontWeight: '600' },
   bio: { fontSize: 13, color: Colors.textLight, fontWeight: '500', marginTop: 2 },
   editBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
-    backgroundColor: Colors.accentLight,
+    backgroundColor: Colors.primaryLight,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
   },
-  editBtnText: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
+  editBtnText: { fontSize: 13, color: Colors.primary, fontWeight: '700' },
 });
 
 const styles = StyleSheet.create({
@@ -282,188 +288,117 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 0,
+    backgroundColor: Colors.headerBg,
   },
-  headerTitle: { fontSize: 34, fontWeight: '700', color: Colors.primaryDark, fontFamily: 'serif' },
+  headerTitle: {
+    fontSize: 34, fontWeight: '700', color: Colors.headerText,
+    fontFamily: BrandFonts.heading || 'serif',
+  },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
     backgroundColor: Colors.card,
-    borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 28, padding: 18,
+    borderWidth: 1, borderColor: Colors.border,
     gap: 14,
   },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardLabelWrap: {},
+  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    fontSize: 13, fontWeight: '800', color: Colors.textMuted,
+    letterSpacing: 0.5, textTransform: 'uppercase',
   },
   editBtn: {
-    backgroundColor: Colors.accentLight,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
   },
-  editBtnText: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
+  editBtnText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '700' },
   dietRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dietIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 52, height: 52, borderRadius: 16,
     backgroundColor: Colors.primaryBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  dietIcon: { fontSize: 28 },
   dietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
   dietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
   noData: { fontSize: 14, color: Colors.textMuted, fontStyle: 'italic' },
   allergiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   allergyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: Colors.dangerLight,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
   },
-  allergyIcon: { display: 'none' },
-  allergyLabel: { fontSize: 13, color: Colors.danger, fontWeight: '700' },
+  allergyLabel: { fontSize: 13, color: Colors.primaryDark, fontWeight: '700' },
   langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   langOption: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    width: '48%', flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 14, padding: 12,
+    borderWidth: 1, borderColor: Colors.border,
   },
-  langOptionActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryBg,
-  },
-  langFlag: { fontSize: 22 },
+  langOptionActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryBg },
+  langFlag: { fontSize: 13, fontWeight: '800', color: Colors.textLight },
   langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.textLight },
   langLabelActive: { color: Colors.primaryDark },
   langCheck: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 22, height: 22, borderRadius: 11,
     backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   langCheckText: { color: Colors.white, fontSize: 12, fontWeight: '900' },
   accountCard: {
     backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 20, padding: 18,
+    borderWidth: 1, borderColor: Colors.border,
     gap: 14,
   },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   accountIconWrap: {
     width: 50, height: 50, borderRadius: 25,
-    backgroundColor: Colors.accentLight,
+    backgroundColor: Colors.primaryBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  accountIcon: { fontSize: 24 },
   accountInfo: { flex: 1 },
   accountLabel: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
   logoutBtn: {
     backgroundColor: Colors.dangerLight,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.danger + '30',
+    borderRadius: 14, paddingVertical: 14, alignItems: 'center',
+    borderWidth: 2, borderColor: Colors.danger + '30',
   },
   logoutText: { fontSize: 15, fontWeight: '800', color: Colors.dangerDark },
-  aboutCard: {
-    backgroundColor: Colors.accent,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    gap: 8,
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.accentDark,
-  },
-  aboutTitle: { fontSize: 22, fontWeight: '900', color: Colors.white },
-  aboutText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
   usageCard: {
     backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 20, padding: 18,
+    borderWidth: 1, borderColor: Colors.border,
     gap: 10,
   },
-  usageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
+  usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   usageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planBadge: {
-    backgroundColor: Colors.accentLight,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  planBadgePremium: { backgroundColor: '#FFF1E2' },
-  planBadgeAdmin: { backgroundColor: '#E8F0FF' },
-  planBadgeText: { fontSize: 11, fontWeight: '800', color: Colors.primaryDark },
-  planBadgeTextPremium: { color: '#9A6121' },
-  planBadgeTextAdmin: { color: '#1A3A8F' },
-  usageLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
+  planBadge: { backgroundColor: '#FFF3D6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  planBadgePremium: { backgroundColor: '#FFFBEB' },
+  planBadgeAdmin: { backgroundColor: '#EEF0FF' },
+  planBadgeText: { fontSize: 11, fontWeight: '800', color: '#B87600' },
+  planBadgeTextPremium: { color: '#92400E' },
+  planBadgeTextAdmin: { color: '#1E1B4B' },
+  usageLabel: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
   usageCount: { fontSize: 20, fontWeight: '900', color: Colors.text },
   usageLimit: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
-  usageBarBg: {
-    height: 8,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  usageBarFill: {
-    height: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 4,
-  },
+  usageBarBg: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
+  usageBarFill: { height: 8, backgroundColor: Colors.primary, borderRadius: 4 },
   usageReset: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  aboutCard: {
+    backgroundColor: Colors.aboutCardBg,
+    borderRadius: 20, padding: 24,
+    alignItems: 'center', gap: 8,
+    borderBottomWidth: 4, borderBottomColor: Colors.aboutCardBorder,
+  },
+  aboutTitle: {
+    fontSize: 22, fontWeight: '900',
+    fontFamily: BrandFonts.heading || 'serif',
+  },
+  aboutText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 20, fontWeight: '500' },
   legalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, paddingVertical: 8,
   },
   legalLink: { fontSize: 12, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
   legalDot: { fontSize: 12, color: Colors.border },

@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { BrandFonts } from '../brand';
 import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
 
@@ -224,14 +225,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(16,40,34,0.62)',
+    backgroundColor: 'rgba(0,0,0,0.40)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  scanTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  scanTitle: { color: '#fff', fontSize: 17, fontWeight: '800', fontFamily: BrandFonts.heading || undefined },
   frameContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: { width: 280, height: 280, position: 'relative' },
   corner: {
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(16,40,34,0.62)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 9,
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.72)',
   },
-  analyzingText: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 14, fontFamily: 'serif' },
+  analyzingText: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 14, fontFamily: BrandFonts.headingMed || 'serif' },
   analyzingSubtitle: { fontSize: 14, color: Colors.textLight, textAlign: 'center', fontWeight: '500' },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,

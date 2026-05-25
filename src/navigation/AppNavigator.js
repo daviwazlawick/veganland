@@ -25,8 +25,8 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TABS = {
-  Home:    { icon: 'home', activeBg: Colors.primaryBg },
-  Profile: { icon: 'profile', activeBg: Colors.accentLight },
+  Home:    { icon: 'home',    activeBg: Colors.primaryBg },
+  Profile: { icon: 'profile', activeBg: Colors.primaryBg },
 };
 
 function TabIcon({ name, focused }) {
@@ -66,7 +66,7 @@ function MainTabs() {
           paddingBottom: 12,
           paddingTop: 10,
           borderRadius: 999,
-          shadowColor: Colors.darkSurface,
+          shadowColor: Colors.navy,
           shadowOpacity: 0.12,
           shadowRadius: 24,
           shadowOffset: { width: 0, height: 12 },
@@ -116,22 +116,14 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen
-              name="Scan"
-              component={ScanScreen}
-              options={{ presentation: 'fullScreenModal' }}
-            />
+            <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
           </>
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen
-              name="Scan"
-              component={ScanScreen}
-              options={{ presentation: 'fullScreenModal' }}
-            />
+            <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />

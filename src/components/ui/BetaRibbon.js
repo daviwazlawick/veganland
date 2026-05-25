@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
     top: 18,
     right: -28,
     width: 100,
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primary,
     paddingVertical: 6,
     alignItems: 'center',
     transform: [{ rotate: '45deg' }],
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   label: {
-    color: Colors.white,
+    color: Colors.navy,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 2,

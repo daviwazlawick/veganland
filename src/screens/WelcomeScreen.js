@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { PremiumIcon } from '../components/ui';
+import { BrandFonts } from '../brand';
+import { PremiumIcon, BrandName } from '../components/ui';
 
 export default function WelcomeScreen({ navigation }) {
   const { language, setLanguage } = useApp();
@@ -16,7 +17,6 @@ export default function WelcomeScreen({ navigation }) {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
 
-
       <SafeAreaView edges={['top']} style={styles.hero}>
         <TouchableOpacity style={styles.langBtn} onPress={() => setLanguage(nextLanguage.code)}>
           <Text style={styles.langText}>{currentLanguage.flag}</Text>
@@ -27,11 +27,15 @@ export default function WelcomeScreen({ navigation }) {
 
         <View style={styles.logoWrap}>
           <View style={styles.logoCircle}>
-            <PremiumIcon name="vegan" size={58} color={Colors.white} />
+            <PremiumIcon name="scan" size={58} color={Colors.white} />
           </View>
         </View>
 
-        <Text style={styles.appName}>{t(language, 'welcome.title')}</Text>
+        <BrandName
+          style={styles.appName}
+          prefixColor={Colors.white}
+          suffixColor={Colors.primary}
+        />
         <Text style={styles.tagline}>{t(language, 'welcome.tagline')}</Text>
       </SafeAreaView>
 
@@ -44,11 +48,11 @@ export default function WelcomeScreen({ navigation }) {
             detail={t(language, 'welcome.feature_photo_detail')}
           />
           <Feature
-            icon="ai" bg={Colors.accentLight} label={t(language, 'welcome.feature_ai_label')}
+            icon="ai" bg={Colors.primaryLight} label={t(language, 'welcome.feature_ai_label')}
             detail={t(language, 'welcome.feature_ai_detail')}
           />
           <Feature
-            icon="safe" bg="#E8F5E9" label={t(language, 'welcome.feature_result_label')}
+            icon="safe" bg={Colors.safeLight} label={t(language, 'welcome.feature_result_label')}
             detail={t(language, 'welcome.feature_result_detail')}
           />
         </View>
@@ -105,7 +109,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)',
   },
-  appName: { fontSize: 46, fontWeight: '700', color: Colors.white, fontFamily: 'serif', letterSpacing: 0 },
+  appName: {
+    fontSize: 46,
+    fontWeight: '800',
+    color: Colors.white,
+    fontFamily: BrandFonts.heading || 'serif',
+    letterSpacing: -1,
+  },
   tagline: { fontSize: 15, color: 'rgba(255,255,255,0.82)', textAlign: 'center' },
   sheet: {
     flex: 6,
@@ -117,7 +127,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 18,
   },
-  sheetTitle: { fontSize: 15, fontWeight: '700', color: Colors.textMuted, textAlign: 'center' },
+  sheetTitle: { fontSize: 14, fontWeight: '500', color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
   features: { gap: 12 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   featureIconBox: {
@@ -125,15 +135,26 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   featureText: { flex: 1 },
-  featureLabel: { fontSize: 15, fontWeight: '800', color: Colors.text },
+  featureLabel: {
+    fontSize: 15, fontWeight: '800', color: Colors.text,
+    fontFamily: BrandFonts.headingMed || undefined,
+  },
   featureDetail: { fontSize: 12, color: Colors.textLight, fontWeight: '500', marginTop: 1 },
   buttons: { gap: 12, marginTop: 4 },
   primaryBtn: {
-    backgroundColor: Colors.primary, borderRadius: 18,
+    backgroundColor: Colors.primary, borderRadius: 16,
     paddingVertical: 18, alignItems: 'center',
     borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  primaryBtnText: { color: Colors.white, fontSize: 18, fontWeight: '900', letterSpacing: 0.2 },
+  primaryBtnText: {
+    color: Colors.white, fontSize: 18, fontWeight: '900', letterSpacing: 0.2,
+    fontFamily: BrandFonts.heading || undefined,
+  },
   ghostBtn: { paddingVertical: 14, alignItems: 'center' },
-  ghostBtnText: { color: Colors.accent, fontSize: 15, fontWeight: '700' },
+  ghostBtnText: { color: Colors.navy, fontSize: 15, fontWeight: '700' },
 });

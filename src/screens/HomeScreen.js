@@ -4,14 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { BrandFonts } from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
-import { PremiumIcon } from '../components/ui';
+import { PremiumIcon, BrandName } from '../components/ui';
 
 const STATUS_CONFIG = {
-  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe', labelKey: 'result.safe' },
+  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe',    labelKey: 'result.safe' },
   CAUTION:  { color: Colors.cautionDark, bg: Colors.cautionLight, strip: Colors.caution, icon: 'caution', labelKey: 'result.caution' },
-  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger', labelKey: 'result.not_safe' },
+  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger',  labelKey: 'result.not_safe' },
 };
 
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
@@ -28,10 +29,12 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>VeganLand</Text>
-          <Text style={styles.headerSub}>
-            {t(language, 'home.header_question')}
-          </Text>
+          <BrandName
+            style={styles.headerTitle}
+            prefixColor={Colors.headerText}
+            suffixColor={Colors.primary}
+          />
+          <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
         </View>
         <View style={styles.scanCountBadge}>
           <Text style={styles.scanCountNum}>{scanHistory.length}</Text>
@@ -51,7 +54,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.profileDietDesc}>{diet?.description[language] || diet?.description.en || ''}</Text>
             </View>
             <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ProfileSetup')}>
-              <PremiumIcon name="settings" size={22} />
+              <PremiumIcon name="settings" size={22} color={Colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -67,15 +70,13 @@ export default function HomeScreen({ navigation }) {
           )}
 
           {allergies.length === 0 && diet && (
-            <Text style={styles.noAllergies}>
-              {t(language, 'home.no_allergies_configured')}
-            </Text>
+            <Text style={styles.noAllergies}>{t(language, 'home.no_allergies_configured')}</Text>
           )}
         </View>
 
         <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
           <View style={styles.scanBtnCameraCircle}>
-            <PremiumIcon name="scan" size={41} color={Colors.white} />
+            <PremiumIcon name="scan" size={41} color={Colors.navy} />
           </View>
           <View style={styles.scanBtnText}>
             <Text style={styles.scanBtnTitle}>{t(language, 'home.scan_button')}</Text>
@@ -128,9 +129,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               ))}
             </View>
-            <Text style={styles.emptyTitle}>
-              {t(language, 'home.empty_title')}
-            </Text>
+            <Text style={styles.emptyTitle}>{t(language, 'home.empty_title')}</Text>
             <Text style={styles.emptyText}>{t(language, 'home.no_scans')}</Text>
           </View>
         )}
@@ -148,19 +147,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 0,
+    backgroundColor: Colors.headerBg,
   },
-  headerTitle: { fontSize: 34, fontWeight: '700', color: Colors.primaryDark, fontFamily: 'serif' },
-  headerSub: { fontSize: 14, fontWeight: '500', color: Colors.textMuted, marginTop: 3 },
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    fontFamily: BrandFonts.heading || 'serif',
+    letterSpacing: -0.5,
+  },
+  headerSub: { fontSize: 14, fontWeight: '500', color: Colors.headerMuted, marginTop: 3 },
   scanCountBadge: {
-    backgroundColor: Colors.darkSurface,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   scanCountNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
   scanCountLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -2 },
@@ -172,101 +175,97 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.72)',
     gap: 16,
-    shadowColor: Colors.darkSurface,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.10,
     shadowRadius: 30,
     elevation: 8,
   },
   profileCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   dietCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: Colors.primaryLight,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: Colors.primary + '30',
   },
   profileInfo: { flex: 1 },
-  profileDietName: { fontSize: 19, fontWeight: '800', color: Colors.text },
-  profileDietDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500', marginTop: 3 },
+  profileDietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  profileDietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
   editBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: Colors.backgroundSecondary,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.primaryBg,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: Colors.primaryLight,
   },
-  allergiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  allergiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   allergyChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: Colors.primaryBg,
     borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 1, borderColor: Colors.border,
+    borderWidth: 1, borderColor: Colors.primaryLight,
   },
-  allergyChipText: { fontSize: 12, color: Colors.textLight, fontWeight: '700' },
-  noAllergies: { fontSize: 13, color: Colors.safeDark, fontWeight: '600' },
+  allergyChipText: { fontSize: 12, color: Colors.primaryDark, fontWeight: '700' },
+  noAllergies: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
   scanBtn: {
-    backgroundColor: Colors.darkSurface,
-    borderRadius: 30,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 21,
-    gap: 18,
+    gap: 14,
+    backgroundColor: Colors.navy,
+    borderRadius: 24,
+    padding: 18,
     borderBottomWidth: 5,
-    borderBottomColor: Colors.primary,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary + '60',
+    borderBottomColor: Colors.primaryDark,
     shadowColor: Colors.primary,
-    shadowOpacity: 0.45,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 16,
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
   },
   scanBtnCameraCircle: {
     width: 64, height: 64, borderRadius: 32,
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: Colors.primaryLight + '50',
   },
   scanBtnText: { flex: 1 },
-  scanBtnTitle: { fontSize: 23, fontWeight: '900', color: Colors.white, marginBottom: 4 },
-  scanBtnSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', lineHeight: 18 },
+  scanBtnTitle: {
+    fontSize: 23, fontWeight: '800', color: Colors.white,
+    fontFamily: BrandFonts.heading || undefined,
+  },
+  scanBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 3 },
   scanBtnArrow: {
-    width: 41, height: 41, borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  scanBtnArrowText: { color: Colors.white, fontSize: 28, fontWeight: '900', lineHeight: 36 },
+  scanBtnArrowText: { color: Colors.navy, fontSize: 22, fontWeight: '900', marginTop: -2 },
   historySection: { gap: 10 },
-  historyHeading: { fontSize: 22, fontWeight: '700', color: Colors.text, fontFamily: 'serif' },
+  historyHeading: {
+    fontSize: 17, fontWeight: '700', color: Colors.text,
+    fontFamily: BrandFonts.headingMed || undefined,
+  },
   historyItem: {
-    backgroundColor: Colors.glass,
-    borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
-    borderLeftWidth: 3,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 20, padding: 14,
+    borderLeftWidth: 4,
+    shadowColor: Colors.navy,
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  historyIconWrap: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  historyIcon: { fontSize: 22 },
+  historyIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   historyContent: { flex: 1 },
-  historyStatus: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
-  historyTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginVertical: 2 },
-  historyDate: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
-  historyArrow: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
-  emptyState: { alignItems: 'center', paddingVertical: 24, gap: 16 },
-  emptyEmojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: 220 },
+  historyStatus: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  historyTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
+  historyDate: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  historyArrow: { fontSize: 22, fontWeight: '700' },
+  emptyState: { alignItems: 'center', paddingVertical: 32, gap: 12 },
+  emptyEmojiGrid: { flexDirection: 'row', gap: 10 },
   emptyEmojiWrap: {
-    width: 52, height: 52, borderRadius: 18,
-    backgroundColor: Colors.glass,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)',
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: Colors.backgroundSecondary,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  emptyTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, fontFamily: 'serif' },
-  emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', lineHeight: 20, fontWeight: '500' },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
 });
