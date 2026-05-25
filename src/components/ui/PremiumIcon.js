@@ -3,6 +3,10 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
+import Brand from '../../brand';
+import NovaQILogo from './NovaQILogo';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const ICON_ACCENTS = {
   vegan: Colors.primary,
@@ -90,11 +94,16 @@ const ICON_MAP = {
 export default function PremiumIcon({ name = 'vegan', size = 40, color, muted = false }) {
   const accent = color || ICON_ACCENTS[name] || Colors.primary;
   const glyphSize = Math.round(size * 0.68);
-  const entry = ICON_MAP[name] || { lib: 'mci', name: 'leaf' };
 
-  const glyph = entry.lib === 'ion'
-    ? <Ionicons name={entry.name} size={glyphSize} color={accent} />
-    : <MaterialCommunityIcons name={entry.name} size={glyphSize} color={accent} />;
+  let glyph;
+  if (isNovaQI && name === 'scan') {
+    glyph = <NovaQILogo size={glyphSize} color={accent} />;
+  } else {
+    const entry = ICON_MAP[name] || { lib: 'mci', name: 'leaf' };
+    glyph = entry.lib === 'ion'
+      ? <Ionicons name={entry.name} size={glyphSize} color={accent} />
+      : <MaterialCommunityIcons name={entry.name} size={glyphSize} color={accent} />;
+  }
 
   return (
     <View style={{
