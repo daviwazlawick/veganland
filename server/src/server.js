@@ -10,14 +10,19 @@ const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 8 * 1024 * 1024);
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': 'https://veganland.app',
-  'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-};
+const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app']);
 
-function sendJson(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'application/json', ...CORS_HEADERS });
+function corsHeaders(origin) {
+  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://veganland.app';
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  };
+}
+
+function sendJson(res, status, body, origin = '') {
+  res.writeHead(status, { 'Content-Type': 'application/json', ...corsHeaders(origin) });
   res.end(JSON.stringify(body));
 }
 
@@ -311,15 +316,17 @@ async function isAdminRequest(req) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    const origin = req.headers['origin'] || '';
+
     if (req.method === 'OPTIONS') {
-      res.writeHead(204, CORS_HEADERS);
+      res.writeHead(204, corsHeaders(origin));
       res.end();
       return;
     }
 
     if (req.method === 'GET' && req.url === '/health') {
       if (pool) await pool.query('select 1');
-      sendJson(res, 200, { ok: true, db: !!pool });
+      sendJson(res, 200, { ok: true, db: !!pool }, origin);
       return;
     }
 
@@ -327,16 +334,16 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/auth/register') {
       const { email, password } = await readJsonBody(req);
       if (!email || !password) {
-        sendJson(res, 400, { error: 'email and password are required' });
+        sendJson(res, 400, { error: 'email and password are required' }, origin);
         return;
       }
       if (password.length < 6) {
-        sendJson(res, 400, { error: 'password must be at least 6 characters' });
+        sendJson(res, 400, { error: 'password must be at least 6 characters' }, origin);
         return;
       }
       const existing = await findUserByEmail(email);
       if (existing) {
-        sendJson(res, 409, { error: 'Email already registered' });
+        sendJson(res, 409, { error: 'Email already registered' }, origin);
         return;
       }
       const passwordHash = await hashPassword(password);
@@ -345,10 +352,10 @@ const server = http.createServer(async (req, res) => {
         const confirmToken = crypto.randomBytes(32).toString('hex');
         await storeEmailConfirmationToken(user.id, confirmToken);
         sendConfirmationEmail(user.email, confirmToken).catch(console.error);
-        sendJson(res, 201, { emailConfirmationSent: true, email: user.email });
+        sendJson(res, 201, { emailConfirmationSent: true, email: user.email }, origin);
       } else {
         const token = generateToken(user.id, user.email);
-        sendJson(res, 201, { token, user: { id: user.id, email: user.email }, emailConfirmationSent: false });
+        sendJson(res, 201, { token, user: { id: user.id, email: user.email }, emailConfirmationSent: false }, origin);
       }
       return;
     }
@@ -357,7 +364,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/auth/resend-confirmation') {
       const claims = getAuthUser(req);
       if (!claims) {
-        sendJson(res, 401, { error: 'Unauthorized' });
+        sendJson(res, 401, { error: 'Unauthorized' }, origin);
         return;
       }
       if (emailsEnabled()) {
@@ -365,7 +372,7 @@ const server = http.createServer(async (req, res) => {
         await storeEmailConfirmationToken(claims.userId, confirmToken);
         sendConfirmationEmail(claims.email, confirmToken).catch(console.error);
       }
-      sendJson(res, 200, { ok: true });
+      sendJson(res, 200, { ok: true }, origin);
       return;
     }
 
@@ -380,7 +387,7 @@ const server = http.createServer(async (req, res) => {
           sendConfirmationEmail(user.email, confirmToken).catch(console.error);
         }
       }
-      sendJson(res, 200, { ok: true });
+      sendJson(res, 200, { ok: true }, origin);
       return;
     }
 
@@ -408,7 +415,7 @@ const server = http.createServer(async (req, res) => {
           sendPasswordResetEmail(user.email, resetToken).catch(console.error);
         }
       }
-      sendJson(res, 200, { ok: true });
+      sendJson(res, 200, { ok: true }, origin);
       return;
     }
 
@@ -428,22 +435,22 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/auth/reset-password') {
       const { token, password } = await readJsonBody(req);
       if (!token || !password) {
-        sendJson(res, 400, { error: 'token and password are required' });
+        sendJson(res, 400, { error: 'token and password are required' }, origin);
         return;
       }
       if (password.length < 6) {
-        sendJson(res, 400, { error: 'password must be at least 6 characters' });
+        sendJson(res, 400, { error: 'password must be at least 6 characters' }, origin);
         return;
       }
       const record = await findValidPasswordResetToken(token);
       if (!record) {
-        sendJson(res, 400, { error: 'Invalid or expired reset token' });
+        sendJson(res, 400, { error: 'Invalid or expired reset token' }, origin);
         return;
       }
       const passwordHash = await hashPassword(password);
       await updateUserPassword(record.user_id, passwordHash);
       await markPasswordResetTokenUsed(record.id);
-      sendJson(res, 200, { ok: true });
+      sendJson(res, 200, { ok: true }, origin);
       return;
     }
 
@@ -451,25 +458,25 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/auth/login') {
       const { email, password } = await readJsonBody(req);
       if (!email || !password) {
-        sendJson(res, 400, { error: 'email and password are required' });
+        sendJson(res, 400, { error: 'email and password are required' }, origin);
         return;
       }
       const user = await findUserByEmail(email);
       if (!user) {
-        sendJson(res, 401, { error: 'Invalid email or password' });
+        sendJson(res, 401, { error: 'Invalid email or password' }, origin);
         return;
       }
       const valid = await verifyPassword(password, user.password_hash);
       if (!valid) {
-        sendJson(res, 401, { error: 'Invalid email or password' });
+        sendJson(res, 401, { error: 'Invalid email or password' }, origin);
         return;
       }
       if (emailsEnabled() && !user.email_confirmed) {
-        sendJson(res, 403, { error: 'email_not_confirmed' });
+        sendJson(res, 403, { error: 'email_not_confirmed' }, origin);
         return;
       }
       const token = generateToken(user.id, user.email);
-      sendJson(res, 200, { token, user: { id: user.id, email: user.email } });
+      sendJson(res, 200, { token, user: { id: user.id, email: user.email } }, origin);
       return;
     }
 
@@ -477,7 +484,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/auth/me') {
       const claims = getAuthUser(req);
       if (!claims) {
-        sendJson(res, 401, { error: 'Unauthorized' });
+        sendJson(res, 401, { error: 'Unauthorized' }, origin);
         return;
       }
       const [user, usage] = await Promise.all([
@@ -485,10 +492,10 @@ const server = http.createServer(async (req, res) => {
         getScanUsage(claims.userId),
       ]);
       if (!user) {
-        sendJson(res, 404, { error: 'User not found' });
+        sendJson(res, 404, { error: 'User not found' }, origin);
         return;
       }
-      sendJson(res, 200, { user, usage });
+      sendJson(res, 200, { user, usage }, origin);
       return;
     }
 
@@ -496,16 +503,16 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'PATCH' && req.url === '/user/profile') {
       const claims = getAuthUser(req);
       if (!claims) {
-        sendJson(res, 401, { error: 'Unauthorized' });
+        sendJson(res, 401, { error: 'Unauthorized' }, origin);
         return;
       }
       const body = await readJsonBody(req);
       const updated = await updateUserProfile(claims.userId, body);
       if (!updated) {
-        sendJson(res, 400, { error: 'No valid fields to update' });
+        sendJson(res, 400, { error: 'No valid fields to update' }, origin);
         return;
       }
-      sendJson(res, 200, { user: updated });
+      sendJson(res, 200, { user: updated }, origin);
       return;
     }
 
@@ -513,11 +520,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/user/history') {
       const claims = getAuthUser(req);
       if (!claims) {
-        sendJson(res, 401, { error: 'Unauthorized' });
+        sendJson(res, 401, { error: 'Unauthorized' }, origin);
         return;
       }
       const history = await getUserHistory(claims.userId);
-      sendJson(res, 200, { history });
+      sendJson(res, 200, { history }, origin);
       return;
     }
 
@@ -525,33 +532,33 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url.startsWith('/scan/')) {
       const claims = getAuthUser(req);
       if (!claims) {
-        sendJson(res, 401, { error: 'Unauthorized' });
+        sendJson(res, 401, { error: 'Unauthorized' }, origin);
         return;
       }
       const scanId = req.url.slice('/scan/'.length);
       if (!scanId) {
-        sendJson(res, 404, { error: 'Not found' });
+        sendJson(res, 404, { error: 'Not found' }, origin);
         return;
       }
       const scan = await getScanById(scanId, claims.userId);
       if (!scan) {
-        sendJson(res, 404, { error: 'Scan not found' });
+        sendJson(res, 404, { error: 'Scan not found' }, origin);
         return;
       }
-      sendJson(res, 200, { scan });
+      sendJson(res, 200, { scan }, origin);
       return;
     }
 
     // POST /analyze-product
     if (req.method === 'POST' && req.url === '/analyze-product') {
       if (!isAuthorized(req)) {
-        sendJson(res, 401, { error: 'Unauthorized' });
+        sendJson(res, 401, { error: 'Unauthorized' }, origin);
         return;
       }
 
       const body = await readJsonBody(req);
       if (!body.imageBase64 && !body.barcode) {
-        sendJson(res, 400, { error: 'imageBase64 or barcode is required' });
+        sendJson(res, 400, { error: 'imageBase64 or barcode is required' }, origin);
         return;
       }
 
@@ -579,7 +586,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
       if (!profile) {
-        sendJson(res, 400, { error: 'profile is required' });
+        sendJson(res, 400, { error: 'profile is required' }, origin);
         return;
       }
 
@@ -592,7 +599,7 @@ const server = http.createServer(async (req, res) => {
         barcode: body.barcode || null,
       });
 
-      sendJson(res, 200, result);
+      sendJson(res, 200, result, origin);
       return;
     }
 
@@ -672,10 +679,10 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    sendJson(res, 404, { error: 'Not found' });
+    sendJson(res, 404, { error: 'Not found' }, origin);
   } catch (error) {
     console.error(error);
-    sendJson(res, 500, { error: error.message || 'Internal server error' });
+    sendJson(res, 500, { error: error.message || 'Internal server error' }, origin);
   }
 });
 
