@@ -28,9 +28,11 @@
       },
       "package": "app.veganland",
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "edgeToEdgeEnabled": true
     },
@@ -50,6 +52,17 @@
           "photosPermission": "VeganLand needs photo access to analyze product images."
         }
       ]
-    ]
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/64fa402d-0f4c-4582-8879-e032ddaa946e"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "64fa402d-0f4c-4582-8879-e032ddaa946e"
+      }
+    }
   }
 }
