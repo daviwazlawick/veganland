@@ -8,7 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { PremiumIcon } from '../components/ui';
+import { BrandFonts } from '../brand';
+import { PremiumIcon, BrandName } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 
 export default function LoginScreen({ navigation }) {
@@ -55,7 +56,7 @@ export default function LoginScreen({ navigation }) {
       await apiResendConfirmationByEmail(email.trim());
       setResendDone(true);
       setTimeout(() => setResendDone(false), 3000);
-    } catch (e) {
+    } catch {
       setResendDone(true);
       setTimeout(() => setResendDone(false), 3000);
     } finally {
@@ -65,10 +66,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -80,28 +78,25 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.hero}>
             <View style={styles.logoCircle}>
-              <PremiumIcon name="vegan" size={54} />
+              <PremiumIcon name="scan" size={54} color={Colors.primary} />
             </View>
-            <Text style={styles.appName}>VeganLand</Text>
-            <Text style={styles.tagline}>
-              {t(language, 'auth.tagline')}
-            </Text>
+            <BrandName
+              style={styles.appName}
+              prefixColor={Colors.navy}
+              suffixColor={Colors.primary}
+            />
+            <Text style={styles.tagline}>{t(language, 'auth.tagline')}</Text>
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>
-              {t(language, 'auth.login_title')}
-            </Text>
+            <Text style={styles.cardTitle}>{t(language, 'auth.login_title')}</Text>
 
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Email</Text>
               <TextInput
                 style={styles.input}
                 value={email}
-                onChangeText={(value) => {
-                  setEmail(value);
-                  if (errorMessage) setErrorMessage('');
-                }}
+                onChangeText={(value) => { setEmail(value); if (errorMessage) setErrorMessage(''); }}
                 placeholder={t(language, 'auth.email_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="email-address"
@@ -115,10 +110,7 @@ export default function LoginScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={password}
-                onChangeText={(value) => {
-                  setPassword(value);
-                  if (errorMessage) setErrorMessage('');
-                }}
+                onChangeText={(value) => { setPassword(value); if (errorMessage) setErrorMessage(''); }}
                 placeholder={t(language, 'auth.password_placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry
@@ -148,30 +140,18 @@ export default function LoginScreen({ navigation }) {
               activeOpacity={0.9}
               disabled={loading}
             >
-              <Text style={styles.btnText}>
-                {loading ? '...' : t(language, 'auth.sign_in')}
-              </Text>
+              <Text style={styles.btnText}>{loading ? '...' : t(language, 'auth.sign_in')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.forgotBtn}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              <Text style={styles.forgotText}>
-                {t(language, 'auth.forgot_password')}
-              </Text>
+            <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.forgotText}>{t(language, 'auth.forgot_password')}</Text>
             </TouchableOpacity>
-
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              {t(language, 'auth.no_account')}
-            </Text>
+            <Text style={styles.footerText}>{t(language, 'auth.no_account')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.footerLink}>
-                {t(language, 'auth.create_account')}
-              </Text>
+              <Text style={styles.footerLink}>{t(language, 'auth.create_account')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -196,83 +176,77 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: 12, paddingVertical: 20 },
   logoCircle: {
     width: 104, height: 104, borderRadius: 52,
-    backgroundColor: 'rgba(255,255,255,0.72)',
+    backgroundColor: Colors.primaryBg,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
-    shadowColor: Colors.darkSurface,
-    shadowOpacity: 0.08,
+    borderWidth: 2, borderColor: Colors.primaryLight,
+    shadowColor: Colors.navy,
+    shadowOpacity: 0.10,
     shadowRadius: 28,
     shadowOffset: { width: 0, height: 14 },
     elevation: 8,
   },
-  appName: { fontSize: 42, fontWeight: '700', color: Colors.primaryDark, fontFamily: 'serif', letterSpacing: 0 },
+  appName: {
+    fontSize: 42, fontWeight: '800',
+    fontFamily: BrandFonts.heading || 'serif',
+    letterSpacing: -1,
+  },
   tagline: { fontSize: 15, color: Colors.textLight, fontWeight: '500', textAlign: 'center', lineHeight: 22 },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.78)',
-    borderRadius: 28,
-    padding: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    borderRadius: 28, padding: 26,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)',
     gap: 18,
-    shadowColor: Colors.darkSurface,
+    shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.08,
     shadowRadius: 30,
     elevation: 10,
   },
-  cardTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 4, fontFamily: 'serif' },
+  cardTitle: {
+    fontSize: 22, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 4,
+    fontFamily: BrandFonts.headingMed || 'serif',
+  },
   field: { gap: 8 },
   fieldLabel: { fontSize: 12, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.5, textTransform: 'uppercase' },
   input: {
     backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(232,225,213,0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: '600',
+    borderRadius: 14, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 16, color: Colors.text, fontWeight: '600',
   },
   errorBox: {
-    backgroundColor: Colors.dangerLight || '#FEE2E2',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.danger + '55',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: Colors.dangerLight,
+    borderRadius: 12, borderWidth: 1, borderColor: Colors.danger + '55',
+    paddingHorizontal: 12, paddingVertical: 10,
   },
-  errorText: { color: Colors.dangerDark || Colors.danger, fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  errorText: { color: Colors.dangerDark, fontSize: 13, fontWeight: '800', textAlign: 'center' },
   btn: {
-    backgroundColor: Colors.primaryDark,
-    borderRadius: 18,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 4,
-    shadowColor: Colors.darkSurface,
-    shadowOpacity: 0.16,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
+    backgroundColor: Colors.primary,
+    borderRadius: 16, paddingVertical: 18, alignItems: 'center',
+    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  btnText: {
+    color: Colors.white, fontSize: 17, fontWeight: '900',
+    fontFamily: BrandFonts.heading || undefined,
+  },
   confirmationBox: {
     backgroundColor: '#FEF9C3',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FDE047',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-    alignItems: 'center',
+    borderRadius: 12, borderWidth: 1, borderColor: '#FDE047',
+    paddingHorizontal: 12, paddingVertical: 10,
+    gap: 8, alignItems: 'center',
   },
   confirmationText: { color: '#854D0E', fontSize: 13, fontWeight: '700', textAlign: 'center' },
   resendBtn: { paddingVertical: 4 },
-  resendText: { color: Colors.primaryDark, fontSize: 13, fontWeight: '800' },
+  resendText: { color: Colors.primary, fontSize: 13, fontWeight: '800' },
   forgotBtn: { alignItems: 'center', paddingVertical: 4 },
-  forgotText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  forgotText: { fontSize: 13, color: Colors.primary, fontWeight: '700' },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
-  footerLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '800' },
+  footerLink: { fontSize: 14, color: Colors.primary, fontWeight: '800' },
 });
