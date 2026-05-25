@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VeganLand — Design Specification</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#FAF8F4;color:#1F1F1F;line-height:1.6}
+  header{background:#1C2B22;padding:40px 48px;display:flex;align-items:center;gap:18px}
+  header h1{color:#fff;font-size:28px;font-weight:800;font-family:Georgia,serif}
+  header .version{background:#7FBF5B;color:#fff;font-size:11px;font-weight:900;padding:4px 10px;border-radius:8px;letter-spacing:1px}
+  header p{color:rgba(255,255,255,.6);font-size:14px;font-weight:500;margin-top:6px}
+  nav{background:#fff;border-bottom:1px solid #E8E1D5;padding:0 48px;display:flex;gap:0;overflow-x:auto}
+  nav a{color:#6B6B6B;text-decoration:none;font-size:13px;font-weight:700;padding:14px 18px;border-bottom:2px solid transparent;white-space:nowrap}
+  nav a:hover{color:#1C2B22;border-bottom-color:#7FBF5B}
+  main{max-width:1100px;margin:0 auto;padding:48px 48px 80px}
+  section{margin-bottom:60px}
+  h2{font-size:22px;font-weight:800;color:#1C2B22;margin-bottom:24px;padding-bottom:10px;border-bottom:2px solid #EEF5E8;font-family:Georgia,serif}
+  h3{font-size:16px;font-weight:800;color:#2E4736;margin:28px 0 14px}
+  h4{font-size:14px;font-weight:800;color:#6B6B6B;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+  p{margin-bottom:10px;font-size:14px;color:#3a3a3a}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}
+  th{text-align:left;padding:8px 12px;background:#EEF5E8;color:#2E4736;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  td{padding:10px 12px;border-bottom:1px solid #f0ece5;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafff5}
+  code{background:#EEF5E8;color:#2E4736;padding:2px 7px;border-radius:5px;font-family:monospace;font-size:12px}
+  pre{background:#1C2B22;color:#B8DDA1;padding:24px;border-radius:14px;font-family:monospace;font-size:13px;line-height:1.7;overflow-x:auto;margin-bottom:20px}
+  .swatch{display:inline-block;width:24px;height:24px;border-radius:6px;border:1px solid rgba(0,0,0,.1);vertical-align:middle;margin-right:8px}
+  .chip{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:800;margin:2px}
+  .badge-basic{background:#EEF5E8;color:#2E4736}
+  .badge-premium{background:#FFF1E2;color:#9A6121}
+  .badge-admin{background:#E8F0FF;color:#1A3A8F}
+  .status-safe{background:#EDF7E7;color:#2E4736;border-left:4px solid #8FCB72}
+  .status-caution{background:#FFF1E2;color:#9A6121;border-left:4px solid #F2A75A}
+  .status-danger{background:#FBEAEA;color:#8A3D3D;border-left:4px solid #E58A8A}
+  .status-card{padding:14px 18px;border-radius:12px;margin-bottom:10px;font-weight:700;font-size:14px}
+  .screen-card{background:#fff;border-radius:20px;padding:24px 28px;margin-bottom:18px;box-shadow:0 2px 14px rgba(0,0,0,.06);border:1px solid #E8E1D5}
+  .screen-card h3{margin-top:0}
+  .screen-meta{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .screen-meta span{font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px}
+  .meta-route{background:#EEF5E8;color:#2E4736}
+  .meta-auth{background:#FFF1E2;color:#9A6121}
+  .component-list{list-style:none;padding:0}
+  .component-list li{padding:7px 0;border-bottom:1px solid #f5f2ec;font-size:13px;color:#3a3a3a}
+  .component-list li:last-child{border-bottom:none}
+  .component-list li::before{content:"›";color:#7FBF5B;font-weight:900;margin-right:8px}
+  .color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:20px}
+  .color-item{background:#fff;border-radius:12px;padding:12px;border:1px solid #E8E1D5;display:flex;align-items:center;gap:10px}
+  .color-swatch{width:40px;height:40px;border-radius:8px;border:1px solid rgba(0,0,0,.08);flex-shrink:0}
+  .color-info .token{font-size:12px;font-weight:800;color:#1C2B22}
+  .color-info .hex{font-size:11px;color:#9A9A9A;font-family:monospace}
+  .color-info .usage{font-size:11px;color:#6B6B6B;margin-top:2px}
+  .flow-box{background:#1C2B22;color:#B8DDA1;padding:28px;border-radius:16px;font-family:monospace;font-size:13px;line-height:1.9;overflow-x:auto}
+  .diet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
+  .diet-card{background:#fff;border-radius:14px;padding:14px;border:2px solid #E8E1D5;text-align:center}
+  .diet-card .diet-name{font-size:13px;font-weight:800;color:#1C2B22;margin-top:8px}
+  .diet-card .diet-desc{font-size:11px;color:#9A9A9A;margin-top:3px}
+  .allergy-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+  .allergy-chip{background:#fff;border:1px solid #E8E1D5;border-radius:12px;padding:6px 12px;font-size:12px;font-weight:700;color:#3a3a3a}
+  .allergy-chip.cosmetic{background:#FFF8ED;border-color:#F4E8CC;color:#8E6C2E}
+  footer{text-align:center;color:#9A9A9A;font-size:12px;padding:40px;border-top:1px solid #E8E1D5}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <h1>🌱 VeganLand</h1>
+      <span class="version">DESIGN SPEC v1.0</span>
+    </div>
+    <p>React Native + Expo SDK 54 · Web + Android · veganland.app</p>
+  </div>
+</header>
+
+<nav>
+  <a href="#colors">Colors</a>
+  <a href="#typography">Typography</a>
+  <a href="#navigation">Navigation</a>
+  <a href="#screens">Screens</a>
+  <a href="#components">Components</a>
+  <a href="#diets">Diets</a>
+  <a href="#allergies">Allergies</a>
+  <a href="#plans">Plans</a>
+  <a href="#languages">Languages</a>
+  <a href="#flow">App Flow</a>
+</nav>
+
+<main>
+
+<!-- COLORS -->
+<section id="colors">
+  <h2>Color Palette</h2>
+
+  <h3>Primary — Green</h3>
+  <div class="color-grid">
+    <div class="color-item"><div class="color-swatch" style="background:#7FBF5B"></div><div class="color-info"><div class="token">primary</div><div class="hex">#7FBF5B</div><div class="usage">Buttons, active states</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#1C2B22"></div><div class="color-info"><div class="token">primaryDark</div><div class="hex">#1C2B22</div><div class="usage">Headers, dark text</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#B8DDA1"></div><div class="color-info"><div class="token">primaryLight</div><div class="hex">#B8DDA1</div><div class="usage">Subtle highlights</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#EEF5E8"></div><div class="color-info"><div class="token">primaryBg</div><div class="hex">#EEF5E8</div><div class="usage">Light green backgrounds</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#2E4736"></div><div class="color-info"><div class="token">forest</div><div class="hex">#2E4736</div><div class="usage">Secondary dark green</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#102822"></div><div class="color-info"><div class="token">darkSurface</div><div class="hex">#102822</div><div class="usage">Camera overlay, scan btn</div></div></div>
+  </div>
+
+  <h3>Accent — Amber</h3>
+  <div class="color-grid">
+    <div class="color-item"><div class="color-swatch" style="background:#D4B06A"></div><div class="color-info"><div class="token">accent</div><div class="hex">#D4B06A</div><div class="usage">Amber accents, corners</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#8E6C2E"></div><div class="color-info"><div class="token">accentDark</div><div class="hex">#8E6C2E</div><div class="usage">Amber text</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#F4E8CC"></div><div class="color-info"><div class="token">accentLight</div><div class="hex">#F4E8CC</div><div class="usage">Amber light backgrounds</div></div></div>
+  </div>
+
+  <h3>Backgrounds & Surfaces</h3>
+  <div class="color-grid">
+    <div class="color-item"><div class="color-swatch" style="background:#FAF8F4;border:1px solid #eee"></div><div class="color-info"><div class="token">background</div><div class="hex">#FAF8F4</div><div class="usage">Main page background</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#F5F1E8;border:1px solid #eee"></div><div class="color-info"><div class="token">backgroundSecondary</div><div class="hex">#F5F1E8</div><div class="usage">Secondary backgrounds</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#FFFFFF;border:1px solid #eee"></div><div class="color-info"><div class="token">card</div><div class="hex">#FFFFFF</div><div class="usage">Card background</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:rgba(255,255,255,0.76);border:1px solid #eee"></div><div class="color-info"><div class="token">glass</div><div class="hex">rgba(255,255,255,0.76)</div><div class="usage">Glassmorphism cards</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#E8E1D5"></div><div class="color-info"><div class="token">border</div><div class="hex">#E8E1D5</div><div class="usage">Card borders</div></div></div>
+  </div>
+
+  <h3>Status Colors</h3>
+  <div class="color-grid">
+    <div class="color-item"><div class="color-swatch" style="background:#8FCB72"></div><div class="color-info"><div class="token">safe</div><div class="hex">#8FCB72</div><div class="usage">SAFE strip</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#EDF7E7"></div><div class="color-info"><div class="token">safeLight</div><div class="hex">#EDF7E7</div><div class="usage">SAFE background</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#F2A75A"></div><div class="color-info"><div class="token">caution</div><div class="hex">#F2A75A</div><div class="usage">CAUTION strip</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#FFF1E2"></div><div class="color-info"><div class="token">cautionLight</div><div class="hex">#FFF1E2</div><div class="usage">CAUTION background</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#E58A8A"></div><div class="color-info"><div class="token">danger</div><div class="hex">#E58A8A</div><div class="usage">NOT_SAFE strip</div></div></div>
+    <div class="color-item"><div class="color-swatch" style="background:#FBEAEA"></div><div class="color-info"><div class="token">dangerLight</div><div class="hex">#FBEAEA</div><div class="usage">NOT_SAFE background</div></div></div>
+  </div>
+
+  <h3>Status Cards Preview</h3>
+  <div class="status-card status-safe">✅ SAFE — This product suits your profile</div>
+  <div class="status-card status-caution">⚠️ CAUTION — Check carefully before consuming</div>
+  <div class="status-card status-danger">🚫 AVOID — Not recommended for your profile</div>
+</section>
+
+<!-- TYPOGRAPHY -->
+<section id="typography">
+  <h2>Typography</h2>
+  <table>
+    <tr><th>Role</th><th>Size</th><th>Weight</th><th>Font</th><th>Example</th></tr>
+    <tr><td>App title / Logo</td><td>34px</td><td>700</td><td>Serif (Georgia)</td><td><span style="font-family:Georgia;font-size:22px;font-weight:700">VeganLand</span></td></tr>
+    <tr><td>Section heading</td><td>22–24px</td><td>700</td><td>Serif</td><td><span style="font-family:Georgia;font-size:18px;font-weight:700">Recent Scans</span></td></tr>
+    <tr><td>Card title</td><td>19px</td><td>800</td><td>System</td><td><span style="font-size:15px;font-weight:800">Vegan</span></td></tr>
+    <tr><td>Scan button</td><td>23px</td><td>900</td><td>System</td><td><span style="font-size:16px;font-weight:900">Scan Product</span></td></tr>
+    <tr><td>Body</td><td>14–15px</td><td>500–600</td><td>System</td><td><span style="font-size:13px">Analyze any product with AI</span></td></tr>
+    <tr><td>Label / tag</td><td>11–13px</td><td>700–800</td><td>System</td><td><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9A9A9A">SCANS THIS MONTH</span></td></tr>
+    <tr><td>Muted / caption</td><td>11–12px</td><td>600</td><td>System</td><td><span style="font-size:11px;color:#9A9A9A">Resets on 01/06/2026</span></td></tr>
+  </table>
+
+  <h3>Spacing & Border Radius</h3>
+  <table>
+    <tr><th>Token</th><th>Value</th></tr>
+    <tr><td>Screen padding</td><td>16–20px</td></tr>
+    <tr><td>Card border radius</td><td>20–28px (glassmorphism cards: 28px)</td></tr>
+    <tr><td>Chip border radius</td><td>14px</td></tr>
+    <tr><td>Button border radius</td><td>14–16px</td></tr>
+    <tr><td>Gap between cards</td><td>12–18px</td></tr>
+    <tr><td>Button depth (3D)</td><td>borderBottomWidth: 3–5px, darker color</td></tr>
+  </table>
+</section>
+
+<!-- NAVIGATION -->
+<section id="navigation">
+  <h2>Navigation Structure</h2>
+  <pre>Root Navigator (Stack)
+├── Welcome             — unauthenticated landing page
+├── Login               — email + password sign in
+├── Register            — new account creation + terms
+├── ForgotPassword      — password reset by email
+├── ProfileSetup        — diet + allergies setup (2 steps)
+└── Main (Bottom Tabs)
+    ├── Tab 1: Home     — dashboard + scan history
+    ├── Tab 2: Scan     — full-screen camera modal
+    └── Tab 3: Profile  — settings + account + usage
+            └── Result      — SAFE / CAUTION / NOT_SAFE
+            └── EditPersonal — name + bio + avatar</pre>
+
+  <h3>Bottom Tab Bar</h3>
+  <table>
+    <tr><th>Tab</th><th>Icon</th><th>Label</th></tr>
+    <tr><td>Home</td><td>home icon</td><td>Home</td></tr>
+    <tr><td>Profile</td><td>profile icon</td><td>Profile</td></tr>
+  </table>
+  <p>The <strong>Scan</strong> button lives on the Home screen as a large dark card button — not a tab. It opens the full-screen camera overlay.</p>
+</section>
+
+<!-- SCREENS -->
+<section id="screens">
+  <h2>Screens</h2>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Welcome</span><span style="background:#EEF5E8;color:#2E4736;font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px">No auth required</span></div>
+    <h3>Welcome Screen</h3>
+    <ul class="component-list">
+      <li>"VeganLand" logo in serif + tagline "Scan, trust, eat well."</li>
+      <li>Subtitle: "Analyze any product with AI..."</li>
+      <li>3 feature rows: Take a photo / AI analyzes / Instant result</li>
+      <li>CTA: "Get Started" — primary green button, full width</li>
+      <li>Secondary: "I already have an account" — text link</li>
+      <li>Language picker: PT / EN / DE / FR / IT / ES flag buttons</li>
+      <li>Beta ribbon: top-right corner, green "BETA" badge</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Login</span></div>
+    <h3>Login Screen</h3>
+    <ul class="component-list">
+      <li>Tagline header: "Your vegan life, simpler"</li>
+      <li>Email input field</li>
+      <li>Password input field + "Forgot password?" link</li>
+      <li>"Sign In" button — primary green, full width</li>
+      <li>Conditional warning banner (amber): email not confirmed → "Resend email" button</li>
+      <li>"Don't have an account? Create account" link</li>
+      <li>Language picker row</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Register</span></div>
+    <h3>Register Screen</h3>
+    <ul class="component-list">
+      <li>Email, Password, Confirm Password fields</li>
+      <li>Terms checkbox (required): "I agree to the Terms & Conditions and Privacy Policy"</li>
+      <li>Terms / Privacy links open in in-app browser</li>
+      <li>"Create Account" button — primary green, full width</li>
+      <li>"Already have an account?" link</li>
+      <li>On success: navigates to Check Email screen</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">ProfileSetup</span><span class="meta-auth">2 steps</span></div>
+    <h3>Profile Setup Screen</h3>
+    <p><strong>Step 1 — Diet</strong></p>
+    <ul class="component-list">
+      <li>Step indicator: "Step 1 of 2 · Diet"</li>
+      <li>"How do you eat?" title</li>
+      <li>6 diet cards in grid — icon + name + description + selected state</li>
+      <li>"Next" button</li>
+    </ul>
+    <p style="margin-top:14px"><strong>Step 2 — Allergies</strong></p>
+    <ul class="component-list">
+      <li>Step indicator: "Step 2 of 2 · Sensitivities"</li>
+      <li>"Allergies or sensitivities?" + subtitle "Includes food, cosmetics, hygiene, and clothing"</li>
+      <li>22 allergy chips in wrap grid — tap to toggle</li>
+      <li>"None" option</li>
+      <li>"Save Profile" button — primary green, full width</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Home</span><span class="meta-auth">Auth required</span></div>
+    <h3>Home Screen (Tab 1)</h3>
+    <ul class="component-list">
+      <li><strong>Header:</strong> "VeganLand" serif + "What are we scanning today?" + scan count badge (dark)</li>
+      <li><strong>Profile card</strong> (glassmorphism): diet icon circle + name + description + allergy chips + settings button</li>
+      <li><strong>Scan button</strong> (dark card, green glow): scan icon circle + "Scan Product" + subtitle + arrow</li>
+      <li><strong>Recent Scans</strong> (up to 5): left colored border + status icon + status label + product name + date</li>
+      <li><strong>Empty state:</strong> icon grid + "No scans yet!" message</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Scan</span><span style="background:#1C2B22;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px">Full screen</span></div>
+    <h3>Scan Screen</h3>
+    <ul class="component-list">
+      <li>Camera fills entire screen (back camera)</li>
+      <li>Top bar: ✕ close (left) + "Scan Product" title</li>
+      <li>Frame: 280×280px with amber corner brackets</li>
+      <li>Hint text below frame</li>
+      <li>Rotating tip pill (3.5s interval): barcode / ingredients / product front tips</li>
+      <li>Bottom bar: Gallery button (left) + Capture button (80px circle, center)</li>
+      <li><strong>Analyzing overlay:</strong> dark background + white card + AI icon + spinner</li>
+      <li><strong>Error card overlay:</strong> dark background + white card + error text + OK dismiss button</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Result</span></div>
+    <h3>Result Screen</h3>
+    <ul class="component-list">
+      <li>Header: product name + source badge</li>
+      <li>Status banner: full-width colored strip — SAFE / CAUTION / AVOID</li>
+      <li><strong>Analysis card:</strong> AI explanation text</li>
+      <li><strong>Ingredients card:</strong> chip grid; flagged ingredients in red; always visible</li>
+      <li><strong>Allergens card</strong> (amber, #FFF8ED): allergen chips; always visible; "No allergens detected" if empty</li>
+      <li><strong>Concerns card:</strong> problematic ingredients list (if any)</li>
+      <li><strong>No issues card</strong> (green): shown if SAFE + no concerns</li>
+      <li>Bottom: "Scan Another" button</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">Profile</span><span class="meta-auth">Auth required</span></div>
+    <h3>Profile Screen (Tab 2)</h3>
+    <ul class="component-list">
+      <li><strong>Personal Hero card:</strong> avatar (photo or initials) + name + bio + Edit link</li>
+      <li><strong>Diet card:</strong> current diet with icon + "Edit Profile" button</li>
+      <li><strong>Allergies card:</strong> selected allergy chips</li>
+      <li><strong>Language card:</strong> 6 language buttons, active has green border + checkmark</li>
+      <li><strong>Account card:</strong> email + "Sign out" button</li>
+      <li><strong>Usage card:</strong> plan badge + scan count (N/30 or N/100 or Unlimited) + progress bar + reset date</li>
+      <li><strong>About card:</strong> dark green + VeganLand icon + tagline</li>
+      <li><strong>Legal footer:</strong> Terms · Privacy · Imprint (open in-app browser)</li>
+    </ul>
+  </div>
+
+  <div class="screen-card">
+    <div class="screen-meta"><span class="meta-route">EditPersonal</span><span class="meta-auth">Auth required</span></div>
+    <h3>Edit Personal Screen</h3>
+    <ul class="component-list">
+      <li>Avatar circle — tappable, opens image picker, "Tap to change photo"</li>
+      <li>Name input field</li>
+      <li>Bio input field (multiline)</li>
+      <li>"Save" button — primary green</li>
+    </ul>
+  </div>
+</section>
+
+<!-- COMPONENTS -->
+<section id="components">
+  <h2>Components</h2>
+
+  <h3>Plan Badges</h3>
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+    <span class="chip badge-basic">Básico / Basic</span>
+    <span class="chip badge-premium">Premium</span>
+    <span class="chip badge-admin">Admin</span>
+  </div>
+
+  <h3>Status Cards</h3>
+  <table>
+    <tr><th>Status</th><th>Strip</th><th>Background</th><th>Text Color</th><th>Label</th></tr>
+    <tr><td><strong>SAFE</strong></td><td><span class="swatch" style="background:#8FCB72"></span>#8FCB72</td><td><span class="swatch" style="background:#EDF7E7"></span>#EDF7E7</td><td>#2E4736</td><td>SAFE / This product suits your profile</td></tr>
+    <tr><td><strong>CAUTION</strong></td><td><span class="swatch" style="background:#F2A75A"></span>#F2A75A</td><td><span class="swatch" style="background:#FFF1E2"></span>#FFF1E2</td><td>#9A6121</td><td>CAUTION / Check carefully</td></tr>
+    <tr><td><strong>NOT_SAFE</strong></td><td><span class="swatch" style="background:#E58A8A"></span>#E58A8A</td><td><span class="swatch" style="background:#FBEAEA"></span>#FBEAEA</td><td>#8A3D3D</td><td>AVOID / Not recommended</td></tr>
+  </table>
+
+  <h3>Analysis Sources</h3>
+  <table>
+    <tr><th>Source Key</th><th>Display Label</th></tr>
+    <tr><td><code>image</code></td><td>image</td></tr>
+    <tr><td><code>cache</code></td><td>local database</td></tr>
+    <tr><td><code>database</code></td><td>central database</td></tr>
+    <tr><td><code>open_food_facts</code></td><td>internet</td></tr>
+    <tr><td><code>knowledge</code></td><td>uncertain source</td></tr>
+    <tr><td><code>missing</code></td><td>not found</td></tr>
+  </table>
+
+  <h3>Beta Ribbon</h3>
+  <p>Position: <strong>top-right corner</strong>. Background: <code>#7FBF5B</code>. Text: "BETA", white, bold, small caps. Rotated 45°.</p>
+
+  <h3>Glassmorphism Card</h3>
+  <p><code>background: rgba(255,255,255,0.76)</code> · <code>border: 1px solid rgba(255,255,255,0.72)</code> · <code>border-radius: 28px</code> · shadow: <code>rgba(16,40,34,0.08)</code></p>
+</section>
+
+<!-- DIETS -->
+<section id="diets">
+  <h2>Diets (6)</h2>
+  <table>
+    <tr><th>ID</th><th>EN</th><th>PT</th><th>DE</th><th>FR</th><th>IT</th><th>ES</th><th>Description (EN)</th></tr>
+    <tr><td><code>vegan</code></td><td>Vegan</td><td>Vegano</td><td>Vegan</td><td>Végane</td><td>Vegano</td><td>Vegano</td><td>No animal products whatsoever</td></tr>
+    <tr><td><code>vegetarian</code></td><td>Vegetarian</td><td>Vegetariano</td><td>Vegetarisch</td><td>Végétarien</td><td>Vegetariano</td><td>Vegetariano</td><td>No meat or fish</td></tr>
+    <tr><td><code>pescatarian</code></td><td>Pescatarian</td><td>Pescetariano</td><td>Pescetarisch</td><td>Pescétarien</td><td>Pescetariano</td><td>Pescetariano</td><td>Vegetarian + fish</td></tr>
+    <tr><td><code>gluten_free</code></td><td>Gluten-Free</td><td>Sem Glúten</td><td>Glutenfrei</td><td>Sans gluten</td><td>Senza glutine</td><td>Sin gluten</td><td>No wheat, barley or rye</td></tr>
+    <tr><td><code>halal</code></td><td>Halal</td><td>Halal</td><td>Halal</td><td>Halal</td><td>Halal</td><td>Halal</td><td>Compliant with Islamic law</td></tr>
+    <tr><td><code>omnivore</code></td><td>Omnivore</td><td>Onívoro</td><td>Omnivor</td><td>Omnivore</td><td>Onnivoro</td><td>Omnívoro</td><td>No dietary restrictions</td></tr>
+  </table>
+</section>
+
+<!-- ALLERGIES -->
+<section id="allergies">
+  <h2>Allergies &amp; Sensitivities (22)</h2>
+
+  <h3>Food (12)</h3>
+  <div class="allergy-grid">
+    <span class="allergy-chip">Peanuts / Amendoim</span>
+    <span class="allergy-chip">Tree Nuts / Nozes</span>
+    <span class="allergy-chip">Dairy / Laticínios</span>
+    <span class="allergy-chip">Eggs / Ovos</span>
+    <span class="allergy-chip">Gluten / Glúten</span>
+    <span class="allergy-chip">Soy / Soja</span>
+    <span class="allergy-chip">Shellfish / Crustáceos</span>
+    <span class="allergy-chip">Fish / Peixe</span>
+    <span class="allergy-chip">Sesame / Gergelim</span>
+    <span class="allergy-chip">Corn / Milho</span>
+    <span class="allergy-chip">Sulfites / Sulfitos</span>
+    <span class="allergy-chip">Mustard / Mostarda</span>
+  </div>
+
+  <h3>Cosmetics / Hygiene / Clothing (10)</h3>
+  <div class="allergy-grid">
+    <span class="allergy-chip cosmetic">Fragrance / Fragrâncias</span>
+    <span class="allergy-chip cosmetic">Essential Oils / Óleos essenciais</span>
+    <span class="allergy-chip cosmetic">Latex / Látex</span>
+    <span class="allergy-chip cosmetic">Nickel / Níquel</span>
+    <span class="allergy-chip cosmetic">Lanolin / Lanolina</span>
+    <span class="allergy-chip cosmetic">Formaldehyde / Formaldeído</span>
+    <span class="allergy-chip cosmetic">Parabens / Parabenos</span>
+    <span class="allergy-chip cosmetic">Sulfates / Sulfatos</span>
+    <span class="allergy-chip cosmetic">Dyes / Corantes</span>
+    <span class="allergy-chip cosmetic">Wool / Lã</span>
+  </div>
+
+  <p><em>White chips = food allergens · Amber chips = cosmetics/hygiene/clothing sensitivities</em></p>
+</section>
+
+<!-- PLANS -->
+<section id="plans">
+  <h2>User Plans</h2>
+  <table>
+    <tr><th>Plan</th><th>Scans / Month</th><th>Badge</th><th>Limit Behavior</th></tr>
+    <tr><td><span class="chip badge-basic">Basic</span></td><td>30</td><td>Green (#EEF5E8 / #2E4736)</td><td>Blocked at 31st attempt, error card shown</td></tr>
+    <tr><td><span class="chip badge-premium">Premium</span></td><td>100</td><td>Amber (#FFF1E2 / #9A6121)</td><td>Blocked at 101st attempt</td></tr>
+    <tr><td><span class="chip badge-admin">Admin</span></td><td>Unlimited</td><td>Blue (#E8F0FF / #1A3A8F)</td><td>Never blocked, counter not incremented</td></tr>
+  </table>
+
+  <h3>Limit Reached Error Message</h3>
+  <div class="screen-card" style="background:#FBEAEA;border-color:#E58A8A">
+    <p><strong>"You've used all 30 of your monthly scans."</strong></p>
+    <p style="color:#8A3D3D;margin-top:6px">"Your scans will renew in 8 days." — days calculated to 1st of next month</p>
+    <p style="margin-top:10px"><button style="background:#7FBF5B;color:#fff;border:none;border-radius:10px;padding:8px 20px;font-weight:800;cursor:pointer;border-bottom:3px solid #1C2B22">OK</button></p>
+  </div>
+
+  <p>Counter resets on the 1st of each month. Managed via <code>scan_counters</code> table (<code>user_id</code>, <code>month YYYY-MM</code>, <code>count</code>).</p>
+</section>
+
+<!-- LANGUAGES -->
+<section id="languages">
+  <h2>Languages (6)</h2>
+  <table>
+    <tr><th>Code</th><th>Name</th><th>Flag Label</th><th>Locale</th></tr>
+    <tr><td><code>pt</code></td><td>Português</td><td>PT</td><td>pt-BR</td></tr>
+    <tr><td><code>en</code></td><td>English</td><td>EN</td><td>en-US</td></tr>
+    <tr><td><code>de</code></td><td>Deutsch</td><td>DE</td><td>de-DE</td></tr>
+    <tr><td><code>fr</code></td><td>Français</td><td>FR</td><td>fr-FR</td></tr>
+    <tr><td><code>it</code></td><td>Italiano</td><td>IT</td><td>it-IT</td></tr>
+    <tr><td><code>es</code></td><td>Español</td><td>ES</td><td>es-ES</td></tr>
+  </table>
+  <p>Language selection persists via AsyncStorage. Switched via flag buttons in Login, Register, and Welcome screens. All UI strings use <code>t(language, 'section.key')</code> with English fallback.</p>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+  <h2>App Flow Diagram</h2>
+  <div class="flow-box">
+[Welcome]
+    │
+    ├── [Login] ──────────────────────────────────────────┐
+    │       │                                              │
+    │       ├── Email not confirmed → amber banner         │
+    │       │       └── "Resend email" button              │
+    │       └── "Forgot password?" → [ForgotPassword]      │
+    │                   └── Email sent → Back to login     │
+    │                                                      │
+    └── [Register] ──► [Check Email] ──► (user confirms)  │
+            └── [ProfileSetup]  ──────────────────────────┘
+                    Step 1: Choose Diet                    │
+                    Step 2: Choose Allergies               │
+                    "Save Profile"                         ▼
+                                                  [Main Tab Bar]
+                                               ┌─────────────────┐
+                                               │ Home  │ Profile │
+                                               └─────────────────┘
+                                                    │
+                           ┌────────────────────────┤
+                           │                        │
+                        [Scan] ◄── tap "Scan Product" button
+                           │
+                    Camera opens
+                           │
+                    Photo captured / Gallery selected
+                           │
+                    API call → analysis
+                           │
+                    ┌──────┴──────┐
+                    │             │
+                  Error        [Result]
+               (error card)      │
+                  │              ├── SAFE  ────────────────┐
+                  ▼              ├── CAUTION ──────────────┤
+              Dismiss            └── NOT_SAFE / AVOID ─────┘
+                                          │
+                                  "Scan Another" → back to [Scan]
+                                  History item → [Result] from [Home]
+
+    [Profile]
+        └── "Edit Profile" → [ProfileSetup]
+        └── Avatar / Name / Bio → [EditPersonal]
+        └── "Sign out" → [Welcome]
+  </div>
+</section>
+
+</main>
+
+<footer>
+  VeganLand Design Specification · Generated from source code · veganland.app
+</footer>
+
+</body>
+</html>
