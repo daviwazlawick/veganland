@@ -27,7 +27,11 @@
       "Bash(python3 *)",
       "Bash(xargs ls)",
       "Bash(npx expo *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(BRAND=novaqi EXPO_PUBLIC_BRAND=novaqi npx expo export --platform web --output-dir /tmp/novaqi-test)",
+      "Read(//private/tmp/novaqi-test/**)",
+      "Read(//private/tmp/veganland-test/**)",
+      "Bash(git rm *)"
     ]
   }
 }
