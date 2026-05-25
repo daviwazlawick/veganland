@@ -12,6 +12,8 @@ import Brand from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe } from '../services/apiService';
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
 import { PremiumIcon, BrandName } from '../components/ui';
 
 export default function ProfileScreen({ navigation }) {
@@ -169,6 +171,17 @@ export default function ProfileScreen({ navigation }) {
               </Text>
             )}
           </View>
+        )}
+
+        {userType === 'admin' && (
+          <TouchableOpacity
+            style={styles.adminBtn}
+            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="shield-checkmark" size={16} color="#1E1B4B" />
+            <Text style={styles.adminBtnText}>Admin Panel</Text>
+          </TouchableOpacity>
         )}
 
         <View style={styles.aboutCard}>
@@ -385,6 +398,13 @@ const styles = StyleSheet.create({
   usageBarBg: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
   usageBarFill: { height: 8, backgroundColor: Colors.primary, borderRadius: 4 },
   usageReset: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  adminBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#EEF0FF',
+    borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#C7C5E8',
+  },
+  adminBtnText: { fontSize: 15, fontWeight: '800', color: '#1E1B4B' },
   aboutCard: {
     backgroundColor: Colors.aboutCardBg,
     borderRadius: 20, padding: 24,

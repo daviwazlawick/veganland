@@ -9,11 +9,9 @@ import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 8 * 1024 * 1024);
-const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'VeganLand2026!';
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://veganland.app',
   'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, Authorization',
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
 };
@@ -100,7 +98,7 @@ function planBadge(userType) {
   return `<span style="background:${cfg.bg};color:${cfg.color};font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap">${cfg.label}</span>`;
 }
 
-function htmlAdminPage(stats) {
+function htmlAdminPage(stats, token) {
   const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
   const rows = stats.users.map(u => {
     const diet = dietLabel[u.diet_id] || (u.diet_id || '—');
@@ -110,8 +108,8 @@ function htmlAdminPage(stats) {
     const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
     const monthBar = limit === null ? 0 : Math.min(100, Math.round((u.scans_this_month / limit) * 100));
     const monthLabel = limit === null ? `${u.scans_this_month}/∞` : `${u.scans_this_month}/${limit}`;
-    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}'">
-      <td><a href="/admin/user/${u.id}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a></td>
+    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}?token=${token}'">
+      <td><a href="/admin/user/${u.id}?token=${token}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a></td>
       <td>${diet}</td>
       <td>${planBadge(userType)}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
@@ -179,7 +177,7 @@ function htmlAdminPage(stats) {
   </body></html>`;
 }
 
-function htmlAdminUserPage(data) {
+function htmlAdminUserPage(data, token) {
   const { user, scans, scans_this_month } = data;
   const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
   const statusCfg = {
@@ -250,7 +248,7 @@ function htmlAdminUserPage(data) {
   </style></head>
   <body>
   <header>
-    <a href="/admin">← Voltar</a>
+    <a href="/admin?token=${token}">← Voltar</a>
     <h1>${user.email}</h1>
     <span>ADMIN</span>
   </header>
@@ -273,7 +271,7 @@ function htmlAdminUserPage(data) {
         <label>Plano</label>
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
           ${planBadge(userType)}
-          <form method="POST" action="/admin/user/${user.id}/set-type" style="display:flex;gap:8px;flex-wrap:wrap">
+          <form method="POST" action="/admin/user/${user.id}/set-type?token=${token}" style="display:flex;gap:8px;flex-wrap:wrap">
             ${['basic','premium','admin'].map(t => `<button type="submit" name="type" value="${t}" style="padding:5px 14px;border-radius:8px;border:2px solid ${t === userType ? '#1C2B22' : '#ddd'};background:${t === userType ? '#1C2B22' : '#fff'};color:${t === userType ? '#fff' : '#555'};font-size:12px;font-weight:700;cursor:pointer">${t === 'basic' ? 'Básico' : t === 'premium' ? 'Premium' : 'Admin'}</button>`).join('')}
           </form>
         </div>
@@ -300,6 +298,15 @@ function getAuthUser(req) {
   const token = extractToken(req);
   if (!token) return null;
   return verifyToken(token);
+}
+
+async function isAdminRequest(req) {
+  const token = new URL(req.url, 'http://x').searchParams.get('token');
+  if (!token) return false;
+  const claims = verifyToken(token);
+  if (!claims) return false;
+  const user = await getUserById(claims.userId);
+  return user?.user_type === 'admin';
 }
 
 const server = http.createServer(async (req, res) => {
@@ -590,16 +597,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     // GET /admin
-    if (req.method === 'GET' && (req.url === '/admin' || req.url === '/admin/')) {
-      const authHeader = req.headers['authorization'] || '';
-      const b64 = authHeader.startsWith('Basic ') ? authHeader.slice(6) : '';
-      const [user, ...rest] = Buffer.from(b64, 'base64').toString().split(':');
-      const pass = rest.join(':');
-      if (user !== ADMIN_USER || pass !== ADMIN_PASSWORD) {
-        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="VeganLand Admin"', 'Content-Type': 'text/plain' });
-        res.end('Unauthorized');
+    if (req.method === 'GET' && (req.url === '/admin' || req.url === '/admin/' || req.url.startsWith('/admin?'))) {
+      if (!await isAdminRequest(req)) {
+        res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Acesso negado', '<p>Você não tem permissão para acessar esta página.</p>', '#FF4B4B'));
         return;
       }
+      const token = new URL(req.url, 'http://x').searchParams.get('token');
       const stats = await getAdminStats();
       if (!stats) {
         res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -607,22 +611,19 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPage(stats));
+      res.end(htmlAdminPage(stats, token));
       return;
     }
 
     // GET /admin/user/:id
     if (req.method === 'GET' && req.url.startsWith('/admin/user/')) {
-      const authHeader = req.headers['authorization'] || '';
-      const b64 = authHeader.startsWith('Basic ') ? authHeader.slice(6) : '';
-      const [user, ...rest] = Buffer.from(b64, 'base64').toString().split(':');
-      const pass = rest.join(':');
-      if (user !== ADMIN_USER || pass !== ADMIN_PASSWORD) {
-        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="VeganLand Admin"', 'Content-Type': 'text/plain' });
-        res.end('Unauthorized');
+      if (!await isAdminRequest(req)) {
+        res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Acesso negado', '<p>Você não tem permissão para acessar esta página.</p>', '#FF4B4B'));
         return;
       }
-      const userId = req.url.slice('/admin/user/'.length);
+      const token = new URL(req.url, 'http://x').searchParams.get('token');
+      const userId = new URL(req.url, 'http://x').pathname.slice('/admin/user/'.length);
       const data = await getAdminUserDetail(userId);
       if (!data) {
         res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -630,22 +631,19 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminUserPage(data));
+      res.end(htmlAdminUserPage(data, token));
       return;
     }
 
     // POST /admin/user/:id/set-type
-    if (req.method === 'POST' && req.url.match(/^\/admin\/user\/\d+\/set-type$/)) {
-      const authHeader = req.headers['authorization'] || '';
-      const b64 = authHeader.startsWith('Basic ') ? authHeader.slice(6) : '';
-      const [adminUser, ...rest] = Buffer.from(b64, 'base64').toString().split(':');
-      const pass = rest.join(':');
-      if (adminUser !== ADMIN_USER || pass !== ADMIN_PASSWORD) {
-        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="VeganLand Admin"', 'Content-Type': 'text/plain' });
-        res.end('Unauthorized');
+    if (req.method === 'POST' && req.url.match(/^\/admin\/user\/\d+\/set-type/)) {
+      if (!await isAdminRequest(req)) {
+        res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Acesso negado', '<p>Você não tem permissão para acessar esta página.</p>', '#FF4B4B'));
         return;
       }
-      const userId = req.url.split('/')[3];
+      const token = new URL(req.url, 'http://x').searchParams.get('token');
+      const userId = new URL(req.url, 'http://x').pathname.split('/')[3];
       const raw = await new Promise(resolve => {
         let body = '';
         req.on('data', c => body += c);
@@ -659,7 +657,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       await setUserType(userId, newType);
-      res.writeHead(302, { Location: `/admin/user/${userId}` });
+      res.writeHead(302, { Location: `/admin/user/${userId}?token=${token}` });
       res.end();
       return;
     }
