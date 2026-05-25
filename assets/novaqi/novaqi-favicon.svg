@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="#1E1B4B"/>
+  <!-- Simplified target — no crosshairs -->
+  <circle cx="16" cy="16" r="9.5" stroke="#E8A020" stroke-width="2.5" fill="none"/>
+  <circle cx="16" cy="16" r="4" stroke="#E8A020" stroke-width="2.5" fill="none"/>
+  <circle cx="16" cy="16" r="1.8" fill="#E8A020"/>
+</svg>
