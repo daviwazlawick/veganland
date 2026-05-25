@@ -9,7 +9,7 @@ import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
-import { PremiumIcon, BrandName } from '../components/ui';
+import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 
 export default function LoginScreen({ navigation }) {
@@ -77,9 +77,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.hero}>
-            <View style={styles.logoCircle}>
-              <PremiumIcon name="scan" size={54} color={Colors.primary} />
-            </View>
+            <BrandLogo size={104} />
             <BrandName
               style={styles.appName}
               prefixColor={Colors.navy}
@@ -174,17 +172,6 @@ const styles = StyleSheet.create({
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
   hero: { alignItems: 'center', gap: 12, paddingVertical: 20 },
-  logoCircle: {
-    width: 104, height: 104, borderRadius: 52,
-    backgroundColor: Colors.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.primaryLight,
-    shadowColor: Colors.navy,
-    shadowOpacity: 0.10,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 8,
-  },
   appName: {
     fontSize: 42, fontWeight: '800',
     fontFamily: BrandFonts.heading || 'serif',

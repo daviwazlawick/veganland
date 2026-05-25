@@ -11,7 +11,7 @@ import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import Brand from '../brand';
-import { PremiumIcon, BrandName } from '../components/ui';
+import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 
 export default function RegisterScreen({ navigation }) {
@@ -113,9 +113,7 @@ export default function RegisterScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.hero}>
-            <View style={styles.logoCircle}>
-              <PremiumIcon name="scan" size={50} color={Colors.primary} />
-            </View>
+            <BrandLogo size={94} />
             <BrandName
               style={styles.appName}
               prefixColor={Colors.navy}
@@ -220,17 +218,6 @@ const styles = StyleSheet.create({
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
   hero: { alignItems: 'center', gap: 10, paddingVertical: 10 },
-  logoCircle: {
-    width: 94, height: 94, borderRadius: 47,
-    backgroundColor: Colors.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.primaryLight,
-    shadowColor: Colors.navy,
-    shadowOpacity: 0.10,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
-  },
   appName: {
     fontSize: 38, fontWeight: '800',
     fontFamily: BrandFonts.heading || 'serif',
