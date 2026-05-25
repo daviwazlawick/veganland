@@ -42,7 +42,7 @@ export default {
       favicon: './assets/favicon.png',
     },
     experiments: {
-      baseUrl: isNovaQI ? '/novaqi' : '',
+      baseUrl: '',
     },
     plugins: [
       [
