@@ -18,6 +18,7 @@ import ResultScreen from '../screens/ResultScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditPersonalScreen from '../screens/EditPersonalScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -119,6 +120,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
+            <Stack.Screen name="Paywall" component={PaywallScreen} />
           </>
         ) : (
           <>
@@ -127,6 +129,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
+            <Stack.Screen name="Paywall" component={PaywallScreen} />
           </>
         )}
       </Stack.Navigator>

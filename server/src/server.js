@@ -526,6 +526,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // POST /user/plan
+    if (req.method === 'POST' && req.url === '/user/plan') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      const validPlans = ['free', 'starter', 'premium'];
+      if (!validPlans.includes(body?.plan)) {
+        sendJson(res, 400, { error: 'Invalid plan' }, origin); return;
+      }
+      await setUserType(claims.userId, body.plan);
+      sendJson(res, 200, { plan: body.plan }, origin);
+      return;
+    }
+
     // GET /user/history
     if (req.method === 'GET' && req.url === '/user/history') {
       const claims = getAuthUser(req);

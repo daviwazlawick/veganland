@@ -25,6 +25,7 @@ export default function ScanScreen({ navigation }) {
   const [cameraActive, setCameraActive] = useState(true);
   const [tipIndex, setTipIndex] = useState(0);
   const [scanError, setScanError] = useState(null);
+  const [isLimitError, setIsLimitError] = useState(false);
   const cameraRef = useRef(null);
 
   useEffect(() => {
@@ -82,18 +83,13 @@ export default function ScanScreen({ navigation }) {
     } catch (e) {
       let msg;
       if (e.status === 429) {
-        const usage = e.data?.usage;
-        const limit = usage?.limit || 30;
-        msg = t(language, 'limits.monthly_reached', { limit });
-        if (usage?.resets_at) {
-          const days = Math.ceil((new Date(usage.resets_at) - new Date()) / 86400000);
-          msg += '\n' + (days <= 1
-            ? t(language, 'limits.resets_tomorrow')
-            : t(language, 'limits.resets_in_days', { days }));
-        }
+        setIsLimitError(true);
+        msg = t(language, 'limits.credits_exhausted');
       } else if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
+        setIsLimitError(false);
         msg = t(language, 'errors.network_error');
       } else {
+        setIsLimitError(false);
         msg = t(language, 'errors.analysis_failed');
       }
       setScanError(msg);
@@ -197,7 +193,19 @@ export default function ScanScreen({ navigation }) {
         <View style={styles.errorOverlay}>
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{scanError}</Text>
-            <TouchableOpacity style={styles.errorBtn} onPress={() => setScanError(null)} activeOpacity={0.85}>
+            {isLimitError && (
+              <TouchableOpacity
+                onPress={() => { setScanError(null); setIsLimitError(false); navigation.navigate('Paywall'); }}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.errorLinkText}>{t(language, 'limits.change_subscription')}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.errorBtn}
+              onPress={() => { setScanError(null); setIsLimitError(false); }}
+              activeOpacity={0.85}
+            >
               <Text style={styles.errorBtnText}>{t(language, 'scan.dismiss')}</Text>
             </TouchableOpacity>
           </View>
@@ -339,6 +347,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.72)',
   },
   errorText: { fontSize: 15, fontWeight: '600', color: Colors.text, textAlign: 'center', lineHeight: 22 },
+  errorLinkText: { fontSize: 14, fontWeight: '700', color: Colors.primary, textAlign: 'center', textDecorationLine: 'underline' },
   errorBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

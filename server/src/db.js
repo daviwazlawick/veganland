@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const SCAN_LIMITS = { basic: 30, premium: 100, admin: null }; // null = unlimited
+export const SCAN_LIMITS = { free: 7, basic: 30, starter: 50, premium: 100, admin: null }; // null = unlimited
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

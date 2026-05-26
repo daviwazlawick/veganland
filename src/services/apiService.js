@@ -118,6 +118,17 @@ export async function apiCheckAppVersion() {
   return response.json().catch(() => null);
 }
 
+export async function apiSetUserPlan(plan, token) {
+  const response = await fetch(`${baseUrl()}/user/plan`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ plan }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to set plan');
+  return data;
+}
+
 export async function apiGetHistory(token) {
   const response = await fetch(`${baseUrl()}/user/history`, {
     headers: { Authorization: `Bearer ${token}` },
