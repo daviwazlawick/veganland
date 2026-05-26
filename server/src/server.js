@@ -167,7 +167,11 @@ function htmlAdminPage(stats, token) {
       <div class="card"><div class="num">${stats.total_scans}</div><div class="lbl">Scans totais</div></div>
       <div class="card amber"><div class="num">${stats.scans_this_month}</div><div class="lbl">Scans este mês</div></div>
       <div class="card"><div class="num">${stats.scans_last_24h}</div><div class="lbl">Scans últimas 24h</div></div>
-      <div class="card" style="border-left:4px solid #7C3AED"><div class="num" style="color:#7C3AED">$${Number(stats.api_cost_this_month).toFixed(4)}</div><div class="lbl">Custo Anthropic este mês</div></div>
+      <div class="card" style="border-left:4px solid #7C3AED">
+        <div class="num" style="color:#7C3AED">$${Number(stats.api_cost_this_month).toFixed(4)}</div>
+        <div class="lbl">Custo Anthropic este mês <span style="font-size:10px;color:#aaa">(desde hoje)</span></div>
+        <a href="https://console.anthropic.com/settings/usage" target="_blank" style="font-size:11px;color:#7C3AED;font-weight:700;text-decoration:none;margin-top:6px;display:inline-block">Ver total no Console →</a>
+      </div>
     </div>
     <div class="section">
       <h2>Usuários</h2>
