@@ -31,7 +31,8 @@
       "Bash(BRAND=novaqi EXPO_PUBLIC_BRAND=novaqi npx expo export --platform web --output-dir /tmp/novaqi-test)",
       "Read(//private/tmp/novaqi-test/**)",
       "Read(//private/tmp/veganland-test/**)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(git -C /Users/daviwazlawickmacbookpro/Veganland/veganland log --oneline -15)"
     ]
   }
 }
