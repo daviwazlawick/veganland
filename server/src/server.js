@@ -167,6 +167,7 @@ function htmlAdminPage(stats, token) {
       <div class="card"><div class="num">${stats.total_scans}</div><div class="lbl">Scans totais</div></div>
       <div class="card amber"><div class="num">${stats.scans_this_month}</div><div class="lbl">Scans este mês</div></div>
       <div class="card"><div class="num">${stats.scans_last_24h}</div><div class="lbl">Scans últimas 24h</div></div>
+      <div class="card" style="border-left:4px solid #7C3AED"><div class="num" style="color:#7C3AED">$${Number(stats.api_cost_this_month).toFixed(4)}</div><div class="lbl">Custo Anthropic este mês</div></div>
     </div>
     <div class="section">
       <h2>Usuários</h2>

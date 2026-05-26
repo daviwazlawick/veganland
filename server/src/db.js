@@ -550,13 +550,31 @@ export async function updateUserPassword(userId, passwordHash) {
   await db.query(`update users set password_hash = $1 where id = $2`, [passwordHash, userId]);
 }
 
+const MODEL_PRICING = {
+  'claude-opus-4-7':    { input: 15.00, output: 75.00 },
+  'claude-opus-4-5':    { input: 15.00, output: 75.00 },
+  'claude-sonnet-4-5':  { input:  3.00, output: 15.00 },
+  'claude-haiku-4-5':   { input:  0.80, output:  4.00 },
+};
+
+export async function logApiUsage(model, inputTokens, outputTokens) {
+  const db = await getPool();
+  if (!db) return;
+  const pricing = MODEL_PRICING[model] || MODEL_PRICING['claude-opus-4-7'];
+  const cost = (inputTokens / 1_000_000) * pricing.input + (outputTokens / 1_000_000) * pricing.output;
+  await db.query(
+    'INSERT INTO api_usage (model, input_tokens, output_tokens, cost_usd) VALUES ($1, $2, $3, $4)',
+    [model, inputTokens, outputTokens, cost]
+  );
+}
+
 export async function getAdminStats() {
   const db = await getPool();
   if (!db) return null;
 
   const month = new Date().toISOString().slice(0, 7);
 
-  const [usersRes, totalScansRes, monthScansRes, recentRes, userStatsRes] = await Promise.all([
+  const [usersRes, totalScansRes, monthScansRes, recentRes, userStatsRes, costRes] = await Promise.all([
     db.query(`SELECT COUNT(*) AS total FROM users`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events`),
     db.query(`SELECT COALESCE(SUM(count), 0) AS total FROM scan_counters WHERE month = $1`, [month]),
@@ -574,6 +592,7 @@ export async function getAdminStats() {
       ORDER BY u.created_at DESC
       LIMIT 200
     `, [month]),
+    db.query(`SELECT COALESCE(SUM(cost_usd), 0) AS total FROM api_usage WHERE date_trunc('month', created_at) = date_trunc('month', now())`),
   ]);
 
   return {
@@ -581,6 +600,7 @@ export async function getAdminStats() {
     total_scans: Number(totalScansRes.rows[0].total),
     scans_this_month: Number(monthScansRes.rows[0].total),
     scans_last_24h: Number(recentRes.rows[0].total),
+    api_cost_this_month: Number(costRes.rows[0].total),
     users: userStatsRes.rows,
   };
 }

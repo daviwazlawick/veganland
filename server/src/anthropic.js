@@ -1,4 +1,5 @@
 import './env.js';
+import { logApiUsage } from './db.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-7';
@@ -49,6 +50,8 @@ async function callClaude(content, maxTokens = 1024) {
   }
 
   const data = await response.json();
+  const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+  logApiUsage(CLAUDE_MODEL, usage.input_tokens, usage.output_tokens).catch(() => {});
   return data.content?.[0]?.text || '';
 }
 
