@@ -89,6 +89,12 @@ export default {
     change: 'Change plan',
     current: 'Current',
     coming_soon: 'Coming soon',
+    subscribe: 'Subscribe',
+    restore: 'Restore purchases',
+    restore_done: 'Purchases restored successfully',
+    purchase_error: 'Could not complete purchase. Please try again.',
+    mobile_only: 'Subscriptions are only available in the mobile app.',
+    not_configured: 'This plan is not yet available. Please try again later.',
   },
   home: {
     title: 'VeganLand',

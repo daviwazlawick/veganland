@@ -10,6 +10,9 @@ import ForceUpdateScreen from './src/screens/ForceUpdateScreen';
 import { BetaRibbon } from './src/components/ui';
 import Brand from './src/brand';
 import useForceUpdate from './src/hooks/useForceUpdate';
+import { initPurchases } from './src/services/purchasesService';
+
+initPurchases();
 
 const BRAND_FONTS = Brand.fonts
   ? { Syne_700Bold, Syne_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold }

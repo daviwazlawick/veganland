@@ -45,6 +45,7 @@ export default {
     plugins: [
       ['expo-camera', { cameraPermission: `${B} needs camera access to scan products.` }],
       ['expo-image-picker', { photosPermission: `${B} needs photo access to analyze product images.` }],
+      'react-native-purchases',
     ],
     updates: {
       url: 'https://u.expo.dev/64fa402d-0f4c-4582-8879-e032ddaa946e',

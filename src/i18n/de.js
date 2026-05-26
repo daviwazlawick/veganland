@@ -89,6 +89,12 @@ export default {
     change: 'Tarif ändern',
     current: 'Aktuell',
     coming_soon: 'Bald verfügbar',
+    subscribe: 'Abonnieren',
+    restore: 'Käufe wiederherstellen',
+    restore_done: 'Käufe erfolgreich wiederhergestellt',
+    purchase_error: 'Kauf konnte nicht abgeschlossen werden. Bitte erneut versuchen.',
+    mobile_only: 'Abonnements sind nur in der mobilen App verfügbar.',
+    not_configured: 'Dieser Plan ist noch nicht verfügbar. Bitte später erneut versuchen.',
   },
   home: {
     title: 'VeganLand',

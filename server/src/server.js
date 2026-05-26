@@ -9,6 +9,7 @@ import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 8 * 1024 * 1024);
+const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET || '';
 
 const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app']);
 
@@ -695,6 +696,37 @@ const server = http.createServer(async (req, res) => {
       await setUserType(userId, newType);
       res.writeHead(302, { Location: `/admin/user/${userId}?token=${token}` });
       res.end();
+      return;
+    }
+
+    // POST /webhook/revenuecat — subscription lifecycle events
+    if (req.method === 'POST' && req.url === '/webhook/revenuecat') {
+      const auth = req.headers['authorization'] || '';
+      if (REVENUECAT_WEBHOOK_SECRET && auth !== REVENUECAT_WEBHOOK_SECRET) {
+        sendJson(res, 401, { error: 'Unauthorized' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      const event = body?.event;
+      if (event) {
+        const userId = event.app_user_id || event.original_app_user_id;
+        const eventType = event.type;
+        const entitlementId = event.entitlement_id
+          || (Array.isArray(event.entitlement_ids) ? event.entitlement_ids[0] : null);
+
+        let newUserType = null;
+        if (['INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'SUBSCRIBER_ALIAS'].includes(eventType)) {
+          if (entitlementId === 'pro') newUserType = 'premium';
+          else if (entitlementId === 'starter') newUserType = 'starter';
+        } else if (['CANCELLATION', 'EXPIRATION', 'BILLING_ISSUE'].includes(eventType)) {
+          newUserType = 'basic';
+        }
+
+        if (newUserType && userId) {
+          setUserType(userId, newUserType).catch(console.error);
+        }
+      }
+      sendJson(res, 200, { ok: true });
       return;
     }
 

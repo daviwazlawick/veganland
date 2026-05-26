@@ -76,7 +76,12 @@
       "Bash(cp -r /opt/veganland/dist/* /var/www/veganland/novaqi/)",
       "Bash(grep -o \"brandId.\\\\{0,30\\\\}\" /var/www/veganland/_expo/static/js/web/index-7150eadade66ed4a3c4e9425792c7850.js)",
       "Bash(grep -o 'brands\\\\[.\\\\{0,20\\\\}\\\\]' /var/www/veganland/_expo/static/js/web/index-7150eadade66ed4a3c4e9425792c7850.js)",
-      "Bash(grep -E \"^novaqi$|^veganland$\")"
+      "Bash(grep -E \"^novaqi$|^veganland$\")",
+      "Bash(curl -s -X POST https://veganland.app/auth/register -H 'Content-Type: application/json' -H 'x-app-api-key: __CMDSUB_OUTPUT__')",
+      "Bash(curl -sv -X POST https://veganland.app/auth/register -H 'Content-Type: application/json' -H 'Origin: https://veganland.app' -d '{\"email\":\"test2_debug@test.com\",\"password\":\"test123\"}')",
+      "Bash(curl *)",
+      "Bash(nginx -t)",
+      "Bash(systemctl reload *)"
     ]
   }
 }

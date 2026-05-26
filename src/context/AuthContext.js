@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiLogin, apiRegister } from '../services/apiService';
+import { loginPurchasesUser, logoutPurchasesUser } from '../services/purchasesService';
 
 const AuthContext = createContext(null);
 
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { token: t, user: u } = await apiLogin(email, password);
     await persistAuth(t, u);
+    loginPurchasesUser(u.id).catch(() => {});
     return u;
   }
 
@@ -63,6 +65,7 @@ export function AuthProvider({ children }) {
   async function logout() {
     setToken(null);
     setUser(null);
+    logoutPurchasesUser().catch(() => {});
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),

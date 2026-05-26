@@ -1,38 +1,131 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { apiSetUserPlan } from '../services/apiService';
+import {
+  isPurchasesAvailable,
+  fetchCurrentOffering,
+  purchasePackage,
+  restorePurchases,
+  activeEntitlementId,
+  entitlementToUserType,
+  ENTITLEMENT_STARTER,
+  ENTITLEMENT_PRO,
+} from '../services/purchasesService';
 
 const PLANS = [
-  { id: 'free',    priceKey: 'free_price',    nameKey: 'free_name',    descKey: 'free_desc',    popular: false, locked: false },
-  { id: 'starter', priceKey: 'starter_price', nameKey: 'starter_name', descKey: 'starter_desc', popular: true,  locked: true  },
-  { id: 'premium', priceKey: 'premium_price', nameKey: 'premium_name', descKey: 'premium_desc', popular: false, locked: true  },
+  {
+    id: 'free',
+    rcPackageId: null,
+    nameKey: 'free_name',
+    descKey: 'free_desc',
+    priceKey: 'free_price',
+    popular: false,
+  },
+  {
+    id: 'starter',
+    rcPackageId: ENTITLEMENT_STARTER,
+    nameKey: 'starter_name',
+    descKey: 'starter_desc',
+    priceKey: 'starter_price',
+    popular: true,
+  },
+  {
+    id: 'premium',
+    rcPackageId: ENTITLEMENT_PRO,
+    nameKey: 'premium_name',
+    descKey: 'premium_desc',
+    priceKey: 'premium_price',
+    popular: false,
+  },
 ];
 
 export default function PaywallScreen({ navigation, route }) {
-  const { language, profile } = useApp();
+  const { language } = useApp();
   const { token } = useAuth();
-  const currentPlan = route?.params?.currentPlan || profile?.plan || 'free';
-  const [selected, setSelected] = useState(currentPlan === 'free' ? 'free' : currentPlan);
-  const [loading, setLoading] = useState(false);
+  const currentPlan = route?.params?.currentPlan || 'free';
+  const [selected, setSelected] = useState(currentPlan === 'free' ? 'starter' : currentPlan);
+  const [offering, setOffering] = useState(null);
+  const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const isNative = isPurchasesAvailable();
 
-  async function handleConfirm() {
-    const plan = PLANS.find(p => p.id === selected);
-    if (plan?.locked) return;
-    if (selected === currentPlan) { navigation.goBack(); return; }
-    setLoading(true);
-    try {
-      await apiSetUserPlan(selected, token);
-    } catch {}
-    setLoading(false);
-    navigation.goBack();
+  useEffect(() => {
+    if (isNative) {
+      fetchCurrentOffering().then(setOffering).catch(() => {});
+    }
+  }, [isNative]);
+
+  function getRcPackage(planId) {
+    const plan = PLANS.find(p => p.id === planId);
+    if (!plan?.rcPackageId || !offering) return null;
+    return offering.availablePackages?.find(p => p.identifier === plan.rcPackageId) || null;
   }
 
-  const canConfirm = !PLANS.find(p => p.id === selected)?.locked;
+  function getPriceString(planId) {
+    if (planId === 'free') return t(language, 'plans.free_price');
+    const pkg = getRcPackage(planId);
+    if (pkg?.product?.priceString) return pkg.product.priceString;
+    const key = planId === 'starter' ? 'starter_price' : 'premium_price';
+    return t(language, `plans.${key}`);
+  }
+
+  async function handleSelect(plan) {
+    if (plan.id === currentPlan) { navigation.goBack(); return; }
+
+    if (plan.id === 'free') {
+      navigation.goBack();
+      return;
+    }
+
+    if (!isNative) {
+      Alert.alert('', t(language, 'plans.mobile_only'));
+      return;
+    }
+
+    const pkg = getRcPackage(plan.id);
+    if (!pkg) {
+      Alert.alert('', t(language, 'plans.not_configured'));
+      return;
+    }
+
+    setPurchasing(true);
+    try {
+      const customerInfo = await purchasePackage(pkg);
+      const entId = activeEntitlementId(customerInfo);
+      const newUserType = entitlementToUserType(entId);
+      navigation.navigate('Main');
+      if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
+    } catch (e) {
+      if (!e.userCancelled) {
+        Alert.alert('', t(language, 'plans.purchase_error'));
+      }
+    } finally {
+      setPurchasing(false);
+    }
+  }
+
+  async function handleRestore() {
+    if (!isNative) {
+      Alert.alert('', t(language, 'plans.mobile_only'));
+      return;
+    }
+    setRestoring(true);
+    try {
+      const customerInfo = await restorePurchases();
+      const entId = activeEntitlementId(customerInfo);
+      const newUserType = entitlementToUserType(entId);
+      Alert.alert('', t(language, 'plans.restore_done'));
+      if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
+    } catch (e) {
+      if (!e.userCancelled) Alert.alert('', t(language, 'plans.purchase_error'));
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -48,69 +141,87 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.subtitle}>{t(language, 'plans.subtitle')}</Text>
 
         {PLANS.map(plan => {
-          const sel = selected === plan.id;
+          const isCurrent = plan.id === currentPlan;
+          const isSel = selected === plan.id;
+          const pkg = plan.rcPackageId ? getRcPackage(plan.id) : null;
+          const unavailable = plan.rcPackageId && !pkg && isNative;
+
           return (
             <TouchableOpacity
               key={plan.id}
-              style={[styles.planCard, sel && !plan.locked && styles.planCardSelected, plan.locked && styles.planCardLocked]}
-              onPress={() => !plan.locked && setSelected(plan.id)}
-              activeOpacity={plan.locked ? 1 : 0.85}
+              style={[
+                styles.planCard,
+                isSel && styles.planCardSelected,
+                isCurrent && styles.planCardCurrent,
+                unavailable && styles.planCardLocked,
+              ]}
+              onPress={() => { setSelected(plan.id); }}
+              activeOpacity={unavailable ? 1 : 0.85}
+              disabled={unavailable}
             >
-              {plan.popular && (
-                <View style={[styles.popularBadge, plan.locked && styles.popularBadgeLocked]}>
-                  <Text style={styles.popularText}>
-                    {plan.locked ? t(language, 'plans.coming_soon') : t(language, 'plans.most_popular')}
-                  </Text>
+              {plan.popular && !unavailable && (
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
                 </View>
               )}
-              {!plan.popular && plan.locked && (
+              {isCurrent && (
+                <View style={styles.currentBadge}>
+                  <Text style={styles.currentText}>{t(language, 'plans.current')}</Text>
+                </View>
+              )}
+              {unavailable && (
                 <View style={styles.comingSoonBadge}>
                   <Text style={styles.comingSoonText}>{t(language, 'plans.coming_soon')}</Text>
                 </View>
               )}
               <View style={styles.planRow}>
                 <View style={styles.planInfo}>
-                  <Text style={[styles.planName, sel && !plan.locked && styles.planNameSelected, plan.locked && styles.planNameLocked]}>
+                  <Text style={[styles.planName, isSel && styles.planNameSelected, unavailable && styles.planNameLocked]}>
                     {t(language, `plans.${plan.nameKey}`)}
                   </Text>
-                  <Text style={[styles.planDesc, plan.locked && styles.planDescLocked]}>
+                  <Text style={[styles.planDesc, unavailable && styles.planDescLocked]}>
                     {t(language, `plans.${plan.descKey}`)}
                   </Text>
                 </View>
                 <View style={styles.planPriceWrap}>
-                  <Text style={[styles.planPrice, sel && !plan.locked && styles.planPriceSelected, plan.locked && styles.planPriceLocked]}>
-                    {t(language, `plans.${plan.priceKey}`)}
+                  <Text style={[styles.planPrice, isSel && styles.planPriceSelected, unavailable && styles.planPriceLocked]}>
+                    {getPriceString(plan.id)}
                   </Text>
                   {plan.id !== 'free' && (
-                    <Text style={[styles.planPerMonth, plan.locked && styles.planPerMonthLocked]}>
+                    <Text style={[styles.planPerMonth, unavailable && styles.planPerMonthLocked]}>
                       {t(language, 'plans.per_month')}
                     </Text>
                   )}
                 </View>
-                {!plan.locked && (
-                  <View style={[styles.radio, sel && styles.radioSelected]}>
-                    {sel && <View style={styles.radioDot} />}
+                {!unavailable && (
+                  <View style={[styles.radio, isSel && styles.radioSelected]}>
+                    {isSel && <View style={styles.radioDot} />}
                   </View>
-                )}
-                {plan.locked && (
-                  <Text style={styles.lockIcon}>🔒</Text>
                 )}
               </View>
             </TouchableOpacity>
           );
         })}
+
+        {isNative && (
+          <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreBtn}>
+            <Text style={styles.restoreText}>
+              {restoring ? '...' : t(language, 'plans.restore')}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.btn, !canConfirm && styles.btnDisabled]}
-          onPress={handleConfirm}
-          activeOpacity={canConfirm ? 0.9 : 1}
-          disabled={loading || !canConfirm}
+          style={[styles.btn, (purchasing || restoring) && styles.btnDisabled]}
+          onPress={() => handleSelect(PLANS.find(p => p.id === selected) || PLANS[0])}
+          activeOpacity={0.9}
+          disabled={purchasing || restoring}
         >
-          {loading
+          {purchasing
             ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.btnText}>{t(language, 'plans.continue')}</Text>
+            : <Text style={styles.btnText}>{t(language, selected === 'free' ? 'plans.continue' : 'plans.subscribe')}</Text>
           }
         </TouchableOpacity>
       </View>
@@ -143,14 +254,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.75)',
     shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
   },
-  planCardLocked: { opacity: 0.55 },
+  planCardCurrent: { borderColor: Colors.safe },
+  planCardLocked: { opacity: 0.5 },
   popularBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',
     backgroundColor: Colors.accent, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 4,
   },
-  popularBadgeLocked: { backgroundColor: Colors.textMuted },
   popularText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
+  currentBadge: {
+    position: 'absolute', top: -12, alignSelf: 'center',
+    backgroundColor: Colors.safe, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 4,
+  },
+  currentText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
   comingSoonBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',
     backgroundColor: Colors.textMuted, borderRadius: 12,
@@ -177,7 +294,8 @@ const styles = StyleSheet.create({
   },
   radioSelected: { borderColor: Colors.primary },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
-  lockIcon: { fontSize: 18 },
+  restoreBtn: { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
+  restoreText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
