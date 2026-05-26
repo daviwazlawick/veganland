@@ -175,5 +175,5 @@ export default {
     network_error: 'Erreur de connexion. Vérifiez votre internet.',
     camera_error: "Erreur d’accès à la caméra.",
   },
-  update: { required_title: ‘Mise à jour requise’, required_body: ‘Une nouvelle version est disponible. Veuillez mettre à jour pour continuer.’, go_to_store: ‘Mettre à jour’ },
+  update: { required_title: "Mise à jour requise", required_body: "Une nouvelle version est disponible. Veuillez mettre à jour pour continuer.", go_to_store: "Mettre à jour" },
 };
