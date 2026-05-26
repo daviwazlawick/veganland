@@ -173,7 +173,7 @@ export default {
     no_api_key: 'L’URL de l’API VeganLand n’est pas configurée dans l’app.',
     analysis_failed: 'Impossible d’analyser le produit. Réessayez.',
     network_error: 'Erreur de connexion. Vérifiez votre internet.',
-    camera_error: ‘Erreur d’accès à la caméra.’,
+    camera_error: "Erreur d’accès à la caméra.",
   },
   update: { required_title: ‘Mise à jour requise’, required_body: ‘Une nouvelle version est disponible. Veuillez mettre à jour pour continuer.’, go_to_store: ‘Mettre à jour’ },
 };
