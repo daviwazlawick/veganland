@@ -175,5 +175,5 @@ export default {
     network_error: 'Errore di connessione. Controlla internet.',
     camera_error: "Errore durante l’accesso alla fotocamera.",
   },
-  update: { required_title: ‘Aggiornamento richiesto’, required_body: ‘È disponibile una nuova versione. Aggiorna per continuare.’, go_to_store: ‘Aggiorna ora’ },
+  update: { required_title: "Aggiornamento richiesto", required_body: "Nuova versione disponibile. Aggiorna per continuare.", go_to_store: "Aggiorna ora" },
 };
