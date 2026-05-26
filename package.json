@@ -24,10 +24,10 @@
     "deploy:up": "docker compose -f server/docker-compose.yml up -d --build",
     "deploy:migrate": "docker compose -f server/docker-compose.yml exec api npm run db:migrate",
     "deploy:down": "docker compose -f server/docker-compose.yml down",
-    "build:web": "EXPO_PUBLIC_API_URL=https://veganland.app EXPO_PUBLIC_APP_API_KEY=$(grep APP_API_KEY server/.env | cut -d= -f2) npx expo export --platform web",
+    "build:web": "BRAND=veganland EXPO_PUBLIC_BRAND=veganland EXPO_PUBLIC_API_URL=https://veganland.app EXPO_PUBLIC_APP_API_KEY=$(grep APP_API_KEY server/.env | cut -d= -f2) npx expo export --platform web",
     "build:deploy": "npm run build:web && cp -r dist/* /var/www/veganland/ && pm2 restart veganland-api && echo '✓ VeganLand deploy concluído'",
-    "build:novaqi": "BRAND=novaqi EXPO_PUBLIC_BRAND=novaqi EXPO_PUBLIC_API_URL=https://veganland.app EXPO_PUBLIC_APP_API_KEY=$(grep APP_API_KEY server/.env | cut -d= -f2) npx expo export --platform web",
-    "build:novaqi:deploy": "npm run build:novaqi && mkdir -p /var/www/novaqi && cp -r dist/* /var/www/novaqi/ && echo '✓ NovaQI deploy concluído'"
+    "build:novaqi": "BRAND=novaqi EXPO_PUBLIC_BRAND=novaqi EXPO_PUBLIC_API_URL=https://novaqi.app EXPO_PUBLIC_APP_API_KEY=$(grep APP_API_KEY server/.env | cut -d= -f2) npx expo export --platform web",
+    "build:novaqi:deploy": "npm run build:novaqi && mkdir -p /var/www/veganland/novaqi && cp -r dist/* /var/www/veganland/novaqi/ && echo '✓ NovaQI deploy concluído'"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
