@@ -1,17 +1,20 @@
-const brand = process.env.BRAND || 'veganland';
+const brand = process.env.BRAND || process.env.EXPO_PUBLIC_BRAND || 'veganland';
 const isNovaQI = brand === 'novaqi';
+
+const B = isNovaQI ? 'NovaQI' : 'VeganLand';
+const assets = isNovaQI ? './assets/novaqi' : './assets';
 
 export default {
   expo: {
-    name: isNovaQI ? 'NovaQI' : 'VeganLand',
+    name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/icon.png',
+    icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {
-      image: './assets/splash-icon.png',
+      image: `${assets}/splash-icon.png`,
       resizeMode: 'contain',
       backgroundColor: isNovaQI ? '#1E1B4B' : '#2E7D52',
     },
@@ -19,44 +22,29 @@ export default {
       supportsTablet: false,
       bundleIdentifier: isNovaQI ? 'app.novaqi' : 'app.veganland',
       infoPlist: {
-        NSCameraUsageDescription: `${isNovaQI ? 'NovaQI' : 'VeganLand'} needs camera access to scan product labels and ingredients.`,
-        NSPhotoLibraryUsageDescription: `${isNovaQI ? 'NovaQI' : 'VeganLand'} needs photo library access to analyze product images.`,
-        NSPhotoLibraryAddUsageDescription: `${isNovaQI ? 'NovaQI' : 'VeganLand'} saves product scan images to your library.`,
+        NSCameraUsageDescription: `${B} needs camera access to scan product labels and ingredients.`,
+        NSPhotoLibraryUsageDescription: `${B} needs photo library access to analyze product images.`,
+        NSPhotoLibraryAddUsageDescription: `${B} saves product scan images to your library.`,
       },
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
+        foregroundImage: `${assets}/adaptive-icon.png`,
         backgroundColor: isNovaQI ? '#1E1B4B' : '#2E7D52',
       },
       package: isNovaQI ? 'app.novaqi' : 'app.veganland',
-      permissions: [
-        'android.permission.CAMERA',
-        'android.permission.READ_EXTERNAL_STORAGE',
-        'android.permission.WRITE_EXTERNAL_STORAGE',
-        'android.permission.RECORD_AUDIO',
-      ],
+      permissions: ['android.permission.CAMERA'],
       edgeToEdgeEnabled: true,
     },
     web: {
-      favicon: './assets/favicon.png',
+      favicon: `${assets}/favicon.png`,
     },
     experiments: {
-      baseUrl: '',
+      baseUrl: isNovaQI ? '/novaqi' : '',
     },
     plugins: [
-      [
-        'expo-camera',
-        {
-          cameraPermission: `${isNovaQI ? 'NovaQI' : 'VeganLand'} needs camera access to scan products.`,
-        },
-      ],
-      [
-        'expo-image-picker',
-        {
-          photosPermission: `${isNovaQI ? 'NovaQI' : 'VeganLand'} needs photo access to analyze product images.`,
-        },
-      ],
+      ['expo-camera', { cameraPermission: `${B} needs camera access to scan products.` }],
+      ['expo-image-picker', { photosPermission: `${B} needs photo access to analyze product images.` }],
     ],
     updates: {
       url: 'https://u.expo.dev/64fa402d-0f4c-4582-8879-e032ddaa946e',

@@ -1,0 +1,65 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "novaqi-android": {
+      "env": {
+        "BRAND": "novaqi",
+        "EXPO_PUBLIC_BRAND": "novaqi",
+        "EXPO_PUBLIC_API_URL": "https://veganland.app"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      }
+    },
+    "novaqi-ios": {
+      "env": {
+        "BRAND": "novaqi",
+        "EXPO_PUBLIC_BRAND": "novaqi",
+        "EXPO_PUBLIC_API_URL": "https://veganland.app"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "veganland-android": {
+      "env": {
+        "BRAND": "veganland",
+        "EXPO_PUBLIC_BRAND": "veganland",
+        "EXPO_PUBLIC_API_URL": "https://veganland.app"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      }
+    },
+    "veganland-ios": {
+      "env": {
+        "BRAND": "veganland",
+        "EXPO_PUBLIC_BRAND": "veganland",
+        "EXPO_PUBLIC_API_URL": "https://veganland.app"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  },
+  "submit": {
+    "novaqi-android": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    },
+    "novaqi-ios": {
+      "ios": {
+        "appleId": "daviwazlawick@gmail.com",
+        "ascAppId": "SUBSTITUA_PELO_APP_ID_DO_APP_STORE_CONNECT",
+        "appleTeamId": "SUBSTITUA_PELO_TEAM_ID"
+      }
+    }
+  }
+}
