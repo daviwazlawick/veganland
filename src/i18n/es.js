@@ -175,4 +175,5 @@ export default {
     network_error: 'Error de conexión. Revisa tu internet.',
     camera_error: 'Error al acceder a la cámara.',
   },
+  update: { required_title: "Actualización requerida", required_body: "Hay una nueva versión disponible. Por favor actualiza para continuar.", go_to_store: "Actualizar ahora" },
 };

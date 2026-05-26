@@ -112,6 +112,12 @@ export async function apiResendConfirmationByEmail(email) {
   return data;
 }
 
+export async function apiCheckAppVersion() {
+  const response = await fetch(`${baseUrl()}/app/version`).catch(() => null);
+  if (!response?.ok) return null;
+  return response.json().catch(() => null);
+}
+
 export async function apiGetHistory(token) {
   const response = await fetch(`${baseUrl()}/user/history`, {
     headers: { Authorization: `Bearer ${token}` },

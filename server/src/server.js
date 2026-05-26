@@ -330,6 +330,16 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // GET /app/version — versão mínima obrigatória por plataforma
+    if (req.method === 'GET' && req.url === '/app/version') {
+      sendJson(res, 200, {
+        ios:     { min: '1.0.0', store_url: 'https://apps.apple.com/app/novaqi/id0000000000' },
+        android: { min: '1.0.0', store_url: 'https://play.google.com/store/apps/details?id=app.novaqi' },
+        web:     { min: '1.0.0' },
+      }, origin);
+      return;
+    }
+
     // POST /auth/register
     if (req.method === 'POST' && req.url === '/auth/register') {
       const { email, password } = await readJsonBody(req);

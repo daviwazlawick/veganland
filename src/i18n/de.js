@@ -175,4 +175,5 @@ export default {
     network_error: 'Verbindungsfehler. Prüfe deine Internetverbindung.',
     camera_error: 'Fehler beim Zugriff auf die Kamera.',
   },
+  update: { required_title: "Update erforderlich", required_body: "Eine neue Version der App ist verfügbar. Bitte aktualisiere, um fortzufahren.", go_to_store: "Jetzt aktualisieren" },
 };

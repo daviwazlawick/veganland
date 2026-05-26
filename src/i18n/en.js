@@ -175,4 +175,5 @@ export default {
     network_error: 'Connection error. Check your internet.',
     camera_error: 'Error accessing camera.',
   },
+  update: { required_title: "Update required", required_body: "A new version of the app is available. Please update to continue.", go_to_store: "Update now" },
 };
