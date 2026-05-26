@@ -88,6 +88,7 @@ export default {
     continue: 'Continue',
     change: 'Change plan',
     current: 'Current',
+    coming_soon: 'Coming soon',
   },
   home: {
     title: 'VeganLand',

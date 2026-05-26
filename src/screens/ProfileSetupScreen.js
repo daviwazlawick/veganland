@@ -14,9 +14,9 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 12) / 2;
 
 const PLANS = [
-  { id: 'free',    nameKey: 'free_name',    descKey: 'free_desc',    priceKey: 'free_price',    popular: false },
-  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true  },
-  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false },
+  { id: 'free',    nameKey: 'free_name',    descKey: 'free_desc',    priceKey: 'free_price',    popular: false, locked: false },
+  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true,  locked: true  },
+  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false, locked: true  },
 ];
 
 export default function ProfileSetupScreen({ navigation }) {
@@ -147,37 +147,45 @@ export default function ProfileSetupScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={plan.id}
-                    style={[styles.planCard, sel && styles.planCardSelected]}
-                    onPress={() => setSelectedPlan(plan.id)}
-                    activeOpacity={0.85}
+                    style={[styles.planCard, sel && !plan.locked && styles.planCardSelected, plan.locked && styles.planCardLocked]}
+                    onPress={() => !plan.locked && setSelectedPlan(plan.id)}
+                    activeOpacity={plan.locked ? 1 : 0.85}
                   >
                     {plan.popular && (
-                      <View style={styles.popularBadge}>
-                        <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
+                      <View style={[styles.popularBadge, plan.locked && styles.popularBadgeLocked]}>
+                        <Text style={styles.popularText}>
+                          {plan.locked ? t(language, 'plans.coming_soon') : t(language, 'plans.most_popular')}
+                        </Text>
+                      </View>
+                    )}
+                    {!plan.popular && plan.locked && (
+                      <View style={styles.popularBadgeLocked}>
+                        <Text style={styles.popularText}>{t(language, 'plans.coming_soon')}</Text>
                       </View>
                     )}
                     <View style={styles.planRow}>
                       <View style={styles.planInfo}>
-                        <Text style={[styles.planName, sel && styles.planNameSel]}>
+                        <Text style={[styles.planName, sel && !plan.locked && styles.planNameSel, plan.locked && styles.planNameLocked]}>
                           {t(language, `plans.${plan.nameKey}`)}
                         </Text>
-                        <Text style={[styles.planDesc, sel && styles.planDescSel]}>
+                        <Text style={[styles.planDesc, plan.locked && styles.planDescLocked]}>
                           {t(language, `plans.${plan.descKey}`)}
                         </Text>
                       </View>
                       <View style={styles.planPriceWrap}>
-                        <Text style={[styles.planPrice, sel && styles.planPriceSel]}>
+                        <Text style={[styles.planPrice, sel && !plan.locked && styles.planPriceSel, plan.locked && styles.planPriceLocked]}>
                           {t(language, `plans.${plan.priceKey}`)}
                         </Text>
                         {plan.id !== 'free' && (
-                          <Text style={[styles.planPerMonth, sel && styles.planPerMonthSel]}>
+                          <Text style={[styles.planPerMonth, plan.locked && styles.planPerMonthLocked]}>
                             {t(language, 'plans.per_month')}
                           </Text>
                         )}
                       </View>
-                      <View style={[styles.radio, sel && styles.radioSelected]}>
-                        {sel && <View style={styles.radioDot} />}
-                      </View>
+                      {!plan.locked
+                        ? <View style={[styles.radio, sel && styles.radioSelected]}>{sel && <View style={styles.radioDot} />}</View>
+                        : <Text style={styles.lockIcon}>🔒</Text>
+                      }
                     </View>
                   </TouchableOpacity>
                 );
@@ -333,9 +341,15 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.75)',
     shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
   },
+  planCardLocked: { opacity: 0.55 },
   popularBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',
     backgroundColor: Colors.accent, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 4,
+  },
+  popularBadgeLocked: {
+    position: 'absolute', top: -12, alignSelf: 'center',
+    backgroundColor: Colors.textMuted, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 4,
   },
   popularText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
@@ -343,13 +357,17 @@ const styles = StyleSheet.create({
   planInfo: { flex: 1 },
   planName: { fontSize: 17, fontWeight: '900', color: Colors.text, marginBottom: 3 },
   planNameSel: { color: Colors.primaryDark },
+  planNameLocked: { color: Colors.textMuted },
   planDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
   planDescSel: { color: Colors.primaryDark },
+  planDescLocked: { color: Colors.textMuted },
   planPriceWrap: { alignItems: 'flex-end' },
   planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
   planPriceSel: { color: Colors.primaryDark },
+  planPriceLocked: { color: Colors.textMuted },
   planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
   planPerMonthSel: { color: Colors.primaryDark },
+  planPerMonthLocked: { color: Colors.textMuted },
   radio: {
     width: 24, height: 24, borderRadius: 12,
     borderWidth: 2, borderColor: Colors.border,
@@ -357,6 +375,7 @@ const styles = StyleSheet.create({
   },
   radioSelected: { borderColor: Colors.primary },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
+  lockIcon: { fontSize: 18 },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
