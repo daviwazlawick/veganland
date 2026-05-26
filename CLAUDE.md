@@ -1,11 +1,14 @@
-# VeganLand — Contexto para Claude Code
+# VeganLand / NovaQI — Contexto para Claude Code
 
 ## O que é este projeto
 
-App React Native (Expo SDK 54, web target) + servidor Node.js próprio.
+App React Native (Expo SDK 54, web + nativo) + servidor Node.js próprio.
 Permite escanear produtos (foto ou barcode), analisar ingredientes com IA (Anthropic Claude) e dizer se o produto é adequado ao perfil do utilizador (dieta + alergias).
 
-**Produção:** `https://veganland.app`  
+Dois brands partilham o mesmo codebase, servidor e base de dados:
+- **VeganLand** — `https://veganland.app` — tema verde
+- **NovaQI** — `https://veganland.app/novaqi` (web) / `app.novaqi` (nativo) — tema navy + citrus
+
 **Servidor:** VPS Ubuntu, `/opt/veganland`, processo PM2 `veganland-api`  
 **Owner:** Davi Augusto Wazlawick, 4 Frankfurter Allee, 10247 Berlin, Germany  
 **Email:** contact@veganland.app
@@ -16,7 +19,7 @@ Permite escanear produtos (foto ou barcode), analisar ingredientes com IA (Anthr
 
 | Camada | Tecnologia |
 |---|---|
-| App | React Native + Expo SDK 54 (web export) |
+| App | React Native + Expo SDK 54 (web export + EAS nativo) |
 | Navegação | React Navigation (Stack + Bottom Tabs) |
 | Estado | React Context (AppContext + AuthContext) |
 | Backend | Node.js puro (sem framework), PM2 |
@@ -28,15 +31,45 @@ Permite escanear produtos (foto ou barcode), analisar ingredientes com IA (Anthr
 
 ---
 
+## Sistema de White-label (Brand)
+
+O brand é seleccionado por variável de ambiente em build-time: `EXPO_PUBLIC_BRAND` (ou `BRAND`).
+
+### Ficheiros de brand
+```
+src/brand/
+  index.js      — selecciona brand via EXPO_PUBLIC_BRAND, exporta Brand, Colors, BrandFonts
+  veganland.js  — cores verde + strings vazias (usa i18n padrão)
+  novaqi.js     — cores navy+citrus + string overrides para 6 idiomas + fontes Syne/Jakarta
+src/constants/colors.js  — re-exporta Colors do brand activo
+```
+
+### Como funciona
+- `Colors.X` — sempre do brand activo
+- `t(lang, 'key')` — verifica overrides do brand antes das traduções padrão
+- `Brand.id`, `Brand.name`, `Brand.domain`, `Brand.fonts`
+- `BrandName` component — renderiza "Nova" + "QI" em cores split, ou "VeganLand" simples
+- `BrandLogo` component — círculo navy com SVG target (NovaQI) ou círculo verde com câmera (VeganLand)
+- `PremiumIcon name="scan"` — target/radar para NovaQI, câmera para VeganLand
+
+### Tokens de cor partilhados (presentes em ambos os brands)
+`navy`, `navyDeep`, `navyMid`, `headerBg`, `headerText`, `headerMuted`, `aboutCardBg`, `aboutCardBorder`, `primaryBg`, `primaryLight`, `primaryDark`, `safe`, `safeLight`, `safeDark`, `caution`, `cautionLight`, `cautionDark`, `danger`, `dangerLight`, `dangerDark`
+
+### Fontes NovaQI
+Syne 800 + Plus Jakarta Sans — via `@expo-google-fonts`. Carregadas em App.js com `useFonts` condicionalmente (`Brand.fonts ? {...} : {}`).
+
+---
+
 ## Estrutura de ficheiros importantes
 
 ```
 src/
   screens/
     WelcomeScreen.js        — landing, sem auth
-    LoginScreen.js          — login com resend confirmation
-    RegisterScreen.js       — registo + check email screen
+    LoginScreen.js          — login com resend confirmation (usa BrandLogo + BrandName)
+    RegisterScreen.js       — registo + check email screen (usa BrandLogo + BrandName)
     ForgotPasswordScreen.js — reset password por email
+    ForceUpdateScreen.js    — ecrã de bloqueio para updates obrigatórios
     HomeScreen.js           — dashboard, histórico de scans
     ScanScreen.js           — câmera + análise
     ResultScreen.js         — resultado SAFE/CAUTION/NOT_SAFE
@@ -44,25 +77,37 @@ src/
     ProfileSetupScreen.js   — dieta + alergias (usado em edição também)
     EditPersonalScreen.js   — nome + bio + avatar
   context/
-    AppContext.js   — profile, language, scan history, saveProfile()
+    AppContext.js   — profile, language, scan history (inclui normalized_ingredients + identified_allergens), saveProfile()
     AuthContext.js  — login, register, logout, token JWT
   services/
-    apiService.js   — todas as chamadas HTTP ao servidor
+    apiService.js   — todas as chamadas HTTP ao servidor (inclui apiCheckAppVersion)
+  hooks/
+    useForceUpdate.js — verifica versão mínima no servidor ao arrancar; devolve { required, storeUrl }
   constants/
     allergies.js    — ALLERGIES[] com id, icon, label por idioma
     diets.js        — DIETS[] com id, icon, label por idioma
-    colors.js       — Colors (tema visual)
+    colors.js       — re-exporta Colors do brand activo
   i18n/
-    index.js        — LANGUAGES[], t(lang, key, params), localeFor()
-    en/pt/de/fr/it/es.js — traduções
+    index.js        — LANGUAGES[], t(lang, key, params) com brand overrides, localeFor()
+    en/pt/de/fr/it/es.js — traduções (incluem secção 'update' para ForceUpdateScreen)
   components/ui/
     BetaRibbon.js   — ribbon BETA no canto superior direito
-    PremiumIcon.js  — ícones SVG custom
+    PremiumIcon.js  — ícones (scan = target para NovaQI, câmera para VeganLand)
+    BrandName.js    — wordmark split-color
+    BrandLogo.js    — círculo de logo brand-aware (SVG novaqi-icon.svg para NovaQI)
+    NovaQILogo.js   — ícone target/radar desenhado com Views (usado dentro de BrandLogo e PremiumIcon)
     index.js        — exports
 
+assets/
+  novaqi/
+    icon.png, adaptive-icon.png, splash-icon.png, favicon.png  — assets nativos NovaQI
+    novaqi-icon.svg        — target/radar com fundo navy (usado em BrandLogo)
+    novaqi-logo-dark.svg   — lockup completo (ícone + wordmark)
+    novaqi-logo-light.svg, novaqi-logo-mono.svg, novaqi-wordmark-dark.svg
+
 server/src/
-  server.js     — rotas HTTP
-  db.js         — queries PostgreSQL (findProduct com fuzzy fallback)
+  server.js     — rotas HTTP (inclui GET /app/version)
+  db.js         — queries PostgreSQL (getUserHistory inclui campos do result JSONB)
   analyze.js    — orquestração da análise (cache neutral, applyProfileToAnalysis)
   anthropic.js  — prompts + chamadas Anthropic
   auth.js       — JWT, bcrypt
@@ -93,61 +138,66 @@ server/src/
 - Foto da câmera ou galeria
 - Barcode shortcut: se barcode detectado, lookup direto na BD (evita re-análise)
 - `resolveProductIngredients`: imagem → BD → OpenFoodFacts → null
-- Fuzzy fallback em `findProduct`: se sem barcode, procura por brand + primeiras 3 palavras do nome na BD (evita knowledge-based para produtos já conhecidos)
+- Fuzzy fallback em `findProduct`: procura por brand + primeiras 3 palavras do nome
 - Cache neutral: análise guardada por produto+idioma, perfil aplicado localmente
 - `analyzeProductByKnowledge`: fallback quando sem ingredientes
 
 ### Resultado
 - 3 estados: SAFE / CAUTION / NOT_SAFE
 - Card de análise com título + explicação
-- Card de ingredientes — usa `normalized_ingredients` do resultado (lista traduzida/normalizada pelo Claude); fallback para parse do `ingredients_text` bruto; sempre visível (mostra placeholder se vazio)
-- **Card de alergénios encontrados** (chips âmbar) — mostra alergénios detetados no produto independente do perfil; sempre visível
-- Card de concerns (ingredientes problemáticos para o perfil)
-- Card "no issues" para SAFE sem concerns
+- Card de ingredientes — `normalized_ingredients` (normalizado pelo Claude) com fallback para parse do `ingredients_text`; sempre visível
+- Card de alergénios encontrados (chips âmbar) — sempre visível
+- Card de concerns; card "no issues" para SAFE sem concerns
+
+### Histórico de scans
+- Guardado em AsyncStorage (offline) ou servidor (utilizadores autenticados)
+- `addScanToHistory` guarda: `normalized_ingredients`, `identified_allergens`, `concerns`, `explanation`
+- `getUserHistory` (servidor) extrai os campos do JSONB `result` na tabela `scan_events`
+- `loadServerHistory` mapeia todos os campos necessários para o ResultScreen
 
 ### Planos de utilizador
 - 3 tipos: `basic` (30 scans/mês), `premium` (100 scans/mês), `admin` (ilimitado)
-- Coluna `user_type TEXT NOT NULL DEFAULT 'basic'` na tabela `users`
-- `SCAN_LIMITS` exportado de `db.js`: `{ basic: 30, premium: 100, admin: null }` — `null` = ilimitado
-- `checkAndIncrementScanCounter`: lê `user_type`, aplica limite correto; admin bypassa o contador completamente
-- `setUserType(userId, type)` em `db.js` para mudar o plano
-- `POST /admin/user/:id/set-type` — endpoint de admin para mudar plano (Basic Auth)
-- Admin panel: badge de plano na lista; botões Básico/Premium/Admin na página de cada utilizador
-- Alerta 429: "Você já usou todos os seus 30 scans deste mês. Seus scans serão renovados em X dias." (calcula dias exatos até o 1º do próximo mês)
-- `ProfileScreen`: badge do plano junto ao contador; admin vê "Ilimitado" sem barra de progresso
+- `SCAN_LIMITS` em `db.js`: `{ basic: 30, premium: 100, admin: null }` — `null` = ilimitado
+- `POST /admin/user/:id/set-type` — endpoint de admin para mudar plano
 - `getScanUsage` devolve `{ count, limit, resets_at }` — `limit: null` e `resets_at: null` para admin
+
+### Updates obrigatórios (Force Update)
+- `GET /app/version` — retorna versão mínima por plataforma (`ios`, `android`, `web`)
+- `useForceUpdate` hook — compara versão instalada vs mínima ao arrancar
+- `ForceUpdateScreen` — bloqueia o app com link para a loja se versão antiga
+- **Para activar update obrigatório:** alterar `min` no handler `/app/version` em `server.js` + `pm2 restart`
 
 ### Legal
 - Páginas `/legal/terms`, `/legal/privacy`, `/legal/imprint` servidas pelo servidor Node.js
 - Abertas com `expo-web-browser` (Safari ViewController in-app)
-- Links no rodapé do ProfileScreen
-- Terms checkbox no RegisterScreen (obrigatório)
+- `Brand.domain` usado para URLs legais (veganland.app ou novaqi.app)
 
 ### i18n
 - 6 línguas: PT, EN, DE, FR, IT, ES
 - Troca em tempo real (botão de bandeira em Login/Register/Welcome)
 - `t(lang, 'key.nested', { param: value })` com fallback para EN
-
-### Design
-- Tema verde orgânico, glassmorphism nos cards
-- BetaRibbon no canto superior **direito**
-- `Colors` em `src/constants/colors.js`
-- Safe area com `useSafeAreaInsets()` para bottom padding (tab bar)
+- Brand overrides no `novaqi.js` — só strings que diferem do VeganLand
 
 ---
 
-## Deploy
+## Deploy — Web
 
-### Workflow normal (Mac → servidor)
+### VeganLand
 ```bash
 # No Mac:
-git add ... && git commit -m "..." && git push origin main
+git push origin main
 
 # No servidor:
 cd /opt/veganland && git pull && npm run build:deploy
 ```
-
 `build:deploy` = `expo export --platform web` + `cp dist/* /var/www/veganland/` + `pm2 restart veganland-api`
+
+### NovaQI
+```bash
+# No servidor:
+cd /opt/veganland && git pull && npm run build:novaqi:deploy
+```
+`build:novaqi:deploy` = build com `BRAND=novaqi` + `cp dist/* /var/www/veganland/novaqi/` 
 
 ### Só reiniciar servidor (sem rebuild web)
 ```bash
@@ -158,6 +208,42 @@ pm2 restart veganland-api --update-env
 ```bash
 pm2 logs veganland-api --lines 50 --nostream
 ```
+
+---
+
+## Deploy — Nativo (iOS / Android) com EAS
+
+### Desenvolvimento local
+```bash
+npm run web              # VeganLand no browser (localhost:8081)
+npm run web:novaqi       # NovaQI no browser
+npm run start:novaqi     # NovaQI com Expo Go
+```
+
+### Build nativo (EAS)
+```bash
+npm run build:android:novaqi     # AAB para Google Play
+npm run build:android:veganland  # AAB para Google Play
+npm run build:ios:novaqi         # IPA para App Store
+npm run build:ios:veganland      # IPA para App Store
+```
+
+### Submeter para lojas
+```bash
+npm run submit:android:novaqi    # requer google-play-key.json
+npm run submit:ios:novaqi        # requer Apple ID configurado
+```
+
+### OTA update (JS-only, sem passar pelas lojas)
+```bash
+npm run update:novaqi     # push update para utilizadores NovaQI
+npm run update:veganland  # push update para utilizadores VeganLand
+```
+
+### Perfis EAS (`eas.json`)
+- `novaqi-android`, `novaqi-ios`, `veganland-android`, `veganland-ios`
+- Cada perfil define `BRAND`, `EXPO_PUBLIC_BRAND`, `EXPO_PUBLIC_API_URL`
+- `EXPO_PUBLIC_APP_API_KEY` guardado como EAS secret: `eas secret:create`
 
 ---
 
@@ -196,7 +282,11 @@ SMTP_FROM=VeganLand <contact@veganland.app>
 - `ingredients_text TEXT`, `source TEXT`
 
 **`product_analyses`**
-- `product_id`, `language`, `result JSONB` — análise neutral cached; inclui campo `normalized_ingredients` (lista traduzida/normalizada)
+- `product_id`, `language`, `result JSONB` — inclui `normalized_ingredients`, `identified_allergens`, `concerns`, `explanation`
+
+**`scan_events`**
+- `user_id`, `product_id`, `status`, `title`, `source`, `language`, `result JSONB`, `created_at`
+- `result` JSONB tem todos os campos da análise — `getUserHistory` extrai com `result->>'explanation'` etc.
 
 **`scan_counters`**
 - `user_id`, `month` (formato `YYYY-MM`), `count INT` — contador mensal por utilizador
@@ -208,13 +298,15 @@ SMTP_FROM=VeganLand <contact@veganland.app>
 Arquivo: `/etc/nginx/sites-available/veganland.app`
 
 ```nginx
-location ~ ^/(analyze-product|health|auth/.+|user/.+|scan/.+|admin/?|admin/user/.+|legal/.+)$ {
+location ~ ^/(analyze-product|health|auth/.+|user/.+|scan/.+|admin/?|admin/user/.+|legal/.+|app/.+)$ {
     proxy_pass http://127.0.0.1:3000;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     client_max_body_size 10m;
 }
 ```
+
+**Nota:** `app/.+` é necessário para o endpoint `/app/version` (force update).
 
 Após editar: `sudo nginx -t && sudo systemctl reload nginx`
 
@@ -225,9 +317,10 @@ Após editar: `sudo nginx -t && sudo systemctl reload nginx`
 - Sem comentários desnecessários
 - Sem abstrações prematuras
 - `t(language, 'section.key')` para todos os textos visíveis
-- Quando adicionar string i18n: adicionar nos 6 ficheiros (en/pt/de/fr/it/es)
+- Quando adicionar string i18n: adicionar nos 6 ficheiros (en/pt/de/fr/it/es) — usar sempre aspas duplas `"` para evitar conflito com apóstrofes em FR/IT
 - `Colors.X` para todas as cores — nunca hardcoded exceto rgba temporários
 - Safe area: usar `useSafeAreaInsets()` para bottom padding nas telas com tab bar
+- Ao alterar visuais: perguntar se aplica a um ou ambos os brands
 
 ---
 
@@ -242,8 +335,15 @@ cd /opt/veganland && node server/src/migrate.js
 
 ## Pendente / Próximas ideias
 
+- [ ] Integração de pagamento (RevenueCat + Apple IAP + Google Play Billing)
+  - Planos: free (7 scans), starter/€2.99 (50 scans), pro/€5.99 (100 scans)
+  - Webhook RevenueCat → servidor para actualizar user_type
+  - PaywallScreen nova
+- [ ] Lançamento Android (conta Google Play em verificação)
+- [ ] Lançamento iOS (após Android)
+- [ ] google-play-key.json para submissão automática via EAS
+- [ ] App Store Connect — criar app NovaQI + produtos IAP
+- [ ] Atualizar store_url em /app/version após publicação nas lojas
 - [ ] Testes end-to-end do fluxo de confirmação de email
 - [ ] Admin: endpoint para inserir/editar produtos manualmente na BD
 - [ ] Push notifications
-- [ ] App Store / Play Store build (EAS)
-- [ ] Integração de pagamento para plano Premium (Stripe)
