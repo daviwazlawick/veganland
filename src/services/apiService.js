@@ -69,14 +69,25 @@ export async function apiLogin(email, password) {
   return data;
 }
 
-export async function apiRegister(email, password) {
+export async function apiRegister(email, password, disclaimerVersion) {
   const response = await fetch(`${baseUrl()}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, disclaimer_version: disclaimerVersion }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Registration failed`);
+  return data;
+}
+
+export async function apiAcceptDisclaimer(token, disclaimerVersion) {
+  const response = await fetch(`${baseUrl()}/user/disclaimer`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ disclaimer_version: disclaimerVersion }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed');
   return data;
 }
 

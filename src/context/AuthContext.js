@@ -50,8 +50,8 @@ export function AuthProvider({ children }) {
     return u;
   }
 
-  async function register(email, password) {
-    const data = await apiRegister(email, password);
+  async function register(email, password, disclaimerVersion) {
+    const data = await apiRegister(email, password, disclaimerVersion);
     if (data.emailConfirmationSent) {
       const err = new Error('email_confirmation_required');
       err.code = 'EMAIL_CONFIRMATION_REQUIRED';

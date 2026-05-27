@@ -22,6 +22,8 @@ export default function RegisterScreen({ navigation }) {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const DISCLAIMER_VERSION = '1.0';
   const [confirmationEmail, setConfirmationEmail] = useState(null);
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
@@ -34,11 +36,12 @@ export default function RegisterScreen({ navigation }) {
   async function handleRegister() {
     if (!email.trim() || !password) { Alert.alert('', t(language, 'auth.fill_all')); return; }
     if (!termsAccepted) { Alert.alert('', t(language, 'auth.terms_required')); return; }
+    if (!disclaimerAccepted) { Alert.alert('', t(language, 'auth.disclaimer_required')); return; }
     if (password.length < 6) { Alert.alert('', t(language, 'auth.password_min')); return; }
     if (password !== confirm) { Alert.alert('', t(language, 'auth.passwords_mismatch')); return; }
     setLoading(true);
     try {
-      await register(email.trim(), password);
+      await register(email.trim(), password, DISCLAIMER_VERSION);
     } catch (e) {
       if (e.code === 'EMAIL_CONFIRMATION_REQUIRED') {
         setConfirmationEmail(e.email);
@@ -183,8 +186,43 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
 
+            <View style={styles.disclaimerBox}>
+              <View style={styles.disclaimerHeader}>
+                <Text style={styles.disclaimerHeaderIcon}>⚠️</Text>
+                <Text style={styles.disclaimerHeaderText}>{t(language, 'auth.disclaimer_title')}</Text>
+              </View>
+              <Text style={styles.disclaimerBody}>
+                {t(language, 'auth.disclaimer_line1_pre')}
+                <Text style={styles.disclaimerBold}>{t(language, 'auth.disclaimer_line1_bold')}</Text>
+                {t(language, 'auth.disclaimer_line1_post')}
+              </Text>
+              <Text style={styles.disclaimerBody}>
+                {t(language, 'auth.disclaimer_line2_pre')}
+                <Text style={styles.disclaimerBoldDanger}>{t(language, 'auth.disclaimer_line2_bold')}</Text>
+                {t(language, 'auth.disclaimer_line2_post')}
+              </Text>
+              <Text style={styles.disclaimerBody}>
+                {t(language, 'auth.disclaimer_line3_pre')}
+                <Text style={styles.disclaimerBold}>{t(language, 'auth.disclaimer_line3_bold')}</Text>
+                {t(language, 'auth.disclaimer_line3_post')}
+              </Text>
+            </View>
+
             <TouchableOpacity
-              style={[styles.btn, (!termsAccepted || loading) && styles.btnDisabled]}
+              style={styles.termsRow}
+              onPress={() => setDisclaimerAccepted(v => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, disclaimerAccepted && styles.checkboxCheckedWarning]}>
+                {disclaimerAccepted && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.termsText}>
+                <Text style={styles.disclaimerCheckLabel}>{t(language, 'auth.disclaimer_checkbox')}</Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.btn, (!termsAccepted || !disclaimerAccepted || loading) && styles.btnDisabled]}
               onPress={handleRegister}
               activeOpacity={0.9}
               disabled={loading}
@@ -267,6 +305,48 @@ const styles = StyleSheet.create({
     color: Colors.white, fontSize: 17, fontWeight: '900',
     fontFamily: BrandFonts.heading || undefined,
   },
+  disclaimerBox: {
+    backgroundColor: '#FFF8E7',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#F5A623',
+    padding: 14,
+    gap: 8,
+  },
+  disclaimerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  disclaimerHeaderIcon: { fontSize: 16 },
+  disclaimerHeaderText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#B35C00',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  disclaimerBody: {
+    fontSize: 12,
+    color: '#5C3D00',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  disclaimerBold: {
+    fontWeight: '800',
+    color: '#B35C00',
+  },
+  disclaimerBoldDanger: {
+    fontWeight: '800',
+    color: '#C0392B',
+  },
+  disclaimerCheckLabel: {
+    fontWeight: '700',
+    color: '#5C3D00',
+    fontSize: 13,
+  },
+  checkboxCheckedWarning: { borderColor: '#F5A623', backgroundColor: '#F5A623' },
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   checkbox: {
     width: 22, height: 22, borderRadius: 6,

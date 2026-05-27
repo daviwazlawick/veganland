@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
@@ -348,7 +348,7 @@ const server = http.createServer(async (req, res) => {
 
     // POST /auth/register
     if (req.method === 'POST' && req.url === '/auth/register') {
-      const { email, password } = await readJsonBody(req);
+      const { email, password, disclaimer_version } = await readJsonBody(req);
       if (!email || !password) {
         sendJson(res, 400, { error: 'email and password are required' }, origin);
         return;
@@ -357,13 +357,17 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: 'password must be at least 6 characters' }, origin);
         return;
       }
+      if (!disclaimer_version) {
+        sendJson(res, 400, { error: 'disclaimer_acceptance is required' }, origin);
+        return;
+      }
       const existing = await findUserByEmail(email);
       if (existing) {
         sendJson(res, 409, { error: 'Email already registered' }, origin);
         return;
       }
       const passwordHash = await hashPassword(password);
-      const user = await createUser(email, passwordHash);
+      const user = await createUser(email, passwordHash, disclaimer_version);
       if (emailsEnabled()) {
         const confirmToken = crypto.randomBytes(32).toString('hex');
         await storeEmailConfirmationToken(user.id, confirmToken);
@@ -512,6 +516,17 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       sendJson(res, 200, { user, usage }, origin);
+      return;
+    }
+
+    // PATCH /user/disclaimer
+    if (req.method === 'PATCH' && req.url === '/user/disclaimer') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { disclaimer_version } = await readJsonBody(req);
+      if (!disclaimer_version) { sendJson(res, 400, { error: 'disclaimer_version required' }, origin); return; }
+      await setUserDisclaimerAccepted(claims.userId, disclaimer_version);
+      sendJson(res, 200, { ok: true }, origin);
       return;
     }
 

@@ -4,9 +4,13 @@ import {
   TouchableOpacity, SafeAreaView,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
+import { apiAcceptDisclaimer } from '../services/apiService';
+
+const DISCLAIMER_VERSION = '1.0';
 
 const BLOCKS = [
   { icon: '🚫', key: 'block1' },
@@ -17,7 +21,15 @@ const BLOCKS = [
 
 export default function DisclaimerScreen() {
   const { language, acceptDisclaimer } = useApp();
+  const { token } = useAuth();
   const [checked, setChecked] = useState(false);
+
+  async function handleAccept() {
+    await acceptDisclaimer();
+    if (token) {
+      apiAcceptDisclaimer(token, DISCLAIMER_VERSION).catch(() => {});
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -57,7 +69,7 @@ export default function DisclaimerScreen() {
 
         <TouchableOpacity
           style={[styles.acceptBtn, !checked && styles.acceptBtnDisabled]}
-          onPress={checked ? acceptDisclaimer : undefined}
+          onPress={checked ? handleAccept : undefined}
           activeOpacity={checked ? 0.85 : 1}
         >
           <Text style={styles.acceptBtnText}>{t(language, 'disclaimer.accept')}</Text>

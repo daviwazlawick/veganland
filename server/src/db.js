@@ -293,9 +293,10 @@ function publicUser(user) {
   };
 }
 
-export async function createUser(email, passwordHash) {
+export async function createUser(email, passwordHash, disclaimerVersion = null) {
   const db = await getPool();
   const normalizedEmail = email.toLowerCase().trim();
+  const disclaimerAt = disclaimerVersion ? new Date() : null;
   if (!db) {
     const users = await readLocalUsers();
     if (users.some(user => user.email === normalizedEmail)) {
@@ -316,10 +317,21 @@ export async function createUser(email, passwordHash) {
   }
 
   const result = await db.query(
-    `insert into users (email, password_hash) values ($1, $2) returning id, email, created_at`,
-    [normalizedEmail, passwordHash]
+    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version)
+     values ($1, $2, $3, $4)
+     returning id, email, created_at`,
+    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion]
   );
   return result.rows[0];
+}
+
+export async function setUserDisclaimerAccepted(userId, version) {
+  const db = await getPool();
+  if (!db) return;
+  await db.query(
+    `update users set disclaimer_accepted_at = now(), disclaimer_version = $2 where id = $1`,
+    [userId, version]
+  );
 }
 
 export async function findUserByEmail(email) {
