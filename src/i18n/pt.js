@@ -179,6 +179,15 @@ export default {
     terms: 'Termos e Condições',
     privacy: 'Política de Privacidade',
     imprint: 'Impressum',
+    delete_account: 'Eliminar a minha conta',
+  },
+  delete_account: {
+    title: 'Eliminar conta',
+    warning: 'Esta ação é permanente e não pode ser desfeita. Todos os seus dados serão eliminados.',
+    confirm_label: 'Entendo e quero eliminar permanentemente a minha conta',
+    confirm_btn: 'Eliminar a minha conta',
+    cancel: 'Cancelar',
+    error: 'Não foi possível eliminar a conta. Tente novamente.',
   },
   limits: {
     monthly_reached: 'Você já usou todos os seus {{limit}} scans deste mês.',

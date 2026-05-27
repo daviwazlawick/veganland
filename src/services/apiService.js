@@ -118,6 +118,16 @@ export async function apiCheckAppVersion() {
   return response.json().catch(() => null);
 }
 
+export async function apiDeleteAccount(token) {
+  const response = await fetch(`${baseUrl()}/user/account`, {
+    method: 'DELETE',
+    headers: appHeaders(token),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to delete account');
+  return data;
+}
+
 export async function apiSetUserPlan(plan, token) {
   const response = await fetch(`${baseUrl()}/user/plan`, {
     method: 'POST',

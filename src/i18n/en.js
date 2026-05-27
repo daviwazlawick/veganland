@@ -179,6 +179,15 @@ export default {
     terms: 'Terms & Conditions',
     privacy: 'Privacy Policy',
     imprint: 'Imprint',
+    delete_account: 'Delete my account',
+  },
+  delete_account: {
+    title: 'Delete account',
+    warning: 'This action is permanent and cannot be undone. All your data will be permanently deleted.',
+    confirm_label: 'I understand and want to permanently delete my account',
+    confirm_btn: 'Delete my account',
+    cancel: 'Cancel',
+    error: 'Could not delete account. Please try again.',
   },
   limits: {
     monthly_reached: "You've used all {{limit}} of your monthly scans.",

@@ -179,6 +179,15 @@ export default {
     terms: "Conditions Générales",
     privacy: "Confidentialité",
     imprint: "Mentions Légales",
+    delete_account: "Supprimer mon compte",
+  },
+  delete_account: {
+    title: "Supprimer le compte",
+    warning: "Cette action est définitive et irréversible. Toutes vos données seront supprimées.",
+    confirm_label: "Je comprends et souhaite supprimer définitivement mon compte",
+    confirm_btn: "Supprimer mon compte",
+    cancel: "Annuler",
+    error: "Impossible de supprimer le compte. Veuillez réessayer.",
   },
   limits: {
     monthly_reached: 'Vous avez utilisé vos {{limit}} scans mensuels.',

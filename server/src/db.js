@@ -478,6 +478,14 @@ export async function checkAndIncrementScanCounter(userId) {
   }
 }
 
+export async function deleteUserAccount(userId) {
+  const db = await getPool();
+  if (!db) throw new Error('No database');
+  await db.query('DELETE FROM scan_counters WHERE user_id = $1', [userId]);
+  await db.query('DELETE FROM users WHERE id = $1', [userId]);
+  // scan_events.user_id uses ON DELETE SET NULL — rows are anonymised, not deleted
+}
+
 export async function setUserType(userId, userType) {
   const db = await getPool();
   if (!db) return;

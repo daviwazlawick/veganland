@@ -179,6 +179,15 @@ export default {
     terms: 'AGB',
     privacy: 'Datenschutz',
     imprint: 'Impressum',
+    delete_account: 'Konto löschen',
+  },
+  delete_account: {
+    title: 'Konto löschen',
+    warning: 'Diese Aktion ist dauerhaft und kann nicht rückgängig gemacht werden. Alle deine Daten werden gelöscht.',
+    confirm_label: 'Ich verstehe das und möchte mein Konto dauerhaft löschen',
+    confirm_btn: 'Mein Konto löschen',
+    cancel: 'Abbrechen',
+    error: 'Konto konnte nicht gelöscht werden. Bitte versuche es erneut.',
   },
   limits: {
     monthly_reached: 'Du hast alle {{limit}} Scans dieses Monats aufgebraucht.',

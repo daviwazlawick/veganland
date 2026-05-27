@@ -207,6 +207,12 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.legalLink}>{t(language, 'profile.imprint')}</Text>
           </TouchableOpacity>
         </View>
+
+        {user && (
+          <TouchableOpacity style={styles.deleteAccountBtn} onPress={() => navigation.navigate('DeleteAccount')} activeOpacity={0.7}>
+            <Text style={styles.deleteAccountText}>{t(language, 'profile.delete_account')}</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -422,4 +428,6 @@ const styles = StyleSheet.create({
   },
   legalLink: { fontSize: 12, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
   legalDot: { fontSize: 12, color: Colors.border },
+  deleteAccountBtn: { alignItems: 'center', paddingVertical: 8 },
+  deleteAccountText: { fontSize: 13, color: Colors.danger, fontWeight: '600', textDecorationLine: 'underline' },
 });

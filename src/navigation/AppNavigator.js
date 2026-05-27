@@ -19,6 +19,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import EditPersonalScreen from '../screens/EditPersonalScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -91,6 +92,15 @@ function MainTabs() {
   );
 }
 
+const linking = {
+  prefixes: [],
+  config: {
+    screens: {
+      DeleteAccount: 'delete',
+    },
+  },
+};
+
 export default function AppNavigator() {
   const { token, isLoaded: authLoaded } = useAuth();
   const { isLoaded: appLoaded, isProfileLoaded, profile } = useApp();
@@ -104,7 +114,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!token ? (
           <>
@@ -121,6 +131,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
           </>
         ) : (
           <>
@@ -130,6 +141,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
           </>
         )}
       </Stack.Navigator>

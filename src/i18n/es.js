@@ -179,6 +179,15 @@ export default {
     terms: 'Términos y Condiciones',
     privacy: 'Política de Privacidad',
     imprint: 'Aviso Legal',
+    delete_account: 'Eliminar mi cuenta',
+  },
+  delete_account: {
+    title: 'Eliminar cuenta',
+    warning: 'Esta acción es permanente e irreversible. Todos tus datos serán eliminados.',
+    confirm_label: 'Entiendo y quiero eliminar permanentemente mi cuenta',
+    confirm_btn: 'Eliminar mi cuenta',
+    cancel: 'Cancelar',
+    error: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
   },
   limits: {
     monthly_reached: 'Ya has usado todos tus {{limit}} escaneos mensuales.',
