@@ -215,4 +215,18 @@ export default {
     camera_error: "Erreur d’accès à la caméra.",
   },
   update: { required_title: "Mise à jour requise", required_body: "Une nouvelle version est disponible. Veuillez mettre à jour pour continuer.", go_to_store: "Mettre à jour" },
+  disclaimer: {
+    title: "Avis Important",
+    subtitle: "Veuillez lire attentivement avant de continuer",
+    block1_title: "Cette application n'est pas un dispositif médical",
+    block1_body: "Cette application est un outil de lecture d'ingrédients par IA, à titre informatif uniquement. Elle ne garantit pas l'absence d'allergènes ou de toute autre substance dans un produit.",
+    block2_title: "Non adaptée aux allergies graves",
+    block2_body: "Si vous souffrez d'allergies graves ou potentiellement mortelles (risque d'anaphylaxie), ne vous fiez pas à cette application pour votre sécurité. Lisez toujours les étiquettes et consultez un professionnel de santé qualifié.",
+    block3_title: "Les résultats IA peuvent contenir des erreurs",
+    block3_body: "Toutes les analyses sont générées automatiquement par IA et peuvent être incomplètes, incorrectes ou obsolètes. Nous déclinons toute responsabilité pour les dommages, conséquences sur la santé ou préjudices résultant de l'utilisation de cette application.",
+    block4_title: "À titre de référence générale uniquement",
+    block4_body: "Cette application est conçue uniquement comme outil pratique pour les utilisateurs souhaitant consulter rapidement des listes d'ingrédients. Elle ne remplace pas un avis médical, un accompagnement professionnel ou une lecture attentive des étiquettes.",
+    checkbox: "Je comprends que cette application n'est pas un outil médical et je ne l'utiliserai pas comme protection contre les allergies graves ou les problèmes de santé.",
+    accept: "J'accepte et continue",
+  },
 };

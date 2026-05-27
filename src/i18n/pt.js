@@ -215,4 +215,18 @@ export default {
     camera_error: 'Erro ao acessar câmera.',
   },
   update: { required_title: "Atualização necessária", required_body: "Uma nova versão do app está disponível. Por favor atualiza para continuar.", go_to_store: "Atualizar agora" },
+  disclaimer: {
+    title: "Aviso Importante",
+    subtitle: "Leia com atenção antes de continuar",
+    block1_title: "Esta app não é um dispositivo médico",
+    block1_body: "Esta app é uma ferramenta de leitura de ingredientes por IA, apenas para fins informativos. Não garante a ausência de alergénios ou quaisquer outras substâncias em nenhum produto.",
+    block2_title: "Não adequada para alergias graves",
+    block2_body: "Se tiver alergias graves ou potencialmente fatais (como risco de anafilaxia), não confie nesta app para a sua segurança. Leia sempre os rótulos dos produtos e consulte um profissional de saúde qualificado.",
+    block3_title: "Os resultados de IA podem conter erros",
+    block3_body: "Todas as análises são geradas automaticamente por IA e podem ser incompletas, incorretas ou desatualizadas. Não nos responsabilizamos por quaisquer danos, consequências para a saúde ou prejuízos resultantes da utilização desta app.",
+    block4_title: "Apenas para referência geral",
+    block4_body: "Esta app destina-se unicamente como ferramenta de conveniência para utilizadores que querem consultar listas de ingredientes rapidamente. Não substitui aconselhamento médico, orientação profissional ou a leitura cuidadosa dos rótulos.",
+    checkbox: "Compreendo que esta app não é uma ferramenta médica e não a utilizarei como proteção contra alergias graves ou problemas de saúde.",
+    accept: "Aceito e Continuo",
+  },
 };

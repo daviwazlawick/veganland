@@ -215,4 +215,18 @@ export default {
     camera_error: 'Error accessing camera.',
   },
   update: { required_title: "Update required", required_body: "A new version of the app is available. Please update to continue.", go_to_store: "Update now" },
+  disclaimer: {
+    title: "Important Notice",
+    subtitle: "Please read carefully before continuing",
+    block1_title: "This app is not a medical device",
+    block1_body: "This app is an AI-powered ingredient reading tool for informational purposes only. It does not guarantee the absence of allergens or any other substance in any product.",
+    block2_title: "Not suitable for serious allergies",
+    block2_body: "If you have severe or life-threatening allergies (such as anaphylaxis risk), do not rely on this app for your safety. Always read product labels yourself and consult a qualified healthcare professional.",
+    block3_title: "AI results may contain errors",
+    block3_body: "All analyses are generated automatically by AI and may be incomplete, incorrect, or outdated. We are not responsible for any harm, health consequences, or damages of any kind resulting from use of this app.",
+    block4_title: "For general reference only",
+    block4_body: "This app is intended solely as a convenience tool for users who want to quickly check ingredient lists. It is not a substitute for medical advice, professional guidance, or careful label reading.",
+    checkbox: "I understand that this app is not a medical tool and I will not use it as protection against serious allergies or health conditions.",
+    accept: "I Accept and Continue",
+  },
 };

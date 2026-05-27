@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   profile: '@veganland_profile',
   language: '@veganland_language',
   scan_history: '@veganland_scan_history',
+  disclaimer: '@veganland_disclaimer_accepted',
 };
 
 export function AppProvider({ children }) {
@@ -18,6 +19,7 @@ export function AppProvider({ children }) {
   const [scanHistory, setScanHistoryState] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAcceptedState] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -61,19 +63,26 @@ export function AppProvider({ children }) {
 
   async function loadAll() {
     try {
-      const [lang, prof, history] = await Promise.all([
+      const [lang, prof, history, disclaimer] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.language),
         AsyncStorage.getItem(STORAGE_KEYS.profile),
         AsyncStorage.getItem(STORAGE_KEYS.scan_history),
+        AsyncStorage.getItem(STORAGE_KEYS.disclaimer),
       ]);
       if (lang) setLanguageState(lang);
       if (prof) setProfileState(JSON.parse(prof));
       if (history) setScanHistoryState(JSON.parse(history));
+      if (disclaimer === 'true') setDisclaimerAcceptedState(true);
     } catch (e) {
       console.error('Failed to load storage', e);
     } finally {
       setIsLoaded(true);
     }
+  }
+
+  async function acceptDisclaimer() {
+    setDisclaimerAcceptedState(true);
+    await AsyncStorage.setItem(STORAGE_KEYS.disclaimer, 'true');
   }
 
   async function loadServerHistory() {
@@ -143,6 +152,8 @@ export function AppProvider({ children }) {
         addScanToHistory,
         isLoaded,
         isProfileLoaded,
+        disclaimerAccepted,
+        acceptDisclaimer,
       }}
     >
       {children}

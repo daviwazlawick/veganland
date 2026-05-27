@@ -20,6 +20,7 @@ import EditPersonalScreen from '../screens/EditPersonalScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import DeleteAccountScreen from '../screens/DeleteAccountScreen';
+import DisclaimerScreen from '../screens/DisclaimerScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -103,7 +104,7 @@ const linking = {
 
 export default function AppNavigator() {
   const { token, isLoaded: authLoaded } = useAuth();
-  const { isLoaded: appLoaded, isProfileLoaded, profile } = useApp();
+  const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
     return (
@@ -122,6 +123,10 @@ export default function AppNavigator() {
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
+        ) : !disclaimerAccepted ? (
+          <>
+            <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
           </>
         ) : !profile ? (
           <>
