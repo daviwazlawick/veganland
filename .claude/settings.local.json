@@ -81,7 +81,8 @@
       "Bash(curl -sv -X POST https://veganland.app/auth/register -H 'Content-Type: application/json' -H 'Origin: https://veganland.app' -d '{\"email\":\"test2_debug@test.com\",\"password\":\"test123\"}')",
       "Bash(curl *)",
       "Bash(nginx -t)",
-      "Bash(systemctl reload *)"
+      "Bash(systemctl reload *)",
+      "Bash(EXPO_PUBLIC_BRAND=novaqi npx expo start)"
     ]
   }
 }
