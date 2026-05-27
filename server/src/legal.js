@@ -8,8 +8,8 @@ const BRANDS = {
     appUrl:       process.env.APP_URL || 'https://veganland.app',
     ownerName:    process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick',
     ownerAddress: process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany',
-    ownerEmail:   process.env.LEGAL_OWNER_EMAIL   || 'contact@veganland.app',
-    contactEmail: process.env.CONTACT_EMAIL       || 'contact@veganland.app',
+    ownerEmail:   process.env.LEGAL_OWNER_EMAIL   || 'contact@growthroom.eu',
+    contactEmail: process.env.CONTACT_EMAIL       || 'contact@growthroom.eu',
     logo:         '🌱 VeganLand',
   },
   novaqi: {
@@ -19,8 +19,8 @@ const BRANDS = {
     appUrl:       'https://novaqi.app',
     ownerName:    process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick',
     ownerAddress: process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany',
-    ownerEmail:   process.env.LEGAL_OWNER_EMAIL   || 'contact@novaqi.app',
-    contactEmail: 'contact@novaqi.app',
+    ownerEmail:   process.env.LEGAL_OWNER_EMAIL   || 'contact@growthroom.eu',
+    contactEmail: 'contact@growthroom.eu',
     logo:         '⬡ NovaQI',
   },
 };
