@@ -135,7 +135,7 @@ export default function ScanScreen({ navigation }) {
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
-            <View style={{ width: 44 }} />
+            <View style={{ width: 52 }} />
           </View>
 
           <View style={styles.frameContainer} pointerEvents="none">
@@ -173,7 +173,14 @@ export default function ScanScreen({ navigation }) {
               )}
             </TouchableOpacity>
 
-            <View style={{ width: 72 }} />
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={handleClose}
+              disabled={analyzing}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={styles.cancelBtnText}>✕</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       )}
@@ -230,16 +237,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   closeBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.40)',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(0,0,0,0.60)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.35)',
   },
-  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  closeBtnText: { color: '#fff', fontSize: 20, fontWeight: '800' },
   scanTitle: { color: '#fff', fontSize: 17, fontWeight: '800', fontFamily: BrandFonts.heading || undefined },
   frameContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: { width: 280, height: 280, position: 'relative' },
@@ -292,6 +299,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
   },
+  cancelBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  cancelBtnText: { color: '#fff', fontSize: 20, fontWeight: '800' },
   galleryBtn: { alignItems: 'center', width: 72 },
   galleryBtnText: { color: '#fff', fontSize: 12, marginTop: 4, fontWeight: '600' },
   captureBtn: {
