@@ -47,7 +47,7 @@ export default {
       ['expo-image-picker', { photosPermission: `${B} needs photo access to analyze product images.` }],
     ],
     updates: {
-      url: `https://u.expo.dev/${isNovaQI ? (process.env.NOVAQI_PROJECT_ID || '') : '64fa402d-0f4c-4582-8879-e032ddaa946e'}`,
+      url: `https://u.expo.dev/${isNovaQI ? '08a6532d-79dd-4681-924f-471645e23370' : '64fa402d-0f4c-4582-8879-e032ddaa946e'}`,
     },
     runtimeVersion: {
       policy: 'appVersion',
@@ -55,7 +55,7 @@ export default {
     extra: {
       eas: {
         projectId: isNovaQI
-          ? (process.env.NOVAQI_PROJECT_ID || '')
+          ? '08a6532d-79dd-4681-924f-471645e23370'
           : '64fa402d-0f4c-4582-8879-e032ddaa946e',
       },
     },
