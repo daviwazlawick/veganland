@@ -82,7 +82,10 @@
       "Bash(curl *)",
       "Bash(nginx -t)",
       "Bash(systemctl reload *)",
-      "Bash(EXPO_PUBLIC_BRAND=novaqi npx expo start)"
+      "Bash(pm2 list *)",
+      "Bash(identify assets/novaqi/icon.png assets/novaqi/adaptive-icon.png)",
+      "Bash(convert --version)",
+      "Bash(magick --version)"
     ]
   }
 }
