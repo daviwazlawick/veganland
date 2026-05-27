@@ -97,6 +97,17 @@ const linking = {
   prefixes: [],
   config: {
     screens: {
+      Login: '',
+      Register: '',
+      Welcome: '',
+      ForgotPassword: '',
+      Disclaimer: '',
+      ProfileSetup: '',
+      Main: '',
+      Scan: '',
+      Result: '',
+      EditPersonal: '',
+      Paywall: '',
       DeleteAccount: 'delete',
     },
   },
