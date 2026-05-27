@@ -756,10 +756,11 @@ const server = http.createServer(async (req, res) => {
 
     // GET /legal/terms | /legal/privacy | /legal/imprint
     if (req.method === 'GET' && req.url.startsWith('/legal/')) {
+      const host = req.headers['host'] || '';
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      if (req.url === '/legal/terms') res.end(htmlTerms());
-      else if (req.url === '/legal/privacy') res.end(htmlPrivacy());
-      else if (req.url === '/legal/imprint') res.end(htmlImprint());
+      if (req.url === '/legal/terms') res.end(htmlTerms(host));
+      else if (req.url === '/legal/privacy') res.end(htmlPrivacy(host));
+      else if (req.url === '/legal/imprint') res.end(htmlImprint(host));
       else { sendJson(res, 404, { error: 'Not found' }); }
       return;
     }

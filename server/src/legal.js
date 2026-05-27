@@ -1,42 +1,62 @@
-const PRIMARY_COLOR = '#7CB518';
-const DARK = '#1C2B22';
-
-const OWNER_NAME    = process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick';
-const OWNER_ADDRESS = process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany';
-const OWNER_EMAIL   = process.env.LEGAL_OWNER_EMAIL   || 'contact@veganland.app';
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL       || 'contact@veganland.app';
-const APP_URL       = process.env.APP_URL              || 'https://veganland.app';
-
 const LAST_UPDATED = '20 May 2026';
 
-function shell(title, body) {
+const BRANDS = {
+  veganland: {
+    name:         'VeganLand',
+    primaryColor: '#7CB518',
+    dark:         '#1C2B22',
+    appUrl:       process.env.APP_URL || 'https://veganland.app',
+    ownerName:    process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick',
+    ownerAddress: process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany',
+    ownerEmail:   process.env.LEGAL_OWNER_EMAIL   || 'contact@veganland.app',
+    contactEmail: process.env.CONTACT_EMAIL       || 'contact@veganland.app',
+    logo:         '🌱 VeganLand',
+  },
+  novaqi: {
+    name:         'NovaQI',
+    primaryColor: '#E8A020',
+    dark:         '#1E1B4B',
+    appUrl:       'https://novaqi.app',
+    ownerName:    process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick',
+    ownerAddress: process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany',
+    ownerEmail:   process.env.LEGAL_OWNER_EMAIL   || 'contact@novaqi.app',
+    contactEmail: 'contact@novaqi.app',
+    logo:         '⬡ NovaQI',
+  },
+};
+
+function getBrand(host) {
+  return (host || '').includes('novaqi') ? BRANDS.novaqi : BRANDS.veganland;
+}
+
+function shell(b, title, body) {
   return `<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} — VeganLand</title>
+<title>${title} — ${b.name}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:#fafafa;color:#222;line-height:1.7}
-header{background:${DARK};padding:20px 32px;display:flex;align-items:center;gap:14px}
+header{background:${b.dark};padding:20px 32px;display:flex;align-items:center;gap:14px}
 header .logo{color:#fff;font-size:20px;font-weight:900;text-decoration:none}
 header nav{display:flex;gap:20px;margin-left:auto}
 header nav a{color:rgba(255,255,255,.65);font-size:13px;font-weight:600;text-decoration:none}
 header nav a:hover{color:#fff}
-.hero{background:${DARK};padding:40px 32px 50px;text-align:center}
+.hero{background:${b.dark};padding:40px 32px 50px;text-align:center}
 .hero h1{color:#fff;font-size:28px;font-weight:900;margin-bottom:8px}
 .hero p{color:rgba(255,255,255,.6);font-size:14px}
 main{max-width:780px;margin:-24px auto 0;padding:0 24px 60px;position:relative}
 .card{background:#fff;border-radius:20px;padding:40px;box-shadow:0 4px 24px rgba(0,0,0,.07)}
 .warn{background:#FFF8E7;border:1.5px solid #F2C94C;border-radius:14px;padding:16px 20px;margin-bottom:28px;font-size:14px;color:#7A5C00;font-weight:600}
 .warn strong{display:block;margin-bottom:4px;font-size:15px}
-h2{font-size:19px;font-weight:800;color:${DARK};margin:32px 0 10px}
+h2{font-size:19px;font-weight:800;color:${b.dark};margin:32px 0 10px}
 h2:first-child{margin-top:0}
 h3{font-size:15px;font-weight:700;color:#444;margin:18px 0 6px}
 p{font-size:15px;color:#444;margin-bottom:12px}
 ul,ol{padding-left:22px;margin-bottom:12px}
 li{font-size:15px;color:#444;margin-bottom:5px}
-a{color:${PRIMARY_COLOR};text-decoration:none}
+a{color:${b.primaryColor};text-decoration:none}
 a:hover{text-decoration:underline}
-.chip{display:inline-block;background:#EEF5E8;color:${DARK};font-size:12px;font-weight:800;padding:4px 10px;border-radius:7px;margin:2px}
+.chip{display:inline-block;background:#f0f0f0;color:${b.dark};font-size:12px;font-weight:800;padding:4px 10px;border-radius:7px;margin:2px}
 .updated{font-size:12px;color:#aaa;text-align:right;margin-top:28px;padding-top:16px;border-top:1px solid #f0f0f0}
 footer{text-align:center;padding:24px;font-size:12px;color:#aaa}
 footer a{color:#aaa}
@@ -44,7 +64,7 @@ footer a{color:#aaa}
 </style></head>
 <body>
 <header>
-  <a class="logo" href="${APP_URL}">🌱 VeganLand</a>
+  <a class="logo" href="${b.appUrl}">${b.logo}</a>
   <nav>
     <a href="/legal/terms">Terms</a>
     <a href="/legal/privacy">Privacy</a>
@@ -53,26 +73,27 @@ footer a{color:#aaa}
 </header>
 <div class="hero"><h1>${title}</h1><p>Last updated: ${LAST_UPDATED}</p></div>
 <main><div class="card">${body}<p class="updated">Last updated: ${LAST_UPDATED}</p></div></main>
-<footer>© 2026 VeganLand · <a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy Policy</a> · <a href="/legal/imprint">Imprint</a></footer>
+<footer>© 2026 ${b.name} · <a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy Policy</a> · <a href="/legal/imprint">Imprint</a></footer>
 </body></html>`;
 }
 
-export function htmlTerms() {
-  return shell('Terms of Service', `
+export function htmlTerms(host) {
+  const b = getBrand(host);
+  return shell(b, 'Terms of Service', `
 <div class="warn">
-  <strong>⚠️ Important — Please read before using VeganLand</strong>
-  VeganLand is an <strong>entertainment and food-discovery tool</strong>. It is <strong>not</strong> a medical device, not a certified allergy-safety system, and must never be relied upon to protect anyone from allergic reactions or other health risks. Always read the physical product label.
+  <strong>⚠️ Important — Please read before using ${b.name}</strong>
+  ${b.name} is an <strong>entertainment and food-discovery tool</strong>. It is <strong>not</strong> a medical device, not a certified allergy-safety system, and must never be relied upon to protect anyone from allergic reactions or other health risks. Always read the physical product label.
 </div>
 
-<h2>1. About VeganLand</h2>
-<p>VeganLand ("the App", "the Service") is operated by <strong>${OWNER_NAME}</strong> (see <a href="/legal/imprint">Imprint</a>). It uses artificial intelligence to analyse photos or barcodes of food products and provides information about ingredients relative to a user-defined dietary profile.</p>
+<h2>1. About ${b.name}</h2>
+<p>${b.name} ("the App", "the Service") is operated by <strong>${b.ownerName}</strong> (see <a href="/legal/imprint">Imprint</a>). It uses artificial intelligence to analyse photos or barcodes of food products and provides information about ingredients relative to a user-defined dietary profile.</p>
 
 <h2>2. Not Medical Advice — Critical Disclaimer</h2>
-<p>THE INFORMATION PROVIDED BY VEGANLAND IS FOR <strong>ENTERTAINMENT AND GENERAL FOOD-DISCOVERY PURPOSES ONLY</strong>. It does not constitute medical, nutritional, or allergy-safety advice.</p>
+<p>THE INFORMATION PROVIDED BY ${b.name.toUpperCase()} IS FOR <strong>ENTERTAINMENT AND GENERAL FOOD-DISCOVERY PURPOSES ONLY</strong>. It does not constitute medical, nutritional, or allergy-safety advice.</p>
 <ul>
   <li>AI-generated results <strong>may be incomplete, inaccurate, or outdated</strong>.</li>
   <li>Product recipes and ingredients change without notice. The App may not reflect the latest formulation.</li>
-  <li>VeganLand <strong>must not be used</strong> as the sole or primary method of determining whether a product is safe for consumption by individuals with food allergies, intolerances, or medical conditions.</li>
+  <li>${b.name} <strong>must not be used</strong> as the sole or primary method of determining whether a product is safe for consumption by individuals with food allergies, intolerances, or medical conditions.</li>
   <li>If you have a <strong>life-threatening allergy or serious medical condition</strong>, always consult the product label, the manufacturer, and a qualified medical professional.</li>
   <li>The operator assumes <strong>no liability</strong> for any harm, injury, allergic reaction, or adverse health event resulting from reliance on the App's output.</li>
 </ul>
@@ -84,7 +105,7 @@ export function htmlTerms() {
 <ul>
   <li>You are responsible for keeping your login credentials confidential.</li>
   <li>You must provide a valid email address. We may suspend accounts using false information.</li>
-  <li>You may delete your account at any time by contacting us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</li>
+  <li>You may delete your account at any time via the app or by contacting us at <a href="mailto:${b.contactEmail}">${b.contactEmail}</a>.</li>
 </ul>
 
 <h2>5. Acceptable Use</h2>
@@ -101,7 +122,7 @@ export function htmlTerms() {
 <p>Product data may additionally be sourced from Open Food Facts (openfoodfacts.org), a community-edited database. The operator is not responsible for errors in that database.</p>
 
 <h2>7. Scan Limits</h2>
-<p>Free accounts are currently limited to <strong>50 scans per calendar month</strong>. This limit may change with notice.</p>
+<p>Free accounts are limited to a set number of scans per calendar month as indicated in the app. This limit may change with notice.</p>
 
 <h2>8. Intellectual Property</h2>
 <p>All design, code, branding, and original content in the App are the property of the operator. User-submitted photos remain the property of the user; by uploading them you grant the operator a limited, non-exclusive licence to process them for the purpose of providing the Service.</p>
@@ -126,15 +147,16 @@ export function htmlTerms() {
 <p>The European Commission provides an online dispute resolution (ODR) platform: <a href="https://ec.europa.eu/consumers/odr" target="_blank">ec.europa.eu/consumers/odr</a>. We are not obliged to participate in dispute resolution proceedings before a consumer arbitration board, but are willing to do so.</p>
 
 <h2>13. Contact</h2>
-<p>Questions about these Terms: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></p>
+<p>Questions about these Terms: <a href="mailto:${b.contactEmail}">${b.contactEmail}</a></p>
 `);
 }
 
-export function htmlPrivacy() {
-  return shell('Privacy Policy', `
+export function htmlPrivacy(host) {
+  const b = getBrand(host);
+  return shell(b, 'Privacy Policy', `
 <h2>1. Data Controller</h2>
 <p>The data controller responsible for processing your personal data is:</p>
-<p><strong>${OWNER_NAME}</strong><br>${OWNER_ADDRESS}<br>Email: <a href="mailto:${OWNER_EMAIL}">${OWNER_EMAIL}</a></p>
+<p><strong>${b.ownerName}</strong><br>${b.ownerAddress}<br>Email: <a href="mailto:${b.ownerEmail}">${b.ownerEmail}</a></p>
 
 <h2>2. What Data We Collect</h2>
 <h3>Account Data</h3>
@@ -203,7 +225,7 @@ export function htmlPrivacy() {
   <li><span class="chip">Objection</span> Object to processing based on legitimate interest</li>
   <li><span class="chip">Withdraw consent</span> Withdraw your consent for special-category data at any time (this may limit functionality)</li>
 </ul>
-<p>To exercise any right, email <a href="mailto:${OWNER_EMAIL}">${OWNER_EMAIL}</a>. We will respond within <strong>30 days</strong>.</p>
+<p>To exercise any right, email <a href="mailto:${b.ownerEmail}">${b.ownerEmail}</a>. We will respond within <strong>30 days</strong>.</p>
 <p>You also have the right to lodge a complaint with your national data protection supervisory authority. In Germany: <a href="https://www.bfdi.bund.de" target="_blank">Bundesbeauftragter für den Datenschutz (BfDI)</a>.</p>
 
 <h2>8. Security</h2>
@@ -222,30 +244,31 @@ export function htmlPrivacy() {
 <p>We will notify you of material changes via email or in-app notification at least 14 days before they take effect.</p>
 
 <h2>13. Contact & Data Protection Enquiries</h2>
-<p><strong>${OWNER_NAME}</strong><br>${OWNER_ADDRESS}<br><a href="mailto:${OWNER_EMAIL}">${OWNER_EMAIL}</a></p>
+<p><strong>${b.ownerName}</strong><br>${b.ownerAddress}<br><a href="mailto:${b.ownerEmail}">${b.ownerEmail}</a></p>
 `);
 }
 
-export function htmlImprint() {
-  return shell('Imprint (Impressum)', `
+export function htmlImprint(host) {
+  const b = getBrand(host);
+  return shell(b, 'Imprint (Impressum)', `
 <h2>Angaben gemäß § 5 DDG / Information according to § 5 DDG</h2>
 
 <h3>Responsible for content / Verantwortlicher</h3>
 <p>
-  <strong>${OWNER_NAME}</strong><br>
-  ${OWNER_ADDRESS}<br>
+  <strong>${b.ownerName}</strong><br>
+  ${b.ownerAddress}<br>
   Germany
 </p>
 
 <h3>Contact / Kontakt</h3>
-<p>Email: <a href="mailto:${OWNER_EMAIL}">${OWNER_EMAIL}</a></p>
+<p>Email: <a href="mailto:${b.ownerEmail}">${b.ownerEmail}</a></p>
 
 <h2>Disclaimer of Liability</h2>
 <h3>Content</h3>
 <p>The operator has compiled the content of this website with the greatest possible care. However, no guarantee is given for the accuracy, completeness, or timeliness of the information provided. The operator is not liable for any damage arising from the use of this website.</p>
 
 <h3>AI-Generated Results</h3>
-<p>VeganLand uses artificial intelligence to analyse food products. Results are <strong>not</strong> medical advice and may be inaccurate. The operator accepts no liability for harm arising from reliance on AI-generated analysis. Always read the physical product label.</p>
+<p>${b.name} uses artificial intelligence to analyse food products. Results are <strong>not</strong> medical advice and may be inaccurate. The operator accepts no liability for harm arising from reliance on AI-generated analysis. Always read the physical product label.</p>
 
 <h3>External Links</h3>
 <p>This website contains links to external third-party websites. The operator has no influence over the content of those sites and accepts no liability for them. The respective providers of those sites are responsible for their content.</p>
