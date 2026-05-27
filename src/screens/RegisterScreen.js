@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -36,6 +36,7 @@ export default function RegisterScreen({ navigation }) {
   const [confirmationEmail, setConfirmationEmail] = useState(null);
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
+  const [error, setError] = useState('');
   const languageIndex = LANGUAGES.findIndex(item => item.code === language);
   const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
   const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
@@ -43,15 +44,17 @@ export default function RegisterScreen({ navigation }) {
   const legalBase = `https://${Brand.domain}/legal`;
 
   function handleNext() {
-    if (!email.trim() || !password) { Alert.alert('', t(language, 'auth.fill_all')); return; }
-    if (password.length < 6) { Alert.alert('', t(language, 'auth.password_min')); return; }
-    if (password !== confirm) { Alert.alert('', t(language, 'auth.passwords_mismatch')); return; }
-    if (!termsAccepted) { Alert.alert('', t(language, 'auth.terms_required')); return; }
+    setError('');
+    if (!email.trim() || !password) { setError(t(language, 'auth.fill_all')); return; }
+    if (password.length < 6) { setError(t(language, 'auth.password_min')); return; }
+    if (password !== confirm) { setError(t(language, 'auth.passwords_mismatch')); return; }
+    if (!termsAccepted) { setError(t(language, 'auth.terms_required')); return; }
     setStep(2);
   }
 
   async function handleRegister() {
-    if (!disclaimerAccepted) { Alert.alert('', t(language, 'auth.disclaimer_required')); return; }
+    if (!disclaimerAccepted) { setError(t(language, 'auth.disclaimer_required')); return; }
+    setError('');
     setLoading(true);
     try {
       await register(email.trim(), password, DISCLAIMER_VERSION);
@@ -59,7 +62,13 @@ export default function RegisterScreen({ navigation }) {
       if (e.code === 'EMAIL_CONFIRMATION_REQUIRED') {
         setConfirmationEmail(e.email);
       } else {
-        Alert.alert('', e.message || t(language, 'auth.register_failed'));
+        const msg = e.message || '';
+        if (msg.toLowerCase().includes('already')) {
+          setError(t(language, 'auth.email_already_used'));
+        } else {
+          setError(msg || t(language, 'auth.register_failed'));
+        }
+        setStep(1);
       }
     } finally {
       setLoading(false);
@@ -156,6 +165,12 @@ export default function RegisterScreen({ navigation }) {
             </View>
             <Text style={styles.checkRowLabel}>{t(language, 'disclaimer.checkbox')}</Text>
           </TouchableOpacity>
+
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>⚠ {error}</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.btn, (!disclaimerAccepted || loading) && styles.btnDisabled]}
@@ -256,6 +271,12 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
 
+            {!!error && (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>⚠ {error}</Text>
+              </View>
+            )}
+
             <TouchableOpacity
               style={[styles.btn, (!termsAccepted || loading) && styles.btnDisabled]}
               onPress={handleNext}
@@ -349,6 +370,20 @@ const styles = StyleSheet.create({
   checkmark: { color: Colors.white, fontSize: 13, fontWeight: '900', lineHeight: 16 },
   termsText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 20, fontWeight: '500' },
   termsLink: { color: Colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
+  errorBanner: {
+    backgroundColor: '#FDECEA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F5C6C2',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  errorBannerText: {
+    color: '#C0392B',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
   footerLink: { fontSize: 14, color: Colors.primary, fontWeight: '800' },

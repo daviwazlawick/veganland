@@ -85,7 +85,8 @@
       "Bash(pm2 list *)",
       "Bash(identify assets/novaqi/icon.png assets/novaqi/adaptive-icon.png)",
       "Bash(convert --version)",
-      "Bash(magick --version)"
+      "Bash(magick --version)",
+      "Bash(wait)"
     ]
   }
 }

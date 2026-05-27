@@ -49,6 +49,7 @@ export default {
     resend_done: '¡Email reenviado!',
     email_not_confirmed: 'Por favor confirma tu email antes de iniciar sesión.',
     terms_required: 'Debes aceptar los Términos y Condiciones para continuar',
+    email_already_used: 'Este email ya está registrado. Por favor inicia sesión.',
     disclaimer_required: 'Debes confirmar el aviso de salud para continuar',
     disclaimer_title: "Aviso de Salud y Responsabilidad",
     disclaimer_line1_pre: "Esta app ",

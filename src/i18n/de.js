@@ -49,6 +49,7 @@ export default {
     resend_done: 'E-Mail gesendet!',
     email_not_confirmed: 'Bitte bestätige deine E-Mail, bevor du dich anmeldest.',
     terms_required: 'Du musst die AGB akzeptieren, um fortzufahren',
+    email_already_used: 'Diese E-Mail ist bereits registriert. Bitte melde dich an.',
     disclaimer_required: 'Du musst den Gesundheitshinweis bestätigen, um fortzufahren',
     disclaimer_title: "Gesundheits- und Haftungshinweis",
     disclaimer_line1_pre: "Diese App ist ",

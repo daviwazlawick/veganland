@@ -49,6 +49,7 @@ export default {
     resend_done: 'Email resent!',
     email_not_confirmed: 'Please confirm your email before signing in.',
     terms_required: 'You must accept the Terms & Conditions to continue',
+    email_already_used: 'This email is already registered. Please sign in instead.',
     disclaimer_required: 'You must acknowledge the health disclaimer to continue',
     disclaimer_title: "Health & Liability Disclaimer",
     disclaimer_line1_pre: "This app is ",

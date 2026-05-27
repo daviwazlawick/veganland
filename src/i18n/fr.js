@@ -49,6 +49,7 @@ export default {
     resend_done: 'Email renvoyé !',
     email_not_confirmed: "Veuillez confirmer votre email avant de vous connecter.",
     terms_required: 'Vous devez accepter les CGU pour continuer',
+    email_already_used: "Cet e-mail est déjà enregistré. Veuillez vous connecter.",
     disclaimer_required: "Vous devez confirmer l'avertissement sanitaire pour continuer",
     disclaimer_title: "Avertissement Sanitaire et Responsabilité",
     disclaimer_line1_pre: "Cette application ",
