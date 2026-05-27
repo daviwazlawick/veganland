@@ -61,6 +61,7 @@ export default {
     disclaimer_line3_bold: "consecuencias para la salud ni daños",
     disclaimer_line3_post: " derivados del uso de esta app. Úsala solo como referencia general.",
     disclaimer_checkbox: "He leído y entendido el aviso anterior. No usaré esta app como protección contra alergias graves o condiciones médicas.",
+    next_step: "Siguiente",
     terms_agree_prefix: 'Acepto los ',
     terms_link: 'Términos y Condiciones',
     terms_agree_middle: ' y la ',
@@ -228,6 +229,7 @@ export default {
   },
   update: { required_title: "Actualización requerida", required_body: "Hay una nueva versión disponible. Por favor actualiza para continuar.", go_to_store: "Actualizar ahora" },
   disclaimer: {
+    accept_register: "Aceptar y crear cuenta",
     title: "Aviso Importante",
     subtitle: "Lee con atención antes de continuar",
     block1_title: "Esta app no es un dispositivo médico",

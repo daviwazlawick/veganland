@@ -14,16 +14,25 @@ import Brand from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 
+const DISCLAIMER_VERSION = '1.0';
+
+const DISCLAIMER_BLOCKS = [
+  { icon: '🚫', key: 'block1' },
+  { icon: '⛔', key: 'block2' },
+  { icon: '🤖', key: 'block3' },
+  { icon: 'ℹ️', key: 'block4' },
+];
+
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
   const { language, setLanguage } = useApp();
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
-  const DISCLAIMER_VERSION = '1.0';
   const [confirmationEmail, setConfirmationEmail] = useState(null);
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
@@ -33,12 +42,16 @@ export default function RegisterScreen({ navigation }) {
 
   const legalBase = `https://${Brand.domain}/legal`;
 
-  async function handleRegister() {
+  function handleNext() {
     if (!email.trim() || !password) { Alert.alert('', t(language, 'auth.fill_all')); return; }
-    if (!termsAccepted) { Alert.alert('', t(language, 'auth.terms_required')); return; }
-    if (!disclaimerAccepted) { Alert.alert('', t(language, 'auth.disclaimer_required')); return; }
     if (password.length < 6) { Alert.alert('', t(language, 'auth.password_min')); return; }
     if (password !== confirm) { Alert.alert('', t(language, 'auth.passwords_mismatch')); return; }
+    if (!termsAccepted) { Alert.alert('', t(language, 'auth.terms_required')); return; }
+    setStep(2);
+  }
+
+  async function handleRegister() {
+    if (!disclaimerAccepted) { Alert.alert('', t(language, 'auth.disclaimer_required')); return; }
     setLoading(true);
     try {
       await register(email.trim(), password, DISCLAIMER_VERSION);
@@ -83,7 +96,6 @@ export default function RegisterScreen({ navigation }) {
               {t(language, 'auth.check_email_body', { email: confirmationEmail })}
             </Text>
           </View>
-
           <TouchableOpacity
             style={[styles.btn, resending && styles.btnDisabled]}
             onPress={handleResend}
@@ -94,7 +106,6 @@ export default function RegisterScreen({ navigation }) {
               {resendDone ? t(language, 'auth.resend_done') : resending ? '...' : t(language, 'auth.resend_confirmation')}
             </Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.footer} onPress={() => navigation.navigate('Login')}>
             <Text style={styles.footerLink}>{t(language, 'auth.back_to_login')}</Text>
           </TouchableOpacity>
@@ -103,6 +114,65 @@ export default function RegisterScreen({ navigation }) {
     );
   }
 
+  // ── Step 2: Disclaimer ──────────────────────────────────────────────────
+  if (step === 2) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { justifyContent: 'flex-start' }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity style={styles.backBtn} onPress={() => setStep(1)}>
+            <Text style={styles.backBtnText}>← {t(language, 'auth.back')}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.disclaimerTopWrap}>
+            <View style={styles.disclaimerIconCircle}>
+              <Text style={styles.disclaimerTopIcon}>⚠️</Text>
+            </View>
+            <Text style={styles.disclaimerPageTitle}>{t(language, 'disclaimer.title')}</Text>
+            <Text style={styles.disclaimerPageSubtitle}>{t(language, 'disclaimer.subtitle')}</Text>
+          </View>
+
+          <View style={styles.disclaimerBlocks}>
+            {DISCLAIMER_BLOCKS.map(({ icon, key }) => (
+              <View key={key} style={styles.disclaimerBlock}>
+                <Text style={styles.disclaimerBlockIcon}>{icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.disclaimerBlockTitle}>{t(language, `disclaimer.${key}_title`)}</Text>
+                  <Text style={styles.disclaimerBlockBody}>{t(language, `disclaimer.${key}_body`)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.checkRow}
+            onPress={() => setDisclaimerAccepted(v => !v)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkboxLarge, disclaimerAccepted && styles.checkboxLargeChecked]}>
+              {disclaimerAccepted && <Text style={styles.checkmarkLarge}>✓</Text>}
+            </View>
+            <Text style={styles.checkRowLabel}>{t(language, 'disclaimer.checkbox')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.btn, (!disclaimerAccepted || loading) && styles.btnDisabled]}
+            onPress={handleRegister}
+            activeOpacity={0.9}
+            disabled={loading}
+          >
+            <Text style={styles.btnText}>
+              {loading ? '...' : t(language, 'disclaimer.accept_register')}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Step 1: Form ────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -186,50 +256,12 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.disclaimerBox}>
-              <View style={styles.disclaimerHeader}>
-                <Text style={styles.disclaimerHeaderIcon}>⚠️</Text>
-                <Text style={styles.disclaimerHeaderText}>{t(language, 'auth.disclaimer_title')}</Text>
-              </View>
-              <Text style={styles.disclaimerBody}>
-                {t(language, 'auth.disclaimer_line1_pre')}
-                <Text style={styles.disclaimerBold}>{t(language, 'auth.disclaimer_line1_bold')}</Text>
-                {t(language, 'auth.disclaimer_line1_post')}
-              </Text>
-              <Text style={styles.disclaimerBody}>
-                {t(language, 'auth.disclaimer_line2_pre')}
-                <Text style={styles.disclaimerBoldDanger}>{t(language, 'auth.disclaimer_line2_bold')}</Text>
-                {t(language, 'auth.disclaimer_line2_post')}
-              </Text>
-              <Text style={styles.disclaimerBody}>
-                {t(language, 'auth.disclaimer_line3_pre')}
-                <Text style={styles.disclaimerBold}>{t(language, 'auth.disclaimer_line3_bold')}</Text>
-                {t(language, 'auth.disclaimer_line3_post')}
-              </Text>
-            </View>
-
             <TouchableOpacity
-              style={styles.termsRow}
-              onPress={() => setDisclaimerAccepted(v => !v)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkbox, disclaimerAccepted && styles.checkboxCheckedWarning]}>
-                {disclaimerAccepted && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.termsText}>
-                <Text style={styles.disclaimerCheckLabel}>{t(language, 'auth.disclaimer_checkbox')}</Text>
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.btn, (!termsAccepted || !disclaimerAccepted || loading) && styles.btnDisabled]}
-              onPress={handleRegister}
+              style={[styles.btn, (!termsAccepted || loading) && styles.btnDisabled]}
+              onPress={handleNext}
               activeOpacity={0.9}
-              disabled={loading}
             >
-              <Text style={styles.btnText}>
-                {loading ? '...' : t(language, 'auth.create_account')}
-              </Text>
+              <Text style={styles.btnText}>{t(language, 'auth.next_step')} →</Text>
             </TouchableOpacity>
           </View>
 
@@ -300,53 +332,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
-  btnDisabled: { opacity: 0.6 },
+  btnDisabled: { opacity: 0.4 },
   btnText: {
     color: Colors.white, fontSize: 17, fontWeight: '900',
     fontFamily: BrandFonts.heading || undefined,
   },
-  disclaimerBox: {
-    backgroundColor: '#FFF8E7',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#F5A623',
-    padding: 14,
-    gap: 8,
-  },
-  disclaimerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  disclaimerHeaderIcon: { fontSize: 16 },
-  disclaimerHeaderText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#B35C00',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  disclaimerBody: {
-    fontSize: 12,
-    color: '#5C3D00',
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  disclaimerBold: {
-    fontWeight: '800',
-    color: '#B35C00',
-  },
-  disclaimerBoldDanger: {
-    fontWeight: '800',
-    color: '#C0392B',
-  },
-  disclaimerCheckLabel: {
-    fontWeight: '700',
-    color: '#5C3D00',
-    fontSize: 13,
-  },
-  checkboxCheckedWarning: { borderColor: '#F5A623', backgroundColor: '#F5A623' },
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   checkbox: {
     width: 22, height: 22, borderRadius: 6,
@@ -362,4 +352,58 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
   footerLink: { fontSize: 14, color: Colors.primary, fontWeight: '800' },
+  // Step 2 — disclaimer
+  backBtn: { alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 2, marginBottom: 4 },
+  backBtnText: { fontSize: 14, color: Colors.primary, fontWeight: '700' },
+  disclaimerTopWrap: { alignItems: 'center', gap: 10, paddingVertical: 8 },
+  disclaimerIconCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#FFF3CD',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  disclaimerTopIcon: { fontSize: 32 },
+  disclaimerPageTitle: {
+    fontSize: 24, fontWeight: '800', color: Colors.text, textAlign: 'center',
+    fontFamily: BrandFonts.heading || undefined,
+  },
+  disclaimerPageSubtitle: {
+    fontSize: 13, color: Colors.textMuted, textAlign: 'center', fontWeight: '500',
+  },
+  disclaimerBlocks: { gap: 10 },
+  disclaimerBlock: {
+    flexDirection: 'row', gap: 12, alignItems: 'flex-start',
+    backgroundColor: Colors.surface,
+    borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  disclaimerBlockIcon: { fontSize: 20, marginTop: 1 },
+  disclaimerBlockTitle: {
+    fontSize: 14, fontWeight: '800', color: Colors.text, marginBottom: 4,
+  },
+  disclaimerBlockBody: {
+    fontSize: 13, color: Colors.textLight, lineHeight: 19,
+  },
+  checkRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#FFF8E7',
+    borderRadius: 16, padding: 16,
+    borderWidth: 1.5, borderColor: '#F5A623',
+  },
+  checkboxLarge: {
+    width: 26, height: 26, borderRadius: 7,
+    borderWidth: 2, borderColor: '#F5A623',
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
+  },
+  checkboxLargeChecked: { backgroundColor: '#F5A623', borderColor: '#F5A623' },
+  checkmarkLarge: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  checkRowLabel: {
+    flex: 1, fontSize: 13, color: '#5C3D00',
+    lineHeight: 20, fontWeight: '600',
+  },
+  logoCircle: {
+    width: 96, height: 96, borderRadius: 48,
+    alignItems: 'center', justifyContent: 'center',
+  },
 });
