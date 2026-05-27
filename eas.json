@@ -9,6 +9,7 @@
         "BRAND": "novaqi",
         "EXPO_PUBLIC_BRAND": "novaqi",
         "EXPO_PUBLIC_API_URL": "https://novaqi.app",
+        "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "SUBSTITUIR_KEY_ANDROID_NOVAQI"
       },
       "android": {
@@ -21,6 +22,7 @@
         "BRAND": "novaqi",
         "EXPO_PUBLIC_BRAND": "novaqi",
         "EXPO_PUBLIC_API_URL": "https://novaqi.app",
+        "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
         "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "SUBSTITUIR_KEY_IOS_NOVAQI"
       },
       "ios": {
@@ -32,6 +34,7 @@
         "BRAND": "veganland",
         "EXPO_PUBLIC_BRAND": "veganland",
         "EXPO_PUBLIC_API_URL": "https://veganland.app",
+        "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "test_KvEHZeYRSGjmfSlXOXTqCEssMxK"
       },
       "android": {
@@ -44,6 +47,7 @@
         "BRAND": "veganland",
         "EXPO_PUBLIC_BRAND": "veganland",
         "EXPO_PUBLIC_API_URL": "https://veganland.app",
+        "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
         "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "test_KvEHZeYRSGjmfSlXOXTqCEssMxK"
       },
       "ios": {
