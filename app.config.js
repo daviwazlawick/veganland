@@ -40,7 +40,7 @@ export default {
       favicon: `${assets}/favicon.png`,
     },
     experiments: {
-      baseUrl: '',
+      baseUrl: isNovaQI ? '/novaqi' : '',
     },
     plugins: [
       ['expo-camera', { cameraPermission: `${B} needs camera access to scan products.` }],

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -30,7 +30,7 @@ export default function LoginScreen({ navigation }) {
     setErrorMessage('');
     setNeedsConfirmation(false);
     if (!email.trim() || !password) {
-      Alert.alert('', t(language, 'auth.missing_login'));
+      setErrorMessage(t(language, 'auth.missing_login'));
       return;
     }
     setLoading(true);

@@ -173,7 +173,7 @@ export default function RegisterScreen({ navigation }) {
           )}
 
           <TouchableOpacity
-            style={[styles.btn, (!disclaimerAccepted || loading) && styles.btnDisabled]}
+            style={[styles.btn, loading && styles.btnDisabled]}
             onPress={handleRegister}
             activeOpacity={0.9}
             disabled={loading}
@@ -278,9 +278,10 @@ export default function RegisterScreen({ navigation }) {
             )}
 
             <TouchableOpacity
-              style={[styles.btn, (!termsAccepted || loading) && styles.btnDisabled]}
+              style={[styles.btn, loading && styles.btnDisabled]}
               onPress={handleNext}
               activeOpacity={0.9}
+              disabled={loading}
             >
               <Text style={styles.btnText}>{t(language, 'auth.next_step')} →</Text>
             </TouchableOpacity>
