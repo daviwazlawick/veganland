@@ -8,7 +8,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.1',
+    version: '1.0.2',
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -35,7 +35,7 @@ export default {
       package: isNovaQI ? 'app.novaqi' : 'app.veganland',
       permissions: ['android.permission.CAMERA'],
       edgeToEdgeEnabled: true,
-      versionCode: 2,
+      versionCode: 3,
     },
     web: {
       favicon: `${assets}/favicon.png`,
