@@ -97,10 +97,12 @@ function htmlResetForm(token) {
 
 function planBadge(userType) {
   const cfg = {
-    basic:   { label: 'Básico',   bg: '#EEF5E8', color: '#2E4736' },
+    free:    { label: 'Free',     bg: '#F5F5F5', color: '#666666' },
+    basic:   { label: 'Basic',    bg: '#EEF5E8', color: '#2E4736' },
+    starter: { label: 'Starter',  bg: '#E8F4FF', color: '#1A5F8F' },
     premium: { label: 'Premium',  bg: '#FFF1E2', color: '#9A6121' },
     admin:   { label: 'Admin',    bg: '#E8F0FF', color: '#1A3A8F' },
-  }[userType] || { label: userType || 'básico', bg: '#f0f0f0', color: '#888' };
+  }[userType] || { label: userType || 'free', bg: '#f0f0f0', color: '#888' };
   return `<span style="background:${cfg.bg};color:${cfg.color};font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap">${cfg.label}</span>`;
 }
 
@@ -283,7 +285,7 @@ function htmlAdminUserPage(data, token) {
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
           ${planBadge(userType)}
           <form method="POST" action="/admin/user/${user.id}/set-type?token=${token}" style="display:flex;gap:8px;flex-wrap:wrap">
-            ${['basic','premium','admin'].map(t => `<button type="submit" name="type" value="${t}" style="padding:5px 14px;border-radius:8px;border:2px solid ${t === userType ? '#1C2B22' : '#ddd'};background:${t === userType ? '#1C2B22' : '#fff'};color:${t === userType ? '#fff' : '#555'};font-size:12px;font-weight:700;cursor:pointer">${t === 'basic' ? 'Básico' : t === 'premium' ? 'Premium' : 'Admin'}</button>`).join('')}
+            ${['free','starter','premium','admin'].map(t => `<button type="submit" name="type" value="${t}" style="padding:5px 14px;border-radius:8px;border:2px solid ${t === userType ? '#1C2B22' : '#ddd'};background:${t === userType ? '#1C2B22' : '#fff'};color:${t === userType ? '#fff' : '#555'};font-size:12px;font-weight:700;cursor:pointer">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`).join('')}
           </form>
         </div>
       </div>
@@ -716,7 +718,7 @@ const server = http.createServer(async (req, res) => {
       });
       const params = new URLSearchParams(raw);
       const newType = params.get('type');
-      if (!['basic', 'premium', 'admin'].includes(newType)) {
+      if (!['free', 'starter', 'premium', 'admin'].includes(newType)) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Invalid type');
         return;
