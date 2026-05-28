@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -14,8 +14,12 @@ const CARD_WIDTH = (width - 48 - 12) / 2;
 
 export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    if (step === 3) refreshUser();
+  }, [step]);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
   const [selectedAllergies, setSelectedAllergies] = useState(profile?.allergyIds || []);
   const [saving, setSaving] = useState(false);
