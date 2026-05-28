@@ -72,8 +72,14 @@ export function AuthProvider({ children }) {
     ]);
   }
 
+  function updateUserType(newUserType) {
+    const updated = { ...user, user_type: newUserType };
+    setUser(updated);
+    AsyncStorage.setItem(USER_KEY, JSON.stringify(updated)).catch(() => {});
+  }
+
   return (
-    <AuthContext.Provider value={{ token, user, isLoaded, login, register, logout }}>
+    <AuthContext.Provider value={{ token, user, isLoaded, login, register, logout, updateUserType }}>
       {children}
     </AuthContext.Provider>
   );

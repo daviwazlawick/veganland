@@ -170,6 +170,15 @@ export default function ProfileScreen({ navigation }) {
                 })}
               </Text>
             )}
+            {(userType === 'basic' || userType === 'starter') && (
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                onPress={() => navigation.navigate('Paywall', { currentPlan: userType === 'starter' ? 'starter' : 'free' })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -404,6 +413,11 @@ const styles = StyleSheet.create({
   usageBarBg: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
   usageBarFill: { height: 8, backgroundColor: Colors.primary, borderRadius: 4 },
   usageReset: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  upgradeBtn: {
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4,
+  },
+  upgradeBtnText: { fontSize: 15, fontWeight: '800', color: Colors.white },
   adminBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#EEF0FF',

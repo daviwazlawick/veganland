@@ -45,7 +45,7 @@ const PLANS = [
 
 export default function PaywallScreen({ navigation, route }) {
   const { language } = useApp();
-  const { token } = useAuth();
+  const { token, updateUserType } = useAuth();
   const currentPlan = route?.params?.currentPlan || 'free';
   const [selected, setSelected] = useState(currentPlan === 'free' ? 'starter' : currentPlan);
   const [offering, setOffering] = useState(null);
@@ -97,6 +97,7 @@ export default function PaywallScreen({ navigation, route }) {
       const customerInfo = await purchasePackage(pkg);
       const entId = activeEntitlementId(customerInfo);
       const newUserType = entitlementToUserType(entId);
+      updateUserType(newUserType);
       navigation.navigate('Main');
       if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
     } catch (e) {
@@ -118,6 +119,7 @@ export default function PaywallScreen({ navigation, route }) {
       const customerInfo = await restorePurchases();
       const entId = activeEntitlementId(customerInfo);
       const newUserType = entitlementToUserType(entId);
+      updateUserType(newUserType);
       Alert.alert('', t(language, 'plans.restore_done'));
       if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
     } catch (e) {
