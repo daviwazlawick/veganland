@@ -15,8 +15,8 @@ const CARD_WIDTH = (width - 48 - 12) / 2;
 
 const PLANS = [
   { id: 'free',    nameKey: 'free_name',    descKey: 'free_desc',    priceKey: 'free_price',    popular: false, locked: false },
-  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true,  locked: true  },
-  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false, locked: true  },
+  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true,  locked: false },
+  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false, locked: false },
 ];
 
 export default function ProfileSetupScreen({ navigation }) {
@@ -42,10 +42,12 @@ export default function ProfileSetupScreen({ navigation }) {
     setSaving(true);
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
-      if (token) {
-        await apiSetUserPlan(selectedPlan, token).catch(() => {});
+      if (selectedPlan !== 'free') {
+        navigation.navigate('Paywall', { currentPlan: 'free' });
+      } else {
+        if (token) await apiSetUserPlan('free', token).catch(() => {});
+        navigation.navigate('Main');
       }
-      navigation.navigate('Main');
     } finally {
       setSaving(false);
     }
