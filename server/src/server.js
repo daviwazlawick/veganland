@@ -565,6 +565,10 @@ const server = http.createServer(async (req, res) => {
       if (!validPlans.includes(body?.plan)) {
         sendJson(res, 400, { error: 'Invalid plan' }, origin); return;
       }
+      const currentUser = await getUserById(claims.userId);
+      if (currentUser?.user_type === 'admin') {
+        sendJson(res, 403, { error: 'Cannot change admin plan' }, origin); return;
+      }
       await setUserType(claims.userId, body.plan);
       sendJson(res, 200, { plan: body.plan }, origin);
       return;
