@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   blocks: { width: '100%', gap: 12, marginBottom: 28 },
   block: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     gap: 14,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 24,
     padding: 16,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.border,

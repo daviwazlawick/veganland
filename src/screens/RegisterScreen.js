@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   disclaimerBlocks: { gap: 10 },
   disclaimerBlock: {
     flexDirection: 'row', gap: 12, alignItems: 'flex-start',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: Colors.border,
   },
