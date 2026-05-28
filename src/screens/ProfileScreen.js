@@ -134,19 +134,25 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.usageLabel}>{t(language, 'profile.scans_this_month')}</Text>
                 <View style={[
                   styles.planBadge,
+                  userType === 'starter' && styles.planBadgeStarter,
                   userType === 'premium' && styles.planBadgePremium,
                   userType === 'admin' && styles.planBadgeAdmin,
                 ]}>
                   <Text style={[
                     styles.planBadgeText,
+                    userType === 'starter' && styles.planBadgeTextStarter,
                     userType === 'premium' && styles.planBadgeTextPremium,
                     userType === 'admin' && styles.planBadgeTextAdmin,
                   ]}>
-                    {userType === 'basic'
-                      ? t(language, 'profile.plan_basic')
-                      : userType === 'premium'
-                        ? t(language, 'profile.plan_premium')
-                        : t(language, 'profile.plan_admin')}
+                    {userType === 'free'
+                      ? t(language, 'profile.plan_free')
+                      : userType === 'basic'
+                        ? t(language, 'profile.plan_basic')
+                        : userType === 'starter'
+                          ? t(language, 'profile.plan_starter')
+                          : userType === 'premium'
+                            ? t(language, 'profile.plan_premium')
+                            : t(language, 'profile.plan_admin')}
                   </Text>
                 </View>
               </View>
@@ -402,9 +408,11 @@ const styles = StyleSheet.create({
   usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   usageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   planBadge: { backgroundColor: '#FFF3D6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  planBadgeStarter: { backgroundColor: '#E8F4FF' },
   planBadgePremium: { backgroundColor: '#FFFBEB' },
   planBadgeAdmin: { backgroundColor: '#EEF0FF' },
   planBadgeText: { fontSize: 11, fontWeight: '800', color: '#B87600' },
+  planBadgeTextStarter: { color: '#1A5F8F' },
   planBadgeTextPremium: { color: '#92400E' },
   planBadgeTextAdmin: { color: '#1E1B4B' },
   usageLabel: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
