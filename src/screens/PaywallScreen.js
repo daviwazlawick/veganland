@@ -51,7 +51,7 @@ export default function PaywallScreen({ navigation, route }) {
   const [offering, setOffering] = useState(null);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const isNative = isPurchasesAvailable();
+  const isNative = Platform.OS !== 'web' && isPurchasesAvailable();
 
   useEffect(() => {
     if (isNative) {
