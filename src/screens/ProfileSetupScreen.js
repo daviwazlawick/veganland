@@ -8,25 +8,19 @@ import { Colors } from '../constants/colors';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon } from '../components/ui';
-import { apiSetUserPlan } from '../services/apiService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 12) / 2;
 
-const PLANS = [
-  { id: 'free',    nameKey: 'free_name',    descKey: 'free_desc',    priceKey: 'free_price',    popular: false, locked: false },
-  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true,  locked: false },
-  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false, locked: false },
-];
-
 export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
   const [selectedAllergies, setSelectedAllergies] = useState(profile?.allergyIds || []);
-  const [selectedPlan, setSelectedPlan] = useState('free');
   const [saving, setSaving] = useState(false);
+
+  const currentUserType = user?.user_type || 'free';
 
   function toggleAllergy(id) {
     setSelectedAllergies(prev =>
@@ -42,16 +36,35 @@ export default function ProfileSetupScreen({ navigation }) {
     setSaving(true);
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
-      if (selectedPlan !== 'free') {
-        navigation.navigate('Paywall', { currentPlan: 'free' });
-      } else {
-        if (token) await apiSetUserPlan('free', token).catch(() => {});
-        navigation.navigate('Main');
-      }
+      navigation.navigate('Main');
     } finally {
       setSaving(false);
     }
   }
+
+  function getPlanName() {
+    if (currentUserType === 'starter') return t(language, 'plans.starter_name');
+    if (currentUserType === 'premium') return t(language, 'plans.premium_name');
+    if (currentUserType === 'admin') return 'Admin';
+    return t(language, 'plans.free_name');
+  }
+
+  function getPlanDesc() {
+    if (currentUserType === 'starter') return t(language, 'plans.starter_desc');
+    if (currentUserType === 'premium') return t(language, 'plans.premium_desc');
+    if (currentUserType === 'admin') return '∞ scans / month';
+    return t(language, 'plans.free_desc');
+  }
+
+  function getPlanPrice() {
+    if (currentUserType === 'starter') return t(language, 'plans.starter_price');
+    if (currentUserType === 'premium') return t(language, 'plans.premium_price');
+    if (currentUserType === 'admin') return '—';
+    return t(language, 'plans.free_price');
+  }
+
+  const canUpgrade = currentUserType !== 'premium' && currentUserType !== 'admin';
+  const currentPlanForPaywall = currentUserType === 'starter' ? 'starter' : 'free';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -143,56 +156,34 @@ export default function ProfileSetupScreen({ navigation }) {
             <PremiumIcon name="premium" size={72} />
             <Text style={styles.sectionTitle}>{t(language, 'plans.title')}</Text>
             <Text style={styles.sectionSub}>{t(language, 'plans.subtitle')}</Text>
-            <View style={styles.planList}>
-              {PLANS.map(plan => {
-                const sel = selectedPlan === plan.id;
-                return (
-                  <TouchableOpacity
-                    key={plan.id}
-                    style={[styles.planCard, sel && !plan.locked && styles.planCardSelected, plan.locked && styles.planCardLocked]}
-                    onPress={() => !plan.locked && setSelectedPlan(plan.id)}
-                    activeOpacity={plan.locked ? 1 : 0.85}
-                  >
-                    {plan.popular && (
-                      <View style={[styles.popularBadge, plan.locked && styles.popularBadgeLocked]}>
-                        <Text style={styles.popularText}>
-                          {plan.locked ? t(language, 'plans.coming_soon') : t(language, 'plans.most_popular')}
-                        </Text>
-                      </View>
-                    )}
-                    {!plan.popular && plan.locked && (
-                      <View style={styles.popularBadgeLocked}>
-                        <Text style={styles.popularText}>{t(language, 'plans.coming_soon')}</Text>
-                      </View>
-                    )}
-                    <View style={styles.planRow}>
-                      <View style={styles.planInfo}>
-                        <Text style={[styles.planName, sel && !plan.locked && styles.planNameSel, plan.locked && styles.planNameLocked]}>
-                          {t(language, `plans.${plan.nameKey}`)}
-                        </Text>
-                        <Text style={[styles.planDesc, plan.locked && styles.planDescLocked]}>
-                          {t(language, `plans.${plan.descKey}`)}
-                        </Text>
-                      </View>
-                      <View style={styles.planPriceWrap}>
-                        <Text style={[styles.planPrice, sel && !plan.locked && styles.planPriceSel, plan.locked && styles.planPriceLocked]}>
-                          {t(language, `plans.${plan.priceKey}`)}
-                        </Text>
-                        {plan.id !== 'free' && (
-                          <Text style={[styles.planPerMonth, plan.locked && styles.planPerMonthLocked]}>
-                            {t(language, 'plans.per_month')}
-                          </Text>
-                        )}
-                      </View>
-                      {!plan.locked
-                        ? <View style={[styles.radio, sel && styles.radioSelected]}>{sel && <View style={styles.radioDot} />}</View>
-                        : <Text style={styles.lockIcon}>🔒</Text>
-                      }
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+
+            <View style={styles.currentPlanCard}>
+              <View style={styles.currentPlanBadge}>
+                <Text style={styles.currentPlanBadgeText}>{t(language, 'plans.current')}</Text>
+              </View>
+              <View style={styles.currentPlanRow}>
+                <View style={styles.currentPlanInfo}>
+                  <Text style={styles.currentPlanName}>{getPlanName()}</Text>
+                  <Text style={styles.currentPlanDesc}>{getPlanDesc()}</Text>
+                </View>
+                <View style={styles.currentPlanPriceWrap}>
+                  <Text style={styles.currentPlanPrice}>{getPlanPrice()}</Text>
+                  {currentUserType !== 'free' && currentUserType !== 'admin' && (
+                    <Text style={styles.currentPlanPerMonth}>{t(language, 'plans.per_month')}</Text>
+                  )}
+                </View>
+              </View>
             </View>
+
+            {canUpgrade && (
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                onPress={() => navigation.navigate('Paywall', { currentPlan: currentPlanForPaywall })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </ScrollView>
@@ -331,53 +322,33 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: Colors.card,
   },
   allergyCheckText: { color: Colors.white, fontSize: 11, fontWeight: '900' },
-  planList: { width: '100%', gap: 14 },
-  planCard: {
-    backgroundColor: Colors.glass,
+  currentPlanCard: {
+    width: '100%',
+    backgroundColor: Colors.primaryBg,
     borderRadius: 24, padding: 20,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.72)',
-    position: 'relative', overflow: 'visible',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    borderWidth: 2, borderColor: Colors.primaryLight,
+    position: 'relative', marginBottom: 16,
   },
-  planCardSelected: {
-    borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.75)',
-    shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
-  },
-  planCardLocked: { opacity: 0.55 },
-  popularBadge: {
+  currentPlanBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',
-    backgroundColor: Colors.accent, borderRadius: 12,
+    backgroundColor: Colors.safe, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 4,
   },
-  popularBadgeLocked: {
-    position: 'absolute', top: -12, alignSelf: 'center',
-    backgroundColor: Colors.textMuted, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 4,
+  currentPlanBadgeText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
+  currentPlanRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  currentPlanInfo: { flex: 1 },
+  currentPlanName: { fontSize: 20, fontWeight: '900', color: Colors.primaryDark, marginBottom: 3 },
+  currentPlanDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
+  currentPlanPriceWrap: { alignItems: 'flex-end' },
+  currentPlanPrice: { fontSize: 22, fontWeight: '900', color: Colors.primaryDark },
+  currentPlanPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
+  upgradeBtn: {
+    width: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 18, paddingVertical: 16,
+    alignItems: 'center',
   },
-  popularText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
-  planRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  planInfo: { flex: 1 },
-  planName: { fontSize: 17, fontWeight: '900', color: Colors.text, marginBottom: 3 },
-  planNameSel: { color: Colors.primaryDark },
-  planNameLocked: { color: Colors.textMuted },
-  planDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
-  planDescSel: { color: Colors.primaryDark },
-  planDescLocked: { color: Colors.textMuted },
-  planPriceWrap: { alignItems: 'flex-end' },
-  planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
-  planPriceSel: { color: Colors.primaryDark },
-  planPriceLocked: { color: Colors.textMuted },
-  planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
-  planPerMonthSel: { color: Colors.primaryDark },
-  planPerMonthLocked: { color: Colors.textMuted },
-  radio: {
-    width: 24, height: 24, borderRadius: 12,
-    borderWidth: 2, borderColor: Colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  radioSelected: { borderColor: Colors.primary },
-  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
-  lockIcon: { fontSize: 18 },
+  upgradeBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
@@ -392,6 +363,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  btnDisabled: { backgroundColor: Colors.border, borderBottomColor: Colors.textMuted },
+  btnDisabled: { backgroundColor: Colors.border },
   btnText: { color: Colors.white, fontSize: 18, fontWeight: '900' },
 });
