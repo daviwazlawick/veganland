@@ -11,6 +11,7 @@ export const ALLERGIES = [
   { id: 'corn', icon: 'corn', label: { pt: 'Milho', en: 'Corn', de: 'Mais', fr: 'Maïs', it: 'Mais', es: 'Maíz' } },
   { id: 'sulfites', icon: 'sulfites', label: { pt: 'Sulfitos', en: 'Sulfites', de: 'Sulfite', fr: 'Sulfites', it: 'Solfiti', es: 'Sulfitos' } },
   { id: 'mustard', icon: 'mustard', label: { pt: 'Mostarda', en: 'Mustard', de: 'Senf', fr: 'Moutarde', it: 'Senape', es: 'Mostaza' } },
+  { id: 'peppers', icon: 'peppers', label: { pt: 'Pimentas', en: 'Peppers', de: 'Paprika', fr: 'Piments', it: 'Peperoni', es: 'Pimientos' } },
   { id: 'fragrance', icon: 'fragrance', label: { pt: 'Fragrâncias', en: 'Fragrance', de: 'Duftstoffe', fr: 'Parfums', it: 'Fragranze', es: 'Fragancias' } },
   { id: 'essential_oils', icon: 'essential_oils', label: { pt: 'Óleos essenciais', en: 'Essential Oils', de: 'Ätherische Öle', fr: 'Huiles essentielles', it: 'Oli essenziali', es: 'Aceites esenciales' } },
   { id: 'latex', icon: 'latex', label: { pt: 'Látex', en: 'Latex', de: 'Latex', fr: 'Latex', it: 'Lattice', es: 'Látex' } },

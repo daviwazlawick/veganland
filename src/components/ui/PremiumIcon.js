@@ -27,6 +27,7 @@ const ICON_ACCENTS = {
   corn: '#D7A848',
   sulfites: '#A77C8E',
   mustard: '#C79C35',
+  peppers: '#D94F2B',
   fragrance: '#C993A5',
   essential_oils: '#8AAE7E',
   latex: '#6C8A54',
@@ -78,6 +79,7 @@ const ICON_MAP = {
   corn:          { lib: 'mci', name: 'corn' },
   sulfites:      { lib: 'mci', name: 'bottle-wine' },
   mustard:       { lib: 'mci', name: 'mortar-pestle' },
+  peppers:       { lib: 'mci', name: 'chili-hot' },
   // Cosmetic allergies
   fragrance:     { lib: 'mci', name: 'spray' },
   essential_oils:{ lib: 'mci', name: 'bottle-tonic-plus' },
