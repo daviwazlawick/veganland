@@ -15,16 +15,18 @@ const CARD_WIDTH = (width - 48 - 12) / 2;
 export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
   const { token, user, refreshUser } = useAuth();
+  const isFirstTime = !profile?.dietId;
   const [step, setStep] = useState(1);
-
-  useEffect(() => {
-    if (step === 3) refreshUser();
-  }, [step]);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
   const [selectedAllergies, setSelectedAllergies] = useState(profile?.allergyIds || []);
+  const [selectedPlan, setSelectedPlan] = useState('free');
   const [saving, setSaving] = useState(false);
 
   const currentUserType = user?.user_type || 'free';
+
+  useEffect(() => {
+    if (step === 3 && !isFirstTime) refreshUser();
+  }, [step]);
 
   function toggleAllergy(id) {
     setSelectedAllergies(prev =>
@@ -40,7 +42,11 @@ export default function ProfileSetupScreen({ navigation }) {
     setSaving(true);
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
-      navigation.navigate('Main');
+      if (isFirstTime && selectedPlan !== 'free') {
+        navigation.navigate('Paywall', { currentPlan: 'free' });
+      } else {
+        navigation.navigate('Main');
+      }
     } finally {
       setSaving(false);
     }
@@ -161,32 +167,80 @@ export default function ProfileSetupScreen({ navigation }) {
             <Text style={styles.sectionTitle}>{t(language, 'plans.title')}</Text>
             <Text style={styles.sectionSub}>{t(language, 'plans.subtitle')}</Text>
 
-            <View style={styles.currentPlanCard}>
-              <View style={styles.currentPlanBadge}>
-                <Text style={styles.currentPlanBadgeText}>{t(language, 'plans.current')}</Text>
+            {isFirstTime ? (
+              <View style={styles.planList}>
+                {[
+                  { id: 'free',    nameKey: 'free_name',    descKey: 'free_desc',    priceKey: 'free_price',    popular: false },
+                  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true  },
+                  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false },
+                ].map(plan => {
+                  const sel = selectedPlan === plan.id;
+                  return (
+                    <TouchableOpacity
+                      key={plan.id}
+                      style={[styles.planCard, sel && styles.planCardSelected]}
+                      onPress={() => setSelectedPlan(plan.id)}
+                      activeOpacity={0.85}
+                    >
+                      {plan.popular && (
+                        <View style={styles.popularBadge}>
+                          <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
+                        </View>
+                      )}
+                      <View style={styles.planRow}>
+                        <View style={styles.planInfo}>
+                          <Text style={[styles.planName, sel && styles.planNameSel]}>
+                            {t(language, `plans.${plan.nameKey}`)}
+                          </Text>
+                          <Text style={styles.planDesc}>
+                            {t(language, `plans.${plan.descKey}`)}
+                          </Text>
+                        </View>
+                        <View style={styles.planPriceWrap}>
+                          <Text style={[styles.planPrice, sel && styles.planPriceSel]}>
+                            {t(language, `plans.${plan.priceKey}`)}
+                          </Text>
+                          {plan.id !== 'free' && (
+                            <Text style={styles.planPerMonth}>{t(language, 'plans.per_month')}</Text>
+                          )}
+                        </View>
+                        <View style={[styles.radio, sel && styles.radioSelected]}>
+                          {sel && <View style={styles.radioDot} />}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <View style={styles.currentPlanRow}>
-                <View style={styles.currentPlanInfo}>
-                  <Text style={styles.currentPlanName}>{getPlanName()}</Text>
-                  <Text style={styles.currentPlanDesc}>{getPlanDesc()}</Text>
+            ) : (
+              <>
+                <View style={styles.currentPlanCard}>
+                  <View style={styles.currentPlanBadge}>
+                    <Text style={styles.currentPlanBadgeText}>{t(language, 'plans.current')}</Text>
+                  </View>
+                  <View style={styles.currentPlanRow}>
+                    <View style={styles.currentPlanInfo}>
+                      <Text style={styles.currentPlanName}>{getPlanName()}</Text>
+                      <Text style={styles.currentPlanDesc}>{getPlanDesc()}</Text>
+                    </View>
+                    <View style={styles.currentPlanPriceWrap}>
+                      <Text style={styles.currentPlanPrice}>{getPlanPrice()}</Text>
+                      {currentUserType !== 'free' && currentUserType !== 'admin' && (
+                        <Text style={styles.currentPlanPerMonth}>{t(language, 'plans.per_month')}</Text>
+                      )}
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.currentPlanPriceWrap}>
-                  <Text style={styles.currentPlanPrice}>{getPlanPrice()}</Text>
-                  {currentUserType !== 'free' && currentUserType !== 'admin' && (
-                    <Text style={styles.currentPlanPerMonth}>{t(language, 'plans.per_month')}</Text>
-                  )}
-                </View>
-              </View>
-            </View>
-
-            {canUpgrade && (
-              <TouchableOpacity
-                style={styles.upgradeBtn}
-                onPress={() => navigation.navigate('Paywall', { currentPlan: currentPlanForPaywall })}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
-              </TouchableOpacity>
+                {canUpgrade && (
+                  <TouchableOpacity
+                    style={styles.upgradeBtn}
+                    onPress={() => navigation.navigate('Paywall', { currentPlan: currentPlanForPaywall })}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </>
         )}
@@ -326,6 +380,40 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: Colors.card,
   },
   allergyCheckText: { color: Colors.white, fontSize: 11, fontWeight: '900' },
+  planList: { width: '100%', gap: 14 },
+  planCard: {
+    backgroundColor: Colors.glass,
+    borderRadius: 24, padding: 20,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.72)',
+    position: 'relative', overflow: 'visible',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+  },
+  planCardSelected: {
+    borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.75)',
+    shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
+  },
+  popularBadge: {
+    position: 'absolute', top: -12, alignSelf: 'center',
+    backgroundColor: Colors.accent, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 4,
+  },
+  popularText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
+  planRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  planInfo: { flex: 1 },
+  planName: { fontSize: 17, fontWeight: '900', color: Colors.text, marginBottom: 3 },
+  planNameSel: { color: Colors.primaryDark },
+  planDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
+  planPriceWrap: { alignItems: 'flex-end' },
+  planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
+  planPriceSel: { color: Colors.primaryDark },
+  planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
+  radio: {
+    width: 24, height: 24, borderRadius: 12,
+    borderWidth: 2, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioSelected: { borderColor: Colors.primary },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
   currentPlanCard: {
     width: '100%',
     backgroundColor: Colors.primaryBg,
