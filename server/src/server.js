@@ -289,6 +289,12 @@ function htmlAdminUserPage(data, token) {
           </form>
         </div>
       </div>
+      <div class="field" style="grid-column:1/-1;margin-top:8px">
+        <label>Ações</label>
+        <form method="POST" action="/admin/user/${user.id}/delete?token=${token}" onsubmit="return confirm('Tem certeza? Esta ação é irreversível e apaga todos os dados do utilizador.')">
+          <button type="submit" style="padding:8px 20px;border-radius:8px;border:2px solid #FF4B4B;background:#fff;color:#FF4B4B;font-size:13px;font-weight:700;cursor:pointer">🗑 Apagar utilizador</button>
+        </form>
+      </div>
     </div>
     <div class="section">
       <h2>Histórico de scans</h2>
@@ -699,6 +705,27 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(htmlAdminUserPage(data, token));
+      return;
+    }
+
+    // POST /admin/user/:id/delete
+    if (req.method === 'POST' && req.url.match(/^\/admin\/user\/\d+\/delete/)) {
+      if (!await isAdminRequest(req)) {
+        res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Acesso negado', '<p>Você não tem permissão para acessar esta página.</p>', '#FF4B4B'));
+        return;
+      }
+      const token = new URL(req.url, 'http://x').searchParams.get('token');
+      const userId = new URL(req.url, 'http://x').pathname.split('/')[3];
+      const adminClaims = verifyToken(token);
+      if (String(userId) === String(adminClaims?.userId)) {
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPage('Erro', '<p>Não pode apagar a própria conta de admin.</p>', '#FF4B4B'));
+        return;
+      }
+      await deleteUserAccount(userId);
+      res.writeHead(302, { Location: `/admin?token=${token}` });
+      res.end();
       return;
     }
 
