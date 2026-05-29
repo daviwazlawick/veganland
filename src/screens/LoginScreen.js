@@ -160,7 +160,7 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, padding: 24, gap: 28, justifyContent: 'center' },
+  scroll: { flexGrow: 1, padding: 24, paddingTop: 16, gap: 20, justifyContent: 'center' },
   langBtn: {
     alignSelf: 'flex-end',
     backgroundColor: 'rgba(255,255,255,0.64)',
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 12, paddingVertical: 20 },
+  hero: { alignItems: 'center', gap: 10, paddingVertical: 8 },
   appName: {
     fontSize: 42, fontWeight: '800',
     fontFamily: BrandFonts.heading || 'serif',
