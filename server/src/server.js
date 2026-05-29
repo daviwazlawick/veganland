@@ -373,7 +373,7 @@ const server = http.createServer(async (req, res) => {
       if (emailsEnabled()) {
         const confirmToken = crypto.randomBytes(32).toString('hex');
         await storeEmailConfirmationToken(user.id, confirmToken);
-        sendConfirmationEmail(user.email, confirmToken).catch(console.error);
+        sendConfirmationEmail(user.email, confirmToken, req.headers['host']).catch(console.error);
         sendJson(res, 201, { emailConfirmationSent: true, email: user.email }, origin);
       } else {
         const token = generateToken(user.id, user.email);
@@ -406,7 +406,7 @@ const server = http.createServer(async (req, res) => {
         if (user && !user.email_confirmed) {
           const confirmToken = crypto.randomBytes(32).toString('hex');
           await storeEmailConfirmationToken(user.id, confirmToken);
-          sendConfirmationEmail(user.email, confirmToken).catch(console.error);
+          sendConfirmationEmail(user.email, confirmToken, req.headers['host']).catch(console.error);
         }
       }
       sendJson(res, 200, { ok: true }, origin);
@@ -434,7 +434,7 @@ const server = http.createServer(async (req, res) => {
         if (user) {
           const resetToken = crypto.randomBytes(32).toString('hex');
           await createPasswordResetToken(user.id, resetToken);
-          sendPasswordResetEmail(user.email, resetToken).catch(console.error);
+          sendPasswordResetEmail(user.email, resetToken, req.headers['host']).catch(console.error);
         }
       }
       sendJson(res, 200, { ok: true }, origin);
