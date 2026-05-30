@@ -2,7 +2,8 @@ import './env.js';
 import { logApiUsage } from './db.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-7';
+const MODEL_INSPECTION = process.env.CLAUDE_MODEL_INSPECTION || 'claude-haiku-4-5-20251001';
+const MODEL_ANALYSIS = process.env.CLAUDE_MODEL_ANALYSIS || 'claude-sonnet-4-6';
 
 export function hasAnthropicApiKey() {
   return ANTHROPIC_API_KEY.trim().length > 0;
@@ -25,7 +26,7 @@ function responseLanguage(language) {
   })[language] || 'English';
 }
 
-async function callClaude(content, maxTokens = 1024) {
+async function callClaude(content, maxTokens = 1024, model = MODEL_ANALYSIS) {
   if (!hasAnthropicApiKey()) {
     throw new Error('ANTHROPIC_API_KEY is not configured');
   }
@@ -38,7 +39,7 @@ async function callClaude(content, maxTokens = 1024) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL,
+      model,
       max_tokens: maxTokens,
       messages: [{ role: 'user', content }],
     }),
@@ -51,7 +52,7 @@ async function callClaude(content, maxTokens = 1024) {
 
   const data = await response.json();
   const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
-  logApiUsage(CLAUDE_MODEL, usage.input_tokens, usage.output_tokens).catch(() => {});
+  logApiUsage(model, usage.input_tokens, usage.output_tokens).catch(() => {});
   return data.content?.[0]?.text || '';
 }
 
@@ -244,7 +245,7 @@ export async function inspectProductImage(imageBase64, language, mediaType = 'im
       type: 'text',
       text: buildImageInspectionPrompt(language),
     },
-  ]);
+  ], 1024, MODEL_INSPECTION);
 
   return extractJson(text);
 }
