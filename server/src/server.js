@@ -279,7 +279,7 @@ function htmlAdminUserPage(data, token) {
       <div class="field"><label>Email</label><span>${user.email}</span></div>
       <div class="field"><label>Cadastro</label><span>${joined}</span></div>
       <div class="field"><label>Dieta</label><span>${diet}</span></div>
-      <div class="field"><label>Restrições do perfil</label><span>${allergies}</span></div>
+      <div class="field"><label>Alergias / Sensibilidades</label><span>${allergies}</span></div>
       <div class="field" style="grid-column:1/-1">
         <label>Plano</label>
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
