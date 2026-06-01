@@ -69,10 +69,13 @@ def import_dump(conn):
         INSERT INTO products (identity_key, barcode, brand, product_name, ingredients_text, source)
         VALUES (%s, %s, %s, %s, %s, 'open_food_facts')
         ON CONFLICT (identity_key) DO UPDATE SET
-            brand           = EXCLUDED.brand,
-            product_name    = EXCLUDED.product_name,
-            ingredients_text = EXCLUDED.ingredients_text,
-            updated_at      = now()
+            brand            = EXCLUDED.brand,
+            product_name     = EXCLUDED.product_name,
+            ingredients_text = CASE
+                WHEN EXCLUDED.ingredients_text != '' THEN EXCLUDED.ingredients_text
+                WHEN products.ingredients_text != '' THEN products.ingredients_text
+                ELSE '' END,
+            updated_at       = now()
         WHERE products.source = 'open_food_facts'
     """
 
@@ -87,20 +90,24 @@ def import_dump(conn):
             if not code:
                 continue
 
-            ingredients = best_ingredients(row)
-            if not ingredients:
-                continue
-
             def col(key):
                 v = (row.get(key) or "").strip()
                 return v if v else None
 
+            product_name = col("product_name")
+            brand = col("brands")
+            ingredients = best_ingredients(row)
+
+            # Skip products with no identifying info at all
+            if not product_name and not brand and not ingredients:
+                continue
+
             batch.append((
                 f"barcode:{code}",
                 code,
-                col("brands"),
-                col("product_name"),
-                ingredients,
+                brand,
+                product_name,
+                ingredients or '',  # empty string when no ingredients (column is NOT NULL)
             ))
 
             if len(batch) >= BATCH_SIZE:

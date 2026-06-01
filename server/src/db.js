@@ -216,6 +216,17 @@ export async function upsertProduct(product) {
   return savedProduct;
 }
 
+export async function updateProductIngredients(productId, ingredientsText) {
+  const db = await getPool();
+  if (!db || !productId || !ingredientsText?.trim()) return;
+
+  await db.query(
+    `update products set ingredients_text = $1, updated_at = now()
+     where id = $2 and trim(coalesce(ingredients_text, '')) = ''`,
+    [ingredientsText.trim(), productId]
+  );
+}
+
 export async function stampBarcode(productId, barcode) {
   const db = await getPool();
   if (!db || !barcode || !productId) return;

@@ -14,11 +14,12 @@ import {
   saveAnalysis,
   saveScanEvent,
   stampBarcode,
+  updateProductIngredients,
   upsertFreshProduct,
   upsertProduct,
   upsertProductByIdentity,
 } from './db.js';
-import { findProductIngredients, fetchBarcodeInfo } from './openFoodFacts.js';
+import { findProductIdentity, findProductIngredients } from './openFoodFacts.js';
 
 async function resolveProductIngredients(imageInspection) {
   const visibleIngredients = imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim();
@@ -228,37 +229,21 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     }
   }
 
-  // Barcode not found anywhere and no image
+  // Barcode not found locally and no image → try OFF API for name/brand before asking for photo
   if (!imageInspection && !imageBase64) {
     if (clientBarcode) {
-      // Try OFF for products with ingredients
-      const offProduct = await findProductIngredients({ barcode: clientBarcode });
-      if (offProduct?.ingredients_text) {
+      const offIdentity = await findProductIdentity(clientBarcode);
+      if (offIdentity) {
         imageInspection = {
           product_type: 'processed_food',
-          product_name: offProduct.product_name,
-          brand: offProduct.brand,
+          product_name: offIdentity.product_name,
+          brand: offIdentity.brand,
           barcode: clientBarcode,
-          lookup_query: null,
-          ingredients_visible: true,
-          ingredients_text: offProduct.ingredients_text,
-          confidence: 1.0,
+          lookup_query: [offIdentity.brand, offIdentity.product_name].filter(Boolean).join(' '),
+          ingredients_visible: false,
+          ingredients_text: null,
+          confidence: 0.9,
         };
-      } else {
-        // Try OFF for products without ingredients (e.g. water, fresh produce)
-        const offInfo = await fetchBarcodeInfo(clientBarcode);
-        if (offInfo) {
-          imageInspection = {
-            product_type: 'processed_food',
-            product_name: offInfo.product_name,
-            brand: offInfo.brand,
-            barcode: clientBarcode,
-            lookup_query: null,
-            ingredients_visible: false,
-            ingredients_text: null,
-            confidence: 0.9,
-          };
-        }
       }
     }
     if (!imageInspection) {
@@ -379,6 +364,10 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         if (!neutralAnalysis) {
           neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
           await saveAnalysis(product.id, lang, neutralAnalysis);
+          const inferred = neutralAnalysis.normalized_ingredients;
+          if (Array.isArray(inferred) && inferred.length > 0) {
+            await updateProductIngredients(product.id, inferred.join(', '));
+          }
         }
         result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
       } else {
