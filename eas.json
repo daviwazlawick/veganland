@@ -5,6 +5,7 @@
   },
   "build": {
     "novaqi-android": {
+      "channel": "production",
       "env": {
         "BRAND": "novaqi",
         "EXPO_PUBLIC_BRAND": "novaqi",
@@ -13,8 +14,8 @@
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_YnmIYLSJyriFzhvfSSnypZCFibv"
       },
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       }
     },
     "novaqi-ios": {
