@@ -184,6 +184,13 @@ export default function ResultScreen({ navigation, route }) {
         <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
           <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.wrongProductBtn}
+          onPress={() => navigation.navigate('Scan', { photoMode: true })}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.wrongProductText}>{t(language, 'result.wrong_product')}</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -338,4 +345,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   scanAgainText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  wrongProductBtn: { alignItems: 'center', paddingTop: 14 },
+  wrongProductText: { color: Colors.textLight, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
 });

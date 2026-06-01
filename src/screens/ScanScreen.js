@@ -16,9 +16,9 @@ import { PremiumIcon } from '../components/ui';
 
 const VALID_STATUSES = new Set(['SAFE', 'CAUTION', 'NOT_SAFE']);
 
-const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'];
+const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'];
 
-export default function ScanScreen({ navigation }) {
+export default function ScanScreen({ navigation, route }) {
   const { language, profile, addScanToHistory } = useApp();
   const { token } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
@@ -27,9 +27,11 @@ export default function ScanScreen({ navigation }) {
   const [cameraActive, setCameraActive] = useState(true);
   const [scanError, setScanError] = useState(null);
   const [isLimitError, setIsLimitError] = useState(false);
-  const [scanStep, setScanStep] = useState('barcode'); // 'barcode' | 'photo'
+  const [scanStep, setScanStep] = useState(route?.params?.photoMode ? 'photo' : 'barcode'); // 'barcode' | 'photo' | 'ingredients'
   const [pendingBarcode, setPendingBarcode] = useState(null);
-  const [lockedBarcode, setLockedBarcode] = useState(null); // barcode being held steady
+  const [pendingResult, setPendingResult] = useState(null);
+  const [noIngredientsPrompt, setNoIngredientsPrompt] = useState(false);
+  const [lockedBarcode, setLockedBarcode] = useState(null);
   const cameraRef = useRef(null);
   const lockRef = useRef({ code: null, since: 0, timer: null });
 
@@ -133,12 +135,19 @@ export default function ScanScreen({ navigation }) {
 
   async function runPhotoAnalysis(base64, imageUri) {
     setScanError(null);
+    setNoIngredientsPrompt(false);
     setAnalyzing(true);
     setSearchingText(null);
     try {
       const result = await analyzeProductWithApi(base64, profile, language, token, pendingBarcode);
       if (!result.status || !VALID_STATUSES.has(result.status)) {
         setScanError(t(language, 'errors.not_a_product'));
+        return;
+      }
+      // Product photo step: if no real ingredients found, suggest photographing ingredients list
+      if (scanStep === 'photo' && result.ingredients_source === 'knowledge') {
+        setPendingResult({ ...result, date: new Date().toISOString(), imageUri });
+        setNoIngredientsPrompt(true);
         return;
       }
       const scan = { ...result, date: new Date().toISOString(), imageUri };
@@ -151,6 +160,12 @@ export default function ScanScreen({ navigation }) {
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  async function navigateToResult(scan) {
+    await addScanToHistory(scan);
+    setCameraActive(false);
+    navigation.replace('Result', { result: scan });
   }
 
   function buildErrorMessage(e, lang) {
@@ -181,7 +196,31 @@ export default function ScanScreen({ navigation }) {
   }
 
   const isBarcodeStep = scanStep === 'barcode';
+  const isPhotoStep = scanStep === 'photo';
+  const isIngredientsStep = scanStep === 'ingredients';
   const isLocked = isBarcodeStep && !!lockedBarcode;
+
+  const frameHint = isBarcodeStep
+    ? t(language, 'scan.barcode_hint')
+    : isIngredientsStep
+      ? t(language, 'scan.photo_ingredients_hint')
+      : t(language, 'scan.photo_product_hint');
+
+  const stepLabel = isIngredientsStep
+    ? `📷 ${t(language, 'scan.photo_ingredients_hint')}`
+    : `📷 ${t(language, 'scan.photo_product_hint')}`;
+
+  function handleBackFromPhoto() {
+    if (isIngredientsStep) {
+      setScanStep('photo');
+      setNoIngredientsPrompt(false);
+    } else {
+      setScanStep('barcode');
+      setPendingBarcode(null);
+      resetBarcodeScanner();
+    }
+    setScanError(null);
+  }
 
   return (
     <View style={styles.container}>
@@ -210,6 +249,12 @@ export default function ScanScreen({ navigation }) {
             <View style={{ width: 52 }} />
           </View>
 
+          {isBarcodeStep && (
+            <View style={styles.barcodeTitleRow} pointerEvents="none">
+              <Text style={styles.barcodeTitle}>{t(language, 'scan.barcode_title')}</Text>
+            </View>
+          )}
+
           <View style={styles.frameContainer} pointerEvents="none">
             <View style={isBarcodeStep ? styles.barcodeFrame : styles.frame}>
               <View style={[styles.corner, styles.topLeft, isLocked && styles.cornerLocked]} />
@@ -220,17 +265,13 @@ export default function ScanScreen({ navigation }) {
                 <View style={[styles.barcodeLine, isLocked && styles.barcodeLineLocked]} />
               )}
             </View>
-            <Text style={styles.frameHint}>
-              {isBarcodeStep
-                ? t(language, 'scan.barcode_hint')
-                : t(language, 'scan.photo_hint')}
-            </Text>
+            <Text style={styles.frameHint}>{frameHint}</Text>
           </View>
 
           {!isBarcodeStep && (
             <View style={styles.stepRow} pointerEvents="none">
               <View style={styles.stepPill}>
-                <Text style={styles.stepText}>📷 {t(language, 'scan.photo_hint')}</Text>
+                <Text style={styles.stepText}>{stepLabel}</Text>
               </View>
             </View>
           )}
@@ -268,7 +309,7 @@ export default function ScanScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => { setScanStep('barcode'); setPendingBarcode(null); setScanError(null); resetBarcodeScanner(); }}
+                onPress={handleBackFromPhoto}
                 disabled={analyzing}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
@@ -290,6 +331,27 @@ export default function ScanScreen({ navigation }) {
               {searchingText ? '' : t(language, 'scan.analyzing_subtitle')}
             </Text>
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 16 }} />
+          </View>
+        </View>
+      )}
+
+      {noIngredientsPrompt && (
+        <View style={styles.errorOverlay}>
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{t(language, 'scan.no_ingredients_prompt')}</Text>
+            <TouchableOpacity
+              style={styles.errorBtn}
+              onPress={() => { setNoIngredientsPrompt(false); setScanStep('ingredients'); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.errorBtnText}>{t(language, 'scan.take_ingredients_photo')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setNoIngredientsPrompt(false); navigateToResult(pendingResult); }}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.errorLinkText}>{t(language, 'scan.show_result_anyway')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -346,6 +408,23 @@ const styles = StyleSheet.create({
   },
   closeBtnText: { color: '#fff', fontSize: 20, fontWeight: '800' },
   scanTitle: { color: '#fff', fontSize: 17, fontWeight: '800', fontFamily: BrandFonts.heading || undefined },
+  barcodeTitleRow: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  barcodeTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+    fontFamily: BrandFonts.heading || undefined,
+  },
   frameContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: { width: 280, height: 280, position: 'relative' },
   barcodeFrame: { width: 300, height: 160, position: 'relative', justifyContent: 'center' },

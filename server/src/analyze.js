@@ -210,12 +210,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   let imageInspection = null;
   const clientBarcode = barcode ? String(barcode).replace(/\D/g, '') : null;
 
-  console.log('[request]', { barcode, clientBarcode, hasImage: !!imageBase64 });
-
   if (clientBarcode) {
     // products table now contains both our scans and the full OFF dump (1.3M+)
     const known = await findProduct({ barcode: clientBarcode });
-    console.log('[barcode-lookup]', { clientBarcode, found: !!known, knownId: known?.id });
     if (known) {
       const src = known.source || 'processed_food';
       imageInspection = {
@@ -359,7 +356,6 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     }
   }
 
-  console.log('[stamp]', { clientBarcode, productId: product?.id, productBarcode: product?.barcode, identityKey: product?.identity_key });
   if (clientBarcode && product?.id) {
     await stampBarcode(product.id, clientBarcode);
   }
