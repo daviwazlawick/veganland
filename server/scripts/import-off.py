@@ -80,7 +80,7 @@ def import_dump(conn):
     with gzip.open(DUMP_PATH, "rt", encoding="utf-8", errors="replace") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            code = (row.get("code") or "").strip().lstrip("0") or None
+            code = (row.get("code") or "").strip() or None
             if not code:
                 continue
 

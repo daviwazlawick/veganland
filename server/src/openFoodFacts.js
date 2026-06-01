@@ -32,9 +32,13 @@ async function queryLocalOff(barcode) {
   const db = await getPool();
   if (!db) return null;
 
+  // The import script may have stripped leading zeros, so try both the
+  // exact barcode and the leading-zero-stripped version in one query.
+  const stripped = barcode.replace(/^0+/, '') || barcode;
+
   const result = await db.query(
-    'SELECT * FROM off_products WHERE code = $1 LIMIT 1',
-    [barcode]
+    'SELECT * FROM off_products WHERE code = $1 OR ($2 <> $1 AND code = $2) LIMIT 1',
+    [barcode, stripped]
   );
   return result.rows[0] ? mapOpenFoodFactsProduct(result.rows[0]) : null;
 }
