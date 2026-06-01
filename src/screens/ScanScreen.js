@@ -36,7 +36,8 @@ export default function ScanScreen({ navigation, route }) {
     : Platform.OS === 'web' && !webSupportsBarcodes ? 'photo'
     : 'barcode'
   ); // 'barcode' | 'photo' | 'ingredients'
-  const [pendingBarcode, setPendingBarcode] = useState(null);
+  const [pendingBarcode, setPendingBarcode] = useState(route?.params?.wrongProductBarcode || null);
+  const wrongProductBarcode = route?.params?.wrongProductBarcode || null;
   const [pendingResult, setPendingResult] = useState(null);
   const [noIngredientsPrompt, setNoIngredientsPrompt] = useState(false);
   const [lockedBarcode, setLockedBarcode] = useState(null);
@@ -195,7 +196,8 @@ export default function ScanScreen({ navigation, route }) {
     setAnalyzing(true);
     setSearchingText(null);
     try {
-      const result = await analyzeProductWithApi(base64, profile, language, token, pendingBarcode);
+      const skipBarcodeCache = !!wrongProductBarcode;
+      const result = await analyzeProductWithApi(base64, profile, language, token, pendingBarcode, skipBarcodeCache);
       if (!result.status || !VALID_STATUSES.has(result.status)) {
         setScanError(t(language, 'errors.not_a_product'));
         return;

@@ -663,6 +663,7 @@ const server = http.createServer(async (req, res) => {
         language: body.language || 'pt',
         userId,
         barcode: body.barcode || null,
+        skipBarcodeCache: !!body.skipBarcodeCache,
       });
 
       sendJson(res, 200, result, origin);

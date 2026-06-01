@@ -186,7 +186,7 @@ export default function ResultScreen({ navigation, route }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.wrongProductBtn}
-          onPress={() => navigation.navigate('Scan', { photoMode: true })}
+          onPress={() => navigation.navigate('Scan', { photoMode: true, wrongProductBarcode: result.barcode || null })}
           activeOpacity={0.7}
         >
           <Text style={styles.wrongProductText}>{t(language, 'result.wrong_product')}</Text>

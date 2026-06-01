@@ -17,11 +17,11 @@ export function hasApiConfig() {
   return API_URL.trim().length > 0;
 }
 
-export async function analyzeProductWithApi(imageBase64, profile, language, token, barcode = null) {
+export async function analyzeProductWithApi(imageBase64, profile, language, token, barcode = null, skipBarcodeCache = false) {
   const response = await fetch(`${baseUrl()}/analyze-product`, {
     method: 'POST',
     headers: appHeaders(token),
-    body: JSON.stringify({ imageBase64, mediaType: 'image/jpeg', profile, language, barcode }),
+    body: JSON.stringify({ imageBase64, mediaType: 'image/jpeg', profile, language, barcode, skipBarcodeCache }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

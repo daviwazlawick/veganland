@@ -204,14 +204,15 @@ function applyProfileToAnalysis(analysis, profile, language) {
 
 const NON_FOOD_SOURCES = new Set(['cosmetic', 'clothing', 'cleaning', 'other']);
 
-export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId, barcode }) {
+export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId, barcode, skipBarcodeCache = false }) {
   const lang = language || 'pt';
 
   // Barcode shortcut: skip image inspection for known products
+  // skipBarcodeCache: user said "wrong product" — ignore the cached barcode entry, do fresh photo analysis
   let imageInspection = null;
   const clientBarcode = barcode ? String(barcode).replace(/\D/g, '') : null;
 
-  if (clientBarcode) {
+  if (clientBarcode && !skipBarcodeCache) {
     // products table now contains both our scans and the full OFF dump (1.3M+)
     const known = await findProduct({ barcode: clientBarcode });
     if (known) {
