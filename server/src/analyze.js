@@ -323,7 +323,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       product = await upsertProduct({
         ...imageInspection,
         ingredients_text: imageInspection.ingredients_text.trim(),
-        source: 'image',
+        source: productType,
       });
       if (product?.id) {
         let neutralAnalysis = await findAnalysis(product.id, lang);
