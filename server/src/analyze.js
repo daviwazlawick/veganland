@@ -275,6 +275,12 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         };
       }
     }
+
+    // Always stamp the scanner barcode onto imageInspection so it gets saved
+    // with the product — next scan of the same barcode finds it immediately.
+    if (clientBarcode) {
+      imageInspection.barcode = clientBarcode;
+    }
   }
 
   const productType = imageInspection.product_type || 'processed_food';
