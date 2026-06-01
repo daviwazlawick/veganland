@@ -211,8 +211,8 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   const clientBarcode = barcode ? String(barcode).replace(/\D/g, '') : null;
 
   if (clientBarcode) {
+    // 1. Check our products table
     const known = await findProduct({ barcode: clientBarcode });
-    console.log('[barcode-lookup]', { clientBarcode, found: !!known, knownId: known?.id, knownBarcode: known?.barcode });
     if (known) {
       const src = known.source || 'processed_food';
       imageInspection = {
@@ -226,11 +226,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         confidence: 1.0,
       };
     }
-  }
 
-  if (!imageInspection && !imageBase64) {
-    // Barcode-only request: barcode not in our products table — try OFF before giving up
-    if (clientBarcode) {
+    // 2. Not in our table — check OFF local DB (1.3M products, no web call)
+    if (!imageInspection) {
       const offProduct = await findProductIngredients({ barcode: clientBarcode });
       if (offProduct?.ingredients_text) {
         imageInspection = {
@@ -245,9 +243,11 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         };
       }
     }
-    if (!imageInspection) {
-      return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
-    }
+  }
+
+  // 3. Barcode not found anywhere locally and no image → ask client for photo
+  if (!imageInspection && !imageBase64) {
+    return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
   }
 
   if (!imageInspection) {
