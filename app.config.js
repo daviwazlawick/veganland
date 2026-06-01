@@ -44,6 +44,7 @@ export default {
       baseUrl: '',
     },
     plugins: [
+      'expo-font',
       ['expo-camera', { cameraPermission: `${B} needs camera access to scan products.` }],
       ['expo-image-picker', { photosPermission: `${B} needs photo access to analyze product images.` }],
     ],
