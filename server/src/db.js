@@ -227,6 +227,26 @@ export async function updateProductIngredients(productId, ingredientsText) {
   );
 }
 
+export async function disassociateBarcode(barcode) {
+  const db = await getPool();
+  if (!db || !barcode) return;
+
+  const existing = await db.query(
+    `select id, brand, product_name from products where barcode = $1 limit 1`,
+    [barcode]
+  );
+  if (!existing.rows[0]) return;
+
+  const { id, brand, product_name } = existing.rows[0];
+  const nameKey = getIdentityKey({ brand, product_name, barcode: null });
+
+  await db.query(
+    `update products set barcode = null, identity_key = coalesce($1, identity_key), updated_at = now() where id = $2`,
+    [nameKey, id]
+  );
+  await db.query(`delete from product_analyses where product_id = $1`, [id]);
+}
+
 export async function stampBarcode(productId, barcode) {
   const db = await getPool();
   if (!db || !barcode || !productId) return;

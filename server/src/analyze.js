@@ -13,6 +13,7 @@ import {
   findProduct,
   saveAnalysis,
   saveScanEvent,
+  disassociateBarcode,
   stampBarcode,
   updateProductIngredients,
   upsertFreshProduct,
@@ -208,9 +209,13 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   const lang = language || 'pt';
 
   // Barcode shortcut: skip image inspection for known products
-  // skipBarcodeCache: user said "wrong product" — ignore the cached barcode entry, do fresh photo analysis
+  // skipBarcodeCache: user said "wrong product" — disassociate barcode from wrong product first
   let imageInspection = null;
   const clientBarcode = barcode ? String(barcode).replace(/\D/g, '') : null;
+
+  if (skipBarcodeCache && clientBarcode) {
+    await disassociateBarcode(clientBarcode);
+  }
 
   if (clientBarcode && !skipBarcodeCache) {
     // products table now contains both our scans and the full OFF dump (1.3M+)
