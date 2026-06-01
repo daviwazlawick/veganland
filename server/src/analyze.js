@@ -13,6 +13,7 @@ import {
   findProduct,
   saveAnalysis,
   saveScanEvent,
+  stampBarcode,
   upsertFreshProduct,
   upsertProduct,
   upsertProductByIdentity,
@@ -369,6 +370,10 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }
+  }
+
+  if (clientBarcode && product?.id) {
+    await stampBarcode(product.id, clientBarcode);
   }
 
   await saveScanEvent({

@@ -216,6 +216,29 @@ export async function upsertProduct(product) {
   return savedProduct;
 }
 
+export async function stampBarcode(productId, barcode) {
+  const db = await getPool();
+  if (!db || !barcode || !productId) return;
+
+  const newKey = `barcode:${barcode}`;
+
+  // If another product already owns this barcode, merge it into this one first
+  const dup = await db.query(
+    `select id from products where (barcode = $1 or identity_key = $2) and id != $3 limit 1`,
+    [barcode, newKey, productId]
+  );
+  for (const row of dup.rows) {
+    await db.query(`update product_analyses set product_id = $1 where product_id = $2`, [productId, row.id]);
+    await db.query(`delete from products where id = $1`, [row.id]);
+  }
+
+  await db.query(
+    `update products set barcode = $1, identity_key = $2, updated_at = now()
+     where id = $3 and (barcode is null or barcode != $1)`,
+    [barcode, newKey, productId]
+  );
+}
+
 export async function findAnalysis(productId, language) {
   const db = await getPool();
   if (!db || !productId) return null;
