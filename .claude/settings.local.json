@@ -86,7 +86,10 @@
       "Bash(identify assets/novaqi/icon.png assets/novaqi/adaptive-icon.png)",
       "Bash(convert --version)",
       "Bash(magick --version)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(eas --version)",
+      "Bash(expo --version)",
+      "Bash(eas whoami *)"
     ]
   }
 }
