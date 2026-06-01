@@ -1,8 +1,13 @@
+import { getPool } from './db.js';
+
 function bestIngredientText(product) {
   return product.ingredients_text
     || product.ingredients_text_en
     || product.ingredients_text_pt
     || product.ingredients_text_es
+    || product.ingredients_text_de
+    || product.ingredients_text_fr
+    || product.ingredients_text_it
     || '';
 }
 
@@ -23,7 +28,21 @@ function mapOpenFoodFactsProduct(product) {
   };
 }
 
+async function queryLocalOff(barcode) {
+  const db = await getPool();
+  if (!db) return null;
+
+  const result = await db.query(
+    'SELECT * FROM off_products WHERE code = $1 LIMIT 1',
+    [barcode]
+  );
+  return result.rows[0] ? mapOpenFoodFactsProduct(result.rows[0]) : null;
+}
+
 async function fetchByBarcode(barcode) {
+  const local = await queryLocalOff(barcode);
+  if (local) return local;
+
   const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
   if (!response.ok) return null;
 

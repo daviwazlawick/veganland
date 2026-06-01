@@ -3,6 +3,7 @@ import {
   analyzeIngredients,
   analyzeNonFoodByKnowledge,
   analyzeProductByKnowledge,
+  buildInvalidImageResult,
   buildMissingIngredientsResult,
   evaluateProductIngredients,
   inspectProductImage,
@@ -206,8 +207,10 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
 
   // Barcode shortcut: skip image inspection for known products
   let imageInspection = null;
-  if (barcode) {
-    const known = await findProduct({ barcode: String(barcode).replace(/\D/g, '') });
+  const clientBarcode = barcode ? String(barcode).replace(/\D/g, '') : null;
+
+  if (clientBarcode) {
+    const known = await findProduct({ barcode: clientBarcode });
     if (known) {
       const src = known.source || 'processed_food';
       imageInspection = {
@@ -223,8 +226,55 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     }
   }
 
+  if (!imageInspection && !imageBase64) {
+    // Barcode-only request: barcode not in our products table — try OFF before giving up
+    if (clientBarcode) {
+      const offProduct = await findProductIngredients({ barcode: clientBarcode });
+      if (offProduct?.ingredients_text) {
+        imageInspection = {
+          product_type: 'processed_food',
+          product_name: offProduct.product_name,
+          brand: offProduct.brand,
+          barcode: clientBarcode,
+          lookup_query: null,
+          ingredients_visible: true,
+          ingredients_text: offProduct.ingredients_text,
+          confidence: 1.0,
+        };
+      }
+    }
+    if (!imageInspection) {
+      return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
+    }
+  }
+
   if (!imageInspection) {
     imageInspection = await inspectProductImage(imageBase64, lang, mediaType);
+
+    // Reject non-product images immediately — no further AI calls, no scan event logged
+    if (imageInspection.product_type === 'invalid') {
+      return { ...buildInvalidImageResult(lang), productInfo: null };
+    }
+
+    // If Haiku extracted a barcode from the image that the client didn't detect,
+    // try a DB lookup before running the full analysis pipeline
+    const imageBarcode = imageInspection.barcode?.replace(/\D/g, '');
+    if (imageBarcode && !clientBarcode) {
+      const known = await findProduct({ barcode: imageBarcode });
+      if (known) {
+        const src = known.source || 'processed_food';
+        imageInspection = {
+          ...imageInspection,
+          product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
+          product_name: known.product_name || imageInspection.product_name,
+          brand: known.brand || imageInspection.brand,
+          barcode: known.barcode,
+          ingredients_visible: !!known.ingredients_text,
+          ingredients_text: known.ingredients_text || null,
+          confidence: 1.0,
+        };
+      }
+    }
   }
 
   const productType = imageInspection.product_type || 'processed_food';

@@ -142,6 +142,10 @@ export default {
     tip_ingredients: 'Zutatenliste sichtbar? Noch besser!',
     tip_product: 'Produktvorderseite funktioniert auch — KI kennt viele Marken',
     dismiss: 'OK',
+    barcode_hint: 'Richte den Barcode auf die Kamera',
+    barcode_searching: 'Produkt wird gesucht...',
+    barcode_not_found: 'Barcode noch nicht in unserer Datenbank. Zeige die Zutatenliste, damit wir es hinzufügen können.',
+    photo_hint: 'Zeige die Zutatenliste',
   },
   result: {
     safe: 'SICHER',

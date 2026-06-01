@@ -11,31 +11,70 @@ import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
-import { analyzeProductWithApi, hasApiConfig } from '../services/apiService';
+import { analyzeProductWithApi, analyzeBarcodeWithApi, hasApiConfig } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
 
-const TIP_KEYS = ['scan.tip_barcode', 'scan.tip_ingredients', 'scan.tip_product'];
 const VALID_STATUSES = new Set(['SAFE', 'CAUTION', 'NOT_SAFE']);
+
+const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'];
 
 export default function ScanScreen({ navigation }) {
   const { language, profile, addScanToHistory } = useApp();
   const { token } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
+  const [searchingText, setSearchingText] = useState(null);
   const [cameraActive, setCameraActive] = useState(true);
-  const [tipIndex, setTipIndex] = useState(0);
   const [scanError, setScanError] = useState(null);
   const [isLimitError, setIsLimitError] = useState(false);
+  const [scanStep, setScanStep] = useState('barcode'); // 'barcode' | 'photo'
+  const [pendingBarcode, setPendingBarcode] = useState(null);
   const cameraRef = useRef(null);
-
-  useEffect(() => {
-    const id = setInterval(() => setTipIndex(i => (i + 1) % TIP_KEYS.length), 3500);
-    return () => clearInterval(id);
-  }, []);
+  const lastScanRef = useRef({ code: null, time: 0 });
 
   function handleClose() {
     setCameraActive(false);
     navigation.goBack();
+  }
+
+  async function handleBarcodeScanned({ data }) {
+    if (analyzing) return;
+    if (!hasApiConfig()) return;
+
+    const now = Date.now();
+    if (data === lastScanRef.current.code && now - lastScanRef.current.time < 4000) return;
+    lastScanRef.current = { code: data, time: now };
+
+    setScanError(null);
+    setAnalyzing(true);
+    setSearchingText(t(language, 'scan.barcode_searching'));
+
+    try {
+      const result = await analyzeBarcodeWithApi(data, profile, language, token);
+
+      if (result.status === 'NEEDS_PHOTO') {
+        setPendingBarcode(data);
+        setScanStep('photo');
+        setScanError(t(language, 'scan.barcode_not_found'));
+        return;
+      }
+
+      if (!VALID_STATUSES.has(result.status)) {
+        setScanError(t(language, 'errors.not_a_product'));
+        return;
+      }
+
+      const scan = { ...result, date: new Date().toISOString() };
+      await addScanToHistory(scan);
+      setCameraActive(false);
+      navigation.replace('Result', { result: scan });
+    } catch (e) {
+      setScanError(buildErrorMessage(e, language));
+      setIsLimitError(e.status === 429);
+    } finally {
+      setAnalyzing(false);
+      setSearchingText(null);
+    }
   }
 
   async function handleCapture() {
@@ -45,7 +84,7 @@ export default function ScanScreen({ navigation }) {
     }
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.7 });
-      await runAnalysis(photo.base64, photo.uri);
+      await runPhotoAnalysis(photo.base64, photo.uri);
     } catch (e) {
       setScanError(t(language, 'errors.camera_error'));
     }
@@ -63,15 +102,16 @@ export default function ScanScreen({ navigation }) {
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      await runAnalysis(asset.base64, asset.uri);
+      await runPhotoAnalysis(asset.base64, asset.uri);
     }
   }
 
-  async function runAnalysis(base64, imageUri) {
+  async function runPhotoAnalysis(base64, imageUri) {
     setScanError(null);
     setAnalyzing(true);
+    setSearchingText(null);
     try {
-      const result = await analyzeProductWithApi(base64, profile, language, token);
+      const result = await analyzeProductWithApi(base64, profile, language, token, pendingBarcode);
       if (!result.status || !VALID_STATUSES.has(result.status)) {
         setScanError(t(language, 'errors.not_a_product'));
         return;
@@ -81,21 +121,19 @@ export default function ScanScreen({ navigation }) {
       setCameraActive(false);
       navigation.replace('Result', { result: scan });
     } catch (e) {
-      let msg;
-      if (e.status === 429) {
-        setIsLimitError(true);
-        msg = t(language, 'limits.credits_exhausted');
-      } else if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
-        setIsLimitError(false);
-        msg = t(language, 'errors.network_error');
-      } else {
-        setIsLimitError(false);
-        msg = t(language, 'errors.analysis_failed');
-      }
-      setScanError(msg);
+      setScanError(buildErrorMessage(e, language));
+      setIsLimitError(e.status === 429);
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  function buildErrorMessage(e, lang) {
+    if (e.status === 429) return t(lang, 'limits.credits_exhausted');
+    if (e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('fetch')) {
+      return t(lang, 'errors.network_error');
+    }
+    return t(lang, 'errors.analysis_failed');
   }
 
   if (!permission) return <View style={styles.container} />;
@@ -117,10 +155,18 @@ export default function ScanScreen({ navigation }) {
     );
   }
 
+  const isBarcodeStep = scanStep === 'barcode';
+
   return (
     <View style={styles.container}>
       {cameraActive && (
-        <CameraView style={StyleSheet.absoluteFill} ref={cameraRef} facing="back" />
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          ref={cameraRef}
+          facing="back"
+          onBarcodeScanned={isBarcodeStep && !analyzing ? handleBarcodeScanned : undefined}
+          barcodeScannerSettings={{ barcodeTypes: BARCODE_TYPES }}
+        />
       )}
 
       {cameraActive && (
@@ -139,58 +185,84 @@ export default function ScanScreen({ navigation }) {
           </View>
 
           <View style={styles.frameContainer} pointerEvents="none">
-            <View style={styles.frame}>
+            <View style={isBarcodeStep ? styles.barcodeFrame : styles.frame}>
               <View style={[styles.corner, styles.topLeft]} />
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
-            </View>
-            <Text style={styles.frameHint}>{t(language, 'scan.instruction')}</Text>
-          </View>
-
-          <View style={styles.tipsRow} pointerEvents="none">
-            <View style={styles.tipPill}>
-              <Text style={styles.tipIcon}>💡</Text>
-              <Text style={styles.tipText}>{t(language, TIP_KEYS[tipIndex])}</Text>
-            </View>
-          </View>
-
-          <View style={styles.bottomBar}>
-            <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
-              <PremiumIcon name="scan" size={28} color={Colors.white} muted />
-              <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.captureBtn, analyzing && styles.captureBtnDisabled]}
-              onPress={handleCapture}
-              disabled={analyzing}
-            >
-              {analyzing ? (
-                <ActivityIndicator color={Colors.primary} size="large" />
-              ) : (
-                <View style={styles.captureBtnInner} />
+              {isBarcodeStep && (
+                <View style={styles.barcodeLine} />
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={handleClose}
-              disabled={analyzing}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Text style={styles.cancelBtnText}>✕</Text>
-            </TouchableOpacity>
+            </View>
+            <Text style={styles.frameHint}>
+              {isBarcodeStep
+                ? t(language, 'scan.barcode_hint')
+                : t(language, 'scan.photo_hint')}
+            </Text>
           </View>
+
+          {!isBarcodeStep && (
+            <View style={styles.stepRow} pointerEvents="none">
+              <View style={styles.stepPill}>
+                <Text style={styles.stepText}>📷 {t(language, 'scan.photo_hint')}</Text>
+              </View>
+            </View>
+          )}
+
+          {isBarcodeStep && (
+            <View style={styles.switchRow}>
+              <TouchableOpacity
+                style={styles.switchBtn}
+                onPress={() => setScanStep('photo')}
+                disabled={analyzing}
+              >
+                <Text style={styles.switchBtnText}>📷 {t(language, 'scan.take_photo')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!isBarcodeStep && (
+            <View style={styles.bottomBar}>
+              <TouchableOpacity style={styles.galleryBtn} onPress={handleGallery} disabled={analyzing}>
+                <PremiumIcon name="scan" size={28} color={Colors.white} muted />
+                <Text style={styles.galleryBtnText}>{t(language, 'scan.gallery')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.captureBtn, analyzing && styles.captureBtnDisabled]}
+                onPress={handleCapture}
+                disabled={analyzing}
+              >
+                {analyzing ? (
+                  <ActivityIndicator color={Colors.primary} size="large" />
+                ) : (
+                  <View style={styles.captureBtnInner} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => { setScanStep('barcode'); setPendingBarcode(null); setScanError(null); }}
+                disabled={analyzing}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.cancelBtnText}>←</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </SafeAreaView>
       )}
 
-      {analyzing && (
+      {(analyzing || searchingText) && (
         <View style={styles.analyzingOverlay}>
           <View style={styles.analyzingCard}>
             <PremiumIcon name="ai" size={58} />
-            <Text style={styles.analyzingText}>{t(language, 'scan.analyzing')}</Text>
-            <Text style={styles.analyzingSubtitle}>{t(language, 'scan.analyzing_subtitle')}</Text>
+            <Text style={styles.analyzingText}>
+              {searchingText || t(language, 'scan.analyzing')}
+            </Text>
+            <Text style={styles.analyzingSubtitle}>
+              {searchingText ? '' : t(language, 'scan.analyzing_subtitle')}
+            </Text>
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 16 }} />
           </View>
         </View>
@@ -210,7 +282,7 @@ export default function ScanScreen({ navigation }) {
             )}
             <TouchableOpacity
               style={styles.errorBtn}
-              onPress={() => { setScanError(null); setIsLimitError(false); }}
+              onPress={() => { setScanError(null); setIsLimitError(false); lastScanRef.current = { code: null, time: 0 }; }}
               activeOpacity={0.85}
             >
               <Text style={styles.errorBtnText}>{t(language, 'scan.dismiss')}</Text>
@@ -250,6 +322,15 @@ const styles = StyleSheet.create({
   scanTitle: { color: '#fff', fontSize: 17, fontWeight: '800', fontFamily: BrandFonts.heading || undefined },
   frameContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: { width: 280, height: 280, position: 'relative' },
+  barcodeFrame: { width: 300, height: 160, position: 'relative', justifyContent: 'center' },
+  barcodeLine: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    height: 2,
+    backgroundColor: Colors.accent,
+    opacity: 0.8,
+  },
   corner: {
     position: 'absolute',
     width: CORNER_SIZE,
@@ -268,6 +349,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 40,
   },
+  stepRow: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+  },
+  stepPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  stepText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  switchRow: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  switchBtn: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  switchBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,40 +395,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingTop: 16,
   },
-  tipsRow: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 12,
-  },
-  tipPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
-  tipIcon: { fontSize: 14 },
-  tipText: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 13,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  cancelBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.30)',
-  },
-  cancelBtnText: { color: '#fff', fontSize: 20, fontWeight: '800' },
   galleryBtn: { alignItems: 'center', width: 72 },
   galleryBtnText: { color: '#fff', fontSize: 12, marginTop: 4, fontWeight: '600' },
   captureBtn: {
@@ -331,6 +416,17 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: Colors.accent,
   },
+  cancelBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.30)',
+  },
+  cancelBtnText: { color: '#fff', fontSize: 20, fontWeight: '800' },
   analyzingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: Colors.overlay,

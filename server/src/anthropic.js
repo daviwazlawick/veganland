@@ -60,7 +60,10 @@ function buildImageInspectionPrompt(language) {
   if (language === 'pt') {
     return `Analise a imagem e identifique o produto.
 
+IMPORTANTE: Se a imagem mostrar comida já preparada (prato de comida, refeição servida, comida em prato/tigela), pessoa, animal, paisagem, lugar ou qualquer coisa que NÃO seja um produto embalado/com rótulo para compra — classifique como "invalid".
+
 Primeiro, classifique o tipo de produto:
+- "invalid": prato de comida pronta, refeição servida, pessoa, animal, paisagem, screenshot, ou qualquer imagem que não seja de um produto embalado/com rótulo
 - "fresh_produce": frutas, vegetais, cogumelos, ervas frescas in natura (sem embalagem industrializada)
 - "processed_food": alimentos embalados, industrializados, com lista de ingredientes
 - "cosmetic": cosméticos, maquiagem, creme, shampoo, condicionador, perfume, sabonete
@@ -69,7 +72,7 @@ Primeiro, classifique o tipo de produto:
 - "cleaning": produtos de limpeza doméstica, detergente, sabão
 - "other": qualquer outro produto não listado acima
 
-Depois extraia:
+Depois extraia (apenas se não for "invalid"):
 1. Marca, nome do produto e código de barras se visível
 2. Para processed_food, cosmetic e supplement: lista de ingredientes/composição se visível
 3. Para clothing: composição do material/tecido se visível (ex: 100% couro, 80% algodão)
@@ -77,7 +80,7 @@ Depois extraia:
 
 Responda APENAS com JSON válido neste formato:
 {
-  "product_type": "fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
+  "product_type": "invalid|fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
   "product_name": "nome do produto ou null",
   "brand": "marca ou null",
   "barcode": "codigo de barras apenas numeros ou null",
@@ -90,7 +93,10 @@ Responda APENAS com JSON válido neste formato:
 
   return `Analyze the image and identify the product.
 
+IMPORTANT: If the image shows prepared/cooked food (a meal on a plate, served dish, food in a bowl), a person, animal, landscape, place, or anything that is NOT a packaged/labeled product for purchase — classify as "invalid".
+
 First, classify the product type:
+- "invalid": prepared meal, cooked food on a plate, person, animal, landscape, screenshot, or any image that is not a packaged/labeled product
 - "fresh_produce": fresh fruits, vegetables, mushrooms, herbs (not industrially packaged)
 - "processed_food": packaged, processed foods with an ingredient list
 - "cosmetic": cosmetics, makeup, cream, shampoo, conditioner, perfume, soap
@@ -99,7 +105,7 @@ First, classify the product type:
 - "cleaning": household cleaning products, detergent, soap
 - "other": any other product not listed above
 
-Then extract:
+Then extract (only if not "invalid"):
 1. Brand, product name, and barcode if visible
 2. For processed_food, cosmetic and supplement: ingredient/composition list if visible
 3. For clothing: material/fabric composition if visible (e.g. 100% leather, 80% cotton)
@@ -107,7 +113,7 @@ Then extract:
 
 Respond ONLY with valid JSON in this format:
 {
-  "product_type": "fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
+  "product_type": "invalid|fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
   "product_name": "product name or null",
   "brand": "brand or null",
   "barcode": "barcode digits only or null",
@@ -777,6 +783,47 @@ export async function analyzeProductByKnowledge(product, profile, language) {
   ]);
 
   return extractJson(text);
+}
+
+export function buildInvalidImageResult(language) {
+  const messages = {
+    pt: {
+      title: "Imagem não reconhecida",
+      explanation: "Esta imagem não parece ser de um produto com rótulo. Tire uma foto do código de barras, da lista de ingredientes ou da embalagem do produto.",
+    },
+    en: {
+      title: "Image not recognized",
+      explanation: "This image does not appear to be a labeled product. Take a photo of the barcode, ingredient list, or product packaging.",
+    },
+    de: {
+      title: "Bild nicht erkannt",
+      explanation: "Dieses Bild scheint kein Produkt mit Etikett zu zeigen. Fotografiere den Barcode, die Zutatenliste oder die Produktverpackung.",
+    },
+    fr: {
+      title: "Image non reconnue",
+      explanation: "Cette image ne semble pas être un produit avec étiquette. Prenez une photo du code-barres, de la liste des ingrédients ou de l'emballage du produit.",
+    },
+    it: {
+      title: "Immagine non riconosciuta",
+      explanation: "Questa immagine non sembra essere un prodotto con etichetta. Scatta una foto del codice a barre, della lista degli ingredienti o della confezione del prodotto.",
+    },
+    es: {
+      title: "Imagen no reconocida",
+      explanation: "Esta imagen no parece ser un producto con etiqueta. Toma una foto del código de barras, la lista de ingredientes o el envase del producto.",
+    },
+  };
+  const text = messages[language] || messages.en;
+
+  return {
+    status: 'INVALID',
+    title: text.title,
+    explanation: text.explanation,
+    concerns: [],
+    cannot_read: true,
+    product_name: null,
+    ingredients_source: 'invalid',
+    normalized_ingredients: [],
+  };
 }
 
 export function buildMissingIngredientsResult(product, language) {

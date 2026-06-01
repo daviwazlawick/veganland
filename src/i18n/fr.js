@@ -142,6 +142,10 @@ export default {
     tip_ingredients: 'Liste des ingrédients visible ? Encore mieux !',
     tip_product: 'La face du produit fonctionne aussi — l\'IA connaît beaucoup de marques',
     dismiss: 'OK',
+    barcode_hint: "Pointez le code-barres vers la caméra",
+    barcode_searching: "Recherche du produit...",
+    barcode_not_found: "Code-barres pas encore dans notre base. Montrez la liste des ingrédients pour l'ajouter.",
+    photo_hint: "Montrez la liste des ingrédients",
   },
   result: {
     safe: 'SÛR',

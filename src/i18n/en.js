@@ -142,6 +142,10 @@ export default {
     tip_ingredients: 'Ingredient list visible? Even better!',
     tip_product: 'Product front works too — AI knows many brands',
     dismiss: 'OK',
+    barcode_hint: 'Point the barcode at the camera',
+    barcode_searching: 'Looking up product...',
+    barcode_not_found: 'Barcode not in our database yet. Show the ingredient list so we can add it.',
+    photo_hint: 'Show the ingredient list',
   },
   result: {
     safe: 'SAFE',
