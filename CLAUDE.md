@@ -7,7 +7,7 @@ Permite escanear produtos (foto ou barcode), analisar ingredientes com IA (Anthr
 
 Dois brands partilham o mesmo codebase, servidor e base de dados:
 - **VeganLand** — `https://veganland.app` — tema verde
-- **NovaQI** — `https://veganland.app/novaqi` (web) / `app.novaqi` (nativo) — tema navy + citrus
+- **NovaQI** — `https://novaqi.app` (web) / `app.novaqi` (nativo) — tema navy + citrus
 
 **Servidor:** VPS Ubuntu, `/opt/veganland`, processo PM2 `veganland-api`  
 **Owner:** Davi Augusto Wazlawick, 4 Frankfurter Allee, 10247 Berlin, Germany  
@@ -47,7 +47,7 @@ src/constants/colors.js  — re-exporta Colors do brand activo
 ### Como funciona
 - `Colors.X` — sempre do brand activo
 - `t(lang, 'key')` — verifica overrides do brand antes das traduções padrão
-- `Brand.id`, `Brand.name`, `Brand.domain`, `Brand.fonts`
+- `Brand.id`, `Brand.name`, `Brand.domain` (`veganland.app` ou `novaqi.app`), `Brand.fonts`
 - `BrandName` component — renderiza "Nova" + "QI" em cores split, ou "VeganLand" simples
 - `BrandLogo` component — círculo navy com SVG target (NovaQI) ou círculo verde com câmera (VeganLand)
 - `PremiumIcon name="scan"` — target/radar para NovaQI, câmera para VeganLand
@@ -197,7 +197,7 @@ cd /opt/veganland && git pull && npm run build:deploy
 # No servidor:
 cd /opt/veganland && git pull && npm run build:novaqi:deploy
 ```
-`build:novaqi:deploy` = build com `BRAND=novaqi` + `cp dist/* /var/www/veganland/novaqi/` 
+`build:novaqi:deploy` = build com `BRAND=novaqi EXPO_PUBLIC_API_URL=https://novaqi.app` + `cp dist/* /var/www/novaqi/`
 
 ### Só reiniciar servidor (sem rebuild web)
 ```bash
@@ -295,18 +295,28 @@ SMTP_FROM=VeganLand <contact@veganland.app>
 
 ## nginx — rotas proxy
 
-Arquivo: `/etc/nginx/sites-available/veganland.app`
+### VeganLand — `/etc/nginx/sites-available/veganland.app`
+- Web root: `/var/www/veganland`
+- O path `/novaqi` redireciona (301) para `https://novaqi.app/`
 
 ```nginx
-location ~ ^/(analyze-product|health|auth/.+|user/.+|scan/.+|admin/?|admin/user/.+|legal/.+|app/.+)$ {
+location ~ ^/(analyze-product|health|auth/.+|user/.+|scan/.+|admin/?|admin/user/.+|legal/.+|webhook/.+|app/.+)$ {
     proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 120s;
     client_max_body_size 10m;
 }
 ```
 
-**Nota:** `app/.+` é necessário para o endpoint `/app/version` (force update).
+### NovaQI — `/etc/nginx/sites-available/novaqi.app`
+- Web root: `/var/www/novaqi`
+- Domínio dedicado com SSL próprio (Certbot `novaqi.app`)
+- Proxy idêntico ao VeganLand — mesmo backend em `127.0.0.1:3000`
+- CSP `connect-src` inclui tanto `https://novaqi.app` como `https://veganland.app`
+
+**Nota:** `app/.+` e `webhook/.+` são necessários para `/app/version` (force update) e webhooks (ex. RevenueCat).
 
 Após editar: `sudo nginx -t && sudo systemctl reload nginx`
 

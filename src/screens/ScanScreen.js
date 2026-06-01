@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -27,7 +27,15 @@ export default function ScanScreen({ navigation, route }) {
   const [cameraActive, setCameraActive] = useState(true);
   const [scanError, setScanError] = useState(null);
   const [isLimitError, setIsLimitError] = useState(false);
-  const [scanStep, setScanStep] = useState(route?.params?.photoMode ? 'photo' : 'barcode'); // 'barcode' | 'photo' | 'ingredients'
+  // BarcodeDetector is available in Chrome/Edge/Safari 17+ — not Firefox
+  const webSupportsBarcodes = Platform.OS === 'web'
+    && typeof window !== 'undefined'
+    && 'BarcodeDetector' in window;
+  const [scanStep, setScanStep] = useState(
+    route?.params?.photoMode ? 'photo'
+    : Platform.OS === 'web' && !webSupportsBarcodes ? 'photo'
+    : 'barcode'
+  ); // 'barcode' | 'photo' | 'ingredients'
   const [pendingBarcode, setPendingBarcode] = useState(null);
   const [pendingResult, setPendingResult] = useState(null);
   const [noIngredientsPrompt, setNoIngredientsPrompt] = useState(false);
@@ -103,6 +111,54 @@ export default function ScanScreen({ navigation, route }) {
     lockRef.current = { code: null, since: 0, timer: null };
     setLockedBarcode(null);
   }
+
+  // On web, CameraView's onBarcodeScanned is a no-op — use BarcodeDetector API instead.
+  // Captures frames from the <video> element CameraView renders, ~4fps, same lock logic as native.
+  useEffect(() => {
+    if (!webSupportsBarcodes || scanStep !== 'barcode' || analyzing || scanError) return;
+
+    let active = true;
+    let timeout;
+    let detector;
+
+    try {
+      detector = new window.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
+      });
+    } catch (e) {
+      console.warn('[BarcodeDetector] constructor failed:', e);
+      return;
+    }
+
+    async function scanFrame() {
+      if (!active) return;
+      const video = document.querySelector('video');
+      if (!video) {
+        console.log('[BarcodeDetector] no <video> element found yet');
+      } else if (video.videoWidth === 0) {
+        console.log('[BarcodeDetector] video not ready (videoWidth=0)');
+      } else {
+        try {
+          const bitmap = await createImageBitmap(video);
+          const barcodes = await detector.detect(bitmap);
+          bitmap.close();
+          if (barcodes.length > 0 && active) {
+            console.log('[BarcodeDetector] barcode found:', barcodes[0].rawValue);
+            handleBarcodeScanned({ data: barcodes[0].rawValue });
+          }
+        } catch (e) {
+          console.warn('[BarcodeDetector] detect error:', e);
+        }
+      }
+      if (active) timeout = setTimeout(scanFrame, 250);
+    }
+
+    timeout = setTimeout(scanFrame, 600);
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [webSupportsBarcodes, scanStep, analyzing, scanError]);
 
   async function handleCapture() {
     if (!hasApiConfig()) {

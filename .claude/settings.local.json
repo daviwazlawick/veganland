@@ -90,7 +90,9 @@
       "Bash(BRAND=veganland EXPO_PUBLIC_BRAND=veganland node *)",
       "Bash(chmod +x /opt/veganland/server/scripts/update-off.sh)",
       "Bash(nohup python3 /opt/veganland/server/scripts/import-off.py)",
-      "Bash(echo \"PID: $!\")"
+      "Bash(echo \"PID: $!\")",
+      "Bash(nohup python3 /opt/veganland/server/scripts/import-off.py --skip-download)",
+      "Bash(echo \"Re-import started \\(PID $!\\)\")"
     ]
   }
 }
