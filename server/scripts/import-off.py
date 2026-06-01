@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Download and import the OpenFoodFacts product dump into the local off_products table.
+Download and import the OpenFoodFacts product dump directly into the products table.
+- New OFF products are inserted.
+- Existing OFF products (source = 'open_food_facts') are updated with fresh data.
+- Products added via scan (any other source) are NEVER touched.
 Usage: python3 import-off.py [--skip-download]
 """
 
@@ -11,24 +14,11 @@ import sys
 import urllib.request
 import psycopg2
 
-csv.field_size_limit(10 * 1024 * 1024)  # 10 MB — OFF has very long ingredient lists
+csv.field_size_limit(10 * 1024 * 1024)
 
 DUMP_URL = "https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz"
 DUMP_PATH = "/opt/veganland/data/off-products.csv.gz"
 BATCH_SIZE = 5000
-
-COLUMNS = [
-    "code",
-    "product_name",
-    "brands",
-    "ingredients_text",
-    "ingredients_text_en",
-    "ingredients_text_pt",
-    "ingredients_text_es",
-    "ingredients_text_de",
-    "ingredients_text_fr",
-    "ingredients_text_it",
-]
 
 
 def load_env():
@@ -58,22 +48,35 @@ def download_dump():
     print("Download complete.")
 
 
+def best_ingredients(row):
+    for key in ["ingredients_text", "ingredients_text_en", "ingredients_text_pt",
+                "ingredients_text_de", "ingredients_text_fr", "ingredients_text_it",
+                "ingredients_text_es"]:
+        v = (row.get(key) or "").strip()
+        if v:
+            return v
+    return None
+
+
 def import_dump(conn):
     cur = conn.cursor()
 
-    print("Truncating off_products ...")
-    cur.execute("TRUNCATE TABLE off_products")
-    conn.commit()
-
-    placeholders = ", ".join(["%s"] * len(COLUMNS))
-    upsert_sql = f"""
-        INSERT INTO off_products ({", ".join(COLUMNS)})
-        VALUES ({placeholders})
-        ON CONFLICT (code) DO UPDATE SET
-            {", ".join(f"{c} = EXCLUDED.{c}" for c in COLUMNS if c != "code")}
+    # Upsert into products:
+    # - INSERT new OFF products
+    # - UPDATE existing OFF products (source = 'open_food_facts') with fresh data
+    # - DO NOTHING for products added via scan (different source)
+    upsert_sql = """
+        INSERT INTO products (identity_key, barcode, brand, product_name, ingredients_text, source)
+        VALUES (%s, %s, %s, %s, %s, 'open_food_facts')
+        ON CONFLICT (identity_key) DO UPDATE SET
+            brand           = EXCLUDED.brand,
+            product_name    = EXCLUDED.product_name,
+            ingredients_text = EXCLUDED.ingredients_text,
+            updated_at      = now()
+        WHERE products.source = 'open_food_facts'
     """
 
-    print(f"Importing from {DUMP_PATH} ...")
+    print(f"Importing from {DUMP_PATH} into products table ...")
     total = 0
     batch = []
 
@@ -84,17 +87,7 @@ def import_dump(conn):
             if not code:
                 continue
 
-            # At least one ingredient text must exist to be useful
-            ingredients = (
-                row.get("ingredients_text") or
-                row.get("ingredients_text_en") or
-                row.get("ingredients_text_pt") or
-                row.get("ingredients_text_es") or
-                row.get("ingredients_text_de") or
-                row.get("ingredients_text_fr") or
-                row.get("ingredients_text_it") or
-                ""
-            ).strip()
+            ingredients = best_ingredients(row)
             if not ingredients:
                 continue
 
@@ -103,16 +96,11 @@ def import_dump(conn):
                 return v if v else None
 
             batch.append((
+                f"barcode:{code}",
                 code,
-                col("product_name"),
                 col("brands"),
-                col("ingredients_text"),
-                col("ingredients_text_en"),
-                col("ingredients_text_pt"),
-                col("ingredients_text_es"),
-                col("ingredients_text_de"),
-                col("ingredients_text_fr"),
-                col("ingredients_text_it"),
+                col("product_name"),
+                ingredients,
             ))
 
             if len(batch) >= BATCH_SIZE:
@@ -120,14 +108,14 @@ def import_dump(conn):
                 conn.commit()
                 total += len(batch)
                 batch = []
-                print(f"\r  {total:,} rows imported", end="", flush=True)
+                print(f"\r  {total:,} rows processed", end="", flush=True)
 
     if batch:
         cur.executemany(upsert_sql, batch)
         conn.commit()
         total += len(batch)
 
-    print(f"\nDone. {total:,} rows imported into off_products.")
+    print(f"\nDone. {total:,} OFF products merged into products table.")
     cur.close()
 
 

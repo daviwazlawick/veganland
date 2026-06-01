@@ -1,20 +1,7 @@
-import { getPool } from './db.js';
-
-function bestIngredientText(product) {
-  return product.ingredients_text
-    || product.ingredients_text_en
-    || product.ingredients_text_pt
-    || product.ingredients_text_es
-    || product.ingredients_text_de
-    || product.ingredients_text_fr
-    || product.ingredients_text_it
-    || '';
-}
-
 function mapOpenFoodFactsProduct(product) {
   if (!product) return null;
 
-  const ingredientsText = bestIngredientText(product).trim();
+  const ingredientsText = (product.ingredients_text || product.generic_name || '').trim();
   if (!ingredientsText) return null;
 
   return {
@@ -28,25 +15,9 @@ function mapOpenFoodFactsProduct(product) {
   };
 }
 
-async function queryLocalOff(barcode) {
-  const db = await getPool();
-  if (!db) return null;
-
-  // The import script may have stripped leading zeros, so try both the
-  // exact barcode and the leading-zero-stripped version in one query.
-  const stripped = barcode.replace(/^0+/, '') || barcode;
-
-  const result = await db.query(
-    'SELECT * FROM off_products WHERE code = $1 OR ($2 <> $1 AND code = $2) LIMIT 1',
-    [barcode, stripped]
-  );
-  return result.rows[0] ? mapOpenFoodFactsProduct(result.rows[0]) : null;
-}
-
 async function fetchByBarcode(barcode) {
-  const local = await queryLocalOff(barcode);
-  if (local) return local;
-
+  // OFF data is now in the products table — this is only called as a web fallback
+  // for barcodes not found locally at all.
   const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
   if (!response.ok) return null;
 
