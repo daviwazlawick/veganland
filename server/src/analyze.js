@@ -212,6 +212,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
 
   if (clientBarcode) {
     const known = await findProduct({ barcode: clientBarcode });
+    console.log('[barcode-lookup]', { clientBarcode, found: !!known, knownId: known?.id, knownBarcode: known?.barcode });
     if (known) {
       const src = known.source || 'processed_food';
       imageInspection = {
