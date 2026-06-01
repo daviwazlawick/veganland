@@ -372,6 +372,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     }
   }
 
+  console.log('[stamp]', { clientBarcode, productId: product?.id, productBarcode: product?.barcode, identityKey: product?.identity_key });
   if (clientBarcode && product?.id) {
     await stampBarcode(product.id, clientBarcode);
   }
