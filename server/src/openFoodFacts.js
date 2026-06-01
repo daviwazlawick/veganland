@@ -46,6 +46,18 @@ async function fetchByQuery(query) {
   return products.map(mapOpenFoodFactsProduct).find(Boolean) || null;
 }
 
+export async function fetchBarcodeInfo(barcode) {
+  const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,generic_name,brands`);
+  if (!response.ok) return null;
+  const data = await response.json();
+  if (data.status !== 1 || !data.product) return null;
+  const p = data.product;
+  const name = p.product_name || p.generic_name || null;
+  const brand = p.brands || null;
+  if (!name && !brand) return null;
+  return { product_name: name, brand, barcode };
+}
+
 export async function findProductIngredients(productIdentity) {
   const barcode = productIdentity?.barcode?.replace(/\D/g, '');
   if (barcode) {

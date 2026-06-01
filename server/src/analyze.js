@@ -18,7 +18,7 @@ import {
   upsertProduct,
   upsertProductByIdentity,
 } from './db.js';
-import { findProductIngredients } from './openFoodFacts.js';
+import { findProductIngredients, fetchBarcodeInfo } from './openFoodFacts.js';
 
 async function resolveProductIngredients(imageInspection) {
   const visibleIngredients = imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim();
@@ -228,9 +228,42 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     }
   }
 
-  // Barcode not found anywhere and no image → ask client for photo
+  // Barcode not found anywhere and no image
   if (!imageInspection && !imageBase64) {
-    return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
+    if (clientBarcode) {
+      // Try OFF for products with ingredients
+      const offProduct = await findProductIngredients({ barcode: clientBarcode });
+      if (offProduct?.ingredients_text) {
+        imageInspection = {
+          product_type: 'processed_food',
+          product_name: offProduct.product_name,
+          brand: offProduct.brand,
+          barcode: clientBarcode,
+          lookup_query: null,
+          ingredients_visible: true,
+          ingredients_text: offProduct.ingredients_text,
+          confidence: 1.0,
+        };
+      } else {
+        // Try OFF for products without ingredients (e.g. water, fresh produce)
+        const offInfo = await fetchBarcodeInfo(clientBarcode);
+        if (offInfo) {
+          imageInspection = {
+            product_type: 'processed_food',
+            product_name: offInfo.product_name,
+            brand: offInfo.brand,
+            barcode: clientBarcode,
+            lookup_query: null,
+            ingredients_visible: false,
+            ingredients_text: null,
+            confidence: 0.9,
+          };
+        }
+      }
+    }
+    if (!imageInspection) {
+      return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
+    }
   }
 
   if (!imageInspection) {
