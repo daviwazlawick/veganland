@@ -39,6 +39,11 @@ async function resolveProductIngredients(imageInspection) {
       source: 'database',
     };
   }
+  // Product exists in our DB but without ingredients and was created by a user scan
+  // (not imported from OFF) — don't override it with potentially wrong OFF data.
+  if (dbProduct && dbProduct.source !== 'open_food_facts') {
+    return null;
+  }
 
   const searchedProduct = await findProductIngredients(imageInspection);
   if (!searchedProduct?.ingredients_text) return null;
