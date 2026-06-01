@@ -29,21 +29,40 @@ export default function ScanScreen({ navigation }) {
   const [isLimitError, setIsLimitError] = useState(false);
   const [scanStep, setScanStep] = useState('barcode'); // 'barcode' | 'photo'
   const [pendingBarcode, setPendingBarcode] = useState(null);
+  const [lockedBarcode, setLockedBarcode] = useState(null); // barcode being held steady
   const cameraRef = useRef(null);
-  const lastScanRef = useRef({ code: null, time: 0 });
+  const lockRef = useRef({ code: null, since: 0, timer: null });
+
+  const LOCK_DELAY = 900; // ms the same barcode must be held to trigger
 
   function handleClose() {
+    clearTimeout(lockRef.current.timer);
     setCameraActive(false);
     navigation.goBack();
   }
 
-  async function handleBarcodeScanned({ data }) {
+  function handleBarcodeScanned({ data }) {
     if (analyzing) return;
     if (!hasApiConfig()) return;
 
-    const now = Date.now();
-    if (data === lastScanRef.current.code && now - lastScanRef.current.time < 4000) return;
-    lastScanRef.current = { code: data, time: now };
+    // Same barcode still in frame — reset the timer if it's a new code
+    if (data !== lockRef.current.code) {
+      clearTimeout(lockRef.current.timer);
+      lockRef.current.code = data;
+      lockRef.current.since = Date.now();
+      setLockedBarcode(data);
+
+      lockRef.current.timer = setTimeout(() => {
+        triggerBarcodeSearch(data);
+      }, LOCK_DELAY);
+    }
+  }
+
+  async function triggerBarcodeSearch(data) {
+    if (analyzing) return;
+    clearTimeout(lockRef.current.timer);
+    setLockedBarcode(null);
+    lockRef.current.code = null;
 
     setScanError(null);
     setAnalyzing(true);
@@ -75,6 +94,12 @@ export default function ScanScreen({ navigation }) {
       setAnalyzing(false);
       setSearchingText(null);
     }
+  }
+
+  function resetBarcodeScanner() {
+    clearTimeout(lockRef.current.timer);
+    lockRef.current = { code: null, since: 0, timer: null };
+    setLockedBarcode(null);
   }
 
   async function handleCapture() {
@@ -156,6 +181,7 @@ export default function ScanScreen({ navigation }) {
   }
 
   const isBarcodeStep = scanStep === 'barcode';
+  const isLocked = isBarcodeStep && !!lockedBarcode;
 
   return (
     <View style={styles.container}>
@@ -186,12 +212,12 @@ export default function ScanScreen({ navigation }) {
 
           <View style={styles.frameContainer} pointerEvents="none">
             <View style={isBarcodeStep ? styles.barcodeFrame : styles.frame}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+              <View style={[styles.corner, styles.topLeft, isLocked && styles.cornerLocked]} />
+              <View style={[styles.corner, styles.topRight, isLocked && styles.cornerLocked]} />
+              <View style={[styles.corner, styles.bottomLeft, isLocked && styles.cornerLocked]} />
+              <View style={[styles.corner, styles.bottomRight, isLocked && styles.cornerLocked]} />
               {isBarcodeStep && (
-                <View style={styles.barcodeLine} />
+                <View style={[styles.barcodeLine, isLocked && styles.barcodeLineLocked]} />
               )}
             </View>
             <Text style={styles.frameHint}>
@@ -242,7 +268,7 @@ export default function ScanScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => { setScanStep('barcode'); setPendingBarcode(null); setScanError(null); }}
+                onPress={() => { setScanStep('barcode'); setPendingBarcode(null); setScanError(null); resetBarcodeScanner(); }}
                 disabled={analyzing}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
@@ -282,7 +308,7 @@ export default function ScanScreen({ navigation }) {
             )}
             <TouchableOpacity
               style={styles.errorBtn}
-              onPress={() => { setScanError(null); setIsLimitError(false); lastScanRef.current = { code: null, time: 0 }; }}
+              onPress={() => { setScanError(null); setIsLimitError(false); resetBarcodeScanner(); }}
               activeOpacity={0.85}
             >
               <Text style={styles.errorBtnText}>{t(language, 'scan.dismiss')}</Text>
@@ -341,6 +367,8 @@ const styles = StyleSheet.create({
   topRight: { top: 0, right: 0, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
   bottomLeft: { bottom: 0, left: 0, borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
   bottomRight: { bottom: 0, right: 0, borderBottomWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
+  cornerLocked: { borderColor: Colors.safe },
+  barcodeLineLocked: { backgroundColor: Colors.safe },
   frameHint: {
     color: 'rgba(255,255,255,0.9)',
     marginTop: 20,
