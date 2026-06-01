@@ -19,6 +19,7 @@
       }
     },
     "novaqi-ios": {
+      "channel": "production",
       "env": {
         "BRAND": "novaqi",
         "EXPO_PUBLIC_BRAND": "novaqi",
@@ -31,6 +32,7 @@
       }
     },
     "veganland-android": {
+      "channel": "production",
       "env": {
         "BRAND": "veganland",
         "EXPO_PUBLIC_BRAND": "veganland",
@@ -44,6 +46,7 @@
       }
     },
     "veganland-ios": {
+      "channel": "production",
       "env": {
         "BRAND": "veganland",
         "EXPO_PUBLIC_BRAND": "veganland",
