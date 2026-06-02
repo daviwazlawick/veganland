@@ -65,14 +65,28 @@ export default function PaywallScreen({ navigation, route }) {
   const PRODUCT_IDS = { starter: 'novaqi_starter', premium: 'novaqi_premium' };
 
   function getRcPackage(planId) {
-    if (!offering?.availablePackages?.length) return null;
+    const pkgs = offering?.availablePackages;
+    if (!pkgs?.length) return null;
+
     const productId = PRODUCT_IDS[planId];
-    if (!productId) return null;
-    // Match by product store identifier — independent of RC package identifier naming
-    return offering.availablePackages.find(p =>
+
+    // 1. by product store ID
+    const byProduct = pkgs.find(p =>
       p.product?.identifier === productId ||
       p.product?.productIdentifier === productId
-    ) || null;
+    );
+    if (byProduct) return byProduct;
+
+    // 2. by RC package identifier
+    const byIdentifier = pkgs.find(p => p.identifier === planId);
+    if (byIdentifier) return byIdentifier;
+
+    // 3. fallback by price order — cheapest = starter, most expensive = premium
+    const sorted = [...pkgs].sort((a, b) => (a.product?.price ?? 0) - (b.product?.price ?? 0));
+    if (planId === 'starter') return sorted[0] || null;
+    if (planId === 'premium') return sorted[sorted.length - 1] || null;
+
+    return null;
   }
 
   function getPriceString(planId) {
