@@ -62,10 +62,17 @@ export default function PaywallScreen({ navigation, route }) {
     }
   }, [isNative]);
 
+  const PRODUCT_IDS = { starter: 'novaqi_starter', premium: 'novaqi_premium' };
+
   function getRcPackage(planId) {
-    const plan = PLANS.find(p => p.id === planId);
-    if (!plan?.rcPackageId || !offering) return null;
-    return offering.availablePackages?.find(p => p.identifier === plan.rcPackageId) || null;
+    if (!offering?.availablePackages?.length) return null;
+    const productId = PRODUCT_IDS[planId];
+    if (!productId) return null;
+    // Match by product store identifier — independent of RC package identifier naming
+    return offering.availablePackages.find(p =>
+      p.product?.identifier === productId ||
+      p.product?.productIdentifier === productId
+    ) || null;
   }
 
   function getPriceString(planId) {
