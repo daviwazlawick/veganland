@@ -131,24 +131,27 @@ export default function ScanScreen({ navigation, route }) {
       return;
     }
 
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
     async function scanFrame() {
       if (!active) return;
       const video = document.querySelector('video');
       if (!video) {
-        console.log('[BarcodeDetector] no <video> element found yet');
+        // no-op: video not mounted yet
       } else if (video.videoWidth === 0) {
-        console.log('[BarcodeDetector] video not ready (videoWidth=0)');
+        // no-op: stream not ready yet
       } else {
         try {
-          const bitmap = await createImageBitmap(video);
-          const barcodes = await detector.detect(bitmap);
-          bitmap.close();
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          const barcodes = await detector.detect(canvas);
           if (barcodes.length > 0 && active) {
-            console.log('[BarcodeDetector] barcode found:', barcodes[0].rawValue);
             handleBarcodeScanned({ data: barcodes[0].rawValue });
           }
         } catch (e) {
-          console.warn('[BarcodeDetector] detect error:', e);
+          // detection errors are expected on some frames — keep looping
         }
       }
       if (active) timeout = setTimeout(scanFrame, 250);
