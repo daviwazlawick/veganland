@@ -158,7 +158,8 @@ export default function PaywallScreen({ navigation, route }) {
           const isSel = selected === plan.id;
           const pkg = plan.rcPackageId ? getRcPackage(plan.id) : null;
           const loading = plan.rcPackageId && isNative && !offeringLoaded;
-          const unavailable = plan.rcPackageId && !pkg && isNative && offeringLoaded;
+          // Only block on web — on native, let the user try and handle errors at purchase time
+          const unavailable = plan.rcPackageId && Platform.OS === 'web';
 
           return (
             <TouchableOpacity
