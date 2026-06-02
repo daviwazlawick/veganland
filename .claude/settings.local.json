@@ -92,7 +92,8 @@
       "Bash(nohup python3 /opt/veganland/server/scripts/import-off.py)",
       "Bash(echo \"PID: $!\")",
       "Bash(nohup python3 /opt/veganland/server/scripts/import-off.py --skip-download)",
-      "Bash(echo \"Re-import started \\(PID $!\\)\")"
+      "Bash(echo \"Re-import started \\(PID $!\\)\")",
+      "Bash(eas submit *)"
     ]
   }
 }
