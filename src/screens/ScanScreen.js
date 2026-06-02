@@ -27,13 +27,9 @@ export default function ScanScreen({ navigation, route }) {
   const [cameraActive, setCameraActive] = useState(true);
   const [scanError, setScanError] = useState(null);
   const [isLimitError, setIsLimitError] = useState(false);
-  // BarcodeDetector is available in Chrome/Edge/Safari 17+ — not Firefox
-  const webSupportsBarcodes = Platform.OS === 'web'
-    && typeof window !== 'undefined'
-    && 'BarcodeDetector' in window;
+  const isWeb = Platform.OS === 'web';
   const [scanStep, setScanStep] = useState(
     route?.params?.photoMode ? 'photo'
-    : Platform.OS === 'web' && !webSupportsBarcodes ? 'photo'
     : 'barcode'
   ); // 'barcode' | 'photo' | 'ingredients'
   const [pendingBarcode, setPendingBarcode] = useState(route?.params?.wrongProductBarcode || null);
@@ -113,56 +109,45 @@ export default function ScanScreen({ navigation, route }) {
     setLockedBarcode(null);
   }
 
-  // On web, CameraView's onBarcodeScanned is a no-op — use BarcodeDetector API instead.
-  // Captures frames from the <video> element CameraView renders, ~4fps, same lock logic as native.
+  // On web, CameraView's onBarcodeScanned is a no-op — use ZXing instead.
+  // ZXing does its own image processing and works reliably on all desktop browsers.
   useEffect(() => {
-    if (!webSupportsBarcodes || scanStep !== 'barcode' || analyzing || scanError) return;
+    if (!isWeb || scanStep !== 'barcode' || analyzing || scanError) return;
 
-    let active = true;
-    let timeout;
-    let detector;
+    let reader;
+    let stopped = false;
 
-    try {
-      detector = new window.BarcodeDetector({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
-      });
-    } catch (e) {
-      console.warn('[BarcodeDetector] constructor failed:', e);
-      return;
-    }
+    async function startZxing() {
+      try {
+        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        if (stopped) return;
+        reader = new BrowserMultiFormatReader();
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    async function scanFrame() {
-      if (!active) return;
-      const video = document.querySelector('video');
-      if (!video) {
-        // no-op: video not mounted yet
-      } else if (video.videoWidth === 0) {
-        // no-op: stream not ready yet
-      } else {
-        try {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0);
-          const barcodes = await detector.detect(canvas);
-          if (barcodes.length > 0 && active) {
-            handleBarcodeScanned({ data: barcodes[0].rawValue });
-          }
-        } catch (e) {
-          // detection errors are expected on some frames — keep looping
+        // Wait for the <video> element that CameraView renders
+        let video = null;
+        for (let i = 0; i < 20; i++) {
+          video = document.querySelector('video');
+          if (video && video.srcObject) break;
+          await new Promise(r => setTimeout(r, 300));
         }
+        if (!video || !video.srcObject || stopped) return;
+
+        reader.decodeFromStream(video.srcObject, video, (result, err) => {
+          if (result && !stopped) {
+            handleBarcodeScanned({ data: result.getText() });
+          }
+        });
+      } catch (e) {
+        // ZXing failed to load or start — silent fail, user can use photo mode
       }
-      if (active) timeout = setTimeout(scanFrame, 250);
     }
 
-    timeout = setTimeout(scanFrame, 600);
+    startZxing();
     return () => {
-      active = false;
-      clearTimeout(timeout);
+      stopped = true;
+      try { reader?.reset(); } catch (_) {}
     };
-  }, [webSupportsBarcodes, scanStep, analyzing, scanError]);
+  }, [isWeb, scanStep, analyzing, scanError]);
 
   async function handleCapture() {
     if (!hasApiConfig()) {
