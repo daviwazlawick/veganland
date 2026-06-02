@@ -114,38 +114,46 @@ export default function ScanScreen({ navigation, route }) {
   useEffect(() => {
     if (!isWeb || scanStep !== 'barcode' || analyzing || scanError) return;
 
+    let active = true;
+    let timeout;
     let reader;
-    let stopped = false;
 
-    async function startZxing() {
+    async function startScanner() {
       try {
         const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        if (stopped) return;
         reader = new BrowserMultiFormatReader();
-
-        // Wait for the <video> element that CameraView renders
-        let video = null;
-        for (let i = 0; i < 20; i++) {
-          video = document.querySelector('video');
-          if (video && video.srcObject) break;
-          await new Promise(r => setTimeout(r, 300));
-        }
-        if (!video || !video.srcObject || stopped) return;
-
-        reader.decodeFromStream(video.srcObject, video, (result, err) => {
-          if (result && !stopped) {
-            handleBarcodeScanned({ data: result.getText() });
-          }
-        });
       } catch (e) {
-        // ZXing failed to load or start — silent fail, user can use photo mode
+        return;
       }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      async function scanFrame() {
+        if (!active) return;
+        const video = document.querySelector('video');
+        if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          try {
+            const result = reader.decodeFromCanvas(canvas);
+            if (active) handleBarcodeScanned({ data: result.getText() });
+            return;
+          } catch (e) {
+            // NotFoundException = no barcode in this frame, keep polling
+          }
+        }
+        if (active) timeout = setTimeout(scanFrame, 250);
+      }
+
+      timeout = setTimeout(scanFrame, 800);
     }
 
-    startZxing();
+    startScanner();
     return () => {
-      stopped = true;
-      try { reader?.reset(); } catch (_) {}
+      active = false;
+      clearTimeout(timeout);
     };
   }, [isWeb, scanStep, analyzing, scanError]);
 
