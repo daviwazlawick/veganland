@@ -57,8 +57,15 @@ export default function PaywallScreen({ navigation, route }) {
   useEffect(() => {
     if (isNative) {
       fetchCurrentOffering()
-        .then(o => { setOffering(o); setOfferingLoaded(true); })
-        .catch(() => { setOfferingLoaded(true); });
+        .then(o => {
+          console.log('[RC] offering:', JSON.stringify(o));
+          setOffering(o);
+          setOfferingLoaded(true);
+        })
+        .catch(e => {
+          console.log('[RC] offering error:', e?.message);
+          setOfferingLoaded(true);
+        });
     }
   }, [isNative]);
 
