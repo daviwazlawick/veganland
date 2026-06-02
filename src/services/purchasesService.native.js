@@ -4,9 +4,12 @@ import { Platform } from 'react-native';
 export const ENTITLEMENT_STARTER = 'starter';
 export const ENTITLEMENT_PRO = 'pro';
 
-const RC_API_KEY = Platform.OS === 'ios'
-  ? (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '')
-  : (process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || '');
+const RC_KEYS = {
+  ios: 'appl_ItutMhbXn5xJrnCqbqNun1oqI',
+  android: 'goog_YnmIYLSJyriFzhvfSSnypZCFibv',
+};
+
+const RC_API_KEY = RC_KEYS[Platform.OS] || process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || '';
 
 export function isPurchasesAvailable() {
   return !!RC_API_KEY;
