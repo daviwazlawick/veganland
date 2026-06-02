@@ -49,13 +49,16 @@ export default function PaywallScreen({ navigation, route }) {
   const currentPlan = route?.params?.currentPlan || 'free';
   const [selected, setSelected] = useState(currentPlan === 'free' ? 'starter' : currentPlan);
   const [offering, setOffering] = useState(null);
+  const [offeringLoaded, setOfferingLoaded] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const isNative = Platform.OS !== 'web' && isPurchasesAvailable();
 
   useEffect(() => {
     if (isNative) {
-      fetchCurrentOffering().then(setOffering).catch(() => {});
+      fetchCurrentOffering()
+        .then(o => { setOffering(o); setOfferingLoaded(true); })
+        .catch(() => { setOfferingLoaded(true); });
     }
   }, [isNative]);
 
@@ -146,7 +149,8 @@ export default function PaywallScreen({ navigation, route }) {
           const isCurrent = plan.id === currentPlan;
           const isSel = selected === plan.id;
           const pkg = plan.rcPackageId ? getRcPackage(plan.id) : null;
-          const unavailable = plan.rcPackageId && !pkg && isNative;
+          const loading = plan.rcPackageId && isNative && !offeringLoaded;
+          const unavailable = plan.rcPackageId && !pkg && isNative && offeringLoaded;
 
           return (
             <TouchableOpacity
@@ -158,10 +162,10 @@ export default function PaywallScreen({ navigation, route }) {
                 unavailable && styles.planCardLocked,
               ]}
               onPress={() => { setSelected(plan.id); }}
-              activeOpacity={unavailable ? 1 : 0.85}
-              disabled={unavailable}
+              activeOpacity={(unavailable || loading) ? 1 : 0.85}
+              disabled={unavailable || loading}
             >
-              {plan.popular && !unavailable && (
+              {plan.popular && !unavailable && !loading && (
                 <View style={styles.popularBadge}>
                   <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
                 </View>
@@ -186,16 +190,21 @@ export default function PaywallScreen({ navigation, route }) {
                   </Text>
                 </View>
                 <View style={styles.planPriceWrap}>
-                  <Text style={[styles.planPrice, isSel && styles.planPriceSelected, unavailable && styles.planPriceLocked]}>
-                    {getPriceString(plan.id)}
-                  </Text>
-                  {plan.id !== 'free' && (
-                    <Text style={[styles.planPerMonth, unavailable && styles.planPerMonthLocked]}>
-                      {t(language, 'plans.per_month')}
-                    </Text>
-                  )}
+                  {loading
+                    ? <ActivityIndicator size="small" color={Colors.primary} />
+                    : <>
+                        <Text style={[styles.planPrice, isSel && styles.planPriceSelected, unavailable && styles.planPriceLocked]}>
+                          {getPriceString(plan.id)}
+                        </Text>
+                        {plan.id !== 'free' && (
+                          <Text style={[styles.planPerMonth, unavailable && styles.planPerMonthLocked]}>
+                            {t(language, 'plans.per_month')}
+                          </Text>
+                        )}
+                      </>
+                  }
                 </View>
-                {!unavailable && (
+                {!unavailable && !loading && (
                   <View style={[styles.radio, isSel && styles.radioSelected]}>
                     {isSel && <View style={styles.radioDot} />}
                   </View>
