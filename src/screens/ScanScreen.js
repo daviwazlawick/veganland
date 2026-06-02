@@ -198,8 +198,8 @@ export default function ScanScreen({ navigation, route }) {
         setScanError(t(language, 'errors.not_a_product'));
         return;
       }
-      // Product photo step: if no real ingredients found, suggest photographing ingredients list
-      if (scanStep === 'photo' && result.ingredients_source === 'knowledge') {
+      // Only ask for ingredients photo if we have truly no ingredients at all
+      if (scanStep === 'photo' && result.ingredients_source === 'knowledge' && !result.normalized_ingredients?.length) {
         setPendingResult({ ...result, date: new Date().toISOString(), imageUri });
         setNoIngredientsPrompt(true);
         return;
