@@ -35,7 +35,7 @@ export default {
       package: isNovaQI ? 'app.novaqi' : 'app.veganland',
       permissions: ['android.permission.CAMERA'],
       edgeToEdgeEnabled: true,
-      versionCode: 6,
+      versionCode: 7,
     },
     web: {
       favicon: `${assets}/favicon.png`,
