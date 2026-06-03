@@ -67,7 +67,7 @@ export default function ResultScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backBtn}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t(language, 'result.full_analysis')}</Text>
