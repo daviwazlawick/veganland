@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const SCAN_LIMITS = { free: 7, basic: 30, starter: 50, premium: 100, admin: null }; // null = unlimited
+export const SCAN_LIMITS = { free: 7, starter: 30, premium: 100, admin: null }; // null = unlimited
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -505,15 +505,15 @@ export async function getScanById(scanId, userId) {
 
 export async function checkAndIncrementScanCounter(userId) {
   const db = await getPool();
-  if (!db) return { allowed: true, count: 0, limit: SCAN_LIMITS.basic };
+  if (!db) return { allowed: true, count: 0, limit: SCAN_LIMITS.starter };
 
   const month = new Date().toISOString().slice(0, 7);
   const [year, mon] = month.split('-').map(Number);
   const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
 
   const userRes = await db.query('select user_type from users where id = $1', [userId]);
-  const userType = userRes.rows[0]?.user_type || 'basic';
-  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.basic;
+  const userType = userRes.rows[0]?.user_type || 'starter';
+  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.starter;
 
   if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
 
@@ -722,14 +722,14 @@ export async function getScanUsage(userId) {
   const [year, mon] = month.split('-').map(Number);
   const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
 
-  if (!db) return { count: 0, limit: SCAN_LIMITS.basic, resets_at };
+  if (!db) return { count: 0, limit: SCAN_LIMITS.starter, resets_at };
 
   const [usageRes, userRes] = await Promise.all([
     db.query('select count from scan_counters where user_id = $1 and month = $2', [userId, month]),
     db.query('select user_type from users where id = $1', [userId]),
   ]);
-  const userType = userRes.rows[0]?.user_type || 'basic';
-  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.basic;
+  const userType = userRes.rows[0]?.user_type || 'starter';
+  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.starter;
 
   if (limit === null) return { count: 0, limit: null, resets_at: null };
 

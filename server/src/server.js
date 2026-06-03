@@ -98,7 +98,6 @@ function htmlResetForm(token) {
 function planBadge(userType) {
   const cfg = {
     free:    { label: 'Free',     bg: '#F5F5F5', color: '#666666' },
-    basic:   { label: 'Basic',    bg: '#EEF5E8', color: '#2E4736' },
     starter: { label: 'Starter',  bg: '#E8F4FF', color: '#1A5F8F' },
     premium: { label: 'Premium',  bg: '#FFF1E2', color: '#9A6121' },
     admin:   { label: 'Admin',    bg: '#E8F0FF', color: '#1A3A8F' },
@@ -112,8 +111,8 @@ function htmlAdminPage(stats, token) {
     const diet = dietLabel[u.diet_id] || (u.diet_id || '—');
     const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
     const lastScan = u.last_scan ? new Date(u.last_scan).toLocaleDateString('pt-BR') : '—';
-    const userType = u.user_type || 'basic';
-    const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+    const userType = u.user_type || 'starter';
+    const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.starter;
     const monthBar = limit === null ? 0 : Math.min(100, Math.round((u.scans_this_month / limit) * 100));
     const monthLabel = limit === null ? `${u.scans_this_month}/∞` : `${u.scans_this_month}/${limit}`;
     return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}?token=${token}'">
@@ -203,8 +202,8 @@ function htmlAdminUserPage(data, token) {
   const allergies = Array.isArray(user.allergy_ids) && user.allergy_ids.length
     ? user.allergy_ids.join(', ')
     : '—';
-  const userType = user.user_type || 'basic';
-  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.basic;
+  const userType = user.user_type || 'starter';
+  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.starter;
   const monthBar = limit === null ? 0 : Math.min(100, Math.round((scans_this_month / limit) * 100));
   const monthLabel = limit === null ? `${scans_this_month}/∞` : `${scans_this_month}/${limit}`;
 
@@ -777,7 +776,7 @@ const server = http.createServer(async (req, res) => {
           if (entitlementId === 'pro') newUserType = 'premium';
           else if (entitlementId === 'starter') newUserType = 'starter';
         } else if (['CANCELLATION', 'EXPIRATION', 'BILLING_ISSUE'].includes(eventType)) {
-          newUserType = 'basic';
+          newUserType = 'starter';
         }
 
         if (newUserType && userId) {

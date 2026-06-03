@@ -20,7 +20,7 @@ export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
   const { user, token, logout } = useAuth();
   const [usage, setUsage] = useState(null);
-  const [userType, setUserType] = useState('basic');
+  const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -146,13 +146,11 @@ export default function ProfileScreen({ navigation }) {
                   ]}>
                     {userType === 'free'
                       ? t(language, 'profile.plan_free')
-                      : userType === 'basic'
-                        ? t(language, 'profile.plan_basic')
-                        : userType === 'starter'
-                          ? t(language, 'profile.plan_starter')
-                          : userType === 'premium'
-                            ? t(language, 'profile.plan_premium')
-                            : t(language, 'profile.plan_admin')}
+                      : userType === 'starter'
+                        ? t(language, 'profile.plan_starter')
+                        : userType === 'premium'
+                          ? t(language, 'profile.plan_premium')
+                          : t(language, 'profile.plan_admin')}
                   </Text>
                 </View>
               </View>
@@ -176,10 +174,10 @@ export default function ProfileScreen({ navigation }) {
                 })}
               </Text>
             )}
-            {(userType === 'basic' || userType === 'starter') && (
+            {(userType === 'free' || userType === 'starter') && (
               <TouchableOpacity
                 style={styles.upgradeBtn}
-                onPress={() => navigation.navigate('Paywall', { currentPlan: userType === 'starter' ? 'starter' : 'free' })}
+                onPress={() => navigation.navigate('Paywall', { currentPlan: userType })}
                 activeOpacity={0.85}
               >
                 <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
