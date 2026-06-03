@@ -14,8 +14,8 @@
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_YnmIYLSJyriFzhvfSSnypZCFibv"
       },
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
       }
     },
     "novaqi-ios": {
