@@ -202,6 +202,7 @@ export default {
     plan_premium: 'Premium',
     plan_admin: 'Admin',
     plan_unlimited: 'Unlimited',
+    manage_subscription: 'Manage subscription',
     about_text: "Analyze products with AI and know if they're safe for your dietary profile.",
     terms: 'Terms & Conditions',
     privacy: 'Privacy Policy',

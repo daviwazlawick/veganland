@@ -202,6 +202,7 @@ export default {
     plan_premium: 'Premium',
     plan_admin: 'Admin',
     plan_unlimited: 'Illimitato',
+    manage_subscription: "Gestisci abbonamento",
     about_text: "Analizza prodotti con l’IA e scopri se sono adatti al tuo profilo alimentare.",
     terms: "Termini e Condizioni",
     privacy: "Informativa Privacy",

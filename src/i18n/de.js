@@ -202,6 +202,7 @@ export default {
     plan_premium: 'Premium',
     plan_admin: 'Admin',
     plan_unlimited: 'Unbegrenzt',
+    manage_subscription: 'Abonnement verwalten',
     about_text: 'Analysiere Produkte mit KI und erfahre, ob sie zu deinem Ernährungsprofil passen.',
     terms: 'AGB',
     privacy: 'Datenschutz',

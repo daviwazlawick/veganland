@@ -202,6 +202,7 @@ export default {
     plan_premium: 'Premium',
     plan_admin: 'Admin',
     plan_unlimited: 'Ilimitado',
+    manage_subscription: 'Gestionar suscripción',
     about_text: 'Analiza productos con IA y descubre si son seguros para tu perfil alimentario.',
     terms: 'Términos y Condiciones',
     privacy: 'Política de Privacidad',

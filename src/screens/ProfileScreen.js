@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
@@ -181,6 +181,19 @@ export default function ProfileScreen({ navigation }) {
                 activeOpacity={0.85}
               >
                 <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+              </TouchableOpacity>
+            )}
+            {(userType === 'starter' || userType === 'premium') && Platform.OS !== 'web' && (
+              <TouchableOpacity
+                style={styles.manageSubBtn}
+                onPress={() => Linking.openURL(
+                  Platform.OS === 'ios'
+                    ? 'https://apps.apple.com/account/subscriptions'
+                    : 'https://play.google.com/store/account/subscriptions'
+                )}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.manageSubText}>{t(language, 'profile.manage_subscription')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -424,6 +437,8 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4,
   },
   upgradeBtnText: { fontSize: 15, fontWeight: '800', color: Colors.white },
+  manageSubBtn: { alignItems: 'center', paddingVertical: 10, marginTop: 2 },
+  manageSubText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
   adminBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#EEF0FF',
