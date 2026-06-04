@@ -104,6 +104,8 @@ export default {
     current: 'Aktuell',
     coming_soon: 'Bald verfügbar',
     subscribe: 'Abonnieren',
+    start_trial: 'Kostenlos testen',
+    free_trial_badge: 'Testzeitraum inklusive',
     restore: 'Käufe wiederherstellen',
     restore_done: 'Käufe erfolgreich wiederhergestellt',
     purchase_error: 'Kauf konnte nicht abgeschlossen werden. Bitte erneut versuchen.',

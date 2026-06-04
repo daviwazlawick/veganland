@@ -776,7 +776,7 @@ const server = http.createServer(async (req, res) => {
           if (entitlementId === 'pro') newUserType = 'premium';
           else if (entitlementId === 'starter') newUserType = 'starter';
         } else if (['CANCELLATION', 'EXPIRATION', 'BILLING_ISSUE'].includes(eventType)) {
-          newUserType = 'starter';
+          newUserType = 'free';
         }
 
         if (newUserType && userId) {

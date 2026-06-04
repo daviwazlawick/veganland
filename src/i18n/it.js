@@ -104,6 +104,8 @@ export default {
     current: "Attuale",
     coming_soon: "Prossimamente",
     subscribe: "Abbonati",
+    start_trial: "Inizia la prova gratuita",
+    free_trial_badge: "Prova gratuita inclusa",
     restore: "Ripristina acquisti",
     restore_done: "Acquisti ripristinati con successo",
     purchase_error: "Impossibile completare l'acquisto. Riprova.",

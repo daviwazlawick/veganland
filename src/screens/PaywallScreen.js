@@ -96,6 +96,11 @@ export default function PaywallScreen({ navigation, route }) {
     return null;
   }
 
+  function hasTrial(planId) {
+    const pkg = getRcPackage(planId);
+    return pkg?.product?.introPrice?.price === 0;
+  }
+
   function getPriceString(planId) {
     if (planId === 'free') return t(language, 'plans.free_price');
     const pkg = getRcPackage(planId);
@@ -218,6 +223,9 @@ export default function PaywallScreen({ navigation, route }) {
                   <Text style={[styles.planDesc, unavailable && styles.planDescLocked]}>
                     {t(language, `plans.${plan.descKey}`)}
                   </Text>
+                  {hasTrial(plan.id) && !unavailable && (
+                    <Text style={styles.trialText}>{t(language, 'plans.free_trial_badge')}</Text>
+                  )}
                 </View>
                 <View style={styles.planPriceWrap}>
                   {loading
@@ -262,7 +270,7 @@ export default function PaywallScreen({ navigation, route }) {
         >
           {purchasing
             ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.btnText}>{t(language, selected === 'free' ? 'plans.continue' : 'plans.subscribe')}</Text>
+            : <Text style={styles.btnText}>{t(language, selected === 'free' ? 'plans.continue' : hasTrial(selected) ? 'plans.start_trial' : 'plans.subscribe')}</Text>
           }
         </TouchableOpacity>
       </View>
@@ -322,6 +330,7 @@ const styles = StyleSheet.create({
   planNameLocked: { color: Colors.textMuted },
   planDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
   planDescLocked: { color: Colors.textMuted },
+  trialText: { fontSize: 11, color: Colors.safe, fontWeight: '700', marginTop: 4 },
   planPriceWrap: { alignItems: 'flex-end' },
   planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
   planPriceSelected: { color: Colors.primaryDark },

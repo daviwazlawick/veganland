@@ -104,6 +104,8 @@ export default {
     current: 'Current',
     coming_soon: 'Coming soon',
     subscribe: 'Subscribe',
+    start_trial: 'Start free trial',
+    free_trial_badge: 'Free trial included',
     restore: 'Restore purchases',
     restore_done: 'Purchases restored successfully',
     purchase_error: 'Could not complete purchase. Please try again.',
