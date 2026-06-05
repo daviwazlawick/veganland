@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
@@ -179,7 +179,12 @@ export default function ResultScreen({ navigation, route }) {
 
         <View style={styles.disclaimerBox}>
           <Text style={styles.disclaimerIcon}>⚠️</Text>
-          <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.anthropic.com')} activeOpacity={0.7}>
+              <Text style={styles.disclaimerSource}>{t(language, 'result.ai_source')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ height: 110 }} />
@@ -341,7 +346,8 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 14,
   },
   disclaimerIcon: { fontSize: 16, lineHeight: 20 },
-  disclaimerText: { flex: 1, fontSize: 12, color: Colors.cautionDark, lineHeight: 18, fontWeight: '500' },
+  disclaimerText: { fontSize: 12, color: Colors.cautionDark, lineHeight: 18, fontWeight: '500', marginBottom: 4 },
+  disclaimerSource: { fontSize: 11, color: Colors.cautionDark, textDecorationLine: 'underline', fontWeight: '600', opacity: 0.7 },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
