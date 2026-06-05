@@ -8,7 +8,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.5', // NEVER bump without a new native build — runtimeVersion = appVersion
+    version: '1.0.6', // NEVER bump without a new native build — runtimeVersion = appVersion
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -35,7 +35,7 @@ export default {
       package: isNovaQI ? 'app.novaqi' : 'app.veganland',
       permissions: ['android.permission.CAMERA'],
       edgeToEdgeEnabled: true,
-      versionCode: 7,
+      versionCode: 8,
     },
     web: {
       favicon: `${assets}/favicon.png`,

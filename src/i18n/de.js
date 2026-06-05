@@ -111,6 +111,7 @@ export default {
     purchase_error: 'Kauf konnte nicht abgeschlossen werden. Bitte erneut versuchen.',
     mobile_only: 'Abonnements sind nur in der mobilen App verfügbar.',
     not_configured: 'Dieser Plan ist noch nicht verfügbar. Bitte später erneut versuchen.',
+    legal_terms: 'Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des aktuellen Zeitraums gekündigt werden. Die Zahlung erfolgt bei Kaufbestätigung. Verwalten oder kündigen in den Kontoeinstellungen.',
   },
   home: {
     title: 'VeganLand',
@@ -164,6 +165,7 @@ export default {
     not_safe_subtitle: 'Für dein Profil nicht empfohlen',
     concerns: 'Zutaten beachten',
     no_concerns: 'Keine problematischen Zutaten erkannt',
+    ai_disclaimer: 'KI-generierte Ergebnisse nur zur Information. Kein Ersatz für medizinischen oder diätetischen Rat. Lesen Sie stets die Produktetiketten.',
     wrong_product: 'Nicht mein Produkt',
     scan_again: 'Weiteres scannen',
     save: 'Speichern',

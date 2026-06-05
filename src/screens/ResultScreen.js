@@ -177,6 +177,8 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         )}
 
+        <Text style={styles.aiDisclaimer}>{t(language, 'result.ai_disclaimer')}</Text>
+
         <View style={{ height: 110 }} />
       </ScrollView>
 
@@ -328,6 +330,7 @@ const styles = StyleSheet.create({
   },
   noConcernsTitle: { fontSize: 17, fontWeight: '900', color: Colors.safeDark },
   noConcernsText: { fontSize: 14, color: Colors.safeDark, fontWeight: '600', textAlign: 'center' },
+  aiDisclaimer: { fontSize: 11, color: Colors.textMuted, textAlign: 'center', marginTop: 20, paddingHorizontal: 24, lineHeight: 16 },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,

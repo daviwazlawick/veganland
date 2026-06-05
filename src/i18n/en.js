@@ -111,6 +111,7 @@ export default {
     purchase_error: 'Could not complete purchase. Please try again.',
     mobile_only: 'Subscriptions are only available in the mobile app.',
     not_configured: 'This plan is not yet available. Please try again later.',
+    legal_terms: 'Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current billing period. Payment is charged to your account at purchase confirmation. Manage or cancel anytime in your account settings.',
   },
   home: {
     title: 'VeganLand',
@@ -164,6 +165,7 @@ export default {
     not_safe_subtitle: 'Not recommended for your profile',
     concerns: 'Ingredients to Watch',
     no_concerns: 'No problematic ingredients identified',
+    ai_disclaimer: 'AI-generated results for informational purposes only. Not a substitute for medical or dietary advice. Always read product labels.',
     wrong_product: 'Not my product',
     scan_again: 'Scan Another',
     save: 'Save',

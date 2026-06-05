@@ -259,6 +259,10 @@ export default function PaywallScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
         )}
+
+        {selected !== 'free' && (
+          <Text style={styles.legalTerms}>{t(language, 'plans.legal_terms')}</Text>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -346,6 +350,7 @@ const styles = StyleSheet.create({
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
   restoreBtn: { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
   restoreText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
+  legalTerms: { fontSize: 11, color: Colors.textMuted, textAlign: 'center', marginTop: 12, paddingHorizontal: 8, lineHeight: 16 },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
