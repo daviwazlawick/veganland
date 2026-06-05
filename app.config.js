@@ -25,6 +25,7 @@ export default {
         NSCameraUsageDescription: `${B} needs camera access to scan product labels and ingredients.`,
         NSPhotoLibraryUsageDescription: `${B} needs photo library access to analyze product images.`,
         NSPhotoLibraryAddUsageDescription: `${B} saves product scan images to your library.`,
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {
