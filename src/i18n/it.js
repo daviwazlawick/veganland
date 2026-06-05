@@ -92,7 +92,7 @@ export default {
     free_desc: "7 scansioni / mese",
     free_price: "0 €",
     starter_name: "Starter",
-    starter_desc: "50 scansioni / mese",
+    starter_desc: "30 scansioni / mese",
     starter_price: "€2,99",
     premium_name: "Premium",
     premium_desc: "100 scansioni / mese",

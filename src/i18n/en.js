@@ -92,7 +92,7 @@ export default {
     free_desc: '7 scans / month',
     free_price: '€0',
     starter_name: 'Starter',
-    starter_desc: '50 scans / month',
+    starter_desc: '30 scans / month',
     starter_price: '€2.99',
     premium_name: 'Premium',
     premium_desc: '100 scans / month',
