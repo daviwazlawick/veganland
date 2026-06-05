@@ -112,6 +112,8 @@ export default {
     mobile_only: 'Subscriptions are only available in the mobile app.',
     not_configured: 'This plan is not yet available. Please try again later.',
     legal_terms: 'Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current billing period. Payment is charged to your account at purchase confirmation. Manage or cancel anytime in your account settings.',
+    privacy_policy: 'Privacy Policy',
+    terms_of_use: 'Terms of Use',
   },
   home: {
     title: 'VeganLand',

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import Brand from '../brand';
 import {
   isPurchasesAvailable,
   fetchCurrentOffering,
@@ -261,7 +262,18 @@ export default function PaywallScreen({ navigation, route }) {
         )}
 
         {selected !== 'free' && (
-          <Text style={styles.legalTerms}>{t(language, 'plans.legal_terms')}</Text>
+          <View style={styles.legalWrap}>
+            <Text style={styles.legalTerms}>{t(language, 'plans.legal_terms')}</Text>
+            <View style={styles.legalLinks}>
+              <TouchableOpacity onPress={() => Linking.openURL(`https://${Brand.domain}/legal/privacy`)}>
+                <Text style={styles.legalLink}>{t(language, 'plans.privacy_policy')}</Text>
+              </TouchableOpacity>
+              <Text style={styles.legalSep}>·</Text>
+              <TouchableOpacity onPress={() => Linking.openURL(`https://${Brand.domain}/legal/terms`)}>
+                <Text style={styles.legalLink}>{t(language, 'plans.terms_of_use')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
       </ScrollView>
 
@@ -350,7 +362,11 @@ const styles = StyleSheet.create({
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
   restoreBtn: { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
   restoreText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
-  legalTerms: { fontSize: 11, color: Colors.textMuted, textAlign: 'center', marginTop: 12, paddingHorizontal: 8, lineHeight: 16 },
+  legalWrap: { marginTop: 12, paddingHorizontal: 8, alignItems: 'center' },
+  legalTerms: { fontSize: 11, color: Colors.textMuted, textAlign: 'center', lineHeight: 16, marginBottom: 8 },
+  legalLinks: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legalLink: { fontSize: 11, color: Colors.textMuted, textDecorationLine: 'underline', fontWeight: '600' },
+  legalSep: { fontSize: 11, color: Colors.textMuted },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,

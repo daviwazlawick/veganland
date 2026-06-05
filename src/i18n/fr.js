@@ -112,6 +112,8 @@ export default {
     mobile_only: "Les abonnements sont disponibles uniquement dans l'application mobile.",
     not_configured: "Ce plan n'est pas encore disponible. Veuillez réessayer plus tard.",
     legal_terms: "Les abonnements se renouvellent automatiquement sauf annulation au moins 24 heures avant la fin de la période en cours. Le paiement est débité à la confirmation de l'achat. Gérez ou annulez dans les paramètres de votre compte.",
+    privacy_policy: "Politique de confidentialité",
+    terms_of_use: "Conditions d'utilisation",
   },
   home: {
     title: 'VeganLand',

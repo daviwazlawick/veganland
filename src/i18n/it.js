@@ -112,6 +112,8 @@ export default {
     mobile_only: "Gli abbonamenti sono disponibili solo nell'app mobile.",
     not_configured: "Questo piano non è ancora disponibile. Riprova più tardi.",
     legal_terms: "Gli abbonamenti si rinnovano automaticamente a meno che non vengano cancellati almeno 24 ore prima della fine del periodo corrente. Il pagamento viene addebitato alla conferma dell'acquisto. Gestisci o cancella nelle impostazioni del tuo account.",
+    privacy_policy: "Informativa sulla privacy",
+    terms_of_use: "Termini di utilizzo",
   },
   home: {
     title: 'VeganLand',

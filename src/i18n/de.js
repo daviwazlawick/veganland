@@ -112,6 +112,8 @@ export default {
     mobile_only: 'Abonnements sind nur in der mobilen App verfügbar.',
     not_configured: 'Dieser Plan ist noch nicht verfügbar. Bitte später erneut versuchen.',
     legal_terms: 'Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des aktuellen Zeitraums gekündigt werden. Die Zahlung erfolgt bei Kaufbestätigung. Verwalten oder kündigen in den Kontoeinstellungen.',
+    privacy_policy: 'Datenschutzerklärung',
+    terms_of_use: 'Nutzungsbedingungen',
   },
   home: {
     title: 'VeganLand',
