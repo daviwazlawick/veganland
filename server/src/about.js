@@ -196,6 +196,7 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
     <a href="#features" class="nav-hide">${t('nav_features')}</a>
     <a href="#pricing" class="nav-hide">${t('nav_pricing')}</a>
     <a href="${b.supportUrl}">${t('nav_support')}</a>
+    <a href="${b.iosUrl}" class="nav-cta" style="display:none">${t('nav_download')}</a>
     <div class="lang-sw">${langSwitcher(lang, '/about')}</div>
   </div>
 </header>
@@ -204,6 +205,16 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
   <div class="eyebrow">${t('about_eyebrow')}</div>
   <h1>${t('about_h1_a')} <em>${t('about_h1_b')}</em></h1>
   <p class="hero-sub">${t('about_hero_sub')}</p>
+  <div class="btns" style="display:none">
+    <a href="${b.iosUrl}" class="btn-s btn-apple">
+      <span style="font-size:22px;line-height:1"></span>
+      <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
+    </a>
+    <a href="${b.androidUrl}" class="btn-s btn-google">
+      <span style="font-size:18px;line-height:1">▶</span>
+      <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
+    </a>
+  </div>
   <p class="hero-note">${t('about_hero_note')}</p>
   ${isNovaQI ? `<div class="hero-logo">${NOVAQI_TARGET_SVG.replace('width="100" height="100"', 'width="140" height="140"')}</div>` : ''}
 </div>
@@ -253,6 +264,9 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
   <p class="s-sub">${t('about_pricing_sub')}</p>
   <p style="font-size:13px;color:#999;margin-bottom:36px">${t('about_pricing_note')}</p>
   <div class="plans-grid">${plans}</div>
+  <div style="text-align:center;margin-top:32px;display:none">
+    <a href="${b.iosUrl}" style="display:inline-block;background:${b.dark};color:#fff;padding:14px 36px;border-radius:12px;font-size:15px;font-weight:800;text-decoration:none">${t('plan_cta')}</a>
+  </div>
   <p style="font-size:11px;color:#bbb;text-align:center;margin-top:20px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.6">
     ${t('plan_legal')} · <a href="${b.termsUrl}" style="color:#bbb">${termsLabel}</a> · <a href="${b.privacyUrl}" style="color:#bbb">${tr(lang, 'privacy_link')}</a>
   </p>
@@ -261,7 +275,16 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
 <div class="cta-s">
   <h2>${t('about_cta_title')}</h2>
   <p>${t('about_cta_sub')}</p>
-
+  <div class="btns" style="display:none">
+    <a href="${b.iosUrl}" class="btn-s btn-apple">
+      <span style="font-size:22px;line-height:1"></span>
+      <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
+    </a>
+    <a href="${b.androidUrl}" class="btn-s btn-google">
+      <span style="font-size:18px;line-height:1">▶</span>
+      <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
+    </a>
+  </div>
 </div>
 
 <footer>
