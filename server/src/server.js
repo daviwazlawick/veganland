@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken 
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
+import { htmlAboutPage } from './about.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
@@ -785,6 +786,13 @@ const server = http.createServer(async (req, res) => {
         }
       }
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    // GET /about
+    if (req.method === 'GET' && req.url === '/about') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAboutPage(host));
       return;
     }
 
