@@ -107,8 +107,8 @@ export default function PaywallScreen({ navigation, route }) {
     if (planId === 'free') return t(language, 'plans.free_price');
     const pkg = getRcPackage(planId);
     if (pkg?.product?.priceString) return pkg.product.priceString;
-    if (planId === 'premium') return Platform.OS === 'ios' ? '€5.99' : '€5.49';
-    if (planId === 'starter') return Platform.OS === 'ios' ? '€3.99' : '€2.99';
+    if (planId === 'premium') return '€5.99';
+    if (planId === 'starter') return '€2.99';
     return t(language, 'plans.premium_price');
   }
 
