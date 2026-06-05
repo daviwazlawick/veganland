@@ -185,8 +185,6 @@ export default function PaywallScreen({ navigation, route }) {
           const isSel = selected === plan.id;
           const pkg = plan.rcPackageId ? getRcPackage(plan.id) : null;
           const loading = plan.rcPackageId && isNative && !offeringLoaded;
-          // Only block on web — on native, let the user try and handle errors at purchase time
-          const unavailable = plan.rcPackageId && Platform.OS === 'web';
 
           return (
             <TouchableOpacity
@@ -195,13 +193,12 @@ export default function PaywallScreen({ navigation, route }) {
                 styles.planCard,
                 isSel && styles.planCardSelected,
                 isCurrent && styles.planCardCurrent,
-                unavailable && styles.planCardLocked,
               ]}
               onPress={() => { setSelected(plan.id); }}
-              activeOpacity={(unavailable || loading) ? 1 : 0.85}
-              disabled={unavailable || loading}
+              activeOpacity={loading ? 1 : 0.85}
+              disabled={loading}
             >
-              {plan.popular && !unavailable && !loading && (
+              {plan.popular && !loading && (
                 <View style={styles.popularBadge}>
                   <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
                 </View>
@@ -211,20 +208,15 @@ export default function PaywallScreen({ navigation, route }) {
                   <Text style={styles.currentText}>{t(language, 'plans.current')}</Text>
                 </View>
               )}
-              {unavailable && (
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>{t(language, 'plans.coming_soon')}</Text>
-                </View>
-              )}
               <View style={styles.planRow}>
                 <View style={styles.planInfo}>
-                  <Text style={[styles.planName, isSel && styles.planNameSelected, unavailable && styles.planNameLocked]}>
+                  <Text style={[styles.planName, isSel && styles.planNameSelected]}>
                     {t(language, `plans.${plan.nameKey}`)}
                   </Text>
-                  <Text style={[styles.planDesc, unavailable && styles.planDescLocked]}>
+                  <Text style={[styles.planDesc]}>
                     {t(language, `plans.${plan.descKey}`)}
                   </Text>
-                  {hasTrial(plan.id) && !unavailable && (
+                  {hasTrial(plan.id) && (
                     <Text style={styles.trialText}>{t(language, 'plans.free_trial_badge')}</Text>
                   )}
                 </View>
@@ -232,18 +224,18 @@ export default function PaywallScreen({ navigation, route }) {
                   {loading
                     ? <ActivityIndicator size="small" color={Colors.primary} />
                     : <>
-                        <Text style={[styles.planPrice, isSel && styles.planPriceSelected, unavailable && styles.planPriceLocked]}>
+                        <Text style={[styles.planPrice, isSel && styles.planPriceSelected]}>
                           {getPriceString(plan.id)}
                         </Text>
                         {plan.id !== 'free' && (
-                          <Text style={[styles.planPerMonth, unavailable && styles.planPerMonthLocked]}>
+                          <Text style={[styles.planPerMonth]}>
                             {t(language, 'plans.per_month')}
                           </Text>
                         )}
                       </>
                   }
                 </View>
-                {!unavailable && !loading && (
+                {!loading && (
                   <View style={[styles.radio, isSel && styles.radioSelected]}>
                     {isSel && <View style={styles.radioDot} />}
                   </View>
@@ -320,7 +312,6 @@ const styles = StyleSheet.create({
     shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
   },
   planCardCurrent: { borderColor: Colors.safe },
-  planCardLocked: { opacity: 0.5 },
   popularBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',
     backgroundColor: Colors.accent, borderRadius: 12,
@@ -333,26 +324,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 4,
   },
   currentText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
-  comingSoonBadge: {
-    position: 'absolute', top: -12, alignSelf: 'center',
-    backgroundColor: Colors.textMuted, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 4,
-  },
-  comingSoonText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
   planRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   planInfo: { flex: 1 },
   planName: { fontSize: 17, fontWeight: '900', color: Colors.text, marginBottom: 3 },
   planNameSelected: { color: Colors.primaryDark },
-  planNameLocked: { color: Colors.textMuted },
   planDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
-  planDescLocked: { color: Colors.textMuted },
   trialText: { fontSize: 11, color: Colors.safe, fontWeight: '700', marginTop: 4 },
   planPriceWrap: { alignItems: 'flex-end' },
   planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
   planPriceSelected: { color: Colors.primaryDark },
-  planPriceLocked: { color: Colors.textMuted },
   planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
-  planPerMonthLocked: { color: Colors.textMuted },
   radio: {
     width: 24, height: 24, borderRadius: 12,
     borderWidth: 2, borderColor: Colors.border,
