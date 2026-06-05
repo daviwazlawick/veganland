@@ -7,7 +7,6 @@ import { AuthProvider } from './src/context/AuthContext';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import ForceUpdateScreen from './src/screens/ForceUpdateScreen';
-import { BetaRibbon } from './src/components/ui';
 import Brand from './src/brand';
 import useForceUpdate from './src/hooks/useForceUpdate';
 import { initPurchases } from './src/services/purchasesService';
@@ -28,7 +27,6 @@ function AppContent() {
   return (
     <View style={{ flex: 1 }}>
       <AppNavigator />
-      <BetaRibbon />
     </View>
   );
 }
