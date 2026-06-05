@@ -41,6 +41,7 @@ const PLANS = [
     descKey: 'premium_desc',
     priceKey: 'premium_price',
     popular: false,
+    best: true,
   },
 ];
 
@@ -203,6 +204,11 @@ export default function PaywallScreen({ navigation, route }) {
                   <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
                 </View>
               )}
+              {plan.best && !isCurrent && !loading && (
+                <View style={styles.bestBadge}>
+                  <Text style={styles.bestText}>{t(language, 'plans.best_value')}</Text>
+                </View>
+              )}
               {isCurrent && (
                 <View style={styles.currentBadge}>
                   <Text style={styles.currentText}>{t(language, 'plans.current')}</Text>
@@ -217,7 +223,13 @@ export default function PaywallScreen({ navigation, route }) {
                     {t(language, `plans.${plan.descKey}`)}
                   </Text>
                   {hasTrial(plan.id) && (
-                    <Text style={styles.trialText}>{t(language, 'plans.free_trial_badge')}</Text>
+                    <Text style={styles.trialText}>
+                      {Platform.OS === 'ios'
+                        ? t(language, 'plans.trial_ios')
+                        : Platform.OS === 'android'
+                          ? t(language, 'plans.trial_android')
+                          : t(language, 'plans.free_trial_badge')}
+                    </Text>
                   )}
                 </View>
                 <View style={styles.planPriceWrap}>
@@ -318,6 +330,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 4,
   },
   popularText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
+  bestBadge: {
+    position: 'absolute', top: -12, alignSelf: 'center',
+    backgroundColor: Colors.navyDeep || Colors.primaryDark, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 4,
+  },
+  bestText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
   currentBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',
     backgroundColor: Colors.safe, borderRadius: 12,
