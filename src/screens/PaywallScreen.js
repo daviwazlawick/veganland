@@ -198,7 +198,7 @@ export default function PaywallScreen({ navigation, route }) {
               activeOpacity={loading ? 1 : 0.85}
               disabled={loading}
             >
-              {plan.popular && !loading && (
+              {plan.popular && !isCurrent && !loading && (
                 <View style={styles.popularBadge}>
                   <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
                 </View>
