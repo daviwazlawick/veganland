@@ -332,6 +332,7 @@ async function isAdminRequest(req) {
 const server = http.createServer(async (req, res) => {
   try {
     const origin = req.headers['origin'] || '';
+    const host = req.headers['host'] || '';
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204, corsHeaders(origin));
@@ -818,7 +819,6 @@ const server = http.createServer(async (req, res) => {
 
     // GET /legal/terms | /legal/privacy | /legal/imprint
     if (req.method === 'GET' && req.url.startsWith('/legal/')) {
-      const host = req.headers['host'] || '';
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       if (req.url === '/legal/terms') res.end(htmlTerms(host));
       else if (req.url === '/legal/privacy') res.end(htmlPrivacy(host));
