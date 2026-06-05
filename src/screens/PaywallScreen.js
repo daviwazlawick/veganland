@@ -99,8 +99,10 @@ export default function PaywallScreen({ navigation, route }) {
   }
 
   function hasTrial(planId) {
+    if (planId === 'free') return false;
     const pkg = getRcPackage(planId);
-    return pkg?.product?.introPrice?.price === 0;
+    if (pkg?.product?.introPrice) return pkg.product.introPrice.price === 0;
+    return planId === 'starter' || planId === 'premium';
   }
 
   function getPriceString(planId) {
