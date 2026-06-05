@@ -165,7 +165,7 @@ export default {
     not_safe_subtitle: 'Non recommandé pour votre profil',
     concerns: 'Ingrédients à surveiller',
     no_concerns: 'Aucun ingrédient problématique identifié',
-    ai_disclaimer: "Résultats générés par IA à titre informatif uniquement. Ne remplace pas un avis médical ou diététique. Lisez toujours les étiquettes des produits.",
+    ai_disclaimer: "Ces informations ne remplacent pas la lecture de l'étiquette ni les conseils professionnels. Confirmez toujours les ingrédients sur l'emballage physique avant de consommer.",
     wrong_product: "Ce n'est pas mon produit",
     scan_again: 'Scanner un autre',
     save: 'Enregistrer',
@@ -257,7 +257,7 @@ export default {
     block3_body: "Toutes les analyses sont générées automatiquement par IA et peuvent être incomplètes, incorrectes ou obsolètes. Nous déclinons toute responsabilité pour les dommages, conséquences sur la santé ou préjudices résultant de l'utilisation de cette application.",
     block4_title: "À titre de référence générale uniquement",
     block4_body: "Cette application est conçue uniquement comme outil pratique pour les utilisateurs souhaitant consulter rapidement des listes d'ingrédients. Elle ne remplace pas un avis médical, un accompagnement professionnel ou une lecture attentive des étiquettes.",
-    checkbox: "Je comprends que cette application n'est pas un outil médical et je ne l'utiliserai pas comme protection contre les allergies graves ou les problèmes de santé.",
+    checkbox: "Je comprends que cette application n'est pas un outil médical. Je confirmerai toujours les ingrédients sur l'étiquette physique du produit avant de consommer.",
     accept: "J'accepte et continue",
   },
 };

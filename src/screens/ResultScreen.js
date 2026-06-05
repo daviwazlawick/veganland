@@ -177,7 +177,10 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         )}
 
-        <Text style={styles.aiDisclaimer}>{t(language, 'result.ai_disclaimer')}</Text>
+        <View style={styles.disclaimerBox}>
+          <Text style={styles.disclaimerIcon}>⚠️</Text>
+          <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
+        </View>
 
         <View style={{ height: 110 }} />
       </ScrollView>
@@ -330,7 +333,15 @@ const styles = StyleSheet.create({
   },
   noConcernsTitle: { fontSize: 17, fontWeight: '900', color: Colors.safeDark },
   noConcernsText: { fontSize: 14, color: Colors.safeDark, fontWeight: '600', textAlign: 'center' },
-  aiDisclaimer: { fontSize: 11, color: Colors.textMuted, textAlign: 'center', marginTop: 20, paddingHorizontal: 24, lineHeight: 16 },
+  disclaimerBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    marginTop: 20, marginHorizontal: 4,
+    backgroundColor: Colors.cautionLight,
+    borderWidth: 1, borderColor: Colors.caution + '60',
+    borderRadius: 12, padding: 14,
+  },
+  disclaimerIcon: { fontSize: 16, lineHeight: 20 },
+  disclaimerText: { flex: 1, fontSize: 12, color: Colors.cautionDark, lineHeight: 18, fontWeight: '500' },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,

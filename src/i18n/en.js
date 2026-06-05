@@ -165,7 +165,7 @@ export default {
     not_safe_subtitle: 'Not recommended for your profile',
     concerns: 'Ingredients to Watch',
     no_concerns: 'No problematic ingredients identified',
-    ai_disclaimer: 'AI-generated results for informational purposes only. Not a substitute for medical or dietary advice. Always read product labels.',
+    ai_disclaimer: 'This information does not replace reading the product label or professional advice. Always confirm ingredients on the physical packaging before consuming.',
     wrong_product: 'Not my product',
     scan_again: 'Scan Another',
     save: 'Save',
@@ -257,7 +257,7 @@ export default {
     block3_body: "All analyses are generated automatically by AI and may be incomplete, incorrect, or outdated. We are not responsible for any harm, health consequences, or damages of any kind resulting from use of this app.",
     block4_title: "For general reference only",
     block4_body: "This app is intended solely as a convenience tool for users who want to quickly check ingredient lists. It is not a substitute for medical advice, professional guidance, or careful label reading.",
-    checkbox: "I understand that this app is not a medical tool and I will not use it as protection against serious allergies or health conditions.",
+    checkbox: "I understand that this app is not a medical tool. I will always confirm ingredients on the physical product label before consuming.",
     accept: "I Accept and Continue",
   },
 };

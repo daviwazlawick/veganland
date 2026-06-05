@@ -165,7 +165,7 @@ export default {
     not_safe_subtitle: 'Não recomendado para seu perfil',
     concerns: 'Ingredientes de Atenção',
     no_concerns: 'Nenhum ingrediente problemático identificado',
-    ai_disclaimer: 'Resultados gerados por IA apenas para referência. Não substitui aconselhamento médico ou nutricional. Leia sempre os rótulos dos produtos.',
+    ai_disclaimer: 'Esta informação não substitui a leitura do rótulo nem a orientação médica. Confirme sempre os ingredientes na embalagem física antes de consumir.',
     wrong_product: 'Não é este produto',
     scan_again: 'Escanear Outro',
     save: 'Salvar',
@@ -257,7 +257,7 @@ export default {
     block3_body: "Todas as análises são geradas automaticamente por IA e podem ser incompletas, incorretas ou desatualizadas. Não nos responsabilizamos por quaisquer danos, consequências para a saúde ou prejuízos resultantes da utilização desta app.",
     block4_title: "Apenas para referência geral",
     block4_body: "Esta app destina-se unicamente como ferramenta de conveniência para utilizadores que querem consultar listas de ingredientes rapidamente. Não substitui aconselhamento médico, orientação profissional ou a leitura cuidadosa dos rótulos.",
-    checkbox: "Compreendo que esta app não é uma ferramenta médica e não a utilizarei como proteção contra alergias graves ou problemas de saúde.",
+    checkbox: "Compreendo que esta app não é uma ferramenta médica. Confirmarei sempre os ingredientes no rótulo físico do produto antes de consumir.",
     accept: "Aceito e Continuo",
   },
 };

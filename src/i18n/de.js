@@ -165,7 +165,7 @@ export default {
     not_safe_subtitle: 'Für dein Profil nicht empfohlen',
     concerns: 'Zutaten beachten',
     no_concerns: 'Keine problematischen Zutaten erkannt',
-    ai_disclaimer: 'KI-generierte Ergebnisse nur zur Information. Kein Ersatz für medizinischen oder diätetischen Rat. Lesen Sie stets die Produktetiketten.',
+    ai_disclaimer: 'Diese Informationen ersetzen nicht das Lesen des Etiketts oder professionelle Beratung. Überprüfen Sie die Zutaten stets auf der physischen Verpackung, bevor Sie das Produkt konsumieren.',
     wrong_product: 'Nicht mein Produkt',
     scan_again: 'Weiteres scannen',
     save: 'Speichern',
@@ -257,7 +257,7 @@ export default {
     block3_body: "Alle Analysen werden automatisch von KI erstellt und können unvollständig, falsch oder veraltet sein. Wir haften nicht für Schäden, gesundheitliche Folgen oder Verluste jeglicher Art, die durch die Nutzung dieser App entstehen.",
     block4_title: "Nur zur allgemeinen Information",
     block4_body: "Diese App dient ausschließlich als Hilfsmittel für Nutzer, die Zutatenlisten schnell einsehen möchten. Sie ist kein Ersatz für ärztlichen Rat, professionelle Beratung oder sorgfältiges Lesen von Etiketten.",
-    checkbox: "Ich verstehe, dass diese App kein medizinisches Werkzeug ist, und werde sie nicht als Schutz bei schweren Allergien oder Erkrankungen verwenden.",
+    checkbox: "Ich verstehe, dass diese App kein medizinisches Werkzeug ist. Ich werde die Zutaten stets auf dem physischen Produktetikett überprüfen, bevor ich es konsumiere.",
     accept: "Ich akzeptiere und fahre fort",
   },
 };
