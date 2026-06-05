@@ -78,6 +78,31 @@ export async function sendConfirmationEmail(email, token, host) {
   });
 }
 
+export async function sendSupportEmail({ name, email, topic, message, marketing }, host) {
+  if (!emailsEnabled()) return;
+  const brand = getBrand(host);
+  const cfg = getConfig(brand);
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  await createTransport(brand).sendMail({
+    from: cfg.from,
+    to: cfg.from,
+    replyTo: `${name} <${email}>`,
+    subject: `SUPPORT FROM ${cfg.name.toUpperCase()} — ${topic}`,
+    html: htmlWrapper(`
+      <p style="color:#333;font-size:15px;margin-bottom:16px;">New support request received:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#888;width:120px">Name</td><td style="padding:8px 0;color:#222;font-weight:600">${name}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0;color:#222"><a href="mailto:${email}" style="color:${cfg.color}">${email}</a></td></tr>
+        <tr><td style="padding:8px 0;color:#888">Topic</td><td style="padding:8px 0;color:#222">${topic}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Marketing</td><td style="padding:8px 0;color:#222">${marketing ? 'Yes' : 'No'}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Submitted</td><td style="padding:8px 0;color:#888;font-size:12px">${now}</td></tr>
+      </table>
+      <hr style="border:none;border-top:1px solid #eee;margin:16px 0">
+      <p style="color:#333;font-size:14px;white-space:pre-wrap">${message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+    `, brand),
+  });
+}
+
 export async function sendPasswordResetEmail(email, token, host) {
   if (!emailsEnabled()) return;
   const brand = getBrand(host);

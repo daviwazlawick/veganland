@@ -3,8 +3,9 @@ import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted } from './db.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
-import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail } from './email.js';
+import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
+import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
@@ -784,6 +785,26 @@ const server = http.createServer(async (req, res) => {
         }
       }
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    // GET /support
+    if (req.method === 'GET' && req.url === '/support') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlSupportPage(host));
+      return;
+    }
+
+    // POST /support/submit
+    if (req.method === 'POST' && req.url === '/support/submit') {
+      const body = await readJsonBody(req);
+      const { hp, name, email, topic, message, gdpr, marketing } = body || {};
+      if (hp) { sendJson(res, 200, { ok: true }, origin); return; } // honeypot
+      if (!name?.trim() || !email?.trim() || !topic || !message?.trim() || !gdpr) {
+        sendJson(res, 400, { error: 'Missing required fields' }, origin); return;
+      }
+      await sendSupportEmail({ name: name.trim(), email: email.trim(), topic, message: message.trim(), marketing: !!marketing }, host);
+      sendJson(res, 200, { ok: true }, origin);
       return;
     }
 
