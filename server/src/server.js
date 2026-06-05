@@ -7,6 +7,7 @@ import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSuppo
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
 import { htmlAboutPage } from './about.js';
+import { detectLang } from './web_i18n.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
@@ -791,16 +792,20 @@ const server = http.createServer(async (req, res) => {
     }
 
     // GET /about
-    if (req.method === 'GET' && req.url === '/about') {
+    if (req.method === 'GET' && req.url.startsWith('/about')) {
+      const urlObj = new URL(req.url, 'http://x');
+      const lang = detectLang(req, urlObj);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAboutPage(host));
+      res.end(htmlAboutPage(host, lang));
       return;
     }
 
     // GET /support
-    if (req.method === 'GET' && req.url === '/support') {
+    if (req.method === 'GET' && req.url.startsWith('/support') && !req.url.startsWith('/support/')) {
+      const urlObj = new URL(req.url, 'http://x');
+      const lang = detectLang(req, urlObj);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlSupportPage(host));
+      res.end(htmlSupportPage(host, lang));
       return;
     }
 
