@@ -48,7 +48,7 @@ const BRANDS = {
     plans: [
       { id: 'free',    price: '€0',    period: '',       scans: '7',  trial: false },
       { id: 'starter', price: '€2.99', period: '/month', scans: '30', trial: true,  popular: true },
-      { id: 'premium', price: '€5.49', period: '/month', scans: '100', trial: true },
+      { id: 'premium', price: '€5.99', period: '/month', scans: '100', trial: true },
     ],
   },
   novaqi: {
@@ -61,7 +61,7 @@ const BRANDS = {
     plans: [
       { id: 'free',    price: '€0',    period: '',       scans: '7',  trial: false },
       { id: 'starter', price: '€2.99', period: '/month', scans: '30', trial: true,  popular: true },
-      { id: 'premium', price: '€5.49', period: '/month', scans: '100', trial: true },
+      { id: 'premium', price: '€5.99', period: '/month', scans: '100', trial: true },
     ],
   },
 };
