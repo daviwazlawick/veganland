@@ -5,7 +5,7 @@ export const ENTITLEMENT_STARTER = 'starter';
 export const ENTITLEMENT_PRO = 'pro';
 
 const RC_KEYS = {
-  ios: 'appl_ItutMhbXn5xJrnCqbqNun1oqI',
+  ios: 'appl_yitutMbhXnSxJFnCqDqkNunlogI',
   android: 'goog_YnmIYLSJyriFzhvfSSnypZCFibv',
 };
 
