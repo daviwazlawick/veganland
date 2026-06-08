@@ -312,13 +312,13 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: 10, paddingVertical: 10 },
   appName: {
     fontSize: 38, fontWeight: '800',
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
     letterSpacing: -1,
   },
   subtitle: { fontSize: 14, color: Colors.textMuted, fontWeight: '500', textAlign: 'center', lineHeight: 21 },
   checkTitle: {
     fontSize: 28, fontWeight: '800', color: Colors.text, textAlign: 'center',
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
   },
   checkSubtitle: { fontSize: 15, color: Colors.textLight, textAlign: 'center', lineHeight: 22, fontWeight: '500' },
   card: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 20, fontWeight: '700', color: Colors.text, textAlign: 'center',
-    fontFamily: BrandFonts.headingMed || 'serif',
+    fontFamily: BrandFonts.headingMed || undefined,
   },
   field: { gap: 6 },
   fieldLabel: { fontSize: 13, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3 },

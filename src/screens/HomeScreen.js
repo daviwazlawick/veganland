@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
     letterSpacing: -0.5,
   },
   headerSub: { fontSize: 14, fontWeight: '500', color: Colors.headerMuted, marginTop: 3 },

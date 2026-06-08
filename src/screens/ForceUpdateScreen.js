@@ -38,7 +38,7 @@ export default function ForceUpdateScreen({ storeUrl }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 24 },
-  appName: { fontSize: 36, fontWeight: '800', fontFamily: BrandFonts.heading || 'serif', letterSpacing: -1 },
+  appName: { fontSize: 36, fontWeight: '800', fontFamily: BrandFonts.heading || undefined, letterSpacing: -1 },
   card: {
     width: '100%',
     backgroundColor: 'rgba(255,255,255,0.85)',
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.navy, shadowOpacity: 0.08, shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 }, elevation: 8,
   },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.text, textAlign: 'center', fontFamily: BrandFonts.headingMed || 'serif' },
+  title: { fontSize: 20, fontWeight: '800', color: Colors.text, textAlign: 'center', fontFamily: BrandFonts.headingMed || undefined },
   body: { fontSize: 15, color: Colors.textLight, textAlign: 'center', lineHeight: 22, fontWeight: '500' },
   btn: {
     backgroundColor: Colors.primary,

@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     fontSize: 46,
     fontWeight: '800',
     color: Colors.white,
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
     letterSpacing: -1,
   },
   tagline: { fontSize: 15, color: 'rgba(255,255,255,0.82)', textAlign: 'center' },

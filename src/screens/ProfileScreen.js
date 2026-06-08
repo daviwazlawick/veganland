@@ -309,7 +309,7 @@ const heroStyles = StyleSheet.create({
   },
   initials: {
     fontSize: 26, fontWeight: '800', color: Colors.white,
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
   },
   info: { flex: 1, gap: 3 },
   name: {
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 34, fontWeight: '700', color: Colors.headerText,
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
   },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   },
   aboutTitle: {
     fontSize: 22, fontWeight: '900',
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
   },
   aboutText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 20, fontWeight: '500' },
   legalFooter: {

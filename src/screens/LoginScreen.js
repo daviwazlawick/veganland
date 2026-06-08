@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: 10, paddingVertical: 8 },
   appName: {
     fontSize: 42, fontWeight: '800',
-    fontFamily: BrandFonts.heading || 'serif',
+    fontFamily: BrandFonts.heading || undefined,
     letterSpacing: -1,
   },
   tagline: { fontSize: 15, color: Colors.textLight, fontWeight: '500', textAlign: 'center', lineHeight: 22 },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 22, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 4,
-    fontFamily: BrandFonts.headingMed || 'serif',
+    fontFamily: BrandFonts.headingMed || undefined,
   },
   field: { gap: 8 },
   fieldLabel: { fontSize: 12, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.5, textTransform: 'uppercase' },

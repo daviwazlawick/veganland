@@ -7,6 +7,7 @@ import { Text, View, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { Colors } from '../constants/colors';
+import { BrandFonts } from '../brand';
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -61,7 +62,7 @@ function MainTabs() {
           left: 24,
           right: 24,
           bottom: 18,
-          backgroundColor: Colors.glass,
+          backgroundColor: 'rgba(255,255,255,0.97)',
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.65)',
@@ -75,7 +76,7 @@ function MainTabs() {
           shadowOffset: { width: 0, height: 12 },
           elevation: 12,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '800' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '800', fontFamily: BrandFonts.body || undefined },
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
       })}
     >

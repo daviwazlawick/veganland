@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.72)',
   },
-  analyzingText: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 14, fontFamily: BrandFonts.headingMed || 'serif' },
+  analyzingText: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 14, fontFamily: BrandFonts.headingMed || undefined },
   analyzingSubtitle: { fontSize: 14, color: Colors.textLight, textAlign: 'center', fontWeight: '500' },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,

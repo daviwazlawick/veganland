@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { BrandFonts } from '../brand';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)',
   },
-  bannerTitle: { fontSize: 38, fontWeight: '700', color: Colors.white, fontFamily: 'serif', letterSpacing: 0 },
+  bannerTitle: { fontSize: 38, fontWeight: '700', color: Colors.white, fontFamily: BrandFonts.heading || undefined, letterSpacing: 0 },
   bannerSub: { fontSize: 14, color: 'rgba(255,255,255,0.88)', fontWeight: '600', textAlign: 'center' },
   statusBadge: {
     position: 'absolute', bottom: -16,
