@@ -11,31 +11,19 @@ const NOVAQI_TARGET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 
   <line x1="78" y1="50" x2="92" y2="50" stroke="#E8A020" stroke-width="3.5" stroke-linecap="round"/>
 </svg>`;
 
-const NOVAQI_LOGO_HEADER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 52" height="32">
-  <defs><style>@import url('https://fonts.googleapis.com/css2?family=Syne:wght@800');</style></defs>
-  <circle cx="26" cy="26" r="15" stroke="#E8A020" stroke-width="2.8" fill="none"/>
-  <circle cx="26" cy="26" r="7" stroke="#E8A020" stroke-width="2.8" fill="none"/>
-  <circle cx="26" cy="26" r="3" fill="#E8A020"/>
-  <line x1="26" y1="4" x2="26" y2="12" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="26" y1="40" x2="26" y2="48" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="4" y1="26" x2="12" y2="26" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="40" y1="26" x2="48" y2="26" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <text x="60" y="38" font-family="Syne, sans-serif" font-weight="800" font-size="34" letter-spacing="-1.5" fill="#FFFFFF">Nova</text>
-  <text x="162" y="38" font-family="Syne, sans-serif" font-weight="800" font-size="34" letter-spacing="-1.5" fill="#E8A020">QI</text>
+const NOVAQI_TARGET_ICON = (size) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="${size}" height="${size}">
+  <circle cx="30" cy="30" r="18" stroke="#E8A020" stroke-width="3" fill="none"/>
+  <circle cx="30" cy="30" r="8" stroke="#E8A020" stroke-width="3" fill="none"/>
+  <circle cx="30" cy="30" r="4" fill="#E8A020"/>
+  <line x1="30" y1="4" x2="30" y2="14" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
+  <line x1="30" y1="46" x2="30" y2="56" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
+  <line x1="4" y1="30" x2="14" y2="30" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
+  <line x1="46" y1="30" x2="56" y2="30" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
 </svg>`;
 
-const NOVAQI_HERO_LOGO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 60" width="240" height="52">
-  <defs><style>@import url('https://fonts.googleapis.com/css2?family=Syne:wght@800');</style></defs>
-  <circle cx="30" cy="30" r="18" stroke="#E8A020" stroke-width="2.8" fill="none"/>
-  <circle cx="30" cy="30" r="8" stroke="#E8A020" stroke-width="2.8" fill="none"/>
-  <circle cx="30" cy="30" r="3.5" fill="#E8A020"/>
-  <line x1="30" y1="4" x2="30" y2="14" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="30" y1="46" x2="30" y2="56" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="4" y1="30" x2="14" y2="30" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="46" y1="30" x2="56" y2="30" stroke="#E8A020" stroke-width="2.8" stroke-linecap="round"/>
-  <text x="70" y="44" font-family="Syne, sans-serif" font-weight="800" font-size="40" letter-spacing="-2" fill="#FFFFFF">Nova</text>
-  <text x="189" y="44" font-family="Syne, sans-serif" font-weight="800" font-size="40" letter-spacing="-2" fill="#E8A020">QI</text>
-</svg>`;
+const NOVAQI_LOGO_HEADER = `<span style="display:flex;align-items:center;gap:10px">${NOVAQI_TARGET_ICON(32)}<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-1px;line-height:1;color:#fff">Nova<span style="color:#E8A020">QI</span></span></span>`;
+
+const NOVAQI_HERO_LOGO = null;
 
 const BRANDS = {
   veganland: {
@@ -152,6 +140,8 @@ export function htmlAboutPage(host, lang) {
 <meta property="og:title" content="${b.name}">
 <meta property="og:url" content="${b.appUrl}/about">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:#fff;color:#1a1a1a;line-height:1.6;-webkit-font-smoothing:antialiased}
@@ -226,7 +216,7 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
   <p class="hero-sub">${t('about_hero_sub')}</p>
   ${storeButtons(b, t)}
   <p class="hero-note">${t('about_hero_note')}</p>
-  ${isNovaQI ? `<div class="hero-logo">${NOVAQI_TARGET_SVG.replace('width="100" height="100"', 'width="140" height="140"')}</div>` : ''}
+  ${isNovaQI ? `<div class="hero-logo" style="margin-top:48px;display:flex;justify-content:center;align-items:center;gap:16px;opacity:.15">${NOVAQI_TARGET_ICON(120)}</div>` : ''}
 </div>
 
 <div class="stats">
