@@ -55,7 +55,7 @@ const BRANDS = {
     name: 'NovaQI', primary: '#E8A020', dark: '#1E1B4B', light: '#F0F0FA', accent: '#F5A623',
     appUrl: 'https://novaqi.app',
     privacyUrl: 'https://novaqi.app/legal/privacy', termsUrl: 'https://novaqi.app/legal/terms', supportUrl: 'https://novaqi.app/support',
-    iosUrl: 'https://apps.apple.com/app/novaqi/id0000000000', androidUrl: 'https://play.google.com/store/apps/details?id=app.novaqi',
+    iosUrl: 'https://apps.apple.com/us/app/novaqi-scan/id6775790620', androidUrl: null,
     headerLogo: NOVAQI_LOGO_HEADER,
     heroLogo: NOVAQI_HERO_LOGO,
     plans: [
@@ -65,6 +65,25 @@ const BRANDS = {
     ],
   },
 };
+
+function storeButtons(b, t) {
+  const androidBtn = b.androidUrl
+    ? `<a href="${b.androidUrl}" class="btn-s btn-google">
+      <span style="font-size:18px;line-height:1">▶</span>
+      <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
+    </a>`
+    : `<span class="btn-s btn-google" style="opacity:.45;cursor:default">
+      <span style="font-size:18px;line-height:1">▶</span>
+      <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Coming soon</span></span>
+    </span>`;
+  return `<div class="btns">
+    <a href="${b.iosUrl}" class="btn-s btn-apple">
+      <span style="font-size:22px;line-height:1"></span>
+      <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
+    </a>
+    ${androidBtn}
+  </div>`;
+}
 
 function getBrand(host) {
   return (host || '').includes('novaqi') ? BRANDS.novaqi : BRANDS.veganland;
@@ -205,16 +224,7 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
   <div class="eyebrow">${t('about_eyebrow')}</div>
   <h1>${t('about_h1_a')} <em>${t('about_h1_b')}</em></h1>
   <p class="hero-sub">${t('about_hero_sub')}</p>
-  <div class="btns" style="display:none">
-    <a href="${b.iosUrl}" class="btn-s btn-apple">
-      <span style="font-size:22px;line-height:1"></span>
-      <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
-    </a>
-    <a href="${b.androidUrl}" class="btn-s btn-google">
-      <span style="font-size:18px;line-height:1">▶</span>
-      <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
-    </a>
-  </div>
+  ${storeButtons(b, t)}
   <p class="hero-note">${t('about_hero_note')}</p>
   ${isNovaQI ? `<div class="hero-logo">${NOVAQI_TARGET_SVG.replace('width="100" height="100"', 'width="140" height="140"')}</div>` : ''}
 </div>
@@ -275,16 +285,7 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
 <div class="cta-s">
   <h2>${t('about_cta_title')}</h2>
   <p>${t('about_cta_sub')}</p>
-  <div class="btns" style="display:none">
-    <a href="${b.iosUrl}" class="btn-s btn-apple">
-      <span style="font-size:22px;line-height:1"></span>
-      <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
-    </a>
-    <a href="${b.androidUrl}" class="btn-s btn-google">
-      <span style="font-size:18px;line-height:1">▶</span>
-      <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
-    </a>
-  </div>
+  ${storeButtons(b, t)}
 </div>
 
 <footer>
