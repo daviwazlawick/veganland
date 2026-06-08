@@ -284,7 +284,7 @@ function StepPill({ number, label, active }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: {
+  header: { zIndex: 10, elevation: 10,
     paddingVertical: 16,
     paddingHorizontal: 20,
     backgroundColor: Colors.background,
