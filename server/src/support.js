@@ -10,9 +10,13 @@ function getBrand(host) {
 }
 
 function langSwitcher(currentLang, path) {
-  return LANGS.map(l =>
+  const links = LANGS.map(l =>
     `<a href="${path}?lang=${l}" style="color:${l === currentLang ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.4)'};font-size:12px;font-weight:${l === currentLang ? '800' : '600'};text-decoration:none;padding:4px 6px">${LANG_NAMES[l]}</a>`
   ).join('');
+  const options = LANGS.map(l =>
+    `<option value="${path}?lang=${l}"${l === currentLang ? ' selected' : ''}>${LANG_NAMES[l]}</option>`
+  ).join('');
+  return `<span class="lang-sw-desk">${links}</span><select class="lang-sw-mob" onchange="location.href=this.value">${options}</select>`;
 }
 
 export function htmlSupportPage(host, lang) {
@@ -34,8 +38,11 @@ header{background:${b.dark};padding:0 32px;height:60px;display:flex;align-items:
 .logo-wrap{display:flex;align-items:center;gap:10px;text-decoration:none}
 .logo-name{color:#fff;font-size:18px;font-weight:900}
 .lang-sw{display:flex;align-items:center;gap:2px;margin-left:auto;border-right:1px solid rgba(255,255,255,.15);padding-right:16px;margin-right:16px}
+.lang-sw-desk{display:flex;align-items:center;gap:2px}
+.lang-sw-mob{display:none;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 8px;font-size:13px;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none}
 header nav a{color:rgba(255,255,255,.6);font-size:13px;font-weight:600;text-decoration:none}
 header nav a:hover{color:#fff}
+@media(max-width:600px){header{padding:0 16px}.lang-sw-desk{display:none}.lang-sw-mob{display:block}}
 .wrap{max-width:560px;margin:48px auto;padding:0 20px 80px}
 h1{font-size:26px;font-weight:900;color:${b.dark};margin-bottom:8px}
 .sub{font-size:15px;color:#666;margin-bottom:36px}

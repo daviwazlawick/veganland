@@ -54,19 +54,22 @@ const BRANDS = {
   },
 };
 
+const SVG_APPLE = `<svg width="20" height="24" viewBox="0 0 814 1000" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.5 135.4-317.3 269-317.3 70.1 0 128.4 46.4 172.5 46.4 42.8 0 109.6-49 192.5-49 30.8 0 133.3 2.6 198.3 99zM554.1 158.4c22.4-26.9 38.3-64.2 38.3-101.6 0-5.2-.3-10.4-1.3-14.6-36.4 1.3-80 24.3-106.2 55.2-20.5 23.7-39.5 60.4-39.5 98.4 0 5.8.6 11.5 1 13.5 2.3.3 5.8.6 9.1.6 32.8 0 74.1-21.8 98.6-51.5z"/></svg>`;
+const SVG_GOOGLE = `<svg width="20" height="22" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c17.1-9.8 17.1-26 .1-35.3l-1.3-.5zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z" fill="currentColor"/></svg>`;
+
 function storeButtons(b, t) {
   const androidBtn = b.androidUrl
     ? `<a href="${b.androidUrl}" class="btn-s btn-google">
-      <span style="font-size:18px;line-height:1">▶</span>
+      ${SVG_GOOGLE}
       <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
     </a>`
     : `<span class="btn-s btn-google" style="opacity:.45;cursor:default">
-      <span style="font-size:18px;line-height:1">▶</span>
+      ${SVG_GOOGLE}
       <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Coming soon</span></span>
     </span>`;
   return `<div class="btns">
     <a href="${b.iosUrl}" class="btn-s btn-apple">
-      <span style="font-size:22px;line-height:1"></span>
+      ${SVG_APPLE}
       <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
     </a>
     ${androidBtn}
@@ -78,9 +81,13 @@ function getBrand(host) {
 }
 
 function langSwitcher(currentLang, path) {
-  return LANGS.map(l =>
+  const links = LANGS.map(l =>
     `<a href="${path}?lang=${l}" style="color:${l === currentLang ? '#fff' : 'rgba(255,255,255,.38)'};font-size:11px;font-weight:${l === currentLang ? '800' : '600'};text-decoration:none;padding:3px 5px">${LANG_NAMES[l]}</a>`
   ).join('');
+  const options = LANGS.map(l =>
+    `<option value="${path}?lang=${l}"${l === currentLang ? ' selected' : ''}>${LANG_NAMES[l]}</option>`
+  ).join('');
+  return `<span class="lang-sw-desk">${links}</span><select class="lang-sw-mob" onchange="location.href=this.value">${options}</select>`;
 }
 
 function monthLabel(lang) {
@@ -151,6 +158,8 @@ header{position:sticky;top:0;z-index:100;background:${b.dark};padding:0 32px;hei
 .nav-links a:hover{color:#fff}
 .nav-cta{background:${b.primary};color:${b.dark} !important;padding:8px 18px;border-radius:8px;font-weight:800 !important}
 .lang-sw{display:flex;align-items:center;gap:1px;margin-left:20px;padding-left:16px;border-left:1px solid rgba(255,255,255,.12)}
+.lang-sw-desk{display:flex;align-items:center;gap:1px}
+.lang-sw-mob{display:none;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 8px;font-size:13px;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none}
 .hero{background:${b.dark};padding:80px 24px 80px;text-align:center;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% -10%,${b.primary}18 0%,transparent 60%)}
 .eyebrow{display:inline-block;background:${b.primary}20;color:${b.primary};font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border-radius:20px;margin-bottom:24px}
@@ -194,7 +203,7 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
 .f-links a{color:rgba(255,255,255,.35);font-size:12px;font-weight:600;text-decoration:none}
 .f-links a:hover{color:rgba(255,255,255,.7)}
 .f-copy{color:rgba(255,255,255,.18);font-size:11px}
-@media(max-width:600px){header{padding:0 16px}.nav-hide{display:none}section{padding:44px 20px}.stats{gap:20px}}
+@media(max-width:600px){header{padding:0 16px}.nav-hide{display:none}section{padding:44px 20px}.stats{gap:20px}.lang-sw-desk{display:none}.lang-sw-mob{display:block}}
 </style>
 </head>
 <body>
