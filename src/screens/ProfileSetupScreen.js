@@ -19,7 +19,7 @@ export default function ProfileSetupScreen({ navigation }) {
   const [step, setStep] = useState(1);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
   const [selectedAllergies, setSelectedAllergies] = useState(profile?.allergyIds || []);
-  const [selectedPlan, setSelectedPlan] = useState('free');
+  const [selectedPlan, setSelectedPlan] = useState('starter');
   const [saving, setSaving] = useState(false);
 
   const currentUserType = user?.user_type || 'free';
@@ -42,11 +42,25 @@ export default function ProfileSetupScreen({ navigation }) {
     setSaving(true);
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
-      if (isFirstTime && selectedPlan !== 'free') {
+      if (isFirstTime) {
         navigation.navigate('Paywall', { currentPlan: 'free' });
       } else {
         navigation.navigate('Main');
       }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleContinueFree() {
+    if (!selectedDiet) {
+      Alert.alert('', t(language, 'profile_setup.select_diet'));
+      return;
+    }
+    setSaving(true);
+    try {
+      await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
+      navigation.navigate('Main');
     } finally {
       setSaving(false);
     }
@@ -170,7 +184,6 @@ export default function ProfileSetupScreen({ navigation }) {
             {isFirstTime ? (
               <View style={styles.planList}>
                 {[
-                  { id: 'free',    nameKey: 'free_name',    descKey: 'free_desc',    priceKey: 'free_price',    popular: false },
                   { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true  },
                   { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false },
                 ].map(plan => {
@@ -200,9 +213,7 @@ export default function ProfileSetupScreen({ navigation }) {
                           <Text style={[styles.planPrice, sel && styles.planPriceSel]}>
                             {t(language, `plans.${plan.priceKey}`)}
                           </Text>
-                          {plan.id !== 'free' && (
-                            <Text style={styles.planPerMonth}>{t(language, 'plans.per_month')}</Text>
-                          )}
+                          <Text style={styles.planPerMonth}>{t(language, 'plans.per_month')}</Text>
                         </View>
                         <View style={[styles.radio, sel && styles.radioSelected]}>
                           {sel && <View style={styles.radioDot} />}
@@ -211,6 +222,9 @@ export default function ProfileSetupScreen({ navigation }) {
                     </TouchableOpacity>
                   );
                 })}
+                <TouchableOpacity onPress={handleContinueFree} style={styles.continueFreeLinkWrap}>
+                  <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <>
@@ -407,6 +421,8 @@ const styles = StyleSheet.create({
   planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
   planPriceSel: { color: Colors.primaryDark },
   planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
+  continueFreeLinkWrap: { alignItems: 'center', paddingVertical: 12 },
+  continueFreeLink: { fontSize: 13, color: Colors.textMuted, fontWeight: '500', textDecorationLine: 'underline' },
   radio: {
     width: 24, height: 24, borderRadius: 12,
     borderWidth: 2, borderColor: Colors.border,
