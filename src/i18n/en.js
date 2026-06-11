@@ -117,6 +117,7 @@ export default {
     legal_terms: 'Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current billing period. Payment is charged to your account at purchase confirmation. Manage or cancel anytime in your account settings.',
     privacy_policy: 'Privacy Policy',
     terms_of_use: 'Terms of Use',
+    continue_free: 'Continue with Free plan (7 scans only)',
   },
   home: {
     title: 'VeganLand',

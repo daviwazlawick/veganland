@@ -117,6 +117,7 @@ export default {
     legal_terms: "Les abonnements se renouvellent automatiquement sauf annulation au moins 24 heures avant la fin de la période en cours. Le paiement est débité à la confirmation de l'achat. Gérez ou annulez dans les paramètres de votre compte.",
     privacy_policy: "Politique de confidentialité",
     terms_of_use: "Conditions d'utilisation",
+    continue_free: "Continuer avec le plan gratuit (7 analyses seulement)",
   },
   home: {
     title: 'VeganLand',

@@ -117,6 +117,7 @@ export default {
     legal_terms: 'As subscrições renovam automaticamente a menos que sejam canceladas pelo menos 24 horas antes do fim do período atual. O pagamento é cobrado na confirmação da compra. Gira ou cancela nas definições da conta.',
     privacy_policy: 'Política de Privacidade',
     terms_of_use: 'Termos de Uso',
+    continue_free: 'Continuar no plano gratuito (apenas 7 scans)',
   },
   home: {
     title: 'VeganLand',

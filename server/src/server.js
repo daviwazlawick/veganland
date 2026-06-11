@@ -57,20 +57,26 @@ function htmlPage(title, body, color = '#7CB518') {
   <body><div class="box"><h2>🌱 ${title}</h2>${body}</div></body></html>`;
 }
 
-function htmlResetForm(token) {
+function htmlResetForm(token, host) {
+  const isNovaQI = (host || '').includes('novaqi');
+  const brandColor = isNovaQI ? '#1B2D5B' : '#7CB518';
+  const brandLabel = isNovaQI ? 'NovaQI' : '🌱 VeganLand';
+  const brandTitle = isNovaQI ? 'Redefinir senha — NovaQI' : 'Redefinir senha — VeganLand';
+  const successColor = isNovaQI ? '#1B2D5B' : '#7CB518';
+
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Redefinir senha — VeganLand</title>
+  <title>${brandTitle}</title>
   <style>body{font-family:sans-serif;background:#fafafa;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
   .box{background:#fff;border-radius:16px;padding:40px;max-width:420px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.08);}
-  h2{color:#7CB518;text-align:center;margin-bottom:4px;}p{color:#777;text-align:center;font-size:14px;margin-bottom:20px;}
+  h2{color:${brandColor};text-align:center;margin-bottom:4px;}p{color:#777;text-align:center;font-size:14px;margin-bottom:20px;}
   label{display:block;font-size:13px;font-weight:700;color:#555;margin-bottom:6px;}
   input{width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #e8e8e8;border-radius:10px;font-size:15px;margin-bottom:14px;outline:none;}
-  input:focus{border-color:#7CB518;}
-  button{width:100%;background:#7CB518;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;}
+  input:focus{border-color:${brandColor};}
+  button{width:100%;background:${brandColor};color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;}
   button:disabled{opacity:.6;}
   #msg{text-align:center;font-size:14px;margin-top:12px;min-height:20px;}</style></head>
   <body><div class="box">
-    <h2>🌱 VeganLand</h2>
+    <h2>${brandLabel}</h2>
     <p>Digite sua nova senha abaixo.</p>
     <label for="pw">Nova senha</label>
     <input id="pw" type="password" placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password">
@@ -91,7 +97,7 @@ function htmlResetForm(token) {
     try{
       const r=await fetch('/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:'${token}',password:pw})});
       const d=await r.json();
-      if(r.ok){msg.style.color='#7CB518';msg.textContent='Senha redefinida! Você já pode fazer login no app.';}
+      if(r.ok){msg.style.color='${successColor}';msg.textContent='Senha redefinida! Você já pode fazer login no app.';}
       else{msg.style.color='#ff4b4b';msg.textContent=d.error||'Erro ao redefinir senha.';btn.disabled=false;}
     }catch{msg.style.color='#ff4b4b';msg.textContent='Erro de conexão.';btn.disabled=false;}
   }
@@ -110,16 +116,62 @@ function planBadge(userType) {
 
 function htmlAdminPage(stats, token) {
   const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
+
+  // Build 28-day signup sparkline — fill gaps with 0
+  const trendMap = {};
+  for (const r of stats.signup_trend) trendMap[r.day] = r.signups;
+  const trendDays = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(); d.setUTCDate(d.getUTCDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    trendDays.push({ day: key, label: key.slice(5), count: trendMap[key] || 0 });
+  }
+  const maxSignups = Math.max(...trendDays.map(d => d.count), 1);
+  const sparkBars = trendDays.map(d => {
+    const pct = Math.round((d.count / maxSignups) * 100);
+    const isToday = d === trendDays[trendDays.length - 1];
+    const color = isToday ? '#7CB518' : (d.count > 0 ? '#A8D456' : '#e8eee4');
+    return `<div title="${d.label}: ${d.count} cadastros" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="width:100%;background:#f0f4ec;border-radius:3px 3px 0 0;height:60px;display:flex;align-items:flex-end">
+        <div style="width:100%;height:${Math.max(pct, d.count > 0 ? 4 : 0)}%;background:${color};border-radius:3px 3px 0 0;transition:height .2s"></div>
+      </div>
+      <span style="font-size:9px;color:#bbb;white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;display:inline-block;margin-top:6px">${d.label}</span>
+    </div>`;
+  }).join('');
+
+  // Plan breakdown pills
+  const pb = stats.plan_breakdown;
+  const planPills = [
+    { label: 'Free', count: pb.free, color: '#888', bg: '#f5f5f5' },
+    { label: 'Starter', count: pb.starter, color: '#1A6B3E', bg: '#E5F5EC' },
+    { label: 'Premium', count: pb.premium, color: '#7C3AED', bg: '#F3EEFF' },
+  ].map(p => `<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:${p.bg};border-radius:10px">
+    <span style="font-size:22px;font-weight:900;color:${p.color}">${p.count}</span>
+    <span style="font-size:12px;font-weight:700;color:${p.color}">${p.label}</span>
+  </div>`).join('');
+
+  const unconfirmed = stats.total_users - stats.confirmed_users;
+  const conversionRate = stats.total_users > 0 ? Math.round(((pb.starter + pb.premium) / stats.total_users) * 100) : 0;
+
   const rows = stats.users.map(u => {
     const diet = dietLabel[u.diet_id] || (u.diet_id || '—');
     const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
+    const joinedFull = u.created_at ? new Date(u.created_at).toLocaleString('pt-BR') : '';
     const lastScan = u.last_scan ? new Date(u.last_scan).toLocaleDateString('pt-BR') : '—';
-    const userType = u.user_type || 'starter';
-    const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.starter;
+    const userType = u.user_type || 'free';
+    const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.free;
     const monthBar = limit === null ? 0 : Math.min(100, Math.round((u.scans_this_month / limit) * 100));
     const monthLabel = limit === null ? `${u.scans_this_month}/∞` : `${u.scans_this_month}/${limit}`;
+    const isNew = u.created_at && (Date.now() - new Date(u.created_at).getTime()) < 7 * 24 * 3600 * 1000;
+    const confirmedDot = u.email_confirmed
+      ? `<span title="Email confirmado" style="color:#7CB518;font-size:10px">✔</span>`
+      : `<span title="Email não confirmado" style="color:#D4A843;font-size:10px">!</span>`;
     return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}?token=${token}'">
-      <td><a href="/admin/user/${u.id}?token=${token}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a></td>
+      <td>
+        ${isNew ? `<span style="display:inline-block;background:#7CB518;color:#fff;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-right:4px;vertical-align:middle">NEW</span>` : ''}
+        <a href="/admin/user/${u.id}?token=${token}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a>
+        ${confirmedDot}
+      </td>
       <td>${diet}</td>
       <td>${planBadge(userType)}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
@@ -132,63 +184,129 @@ function htmlAdminPage(stats, token) {
         </div>
       </td>
       <td style="color:#888;font-size:13px">${lastScan}</td>
-      <td style="color:#888;font-size:13px">${joined}</td>
+      <td style="color:#888;font-size:13px" title="${joinedFull}">${joined}</td>
     </tr>`;
   }).join('');
 
   return `<!DOCTYPE html><html lang="pt"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Admin — VeganLand</title>
+  <title>Admin — NovaQI</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f0;min-height:100vh;color:#222}
     header{background:#1C2B22;padding:18px 32px;display:flex;align-items:center;gap:12px}
     header h1{color:#fff;font-size:20px;font-weight:800}
     header span{background:#7CB518;color:#fff;font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px}
-    main{max-width:1100px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:28px}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
-    .card{background:#fff;border-radius:16px;padding:22px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
-    .card .num{font-size:38px;font-weight:900;color:#1C2B22;line-height:1}
-    .card .lbl{font-size:13px;color:#888;font-weight:600;margin-top:6px}
+    header .refresh{margin-left:auto;color:rgba(255,255,255,.5);font-size:12px;text-decoration:none}
+    header .refresh:hover{color:#fff}
+    main{max-width:1200px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px}
+    .row{display:grid;gap:16px}
+    .row.cols-5{grid-template-columns:repeat(5,1fr)}
+    .row.cols-4{grid-template-columns:repeat(4,1fr)}
+    .row.cols-3{grid-template-columns:repeat(3,1fr)}
+    .row.cols-2{grid-template-columns:2fr 1fr}
+    @media(max-width:900px){.row.cols-5,.row.cols-4,.row.cols-3,.row.cols-2{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.row.cols-5,.row.cols-4,.row.cols-3,.row.cols-2{grid-template-columns:1fr}}
+    .card{background:#fff;border-radius:16px;padding:20px 22px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .card .num{font-size:36px;font-weight:900;color:#1C2B22;line-height:1}
+    .card .lbl{font-size:12px;color:#888;font-weight:600;margin-top:5px}
+    .card .sub{font-size:11px;color:#bbb;margin-top:4px}
     .card.green .num{color:#7CB518}
     .card.amber .num{color:#D4A843}
+    .card.purple .num{color:#7C3AED}
+    .card.blue .num{color:#2563EB}
     .section{background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
-    .section h2{font-size:16px;font-weight:800;color:#1C2B22;margin-bottom:18px}
-    table{width:100%;border-collapse:collapse;font-size:14px}
-    th{text-align:left;font-size:11px;font-weight:800;color:#aaa;text-transform:uppercase;letter-spacing:.5px;padding:0 10px 12px}
-    td{padding:11px 10px;border-top:1px solid #f0f0f0;vertical-align:middle}
+    .section h2{font-size:15px;font-weight:800;color:#1C2B22;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .section h2 .sub{font-size:12px;font-weight:500;color:#bbb;margin-left:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;font-size:10px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:.5px;padding:0 10px 10px}
+    td{padding:10px 10px;border-top:1px solid #f0f0f0;vertical-align:middle}
     tr:hover td{background:#fafff5}
     .badge{display:inline-block;background:#EEF5E8;color:#2E4736;font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px}
-    footer{text-align:center;color:#aaa;font-size:12px;padding:20px}
+    footer{text-align:center;color:#bbb;font-size:12px;padding:24px}
   </style></head>
   <body>
   <header>
-    <h1>🌱 VeganLand</h1>
+    <h1>NovaQI</h1>
     <span>ADMIN</span>
+    <a class="refresh" href="/admin?token=${token}">↻ Atualizar</a>
   </header>
   <main>
-    <div class="cards">
-      <div class="card green"><div class="num">${stats.total_users}</div><div class="lbl">Usuários registrados</div></div>
+
+    <!-- Growth KPIs -->
+    <div class="row cols-5">
+      <div class="card green">
+        <div class="num">${stats.total_users}</div>
+        <div class="lbl">Total de utilizadores</div>
+        <div class="sub">${stats.confirmed_users} confirmados · ${unconfirmed} pendentes</div>
+      </div>
+      <div class="card blue">
+        <div class="num">+${stats.new_users_today}</div>
+        <div class="lbl">Novos hoje</div>
+      </div>
+      <div class="card blue">
+        <div class="num">+${stats.new_users_week}</div>
+        <div class="lbl">Novos esta semana</div>
+      </div>
+      <div class="card blue">
+        <div class="num">+${stats.new_users_month}</div>
+        <div class="lbl">Novos este mês</div>
+      </div>
+      <div class="card amber">
+        <div class="num">${stats.active_users_7d}</div>
+        <div class="lbl">Ativos últimos 7 dias</div>
+        <div class="sub">${stats.total_users > 0 ? Math.round((stats.active_users_7d / stats.total_users) * 100) : 0}% dos utilizadores</div>
+      </div>
+    </div>
+
+    <!-- Signup trend chart + plan breakdown -->
+    <div class="row cols-2">
+      <div class="section">
+        <h2>Cadastros — últimos 28 dias <span class="sub">máx ${maxSignups}/dia</span></h2>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:80px;padding-bottom:20px">
+          ${sparkBars}
+        </div>
+      </div>
+      <div class="section">
+        <h2>Planos</h2>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${planPills}
+          <div style="margin-top:6px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:12px;color:#888">
+            Taxa de conversão: <strong style="color:#7C3AED">${conversionRate}%</strong>
+            <span style="margin-left:8px;color:#bbb">(paid / total)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan + cost row -->
+    <div class="row cols-4">
       <div class="card"><div class="num">${stats.total_scans}</div><div class="lbl">Scans totais</div></div>
       <div class="card amber"><div class="num">${stats.scans_this_month}</div><div class="lbl">Scans este mês</div></div>
       <div class="card"><div class="num">${stats.scans_last_24h}</div><div class="lbl">Scans últimas 24h</div></div>
-      <div class="card" style="border-left:4px solid #7C3AED">
-        <div class="num" style="color:#7C3AED">$${Number(stats.api_cost_this_month).toFixed(4)}</div>
-        <div class="lbl">Custo Anthropic este mês <span style="font-size:10px;color:#aaa">(desde hoje)</span></div>
-        <a href="https://console.anthropic.com/settings/usage" target="_blank" style="font-size:11px;color:#7C3AED;font-weight:700;text-decoration:none;margin-top:6px;display:inline-block">Ver total no Console →</a>
+      <div class="card purple">
+        <div class="num">$${Number(stats.api_cost_this_month).toFixed(4)}</div>
+        <div class="lbl">Custo Anthropic este mês</div>
+        <a href="https://console.anthropic.com/settings/usage" target="_blank" style="font-size:11px;color:#7C3AED;font-weight:700;text-decoration:none;margin-top:6px;display:inline-block">Ver Console →</a>
       </div>
     </div>
+
+    <!-- Users table -->
     <div class="section">
-      <h2>Usuários</h2>
+      <h2>
+        Utilizadores
+        <span class="sub">mostrando ${stats.users.length} mais recentes</span>
+      </h2>
       <table>
         <thead><tr>
           <th>Email</th><th>Dieta</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
         </tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Nenhum usuário ainda</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">Nenhum utilizador ainda</td></tr>'}</tbody>
       </table>
     </div>
+
   </main>
-  <footer>Atualizado em ${new Date().toLocaleString('pt-BR')} &mdash; VeganLand Admin</footer>
+  <footer>Atualizado em ${new Date().toLocaleString('pt-BR')}</footer>
   </body></html>`;
 }
 
@@ -456,7 +574,7 @@ const server = http.createServer(async (req, res) => {
       const record = token ? await findValidPasswordResetToken(token) : null;
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(record
-        ? htmlResetForm(token)
+        ? htmlResetForm(token, req.headers['host'])
         : htmlPage('Link inválido', '<p>Este link é inválido ou já foi utilizado. Solicite um novo no app.</p>', '#FF4B4B')
       );
       return;

@@ -117,6 +117,7 @@ export default {
     legal_terms: 'Las suscripciones se renuevan automáticamente a menos que se cancelen al menos 24 horas antes del final del período actual. El pago se carga en tu cuenta al confirmar la compra. Gestiona o cancela en la configuración de tu cuenta.',
     privacy_policy: 'Política de privacidad',
     terms_of_use: 'Términos de uso',
+    continue_free: 'Continuar con el plan gratuito (solo 7 análisis)',
   },
   home: {
     title: 'VeganLand',

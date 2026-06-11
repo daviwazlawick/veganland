@@ -117,6 +117,7 @@ export default {
     legal_terms: "Gli abbonamenti si rinnovano automaticamente a meno che non vengano cancellati almeno 24 ore prima della fine del periodo corrente. Il pagamento viene addebitato alla conferma dell'acquisto. Gestisci o cancella nelle impostazioni del tuo account.",
     privacy_policy: "Informativa sulla privacy",
     terms_of_use: "Termini di utilizzo",
+    continue_free: "Continua con il piano gratuito (solo 7 scansioni)",
   },
   home: {
     title: 'VeganLand',

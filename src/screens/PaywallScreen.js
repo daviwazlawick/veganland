@@ -19,14 +19,6 @@ import {
 
 const PLANS = [
   {
-    id: 'free',
-    rcPackageId: null,
-    nameKey: 'free_name',
-    descKey: 'free_desc',
-    priceKey: 'free_price',
-    popular: false,
-  },
-  {
     id: 'starter',
     rcPackageId: ENTITLEMENT_STARTER,
     nameKey: 'starter_name',
@@ -116,11 +108,6 @@ export default function PaywallScreen({ navigation, route }) {
 
   async function handleSelect(plan) {
     if (plan.id === currentPlan) { navigation.goBack(); return; }
-
-    if (plan.id === 'free') {
-      navigation.goBack();
-      return;
-    }
 
     if (!isNative) {
       Alert.alert('', t(language, 'plans.mobile_only'));
@@ -259,6 +246,12 @@ export default function PaywallScreen({ navigation, route }) {
           );
         })}
 
+        {currentPlan === 'free' && (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.continueFreeLinkWrap}>
+            <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
+          </TouchableOpacity>
+        )}
+
         {isNative && (
           <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreBtn}>
             <Text style={styles.restoreText}>
@@ -267,20 +260,18 @@ export default function PaywallScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
 
-        {selected !== 'free' && (
-          <View style={styles.legalWrap}>
-            <Text style={styles.legalTerms}>{t(language, 'plans.legal_terms')}</Text>
-            <View style={styles.legalLinks}>
-              <TouchableOpacity onPress={() => Linking.openURL(`https://${Brand.domain}/legal/privacy`)}>
-                <Text style={styles.legalLink}>{t(language, 'plans.privacy_policy')}</Text>
-              </TouchableOpacity>
-              <Text style={styles.legalSep}>·</Text>
-              <TouchableOpacity onPress={() => Linking.openURL(`https://${Brand.domain}/legal/terms`)}>
-                <Text style={styles.legalLink}>{t(language, 'plans.terms_of_use')}</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.legalWrap}>
+          <Text style={styles.legalTerms}>{t(language, 'plans.legal_terms')}</Text>
+          <View style={styles.legalLinks}>
+            <TouchableOpacity onPress={() => Linking.openURL(`https://${Brand.domain}/legal/privacy`)}>
+              <Text style={styles.legalLink}>{t(language, 'plans.privacy_policy')}</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalSep}>·</Text>
+            <TouchableOpacity onPress={() => Linking.openURL(`https://${Brand.domain}/legal/terms`)}>
+              <Text style={styles.legalLink}>{t(language, 'plans.terms_of_use')}</Text>
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -292,7 +283,7 @@ export default function PaywallScreen({ navigation, route }) {
         >
           {purchasing
             ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.btnText}>{t(language, selected === 'free' ? 'plans.continue' : hasTrial(selected) ? 'plans.start_trial' : 'plans.subscribe')}</Text>
+            : <Text style={styles.btnText}>{t(language, hasTrial(selected) ? 'plans.start_trial' : 'plans.subscribe')}</Text>
           }
         </TouchableOpacity>
       </View>
@@ -361,6 +352,8 @@ const styles = StyleSheet.create({
   },
   radioSelected: { borderColor: Colors.primary },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
+  continueFreeLinkWrap: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+  continueFreeLink: { fontSize: 13, color: Colors.textMuted, fontWeight: '500', textDecorationLine: 'underline' },
   restoreBtn: { alignItems: 'center', paddingVertical: 8, marginTop: 4 },
   restoreText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
   legalWrap: { marginTop: 12, paddingHorizontal: 8, alignItems: 'center' },

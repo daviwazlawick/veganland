@@ -117,6 +117,7 @@ export default {
     legal_terms: 'Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des aktuellen Zeitraums gekündigt werden. Die Zahlung erfolgt bei Kaufbestätigung. Verwalten oder kündigen in den Kontoeinstellungen.',
     privacy_policy: 'Datenschutzerklärung',
     terms_of_use: 'Nutzungsbedingungen',
+    continue_free: 'Mit dem kostenlosen Plan fortfahren (nur 7 Scans)',
   },
   home: {
     title: 'VeganLand',

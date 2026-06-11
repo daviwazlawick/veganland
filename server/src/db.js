@@ -648,33 +648,68 @@ export async function getAdminStats() {
 
   const month = new Date().toISOString().slice(0, 7);
 
-  const [usersRes, totalScansRes, monthScansRes, recentRes, userStatsRes, costRes] = await Promise.all([
+  const [
+    usersRes, totalScansRes, monthScansRes, recentScansRes, userStatsRes, costRes,
+    newTodayRes, newWeekRes, newMonthRes, planBreakdownRes, signupTrendRes,
+    activeWeekRes, confirmedRes,
+  ] = await Promise.all([
     db.query(`SELECT COUNT(*) AS total FROM users`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events`),
     db.query(`SELECT COALESCE(SUM(count), 0) AS total FROM scan_counters WHERE month = $1`, [month]),
     db.query(`SELECT COUNT(*) AS total FROM scan_events WHERE created_at > now() - interval '24 hours'`),
     db.query(`
       SELECT
-        u.id, u.email, u.diet_id, u.user_type, u.created_at,
+        u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed,
         COUNT(se.id)::int AS total_scans,
         MAX(se.created_at) AS last_scan,
         COALESCE(sc.count, 0) AS scans_this_month
       FROM users u
       LEFT JOIN scan_events se ON se.user_id = u.id
       LEFT JOIN scan_counters sc ON sc.user_id = u.id AND sc.month = $1
-      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.created_at, sc.count
+      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed, sc.count
       ORDER BY u.created_at DESC
       LIMIT 200
     `, [month]),
     db.query(`SELECT COALESCE(SUM(cost_usd), 0) AS total FROM api_usage WHERE date_trunc('month', created_at) = date_trunc('month', now())`),
+    db.query(`SELECT COUNT(*) AS total FROM users WHERE created_at > now() - interval '24 hours'`),
+    db.query(`SELECT COUNT(*) AS total FROM users WHERE created_at > now() - interval '7 days'`),
+    db.query(`SELECT COUNT(*) AS total FROM users WHERE date_trunc('month', created_at) = date_trunc('month', now())`),
+    db.query(`SELECT user_type, COUNT(*)::int AS count FROM users GROUP BY user_type`),
+    db.query(`
+      SELECT
+        to_char(date_trunc('day', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS day,
+        COUNT(*)::int AS signups
+      FROM users
+      WHERE created_at > now() - interval '28 days'
+      GROUP BY 1
+      ORDER BY 1
+    `),
+    db.query(`
+      SELECT COUNT(DISTINCT user_id)::int AS total
+      FROM scan_events
+      WHERE created_at > now() - interval '7 days'
+    `),
+    db.query(`SELECT COUNT(*) AS total FROM users WHERE email_confirmed = true`),
   ]);
+
+  const planBreakdown = { free: 0, starter: 0, premium: 0, admin: 0 };
+  for (const row of planBreakdownRes.rows) {
+    planBreakdown[row.user_type] = row.count;
+  }
 
   return {
     total_users: Number(usersRes.rows[0].total),
     total_scans: Number(totalScansRes.rows[0].total),
     scans_this_month: Number(monthScansRes.rows[0].total),
-    scans_last_24h: Number(recentRes.rows[0].total),
+    scans_last_24h: Number(recentScansRes.rows[0].total),
     api_cost_this_month: Number(costRes.rows[0].total),
+    new_users_today: Number(newTodayRes.rows[0].total),
+    new_users_week: Number(newWeekRes.rows[0].total),
+    new_users_month: Number(newMonthRes.rows[0].total),
+    plan_breakdown: planBreakdown,
+    signup_trend: signupTrendRes.rows,
+    active_users_7d: Number(activeWeekRes.rows[0].total),
+    confirmed_users: Number(confirmedRes.rows[0].total),
     users: userStatsRes.rows,
   };
 }
