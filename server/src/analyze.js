@@ -386,8 +386,11 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         if (!neutralAnalysis) {
           neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
           await saveAnalysis(product.id, lang, neutralAnalysis);
+          // Only persist knowledge-inferred ingredients when there is no barcode
+          // (barcoded products must have real label text scanned — knowledge guesses
+          // would permanently corrupt the product record with wrong ingredients)
           const inferred = neutralAnalysis.normalized_ingredients;
-          if (Array.isArray(inferred) && inferred.length > 0) {
+          if (Array.isArray(inferred) && inferred.length > 0 && !imageInspection.barcode) {
             await updateProductIngredients(product.id, inferred.join(', '));
           }
         }
