@@ -78,6 +78,9 @@ Depois extraia (apenas se não for "invalid"):
 3. Para clothing: composição do material/tecido se visível (ex: 100% couro, 80% algodão)
 4. Para fresh_produce: apenas o nome do alimento (ex: "maçã", "banana")
 
+⚠️ REGRA CRÍTICA para ingredients_text:
+Copie o texto dos ingredientes EXATAMENTE como aparece no rótulo, incluindo qualquer secção "PODE CONTER", "Pode conter traços de", "MAY CONTAIN", "Contém traços de" ou similar. NÃO misture nem omita essas secções — elas são essenciais para a análise. Exemplo correto: "farinha de trigo, água, sal. PODE CONTER: leite, ovos."
+
 Responda APENAS com JSON válido neste formato:
 {
   "product_type": "invalid|fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
@@ -86,7 +89,7 @@ Responda APENAS com JSON válido neste formato:
   "barcode": "codigo de barras apenas numeros ou null",
   "lookup_query": "melhor termo curto para busca online ou null",
   "ingredients_visible": true ou false,
-  "ingredients_text": "ingredientes ou composição extraídos ou null",
+  "ingredients_text": "ingredientes extraídos EXATAMENTE como no rótulo, incluindo secção PODE CONTER se presente, ou null",
   "confidence": 0.0
 }`;
   }
@@ -111,6 +114,9 @@ Then extract (only if not "invalid"):
 3. For clothing: material/fabric composition if visible (e.g. 100% leather, 80% cotton)
 4. For fresh_produce: just the food name (e.g. "apple", "banana")
 
+⚠️ CRITICAL RULE for ingredients_text:
+Copy the ingredients text EXACTLY as it appears on the label, including any "MAY CONTAIN", "May contain traces of", "PODE CONTER", "Contains traces of" or similar section. Do NOT merge or omit these sections — they are essential for analysis. Correct example: "wheat flour, water, salt. MAY CONTAIN: milk, eggs."
+
 Respond ONLY with valid JSON in this format:
 {
   "product_type": "invalid|fresh_produce|processed_food|cosmetic|clothing|supplement|cleaning|other",
@@ -119,7 +125,7 @@ Respond ONLY with valid JSON in this format:
   "barcode": "barcode digits only or null",
   "lookup_query": "best short search term for online lookup or null",
   "ingredients_visible": true or false,
-  "ingredients_text": "extracted ingredients or composition or null",
+  "ingredients_text": "ingredients EXACTLY as on label, including MAY CONTAIN section if present, or null",
   "confidence": 0.0
 }`;
 }
