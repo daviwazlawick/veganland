@@ -385,13 +385,14 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         let neutralAnalysis = await findAnalysis(product.id, lang);
         if (!neutralAnalysis) {
           neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
-          await saveAnalysis(product.id, lang, neutralAnalysis);
-          // Only persist knowledge-inferred ingredients when there is no barcode
-          // (barcoded products must have real label text scanned — knowledge guesses
-          // would permanently corrupt the product record with wrong ingredients)
-          const inferred = neutralAnalysis.normalized_ingredients;
-          if (Array.isArray(inferred) && inferred.length > 0 && !imageInspection.barcode) {
-            await updateProductIngredients(product.id, inferred.join(', '));
+          // Don't cache knowledge-based analyses for barcoded products — without real
+          // label text the result is guesswork and would corrupt the cache for all users
+          if (!imageInspection.barcode) {
+            await saveAnalysis(product.id, lang, neutralAnalysis);
+            const inferred = neutralAnalysis.normalized_ingredients;
+            if (Array.isArray(inferred) && inferred.length > 0) {
+              await updateProductIngredients(product.id, inferred.join(', '));
+            }
           }
         }
         result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
