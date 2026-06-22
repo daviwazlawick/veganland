@@ -1,7 +1,6 @@
 import {
   analyzeFreshProduce,
   analyzeIngredients,
-  analyzeNonFoodByKnowledge,
   analyzeProductByKnowledge,
   buildInvalidImageResult,
   buildMissingIngredientsResult,
@@ -15,10 +14,8 @@ import {
   saveScanEvent,
   disassociateBarcode,
   stampBarcode,
-  updateProductIngredients,
   upsertFreshProduct,
   upsertProduct,
-  upsertProductByIdentity,
 } from './db.js';
 import { findProductIdentity, findProductIngredients } from './openFoodFacts.js';
 
@@ -349,18 +346,6 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       } else {
         result = await evaluateProductIngredients(imageInspection.ingredients_text.trim(), imageInspection, profile, lang, 'image', productType);
       }
-    } else if (imageInspection.product_name || imageInspection.brand) {
-      product = await upsertProductByIdentity(imageInspection, productType);
-      if (product?.id) {
-        let neutralAnalysis = await findAnalysis(product.id, lang);
-        if (!neutralAnalysis) {
-          neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
-          await saveAnalysis(product.id, lang, neutralAnalysis);
-        }
-        result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
-      } else {
-        result = await analyzeProductByKnowledge(imageInspection, profile, lang);
-      }
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }
@@ -382,26 +367,6 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         await saveAnalysis(product.id, lang, neutralAnalysis);
       }
       result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
-    } else if (imageInspection.product_name || imageInspection.brand || imageInspection.barcode) {
-      product = await upsertProductByIdentity(imageInspection, productType);
-      if (product?.id) {
-        let neutralAnalysis = await findAnalysis(product.id, lang);
-        if (!neutralAnalysis) {
-          neutralAnalysis = await analyzeNonFoodByKnowledge(imageInspection, lang, productType);
-          // Don't cache knowledge-based analyses for barcoded products — without real
-          // label text the result is guesswork and would corrupt the cache for all users
-          if (!imageInspection.barcode) {
-            await saveAnalysis(product.id, lang, neutralAnalysis);
-            const inferred = neutralAnalysis.normalized_ingredients;
-            if (Array.isArray(inferred) && inferred.length > 0) {
-              await updateProductIngredients(product.id, inferred.join(', '));
-            }
-          }
-        }
-        result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
-      } else {
-        result = await analyzeProductByKnowledge(imageInspection, profile, lang);
-      }
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }
