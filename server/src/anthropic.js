@@ -163,6 +163,11 @@ Origem: ${source}
 Composição/Ingredientes:
 ${ingredientsText}
 
+⚠️ REGRA CRÍTICA — PODE CONTER / TRAÇOS:
+O rótulo pode ter uma seção separada como "Pode conter:", "Pode conter traços de:", "Contém traços de:", "MAY CONTAIN" ou similar. Essa seção refere-se a CONTAMINAÇÃO CRUZADA — NÃO são ingredientes da receita.
+- NUNCA considere itens dessa seção para determinar status (SAFE/CAUTION/NOT_SAFE)
+- NUNCA inclua esses itens em "concerns" nem em "normalized_ingredients"
+
 Analise e verifique se o produto é adequado para este perfil.
 
 Regras importantes:
@@ -177,7 +182,7 @@ Responda APENAS com JSON válido neste formato exato:
   "status": "SAFE" ou "CAUTION" ou "NOT_SAFE",
   "title": "título curto em português (máximo 10 palavras)",
   "explanation": "explicação detalhada em português (2-4 frases)",
-  "concerns": ["ingrediente ou material problemático"],
+  "concerns": ["apenas ingredientes reais da receita que são problemáticos"],
   "cannot_read": false,
   "product_name": "${productName}",
   "ingredients_source": "${source}",
@@ -198,6 +203,11 @@ Source: ${source}
 Composition/Ingredients:
 ${ingredientsText}
 
+⚠️ CRITICAL RULE — MAY CONTAIN / TRACES:
+The label may have a separate section like "May contain:", "May contain traces of:", "Contains traces of:", "PUEDE CONTENER", "PEUT CONTENIR" or similar. This section refers to CROSS-CONTAMINATION — these are NOT recipe ingredients.
+- NEVER use items from this section to determine status (SAFE/CAUTION/NOT_SAFE)
+- NEVER include these items in "concerns" or "normalized_ingredients"
+
 Analyze and verify if the product is suitable for this profile.
 
 Important rules:
@@ -212,7 +222,7 @@ Respond ONLY with valid JSON in this exact format:
   "status": "SAFE" or "CAUTION" or "NOT_SAFE",
   "title": "short title in ${outputLanguage} (max 10 words)",
   "explanation": "detailed explanation in ${outputLanguage} (2-4 sentences)",
-  "concerns": ["problematic ingredient or material"],
+  "concerns": ["only actual recipe ingredients that are problematic"],
   "cannot_read": false,
   "product_name": "${productName}",
   "ingredients_source": "${source}",
@@ -274,14 +284,21 @@ Origem: ${source}
 Composição/Ingredientes:
 ${ingredientsText}
 
-Classifique:
+⚠️ REGRA CRÍTICA — PODE CONTER / TRAÇOS:
+O rótulo pode ter uma seção separada como "Pode conter:", "Pode conter traços de:", "Contém traços de:", "Fabricado em ambiente que processa:", "MAY CONTAIN", "TRACES OF" ou similar. Essa seção refere-se a CONTAMINAÇÃO CRUZADA durante a fabricação — NÃO são ingredientes da receita.
+- NUNCA inclua itens dessa seção em animal_derived, meat_fish, gluten, allergens ou ambiguous
+- NUNCA inclua itens dessa seção em normalized_ingredients
+- Liste esses itens apenas no campo "traces"
+
+Classifique (apenas ingredientes reais da receita):
 - "animal_derived": todos de origem animal (laticínios, ovos, mel, gelatina, cera de abelha, carmim, colágeno, etc.)
 - "meat_fish": carnes, aves, peixes e frutos do mar especificamente
 - "gluten": fontes de glúten (trigo, centeio, cevada, aveia)
 - "allergens": ingredientes/materiais por categoria padrão de alergia ou sensibilidade, incluindo alimentos, cosméticos, higiene e roupas
 - "ambiguous": ingredientes que PODEM ser animais mas sem especificação de origem (ex: "lecitina", "glicerina")
-- "summary": descrição neutra da composição em 2-3 frases
-- "normalized_ingredients": lista dos ingredientes em português (traduza e normalize do rótulo original, mantendo nomes técnicos)
+- "traces": itens listados na seção "PODE CONTER" / "MAY CONTAIN" do rótulo (contaminação cruzada, não ingredientes)
+- "summary": descrição neutra da composição em 2-3 frases (não mencione os traços aqui, eles aparecem separadamente)
+- "normalized_ingredients": lista dos ingredientes REAIS da receita em português (traduza e normalize do rótulo original, mantendo nomes técnicos; NÃO inclua itens do PODE CONTER)
 
 Responda APENAS com JSON válido:
 {
@@ -292,6 +309,7 @@ Responda APENAS com JSON válido:
   "animal_derived": [],
   "meat_fish": [],
   "gluten": [],
+  "traces": [],
   "allergens": {
     "dairy": [],
     "eggs": [],
@@ -331,14 +349,21 @@ Source: ${source}
 Composition/Ingredients:
 ${ingredientsText}
 
-Classify:
+⚠️ CRITICAL RULE — MAY CONTAIN / TRACES:
+The label may have a separate section like "May contain:", "May contain traces of:", "Contains traces of:", "Manufactured in a facility that also processes:", "PUEDE CONTENER", "PEUT CONTENIR", "KANN SPUREN ENTHALTEN" or similar. This section refers to CROSS-CONTAMINATION during manufacturing — these are NOT recipe ingredients.
+- NEVER include items from this section in animal_derived, meat_fish, gluten, allergens or ambiguous
+- NEVER include items from this section in normalized_ingredients
+- List these items only in the "traces" field
+
+Classify (actual recipe ingredients only):
 - "animal_derived": all animal-derived (dairy, eggs, honey, gelatin, beeswax, carmine, collagen, etc.)
 - "meat_fish": meats, poultry, fish, and seafood specifically
 - "gluten": gluten sources (wheat, rye, barley, oats)
 - "allergens": ingredients/materials by standard allergy or sensitivity category, including food, cosmetics, hygiene, and clothing
 - "ambiguous": ingredients that MAY be animal-derived without specified origin (e.g. "lecithin", "glycerin")
-- "summary": neutral description of composition in 2-3 sentences
-- "normalized_ingredients": list of ingredient names in ${outputLanguage} (translated and normalized from the original label, keeping technical names)
+- "traces": items listed in the "MAY CONTAIN" / "PODE CONTER" section of the label (cross-contamination, not ingredients)
+- "summary": neutral description of composition in 2-3 sentences (do not mention traces here, they are handled separately)
+- "normalized_ingredients": list of ACTUAL recipe ingredient names in ${outputLanguage} (translated and normalized from the original label, keeping technical names; do NOT include MAY CONTAIN items)
 
 Respond ONLY with valid JSON:
 {
@@ -349,6 +374,7 @@ Respond ONLY with valid JSON:
   "animal_derived": [],
   "meat_fish": [],
   "gluten": [],
+  "traces": [],
   "allergens": {
     "dairy": [],
     "eggs": [],
@@ -373,6 +399,7 @@ Respond ONLY with valid JSON:
     "wool": []
   },
   "ambiguous": [],
+  "traces": [],
   "normalized_ingredients": []
 }`;
 }
