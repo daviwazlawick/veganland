@@ -555,7 +555,8 @@ export async function deleteUserAccount(userId) {
 export async function setUserType(userId, userType) {
   const db = await getPool();
   if (!db) return;
-  await db.query('update users set user_type = $1 where id = $2', [userType, userId]);
+  const r = await db.query('update users set user_type = $1 where id = $2', [userType, userId]);
+  if (r.rowCount === 0) console.warn(`[webhook] setUserType: user ${userId} not found in DB (RC anonymous purchase?)`);
 }
 
 export async function storeEmailConfirmationToken(userId, token) {
