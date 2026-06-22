@@ -897,7 +897,9 @@ const server = http.createServer(async (req, res) => {
         if (['INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'SUBSCRIBER_ALIAS'].includes(eventType)) {
           if (entitlementId === 'pro') newUserType = 'premium';
           else if (entitlementId === 'starter') newUserType = 'starter';
-        } else if (['CANCELLATION', 'EXPIRATION', 'BILLING_ISSUE'].includes(eventType)) {
+        } else if (['EXPIRATION', 'BILLING_ISSUE'].includes(eventType)) {
+          // CANCELLATION = cancelled auto-renewal but access remains until expires_date
+          // Only EXPIRATION means access truly ended
           newUserType = 'free';
         }
 
