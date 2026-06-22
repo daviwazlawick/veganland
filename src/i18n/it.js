@@ -190,6 +190,8 @@ export default {
     allergens_found: 'Sensibilità in questo prodotto',
     allergens_none: 'Nessuna sensibilità rilevata',
     ingredients_unavailable: 'Ingredienti non disponibili',
+    traces_title: 'Avviso di contaminazione crociata',
+    traces_subtitle: "L'etichetta indica: può contenere tracce di:",
   },
   profile: {
     title: 'Il mio profilo',

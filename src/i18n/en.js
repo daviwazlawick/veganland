@@ -190,6 +190,8 @@ export default {
     allergens_found: 'Sensitivities in this product',
     allergens_none: 'No sensitivities detected',
     ingredients_unavailable: 'Ingredients not available',
+    traces_title: 'Cross-Contamination Warning',
+    traces_subtitle: 'Label indicates may contain:',
   },
   profile: {
     title: 'My Profile',

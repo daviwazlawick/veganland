@@ -65,6 +65,8 @@ export default function ResultScreen({ navigation, route }) {
     ? result.normalized_ingredients
     : parseIngredients(ingredientsText);
 
+  const traces = Array.isArray(result.traces) && result.traces.length > 0 ? result.traces : null;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -152,6 +154,25 @@ export default function ResultScreen({ navigation, route }) {
             <Text style={styles.allergensNone}>{t(language, 'result.allergens_none')}</Text>
           )}
         </View>
+
+        {traces && (
+          <View style={styles.tracesCard}>
+            <View style={styles.tracesHeader}>
+              <Text style={styles.tracesIcon}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tracesTitle}>{t(language, 'result.traces_title')}</Text>
+                <Text style={styles.tracesSubtitle}>{t(language, 'result.traces_subtitle')}</Text>
+              </View>
+            </View>
+            <View style={styles.tracesWrap}>
+              {traces.map((item, i) => (
+                <View key={i} style={styles.traceChip}>
+                  <Text style={styles.traceText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {result.concerns && result.concerns.length > 0 && (
           <View style={styles.concernsCard}>
@@ -314,6 +335,24 @@ const styles = StyleSheet.create({
   },
   allergenText: { fontSize: 13, color: '#92400E', fontWeight: '800' },
   allergensNone: { fontSize: 14, color: Colors.textLight, fontStyle: 'italic' },
+  tracesCard: {
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 28, padding: 20,
+    borderWidth: 1, borderColor: '#F59E0B60',
+    gap: 14,
+  },
+  tracesHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  tracesIcon: { fontSize: 20, lineHeight: 24 },
+  tracesTitle: { fontSize: 15, fontWeight: '900', color: '#92400E' },
+  tracesSubtitle: { fontSize: 13, color: '#B45309', fontWeight: '500', marginTop: 2 },
+  tracesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  traceChip: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: '#F59E0B80',
+  },
+  traceText: { fontSize: 13, color: '#92400E', fontWeight: '700' },
   concernsCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: Colors.card,
