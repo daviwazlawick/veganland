@@ -199,7 +199,9 @@ function applyProfileToAnalysis(analysis, profile, language) {
 
   const traces = Array.isArray(analysis.traces) && analysis.traces.length > 0 ? analysis.traces : null;
   if (traces) {
-    explanation = `${explanation} ${resultText(language, 'tracesNote', { traces: traces.join(', ') })}`;
+    const tracesText = resultText(language, 'tracesNote', { traces: traces.join(', ') });
+    // Prepend traces note so it's visible even on short explanations
+    explanation = `${explanation}\n\n${tracesText}`;
   }
 
   const identified_allergens = Object.entries(analysis.allergens || {})
@@ -216,6 +218,7 @@ function applyProfileToAnalysis(analysis, profile, language) {
     ingredients_source: analysis.ingredients_source,
     identified_allergens,
     normalized_ingredients: Array.isArray(analysis.normalized_ingredients) ? analysis.normalized_ingredients : [],
+    traces: traces || [],
   };
 }
 
