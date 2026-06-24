@@ -35,9 +35,10 @@ async function resolveProductIngredients(imageInspection) {
       source: 'database',
     };
   }
-  // Product exists in our DB but without ingredients and was created by a user scan
+  // Product exists in our DB with ingredients and was created by a user scan
   // (not imported from OFF) — don't override it with potentially wrong OFF data.
-  if (dbProduct && dbProduct.source !== 'open_food_facts') {
+  // If ingredients are empty, allow OFF to fill them in.
+  if (dbProduct?.ingredients_text && dbProduct.source !== 'open_food_facts') {
     return null;
   }
 
@@ -235,7 +236,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   if (clientBarcode && !skipBarcodeCache) {
     // products table now contains both our scans and the full OFF dump (1.3M+)
     const known = await findProduct({ barcode: clientBarcode });
-    if (known) {
+    if (known?.ingredients_text) {
       const src = known.source || 'processed_food';
       imageInspection = {
         product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
@@ -243,10 +244,12 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         brand: known.brand,
         barcode: known.barcode,
         lookup_query: known.lookup_query,
-        ingredients_visible: !!known.ingredients_text,
-        ingredients_text: known.ingredients_text || null,
+        ingredients_visible: true,
+        ingredients_text: known.ingredients_text,
         confidence: 1.0,
       };
+      // No ingredients in DB: if image provided let it inspect the label;
+      // if no image, fall through to OFF identity lookup / NEEDS_PHOTO.
     }
   }
 
