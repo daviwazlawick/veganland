@@ -1,7 +1,6 @@
 import {
   analyzeFreshProduce,
   analyzeIngredients,
-  analyzeProductByKnowledge,
   buildInvalidImageResult,
   buildMissingIngredientsResult,
   evaluateProductIngredients,
@@ -325,7 +324,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       product = freshProduct;
       result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
     } else {
-      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+      result = buildMissingIngredientsResult(imageInspection, lang);
     }
 
   } else if (NON_FOOD_TYPES.includes(productType)) {
