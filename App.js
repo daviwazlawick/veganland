@@ -10,8 +10,10 @@ import ForceUpdateScreen from './src/screens/ForceUpdateScreen';
 import Brand from './src/brand';
 import useForceUpdate from './src/hooks/useForceUpdate';
 import { initPurchases } from './src/services/purchasesService';
+import { initAnalytics } from './src/services/analyticsService';
 
 initPurchases();
+initAnalytics();
 
 const BRAND_FONTS = Brand.fonts
   ? { Syne_700Bold, Syne_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold }

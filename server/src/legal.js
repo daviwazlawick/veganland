@@ -232,13 +232,24 @@ export function htmlPrivacy(host) {
 <p>We implement industry-standard security measures including HTTPS/TLS encryption in transit, bcrypt password hashing, and restricted database access. No system is completely secure; we cannot guarantee absolute security.</p>
 
 <h2>9. International Transfers</h2>
-<p>Product images are processed by Anthropic in the United States. This transfer is made under appropriate safeguards (Standard Contractual Clauses). No other personal data is transferred outside the EU/EEA.</p>
+<p>Product images are processed by Anthropic in the United States. If you opt in to ad measurement (see Section 11), pseudonymised event and device data are processed by Meta Platforms Ireland Ltd. (EU controller) and may be transferred to Meta Platforms, Inc. (USA). All transfers outside the EU/EEA are made under appropriate safeguards (EU Standard Contractual Clauses). No other personal data is transferred outside the EU/EEA.</p>
 
 <h2>10. Children's Privacy</h2>
 <p>The Service is not directed at children under 16. We do not knowingly collect personal data from children. If you believe we have inadvertently collected data from a child, contact us immediately.</p>
 
-<h2>11. Cookies</h2>
-<p>The mobile app does not use cookies. Our web pages (terms, privacy, password reset) use no tracking cookies — only essential browser behaviour.</p>
+<h2>11. Cookies, Tracking & Advertising</h2>
+<p>Our web pages (terms, privacy, password reset, marketing) use no tracking cookies — only essential browser behaviour.</p>
+<p>The mobile app integrates the <strong>Meta Audience Network / Facebook SDK</strong> for the sole purpose of measuring advertising campaigns we run on Facebook and Instagram and improving the Service. When enabled, it processes the following data:</p>
+<ul>
+  <li><span class="chip">Device identifiers</span> Advertising identifier (IDFA on iOS / Advertising ID on Android), device model, operating system, language and country</li>
+  <li><span class="chip">App events</span> App install, app open, account registration, free trial start, subscription purchase (amount + currency), product scan (status only — never ingredients or photos)</li>
+  <li><span class="chip">Coarse usage data</span> Session timestamps and aggregated activity</li>
+</ul>
+<p><strong>iOS:</strong> on first launch you will see Apple's App Tracking Transparency prompt. If you choose <em>"Ask App not to Track"</em>, the advertising identifier is not collected and event data is reported in Apple's aggregated SKAdNetwork format only.</p>
+<p><strong>Android:</strong> you can reset or limit your Advertising ID in your device's Google settings at any time.</p>
+<p><strong>Legal basis:</strong> consent (GDPR Art. 6(1)(a)). You can withdraw consent at any time by disabling tracking in your device settings or by uninstalling the app.</p>
+<p><strong>Data recipient:</strong> Meta Platforms Ireland Ltd., 4 Grand Canal Square, Dublin 2, Ireland (EU controller) — see <a href="https://www.facebook.com/policy.php" target="_blank">Meta's Privacy Policy</a> for further details on their processing.</p>
+<p><strong>What we never send to Meta:</strong> your email address, name, dietary or allergy profile, scanned product photos, or ingredient lists.</p>
 
 <h2>12. Changes to This Policy</h2>
 <p>We will notify you of material changes via email or in-app notification at least 14 days before they take effect.</p>

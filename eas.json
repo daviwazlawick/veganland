@@ -11,7 +11,9 @@
         "EXPO_PUBLIC_BRAND": "novaqi",
         "EXPO_PUBLIC_API_URL": "https://novaqi.app",
         "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
-        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_YnmIYLSJyriFzhvfSSnypZCFibv"
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_YnmIYLSJyriFzhvfSSnypZCFibv",
+        "EXPO_PUBLIC_FB_APP_ID": "1717962282965252",
+        "EXPO_PUBLIC_FB_CLIENT_TOKEN": "0217ebfebacdb37d56743ae72d0faa08b"
       },
       "android": {
         "buildType": "app-bundle",
@@ -25,7 +27,9 @@
         "EXPO_PUBLIC_BRAND": "novaqi",
         "EXPO_PUBLIC_API_URL": "https://novaqi.app",
         "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_yitutMbhXnSxJFnCqDqkNunlogI"
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_yitutMbhXnSxJFnCqDqkNunlogI",
+        "EXPO_PUBLIC_FB_APP_ID": "1717962282965252",
+        "EXPO_PUBLIC_FB_CLIENT_TOKEN": "0217ebfebacdb37d56743ae72d0faa08b"
       },
       "ios": {
         "simulator": false

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { apiGetHistory, apiGetMe, apiUpdateProfile } from '../services/apiService';
+import { requestTrackingPermission, logScan } from '../services/analyticsService';
 
 const AppContext = createContext(null);
 
@@ -83,6 +84,7 @@ export function AppProvider({ children }) {
   async function acceptDisclaimer() {
     setDisclaimerAcceptedState(true);
     await AsyncStorage.setItem(STORAGE_KEYS.disclaimer, 'true');
+    requestTrackingPermission().catch(() => {});
   }
 
   async function loadServerHistory() {
@@ -136,6 +138,7 @@ export function AppProvider({ children }) {
     };
     const updated = [entry, ...scanHistory].slice(0, 50);
     setScanHistoryState(updated);
+    logScan(scan.status);
     if (!token) {
       await AsyncStorage.setItem(STORAGE_KEYS.scan_history, JSON.stringify(updated));
     }

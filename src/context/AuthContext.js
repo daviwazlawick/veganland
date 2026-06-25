@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiLogin, apiRegister, apiGetMe } from '../services/apiService';
 import { loginPurchasesUser, logoutPurchasesUser } from '../services/purchasesService';
+import { logRegistration } from '../services/analyticsService';
 
 const AuthContext = createContext(null);
 
@@ -52,6 +53,7 @@ export function AuthProvider({ children }) {
 
   async function register(email, password, disclaimerVersion) {
     const data = await apiRegister(email, password, disclaimerVersion);
+    logRegistration('email');
     if (data.emailConfirmationSent) {
       const err = new Error('email_confirmation_required');
       err.code = 'EMAIL_CONFIRMATION_REQUIRED';

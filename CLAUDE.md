@@ -184,6 +184,51 @@ server/src/
 - Configuradas em `src/services/purchasesService.native.js` e `eas.json`
 - **Nota:** mudança de chaves RC requer novo build nativo (não é OTA)
 
+### Meta / Facebook Ads tracking (1.0.10+)
+
+Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
+
+**Estado do SDK (lazy init, GDPR-safe):**
+- Plugin Facebook só é adicionado se `EXPO_PUBLIC_FB_APP_ID` e `EXPO_PUBLIC_FB_CLIENT_TOKEN` estiverem definidos em `eas.json` (per-brand)
+- `isAutoInitEnabled: false`, `autoLogAppEventsEnabled: false`, `advertiserIDCollectionEnabled: false` no plugin — tudo é activado manualmente após consentimento
+- `initAnalytics()` no `App.js` configura mas só liga o SDK quando ATT é decidido
+- ATT prompt dispara em `AppContext.acceptDisclaimer()` (após o user aceitar o disclaimer, não antes)
+
+**Eventos disparados:**
+| Evento | Onde | Quando |
+|---|---|---|
+| `fb_mobile_complete_registration` | `AuthContext.register()` | API confirma criação de conta (mesmo se email ainda não confirmado) |
+| `StartTrial` | `PaywallScreen.handleSelect()` | RevenueCat `customerInfo.entitlements.active[entId].periodType === 'TRIAL'` |
+| `Subscribe` + `logPurchase` | `PaywallScreen.handleSelect()` | RevenueCat confirma compra paga (não trial) |
+| `Scan` | `AppContext.addScanToHistory()` | Qualquer scan completo (cobre photo, barcode e prompt flows) |
+
+**Credenciais (env vars em `eas.json`):**
+- `EXPO_PUBLIC_FB_APP_ID` — App ID do Meta for Developers
+- `EXPO_PUBLIC_FB_CLIENT_TOKEN` — Settings → Advanced → Client Token
+
+**SKAdNetwork (iOS 14.5+):**
+- 33 IDs hardcoded em `app.config.js` (Meta + parceiros)
+- Para máxima atribuição, adicionar a lista completa publicada em https://developers.facebook.com/docs/SKAdNetwork
+
+**Privacy Policy:**
+- Secção 9 (International Transfers) cobre Meta Ireland → US (SCCs)
+- Secção 11 (Cookies, Tracking & Advertising) lista eventos, base legal (consent), ATT opt-in, e o que **não** se envia (email, perfil, fotos, ingredientes)
+
+**App Store Connect Nutrition Labels — obrigatório actualizar antes de submeter:**
+- Data Used to Track You: Device ID, Product Interaction, Advertising Data
+- Data Linked to You (adicionar): Purchases, Device ID — purposes: Third-Party Advertising + Developer's Advertising + Analytics
+
+**Google Play Data Safety:**
+- Device or other IDs → shared with Meta, purposes: Advertising + Analytics
+- App activity / interactions → shared, Analytics + Advertising
+
+**Texto do ATT prompt (já no `app.config.js`):**
+*"Allow {Brand} to measure ad performance so we can show you more relevant content and continue improving the app."*
+
+**O que **NÃO** se envia ao Meta:** email, nome, dieta, alergias, fotos, ingredientes. Só identifiers + event names + amount/currency em purchases.
+
+---
+
 ### Updates obrigatórios (Force Update)
 - `GET /app/version` — retorna versão mínima por plataforma
 - `useForceUpdate` hook — compara versão instalada vs mínima ao arrancar
@@ -206,8 +251,8 @@ server/src/
 
 | Campo | Valor |
 |---|---|
-| version | `1.0.8` |
-| versionCode (Android) | `10` |
+| version | `1.0.10` |
+| versionCode (Android) | `12` |
 | bundleIdentifier iOS | `app.novaqi` |
 | package Android | `app.novaqi` |
 | runtimeVersion policy | `appVersion` — OTA só chega a builds com a mesma versão |
@@ -217,6 +262,8 @@ server/src/
 - 1.0.6 — fixes de compliance
 - 1.0.7 — fixes adicionais Apple review
 - 1.0.8 — **aprovado pela Apple** ✅, RC iOS key corrigida
+- 1.0.9 — fixes barcode/OFF fallback, MAY CONTAIN, traces, cache
+- 1.0.10 — **Meta SDK + ATT** (CompleteRegistration, StartTrial, Subscribe, Scan); Privacy Policy actualizada
 
 ---
 
@@ -228,8 +275,8 @@ server/src/
 | Novos ecrãs (JS puro) | ✅ Sim |
 | Alterações servidor (server.js, etc.) | ✅ Apenas `git pull && pm2 restart` |
 | Chaves RevenueCat / EAS env vars | ❌ Novo build |
-| Novos plugins nativos | ❌ Novo build |
-| Permissões iOS (infoPlist) | ❌ Novo build |
+| Novos plugins nativos (Meta SDK, etc.) | ❌ Novo build |
+| Permissões iOS (infoPlist, ATT, SKAdNetwork) | ❌ Novo build |
 | Bump de versão | ❌ Novo build (runtimeVersion = appVersion) |
 
 **OTA update command:**
@@ -392,8 +439,17 @@ cd /opt/veganland && node server/src/migrate.js
 ## Estado actual / Próximos passos
 
 ### Lançado ✅
-- NovaQI iOS — aprovado pela Apple (v1.0.8)
+- NovaQI iOS — aprovado pela Apple (v1.0.8 → 1.0.9 em produção)
 - Web: novaqi.app + veganland.app
+
+### A submeter (1.0.10)
+- [ ] Obter `EXPO_PUBLIC_FB_APP_ID` + `EXPO_PUBLIC_FB_CLIENT_TOKEN` no Meta for Developers
+- [ ] Preencher env vars em `eas.json` (perfis novaqi-ios + novaqi-android)
+- [ ] Aceitar Data Processing Addendum em Meta Business Settings
+- [ ] `npm install` + `npm run build:ios:novaqi` + `npm run build:android:novaqi`
+- [ ] Actualizar Privacy Nutrition Labels no App Store Connect (Data Used to Track You)
+- [ ] Actualizar Data Safety no Google Play Console
+- [ ] Configurar eventos no Meta Events Manager (Subscribe = primary conversion, AEM schema iOS)
 
 ### Pendente
 - [ ] Lançamento Android (Google Play — conta em verificação)
@@ -403,3 +459,4 @@ cd /opt/veganland && node server/src/migrate.js
 - [ ] Testes end-to-end do fluxo de confirmação de email
 - [ ] Admin: endpoint para inserir/editar produtos manualmente na BD
 - [ ] Push notifications
+- [ ] Conversions API server-side via webhook RevenueCat (deduplicação com Pixel — fase 2)

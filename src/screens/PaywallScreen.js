@@ -16,6 +16,7 @@ import {
   ENTITLEMENT_STARTER,
   ENTITLEMENT_PRO,
 } from '../services/purchasesService';
+import { logStartTrial, logSubscribe } from '../services/analyticsService';
 
 const PLANS = [
   {
@@ -125,6 +126,14 @@ export default function PaywallScreen({ navigation, route }) {
       const customerInfo = await purchasePackage(pkg);
       const entId = activeEntitlementId(customerInfo);
       const newUserType = entitlementToUserType(entId);
+      const activeEnt = entId && customerInfo?.entitlements?.active?.[entId];
+      const price = pkg?.product?.price ?? 0;
+      const currency = pkg?.product?.currencyCode || 'EUR';
+      if (activeEnt?.periodType === 'TRIAL') {
+        logStartTrial({ price, currency, planId: plan.id });
+      } else {
+        logSubscribe({ price, currency, planId: plan.id });
+      }
       updateUserType(newUserType);
       navigation.navigate('Main');
       if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
