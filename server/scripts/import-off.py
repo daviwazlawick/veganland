@@ -1,24 +1,36 @@
 #!/usr/bin/env python3
 """
-Download and import the OpenFoodFacts product dump directly into the products table.
-- New OFF products are inserted.
-- Existing OFF products (source = 'open_food_facts') are updated with fresh data.
-- Products added via scan (any other source) are NEVER touched.
+Download and import the OpenFoodFacts product dump into the products table.
+
+- New OFF products are INSERTED.
+- Existing OFF products (source = 'open_food_facts') are UPDATED with fresh data.
+- Products added via scan (any other source) are NEVER touched — the upsert's
+  WHERE clause skips them entirely.
+
+Schema strategy (hybrid):
+- Hot-path columns (allergens_tags, traces_tags, categories_tags, labels_tags,
+  nutriscore_grade, nova_group, image_url, quantity, serving_size) are promoted
+  to native columns for indexable queries.
+- The FULL OFF row (all 211 columns) is stored in the `raw` jsonb column —
+  any non-promoted field is still accessible as `raw->>'field_name'`.
+
 Usage: python3 import-off.py [--skip-download]
 """
 
 import csv
 import gzip
+import json
 import os
 import sys
 import urllib.request
 import psycopg2
+from psycopg2.extras import Json
 
 csv.field_size_limit(10 * 1024 * 1024)
 
 DUMP_URL = "https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz"
 DUMP_PATH = "/opt/veganland/data/off-products.csv.gz"
-BATCH_SIZE = 5000
+BATCH_SIZE = 2000
 
 
 def load_env():
@@ -41,7 +53,8 @@ def download_dump():
 
     def progress(count, block_size, total_size):
         pct = int(count * block_size * 100 / total_size) if total_size > 0 else 0
-        print(f"\r  {pct}% ({count * block_size // 1024 // 1024} MB)", end="", flush=True)
+        mb = count * block_size // 1024 // 1024
+        print(f"\r  {pct}% ({mb} MB)", end="", flush=True)
 
     urllib.request.urlretrieve(DUMP_URL, DUMP_PATH, reporthook=progress)
     print()
@@ -58,24 +71,72 @@ def best_ingredients(row):
     return None
 
 
+def parse_tags(value):
+    """OFF stores tag fields as comma-separated values like 'en:milk,en:gluten'.
+    Returns a clean list with empty entries removed."""
+    if not value:
+        return []
+    return [t.strip() for t in value.split(",") if t.strip()]
+
+
+def parse_int(value):
+    if not value:
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return None
+
+
+def clean_row(row):
+    """Strip empty strings to None and drop empties so raw JSONB stays compact.
+    csv.DictReader collects extra fields from malformed rows into a list under
+    key=None — filter those out to avoid AttributeError on .strip()."""
+    return {
+        k: v.strip()
+        for k, v in row.items()
+        if k and isinstance(v, str) and v.strip()
+    }
+
+
 def import_dump(conn):
     cur = conn.cursor()
 
     # Upsert into products:
     # - INSERT new OFF products
-    # - UPDATE existing OFF products (source = 'open_food_facts') with fresh data
-    # - DO NOTHING for products added via scan (different source)
+    # - UPDATE existing OFF products (source = 'open_food_facts')
+    # - DO NOTHING for products added via scan (source != 'open_food_facts')
     upsert_sql = """
-        INSERT INTO products (identity_key, barcode, brand, product_name, ingredients_text, source)
-        VALUES (%s, %s, %s, %s, %s, 'open_food_facts')
+        INSERT INTO products (
+            identity_key, barcode, brand, product_name, ingredients_text, source,
+            allergens_tags, traces_tags, categories_tags, labels_tags,
+            nutriscore_grade, nova_group, image_url, quantity, serving_size,
+            raw
+        )
+        VALUES (
+            %s, %s, %s, %s, %s, 'open_food_facts',
+            %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s
+        )
         ON CONFLICT (identity_key) DO UPDATE SET
-            brand            = EXCLUDED.brand,
-            product_name     = EXCLUDED.product_name,
-            ingredients_text = CASE
+            brand             = EXCLUDED.brand,
+            product_name      = EXCLUDED.product_name,
+            ingredients_text  = CASE
                 WHEN EXCLUDED.ingredients_text != '' THEN EXCLUDED.ingredients_text
                 WHEN products.ingredients_text != '' THEN products.ingredients_text
                 ELSE '' END,
-            updated_at       = now()
+            allergens_tags    = EXCLUDED.allergens_tags,
+            traces_tags       = EXCLUDED.traces_tags,
+            categories_tags   = EXCLUDED.categories_tags,
+            labels_tags       = EXCLUDED.labels_tags,
+            nutriscore_grade  = EXCLUDED.nutriscore_grade,
+            nova_group        = EXCLUDED.nova_group,
+            image_url         = EXCLUDED.image_url,
+            quantity          = EXCLUDED.quantity,
+            serving_size      = EXCLUDED.serving_size,
+            raw               = EXCLUDED.raw,
+            updated_at        = now()
         WHERE products.source = 'open_food_facts'
     """
 
@@ -98,7 +159,7 @@ def import_dump(conn):
             brand = col("brands")
             ingredients = best_ingredients(row)
 
-            # Skip products with no identifying info at all
+            # Skip rows with no identifying info at all
             if not product_name and not brand and not ingredients:
                 continue
 
@@ -107,7 +168,17 @@ def import_dump(conn):
                 code,
                 brand,
                 product_name,
-                ingredients or '',  # empty string when no ingredients (column is NOT NULL)
+                ingredients or '',
+                parse_tags(row.get("allergens")),      # 'en:milk,en:gluten' → ['en:milk','en:gluten']
+                parse_tags(row.get("traces_tags")),
+                parse_tags(row.get("categories_tags")),
+                parse_tags(row.get("labels_tags")),
+                col("nutriscore_grade"),
+                parse_int(row.get("nova_group")),
+                col("image_url"),
+                col("quantity"),
+                col("serving_size"),
+                Json(clean_row(row)),                  # full OFF row as JSONB
             ))
 
             if len(batch) >= BATCH_SIZE:

@@ -26,6 +26,34 @@ function responseLanguage(language) {
   })[language] || 'English';
 }
 
+// OFF stores tags as 'en:milk', 'en:tree-nuts'. Strip the language prefix and
+// dashes so they read naturally inside the prompt.
+function humanizeTags(tags) {
+  if (!Array.isArray(tags) || tags.length === 0) return null;
+  const cleaned = tags
+    .map(t => String(t).replace(/^[a-z]{2}:/i, '').replace(/-/g, ' ').trim())
+    .filter(Boolean);
+  return cleaned.length ? [...new Set(cleaned)].join(', ') : null;
+}
+
+function formatOffContext(product, language) {
+  const allergens = humanizeTags(product?.allergens_tags);
+  const traces = humanizeTags(product?.traces_tags);
+  if (!allergens && !traces) return '';
+
+  if (language === 'pt') {
+    const lines = ['', 'Dados estruturados do OpenFoodFacts para este produto (use como apoio aos ingredientes acima):'];
+    if (allergens) lines.push(`- Alergénios declarados: ${allergens}`);
+    if (traces) lines.push(`- Pode conter / traços (contaminação cruzada): ${traces}`);
+    return lines.join('\n') + '\n';
+  }
+
+  const lines = ['', 'Structured data from OpenFoodFacts for this product (use to support the ingredients above):'];
+  if (allergens) lines.push(`- Declared allergens: ${allergens}`);
+  if (traces) lines.push(`- May contain / traces (cross-contamination): ${traces}`);
+  return lines.join('\n') + '\n';
+}
+
 async function callClaude(content, maxTokens = 1024, model = MODEL_ANALYSIS) {
   if (!hasAnthropicApiKey()) {
     throw new Error('ANTHROPIC_API_KEY is not configured');
@@ -289,7 +317,7 @@ Produto: ${productName}
 Origem: ${source}
 Composição/Ingredientes:
 ${ingredientsText}
-
+${formatOffContext(product, 'pt')}
 ⚠️ REGRA CRÍTICA — PODE CONTER / TRAÇOS:
 O rótulo pode ter uma seção separada como "Pode conter:", "Pode conter traços de:", "Contém traços de:", "Fabricado em ambiente que processa:", "MAY CONTAIN", "TRACES OF" ou similar. Essa seção refere-se a CONTAMINAÇÃO CRUZADA durante a fabricação — NÃO são ingredientes da receita.
 - NUNCA inclua itens dessa seção em animal_derived, meat_fish, gluten, allergens ou ambiguous
@@ -354,7 +382,7 @@ Product: ${productName}
 Source: ${source}
 Composition/Ingredients:
 ${ingredientsText}
-
+${formatOffContext(product, language)}
 ⚠️ CRITICAL RULE — MAY CONTAIN / TRACES:
 The label may have a separate section like "May contain:", "May contain traces of:", "Contains traces of:", "Manufactured in a facility that also processes:", "PUEDE CONTENER", "PEUT CONTENIR", "KANN SPUREN ENTHALTEN" or similar. This section refers to CROSS-CONTAMINATION during manufacturing — these are NOT recipe ingredients.
 - NEVER include items from this section in animal_derived, meat_fish, gluten, allergens or ambiguous

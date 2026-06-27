@@ -16,7 +16,7 @@ import {
   upsertFreshProduct,
   upsertProduct,
 } from './db.js';
-import { findProductIdentity, findProductIngredients } from './openFoodFacts.js';
+import { buildSlimProductInfo, findProductIdentity, findProductIngredients } from './openFoodFacts.js';
 
 async function resolveProductIngredients(imageInspection) {
   const visibleIngredients = imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim();
@@ -234,26 +234,29 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   }
 
   if (clientBarcode && !skipBarcodeCache) {
-    // products table now contains both our scans and the full OFF dump (1.3M+)
+    // products table contains both our scans and the full OFF dump (~4.3M).
+    // Use whatever we know locally — name/brand alone is enough to skip the
+    // online OFF identity lookup further down. If ingredients are missing and
+    // an image is provided, the label inspection still runs below.
     const known = await findProduct({ barcode: clientBarcode });
-    if (known?.ingredients_text) {
+    if (known) {
       const src = known.source || 'processed_food';
       imageInspection = {
         product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
         product_name: known.product_name,
         brand: known.brand,
         barcode: known.barcode,
-        lookup_query: known.lookup_query,
-        ingredients_visible: true,
-        ingredients_text: known.ingredients_text,
+        lookup_query: known.lookup_query
+          || [known.brand, known.product_name].filter(Boolean).join(' ')
+          || null,
+        ingredients_visible: !!known.ingredients_text,
+        ingredients_text: known.ingredients_text || null,
         confidence: 1.0,
       };
-      // No ingredients in DB: if image provided let it inspect the label;
-      // if no image, fall through to OFF identity lookup / NEEDS_PHOTO.
     }
   }
 
-  // Barcode not found locally and no image → try OFF API for name/brand before asking for photo
+  // Nothing local AND no image → last resort: hit OFF web API for name/brand
   if (!imageInspection && !imageBase64) {
     if (clientBarcode) {
       const offIdentity = await findProductIdentity(clientBarcode);
@@ -273,6 +276,11 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     if (!imageInspection) {
       return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
     }
+  }
+
+  // Local row had no ingredients and no image → still need to ask for a photo
+  if (imageInspection && !imageInspection.ingredients_text && !imageBase64) {
+    return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
   }
 
   if (!imageInspection) {
@@ -391,6 +399,6 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
 
   return {
     ...result,
-    productInfo: product || imageInspection,
+    productInfo: buildSlimProductInfo(product || imageInspection),
   };
 }
