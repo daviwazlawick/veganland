@@ -662,21 +662,22 @@ export async function getAdminStats() {
   ] = await Promise.all([
     db.query(`SELECT COUNT(*) AS total FROM users`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events`),
-    db.query(`SELECT COALESCE(SUM(count), 0) AS total FROM scan_counters WHERE month = $1`, [month]),
+    // Count actual scan_events this month (scan_counters undercounts because
+    // it skips unlimited plans and anonymous scans).
+    db.query(`SELECT COUNT(*) AS total FROM scan_events WHERE date_trunc('month', created_at) = date_trunc('month', now())`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events WHERE created_at > now() - interval '24 hours'`),
     db.query(`
       SELECT
         u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed,
         COUNT(se.id)::int AS total_scans,
         MAX(se.created_at) AS last_scan,
-        COALESCE(sc.count, 0) AS scans_this_month
+        COUNT(se.id) FILTER (WHERE date_trunc('month', se.created_at) = date_trunc('month', now()))::int AS scans_this_month
       FROM users u
       LEFT JOIN scan_events se ON se.user_id = u.id
-      LEFT JOIN scan_counters sc ON sc.user_id = u.id AND sc.month = $1
-      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed, sc.count
+      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed
       ORDER BY u.created_at DESC
       LIMIT 200
-    `, [month]),
+    `),
     db.query(`SELECT COALESCE(SUM(cost_usd), 0) AS total FROM api_usage WHERE date_trunc('month', created_at) = date_trunc('month', now())`),
     db.query(`SELECT COUNT(*) AS total FROM users WHERE created_at > now() - interval '24 hours'`),
     db.query(`SELECT COUNT(*) AS total FROM users WHERE created_at > now() - interval '7 days'`),
