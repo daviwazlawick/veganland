@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { BrandFonts } from '../brand';
@@ -58,6 +58,7 @@ export default function ResultScreen({ navigation, route }) {
   const { language } = useApp();
   const { result } = route.params;
   const cfg = STATUS_CONFIG[result.status] || STATUS_CONFIG.CAUTION;
+  const [activeInfo, setActiveInfo] = useState(null);
   const sourceKey = result.ingredients_source || result.productInfo?.source;
   const productName = result.product_name || result.productInfo?.product_name;
   const ingredientsText = result.productInfo?.ingredients_text || result.ingredients_text;
@@ -108,19 +109,21 @@ export default function ResultScreen({ navigation, route }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={[styles.banner, { backgroundColor: cfg.bannerBg }]}>
+        <View style={styles.banner}>
+          {offMeta?.image_url ? (
+            <>
+              <Image
+                source={{ uri: offMeta.image_url }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
+              />
+              <View style={[StyleSheet.absoluteFillObject, styles.bannerDarkOverlay]} />
+            </>
+          ) : (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: cfg.bannerBg }]} />
+          )}
           <View style={styles.lightLine} />
-          <View style={styles.bannerIconCircle}>
-            {offMeta?.image_url && (
-              <>
-                <Image
-                  source={{ uri: offMeta.image_url }}
-                  style={styles.bannerImageBg}
-                  resizeMode="cover"
-                />
-                <View style={styles.bannerImageOverlay} />
-              </>
-            )}
+          <View style={[styles.bannerIconCircle, { backgroundColor: cfg.bannerBg }]}>
             <PremiumIcon name={cfg.icon} size={64} color={Colors.white} />
           </View>
           <Text style={styles.bannerTitle}>{t(language, cfg.titleKey)}</Text>
@@ -162,16 +165,26 @@ export default function ResultScreen({ navigation, route }) {
               {(nutriscoreLetter || novaGroup) && (
                 <View style={styles.gradesRow}>
                   {nutriscoreLetter && (
-                    <View style={[styles.gradeBadge, { backgroundColor: NUTRISCORE_COLORS[nutriscoreLetter] }]}>
+                    <TouchableOpacity
+                      onPress={() => setActiveInfo('nutriscore')}
+                      activeOpacity={0.85}
+                      style={[styles.gradeBadge, { backgroundColor: NUTRISCORE_COLORS[nutriscoreLetter] }]}
+                    >
                       <Text style={styles.gradeBadgeLabel}>{t(language, 'result.nutriscore')}</Text>
                       <Text style={styles.gradeBadgeValue}>{nutriscoreLetter}</Text>
-                    </View>
+                      <Text style={styles.gradeBadgeInfo}>ⓘ</Text>
+                    </TouchableOpacity>
                   )}
                   {novaGroup && (
-                    <View style={[styles.gradeBadge, { backgroundColor: NOVA_COLORS[novaGroup] }]}>
+                    <TouchableOpacity
+                      onPress={() => setActiveInfo('nova')}
+                      activeOpacity={0.85}
+                      style={[styles.gradeBadge, { backgroundColor: NOVA_COLORS[novaGroup] }]}
+                    >
                       <Text style={styles.gradeBadgeLabel}>{t(language, 'result.nova')}</Text>
                       <Text style={styles.gradeBadgeValue}>{novaGroup}</Text>
-                    </View>
+                      <Text style={styles.gradeBadgeInfo}>ⓘ</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               )}
@@ -313,6 +326,62 @@ export default function ResultScreen({ navigation, route }) {
         <View style={{ height: 110 }} />
       </ScrollView>
 
+      <Modal
+        visible={!!activeInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveInfo(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setActiveInfo(null)}
+        >
+          <TouchableOpacity style={styles.modalCard} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {activeInfo === 'nutriscore'
+                  ? t(language, 'result.nutriscore_info_title')
+                  : t(language, 'result.nova_info_title')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setActiveInfo(null)}
+                style={styles.modalCloseX}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalCloseXText}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalBody}>
+              {activeInfo === 'nutriscore'
+                ? t(language, 'result.nutriscore_info_body')
+                : t(language, 'result.nova_info_body')}
+            </Text>
+            <Text style={styles.modalScaleLabel}>
+              {activeInfo === 'nutriscore'
+                ? t(language, 'result.nutriscore_scale_label')
+                : t(language, 'result.nova_scale_label')}
+            </Text>
+            <View style={styles.modalScale}>
+              {activeInfo === 'nutriscore'
+                ? ['A', 'B', 'C', 'D', 'E'].map(letter => (
+                    <View key={letter} style={[styles.scaleChip, { backgroundColor: NUTRISCORE_COLORS[letter] }]}>
+                      <Text style={styles.scaleChipText}>{letter}</Text>
+                    </View>
+                  ))
+                : [1, 2, 3, 4].map(n => (
+                    <View key={n} style={[styles.scaleChip, { backgroundColor: NOVA_COLORS[n] }]}>
+                      <Text style={styles.scaleChipText}>{n}</Text>
+                    </View>
+                  ))}
+            </View>
+            <TouchableOpacity onPress={() => setActiveInfo(null)} style={styles.modalCloseBtn} activeOpacity={0.85}>
+              <Text style={styles.modalCloseBtnText}>{t(language, 'result.info_close')}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       <View style={styles.footer}>
         <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
           <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
@@ -350,6 +419,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 10,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  bannerDarkOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   lightLine: {
     width: '68%',
@@ -359,21 +432,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   bannerIconCircle: {
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    width: 96, height: 96, borderRadius: 48,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)',
-    overflow: 'hidden',
+    borderWidth: 4, borderColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
-  bannerImageBg: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+  bannerTitle: {
+    fontSize: 38, fontWeight: '700', color: Colors.white,
+    fontFamily: BrandFonts.heading || undefined, letterSpacing: 0,
+    textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6,
   },
-  bannerImageOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.42)',
+  bannerSub: {
+    fontSize: 14, color: 'rgba(255,255,255,0.95)', fontWeight: '600', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  bannerTitle: { fontSize: 38, fontWeight: '700', color: Colors.white, fontFamily: BrandFonts.heading || undefined, letterSpacing: 0 },
-  bannerSub: { fontSize: 14, color: 'rgba(255,255,255,0.88)', fontWeight: '600', textAlign: 'center' },
   statusBadge: {
     position: 'absolute', bottom: -16,
     width: 36, height: 36, borderRadius: 18,
@@ -420,6 +493,46 @@ const styles = StyleSheet.create({
   },
   gradeBadgeLabel: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.92)', letterSpacing: 0.4 },
   gradeBadgeValue: { fontSize: 18, fontWeight: '900', color: Colors.white },
+  gradeBadgeInfo: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginLeft: 2 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%', maxWidth: 420,
+    backgroundColor: Colors.background,
+    borderRadius: 24, padding: 22,
+    gap: 14,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 24, shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+  },
+  modalTitle: { flex: 1, fontSize: 18, fontWeight: '900', color: Colors.text },
+  modalCloseX: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.backgroundSecondary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalCloseXText: { fontSize: 22, fontWeight: '800', color: Colors.textLight, lineHeight: 24, marginTop: -2 },
+  modalBody: { fontSize: 14, color: Colors.text, lineHeight: 21, fontWeight: '500' },
+  modalScaleLabel: { fontSize: 12, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 4 },
+  modalScale: { flexDirection: 'row', gap: 8, justifyContent: 'center', flexWrap: 'wrap' },
+  scaleChip: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  scaleChipText: { fontSize: 18, fontWeight: '900', color: Colors.white },
+  modalCloseBtn: {
+    marginTop: 6,
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 14, paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalCloseBtnText: { fontSize: 15, fontWeight: '900', color: Colors.white, letterSpacing: 0.3 },
   nutritionBox: {
     backgroundColor: 'rgba(255,255,255,0.55)',
     borderRadius: 14, padding: 12,
