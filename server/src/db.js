@@ -165,7 +165,10 @@ export async function upsertProduct(product) {
        ingredients_text = excluded.ingredients_text,
        source = excluded.source,
        source_url = excluded.source_url,
-       raw = excluded.raw,
+       -- Preserve existing OFF raw jsonb (211 cols of nutrition etc.); only
+       -- write raw on first insert. Image-extracted upserts should never
+       -- overwrite OFF data.
+       raw = coalesce(products.raw, excluded.raw),
        updated_at = now()
      returning *`,
     [

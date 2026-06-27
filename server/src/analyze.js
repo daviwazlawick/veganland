@@ -249,7 +249,10 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         lookup_query: known.lookup_query
           || [known.brand, known.product_name].filter(Boolean).join(' ')
           || null,
-        ingredients_visible: !!known.ingredients_text,
+        // ingredients_visible is the "saw it in the image" flag; data came from
+        // DB so leave it false to skip the image-extracted upsert path (which
+        // would otherwise overwrite the OFF raw blob and nutrition data).
+        ingredients_visible: false,
         ingredients_text: known.ingredients_text || null,
         confidence: 1.0,
       };
