@@ -227,6 +227,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   // Barcode shortcut: skip image inspection for known products
   // skipBarcodeCache: user said "wrong product" — disassociate barcode from wrong product first
   let imageInspection = null;
+  let knownDbRow = null;
   const clientBarcode = barcode ? String(barcode).replace(/\D/g, '') : null;
 
   if (skipBarcodeCache && clientBarcode) {
@@ -240,6 +241,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     // an image is provided, the label inspection still runs below.
     const known = await findProduct({ barcode: clientBarcode });
     if (known) {
+      knownDbRow = known;
       const src = known.source || 'processed_food';
       imageInspection = {
         product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
@@ -279,11 +281,6 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     if (!imageInspection) {
       return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
     }
-  }
-
-  // Local row had no ingredients and no image → still need to ask for a photo
-  if (imageInspection && !imageInspection.ingredients_text && !imageBase64) {
-    return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
   }
 
   if (!imageInspection) {
@@ -402,6 +399,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
 
   return {
     ...result,
-    productInfo: buildSlimProductInfo(product || imageInspection),
+    // knownDbRow has OFF columns (allergens_tags, nutriscore_grade, etc.) that
+    // imageInspection lacks — prefer it so offMeta survives when the product
+    // exists in our DB but has no ingredients yet.
+    productInfo: buildSlimProductInfo(product || knownDbRow || imageInspection),
   };
 }
