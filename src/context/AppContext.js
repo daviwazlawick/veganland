@@ -100,6 +100,9 @@ export function AppProvider({ children }) {
         concerns: Array.isArray(item.concerns) ? item.concerns : [],
         normalized_ingredients: Array.isArray(item.normalized_ingredients) ? item.normalized_ingredients : [],
         identified_allergens: Array.isArray(item.identified_allergens) ? item.identified_allergens : [],
+        traces: Array.isArray(item.traces) ? item.traces : [],
+        cannot_read: !!item.cannot_read,
+        productInfo: item.product_info || null,
       }));
       setScanHistoryState(normalized);
     } catch {
@@ -130,11 +133,14 @@ export function AppProvider({ children }) {
       ingredients_source: scan.ingredients_source,
       explanation: scan.explanation,
       concerns: scan.concerns,
+      cannot_read: !!scan.cannot_read,
       product_name: scan.product_name,
       imageUri: scan.imageUri,
       ingredients_text: scan.productInfo?.ingredients_text || null,
       normalized_ingredients: scan.normalized_ingredients || [],
       identified_allergens: scan.identified_allergens || [],
+      traces: Array.isArray(scan.traces) ? scan.traces : [],
+      productInfo: scan.productInfo || null,
     };
     const updated = [entry, ...scanHistory].slice(0, 50);
     setScanHistoryState(updated);

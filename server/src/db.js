@@ -480,6 +480,9 @@ export async function getUserHistory(userId, limit = 50) {
             se.result->'concerns' as concerns,
             se.result->'normalized_ingredients' as normalized_ingredients,
             se.result->'identified_allergens' as identified_allergens,
+            se.result->'traces' as traces,
+            (se.result->>'cannot_read')::boolean as cannot_read,
+            se.result->'productInfo' as product_info,
             p.product_name, p.brand
        from scan_events se
        left join products p on p.id = se.product_id
