@@ -219,6 +219,42 @@ export async function upsertProduct(product) {
   return savedProduct;
 }
 
+export async function enrichProductFromOff(productId, off) {
+  const db = await getPool();
+  if (!db || !productId || !off) return null;
+
+  const res = await db.query(
+    `update products set
+       raw = $1,
+       nutriscore_grade = coalesce($2, nutriscore_grade),
+       nova_group = coalesce($3, nova_group),
+       image_url = coalesce($4, image_url),
+       quantity = coalesce($5, quantity),
+       serving_size = coalesce($6, serving_size),
+       allergens_tags = case when cardinality($7::text[]) > 0 then $7::text[] else allergens_tags end,
+       traces_tags = case when cardinality($8::text[]) > 0 then $8::text[] else traces_tags end,
+       categories_tags = case when cardinality($9::text[]) > 0 then $9::text[] else categories_tags end,
+       labels_tags = case when cardinality($10::text[]) > 0 then $10::text[] else labels_tags end,
+       updated_at = now()
+     where id = $11
+     returning *`,
+    [
+      off.raw,
+      off.nutriscore_grade,
+      off.nova_group,
+      off.image_url,
+      off.quantity,
+      off.serving_size,
+      off.allergens_tags || [],
+      off.traces_tags || [],
+      off.categories_tags || [],
+      off.labels_tags || [],
+      productId,
+    ]
+  );
+  return res.rows[0] || null;
+}
+
 export async function updateProductIngredients(productId, ingredientsText) {
   const db = await getPool();
   if (!db || !productId || !ingredientsText?.trim()) return;

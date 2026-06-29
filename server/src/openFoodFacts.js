@@ -43,7 +43,12 @@ function readNutrient(raw, key) {
 export function buildOffMeta(product) {
   if (!product || typeof product !== 'object') return null;
 
-  const raw = (product.raw && typeof product.raw === 'object') ? product.raw : {};
+  // Two raw shapes coexist:
+  //   - bulk SQL dump → fields flattened at the top of `raw`
+  //   - OFF live API → fields nested under `raw.nutriments`
+  // Prefer `nutriments` when present, fall back to the flat dump shape.
+  const rawAll = (product.raw && typeof product.raw === 'object') ? product.raw : {};
+  const raw = (rawAll.nutriments && typeof rawAll.nutriments === 'object') ? rawAll.nutriments : rawAll;
 
   const allCategories = (Array.isArray(product.categories_tags) ? product.categories_tags : [])
     .map(cleanTag).filter(Boolean);
@@ -127,7 +132,9 @@ function mapOpenFoodFactsProduct(product) {
 async function fetchByBarcode(barcode) {
   // OFF data is now in the products table — this is only called as a web fallback
   // for barcodes not found locally at all.
-  const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`);
+  const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`, {
+    headers: { 'User-Agent': 'VeganLand/1.0 (https://veganland.app)' },
+  });
   if (!response.ok) return null;
 
   const data = await response.json();
@@ -164,6 +171,42 @@ export async function findProductIdentity(barcode) {
   const name = p.product_name || p.generic_name || null;
   if (!name && !p.brands) return null;
   return { product_name: name, brand: p.brands || null, barcode };
+}
+
+// Fetch the full OFF record for a barcode and project it into the column
+// shape the products table uses. Returns null if OFF has no entry or if the
+// upstream response is not parseable JSON (transient WAF/bot blocks return HTML).
+export async function fetchOffEnrichment(barcode) {
+  let response;
+  try {
+    response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`, {
+      headers: { 'User-Agent': 'VeganLand/1.0 (https://veganland.app)' },
+    });
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+  if (!response.headers.get('content-type')?.includes('application/json')) return null;
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return null;
+  }
+  if (data.status !== 1 || !data.product) return null;
+  const raw = data.product;
+  return {
+    raw,
+    nutriscore_grade: raw.nutriscore_grade || null,
+    nova_group: Number.isFinite(raw.nova_group) ? raw.nova_group : null,
+    image_url: raw.image_url || raw.image_front_url || null,
+    quantity: raw.quantity || null,
+    serving_size: raw.serving_size || null,
+    allergens_tags: Array.isArray(raw.allergens_tags) ? raw.allergens_tags : [],
+    traces_tags: Array.isArray(raw.traces_tags) ? raw.traces_tags : [],
+    categories_tags: Array.isArray(raw.categories_tags) ? raw.categories_tags : [],
+    labels_tags: Array.isArray(raw.labels_tags) ? raw.labels_tags : [],
+  };
 }
 
 export async function findProductIngredients(productIdentity) {

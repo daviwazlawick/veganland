@@ -7,6 +7,7 @@ import {
   inspectProductImage,
 } from './anthropic.js';
 import {
+  enrichProductFromOff,
   findAnalysis,
   findProduct,
   saveAnalysis,
@@ -16,7 +17,28 @@ import {
   upsertFreshProduct,
   upsertProduct,
 } from './db.js';
-import { buildSlimProductInfo, findProductIdentity, findProductIngredients } from './openFoodFacts.js';
+import { buildSlimProductInfo, fetchOffEnrichment, findProductIdentity, findProductIngredients } from './openFoodFacts.js';
+
+// A row is "OFF-enriched" if any of the OFF-only columns are populated or the
+// raw blob carries the OFF shape (raw.code is the OFF barcode field).
+function needsOffEnrichment(row) {
+  if (!row) return false;
+  if (row.nutriscore_grade || row.nova_group || row.image_url) return false;
+  if (row.raw && typeof row.raw === 'object' && row.raw.code) return false;
+  return true;
+}
+
+async function enrichKnownRowIfNeeded(row) {
+  if (!needsOffEnrichment(row) || !row.barcode) return row;
+  try {
+    const off = await fetchOffEnrichment(row.barcode);
+    if (!off) return row;
+    const updated = await enrichProductFromOff(row.id, off);
+    return updated || row;
+  } catch {
+    return row;
+  }
+}
 
 async function resolveProductIngredients(imageInspection) {
   const visibleIngredients = imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim();
@@ -239,8 +261,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     // Use whatever we know locally — name/brand alone is enough to skip the
     // online OFF identity lookup further down. If ingredients are missing and
     // an image is provided, the label inspection still runs below.
-    const known = await findProduct({ barcode: clientBarcode });
+    let known = await findProduct({ barcode: clientBarcode });
     if (known) {
+      known = await enrichKnownRowIfNeeded(known);
       knownDbRow = known;
       const src = known.source || 'processed_food';
       imageInspection = {
@@ -295,8 +318,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     // try a DB lookup before running the full analysis pipeline
     const imageBarcode = imageInspection.barcode?.replace(/\D/g, '');
     if (imageBarcode && !clientBarcode) {
-      const known = await findProduct({ barcode: imageBarcode });
+      let known = await findProduct({ barcode: imageBarcode });
       if (known) {
+        known = await enrichKnownRowIfNeeded(known);
         const src = known.source || 'processed_food';
         imageInspection = {
           ...imageInspection,
