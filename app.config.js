@@ -132,13 +132,19 @@ export default {
       // is enabled automatically once the app is configured + google-services
       // files are present.
       '@react-native-firebase/app',
-      // RN Firebase requires static frameworks + iOS 15.1 deployment target
+      // RN Firebase requires static frameworks + iOS 15.1 deployment target.
+      // extraPods forces React-Core to expose modular headers so the
+      // @react-native-firebase/app framework can import React/RCTConvert.h
+      // without -Wnon-modular-include-in-framework-module.
       [
         'expo-build-properties',
         {
           ios: {
             useFrameworks: 'static',
             deploymentTarget: '15.1',
+            extraPods: [
+              { name: 'React-Core', modular_headers: true },
+            ],
           },
         },
       ],

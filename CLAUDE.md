@@ -264,6 +264,7 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 - 1.0.8 — **aprovado pela Apple** ✅, RC iOS key corrigida
 - 1.0.9 — fixes barcode/OFF fallback, MAY CONTAIN, traces, cache
 - 1.0.10 — **Meta SDK + ATT** (CompleteRegistration, StartTrial, Subscribe, Scan); Privacy Policy actualizada
+- 1.0.11 — **a submeter** — Push Notifications (APNs + FCM via Expo Push Service) + Firebase Analytics SDK + Programa de referência (referrals com bónus de scans). Para detalhes ver secções "Push Notifications", "Programa de Referência" e "Firebase / Google Ads"
 
 ---
 
@@ -453,10 +454,151 @@ cd /opt/veganland && node server/src/migrate.js
 
 ### Pendente
 - [ ] Lançamento Android (Google Play — conta em verificação)
-- [ ] Actualizar `store_url` em `/app/version` após publicação nas lojas
+- [x] ~~Actualizar `store_url` em `/app/version` após publicação nas lojas~~ — URLs reais já no STORE_LINKS
 - [ ] Integração RevenueCat completa (IAP products no App Store Connect + Paid Apps Agreement)
 - [ ] google-play-key.json para submissão automática via EAS
 - [ ] Testes end-to-end do fluxo de confirmação de email
 - [ ] Admin: endpoint para inserir/editar produtos manualmente na BD
-- [ ] Push notifications
+- [x] ~~Push notifications~~ — em 1.0.11, a aguardar review
 - [ ] Conversions API server-side via webhook RevenueCat (deduplicação com Pixel — fase 2)
+
+---
+
+## 1.0.11 (a submeter)
+
+Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
+
+### 1) Programa de Referência (referrals) — em produção desde 2026-06-29
+
+- **Mecânica:** Cada user tem código único de 6 chars (alfabeto sem 0/1/O/I, gerado em `referralCode.js`). Quando A indica B e B se regista usando o código: B ganha **+10 scans bónus** imediatamente. A ganha **+30 scans bónus** quando 3 amigos qualificarem (cada amigo "qualifica" ao fazer o primeiro scan, não só ao registar). Acumulativo — a cada novo trio que qualifica, A ganha outros +30. Sem cap lifetime.
+- **Bónus expira em 30 dias** (rolling window — cada novo grant prolonga para `now() + 30d`)
+- **Migrações:** `017_referrals.sql` (colunas em users + tabela `referral_events`), `018_bonus_scans.sql` (colunas `bonus_scans_remaining`, `bonus_scans_expires_at`)
+- **Como é consumido o bónus:** `checkAndIncrementScanCounter` em `db.js` consome `bonus_scans_remaining` PRIMEIRO antes de tocar no `scan_counters` mensal. Funciona em qualquer plano (free/starter/premium).
+- **App (JS — OTA-safe nesta camada):**
+  - `src/context/ReferralContext.js` lê clipboard uma vez após disclaimer aceite; armazena `pendingCode` em AsyncStorage
+  - `src/screens/ReferralScreen.js` ecrã principal — código + barra de progresso + botão Partilhar (RN core `Share.share({ message })` — sem url separada, senão o iOS duplica)
+  - `src/components/PendingReferralPrompt.js` Modal que sugere aplicar código encontrado no clipboard
+  - CTAs em ProfileScreen (card permanente), HomeScreen (hero até atingir 3), ResultScreen (banner cada 5 scans), PaywallScreen (Alert ao fechar como free), RegisterScreen (campo opcional)
+  - i18n: secção `referral.*` em 6 línguas — **CUIDADO:** placeholders usam `{{name}}` (double brace), não `{name}` — bug corrigido em `f7a6d81`
+- **Backend (`server.js`):**
+  - `POST /auth/register` aceita `referral_code` opcional → popula `referred_by_user_id`, cria `referral_events` em `pending`, grant +10 ao B
+  - `GET /referral/me` (auth) — devolve `{code, pending, qualified, credit_count, total_rewarded, referrals_needed, referrer_reward, referred_bonus, bonus_remaining, bonus_expires_at}`
+  - `POST /referral/redeem` (auth) — aplica código depois do registo (só uma vez por user, antes do primeiro scan)
+  - `GET /r/:code` — landing page brand-aware (NovaQI mostra código + botões store; veganland mostra "VeganLand became NovaQI" — ver Brand Migration)
+  - `saveScanEvent` em `db.js` chama `qualifyReferralIfPending` ao primeiro scan; se atinge 3 → grant +30 ao A
+- **Backfill:** `server/src/backfillReferralCodes.js` (gerou códigos para os 54 users existentes)
+- **Anti-fraude:** `users.email UNIQUE` + `referred_by_user_id` set uma vez + `referral_events UNIQUE (referrer_id, referred_id)` + qualificação exige scan real
+
+### 2) Push Notifications — 1.0.11 (a aguardar review)
+
+- **Stack:** `expo-notifications@~0.32.17` + `expo-device@~8.0.10` + Expo Push Service (relay para APNs/FCM)
+- **Não é OTA** — requer build nativo. Versão bumped 1.0.10 → 1.0.11, versionCode 12 → 13
+- **App:**
+  - `src/services/notificationsService.native.js` — `getExpoPushTokenAsync({ projectId })` + Android channel `default` + handler para mostrar foreground
+  - `src/hooks/usePushNotifications.js` — regista token no servidor após disclaimer + auth; tap handler usa `data.route` para deep-link (precisa do `navigationRef` em AppNavigator.js, exportado como `createNavigationContainerRef()`)
+- **Backend:**
+  - Migração `019_push_tokens.sql` (FK user, unique token, platform check)
+  - Funções em `db.js`: `upsertPushToken`, `deletePushToken`, `listPushTokens({locale, userType})`
+  - `POST /push/register` + `POST /push/unregister` (auth)
+  - `POST /admin/push/broadcast` (admin-token-gated): filtra tokens por locale + user_type, batches de 100 ao `https://exp.host/--/api/v2/push/send`, devolve tickets ok/error/invalid
+  - `GET /admin/push?token=<JWT_ADMIN>` — formulário HTML com title/body/locale/plan/route
+- **APNs key (já configurada no EAS):** Key ID `2QK7NN5PZ6` (criada pelo `eas credentials`, atribuída a `app.novaqi`). A chave manual `ZX89QJ2V8B` ficou redundante.
+- **Firebase Cloud Messaging:** activo em `novaqi-9dd63` (Sender ID `529528181342`)
+- **nginx:** routes `/push/.+` e `/admin/push|/admin/push/.+` adicionadas em ambos sites
+- **Ícone de notificação:** `assets/novaqi/notification-icon.png` (96×96 white silhouette do target NovaQI, desenhado em PIL)
+
+### 3) Firebase Analytics SDK — para Google Ads UAC
+
+- **Stack:** `@react-native-firebase/app@^22.4.0` + `@react-native-firebase/analytics@^22.4.0`
+  - **IMPORTANTE:** v25 falha com "non-modular header" em Expo SDK 54. Sempre usar v22.x até confirmar compat.
+  - v22 só ship plugin para `app`, não `analytics` — apenas `@react-native-firebase/app` está no `plugins` do `app.config.js`
+- **`expo-build-properties`:** `useFrameworks: 'static'` + `deploymentTarget: '15.1'` (Firebase 22 precisa iOS 15+)
+- **Config files no repo:**
+  - `google-services.json` (Android, package `app.novaqi`, project `novaqi-9dd63`)
+  - `GoogleService-Info.plist` (iOS, bundle `app.novaqi`, mesmo project)
+  - `firebase.json` — `analytics_auto_collection_enabled: false` (defesa Apple ATT — só liga após consent)
+- **`analyticsService.native.js`** dispara eventos em paralelo para Meta + Firebase, usando event names canónicos do Firebase para Google Ads optimisation:
+  - `sign_up` (registo), `begin_checkout` (trial start), `purchase` com value+currency (subscribe), `product_scan`, `share`, `referral_qualified`
+- **Privacy Policy** (`legal.js` secção 11) tem clauses Meta + Google. Secção 12 cobre Push Notifications.
+- **App Store / Play Store Privacy Labels:** marcar Google ao mesmo nível que Meta (Device ID + Product Interaction → Third-Party Advertising + Developer's Advertising + Analytics)
+
+### 4) Brand Migration (VeganLand → NovaQI)
+
+- VeganLand **não tem app própria** em nenhuma store (só web). `STORE_LINKS['veganland.app']` tem `iosUrl: null`, `androidUrl: null`, `rebrandToNovaqi: true`.
+- Tráfego a `veganland.app/get` e `veganland.app/r/:code` é capturado por `htmlBrandMigrationLanding()` em `server.js` — página "VeganLand became NovaQI 🎉" com botões para NovaQI App Store / Play Store. Se houver código de referral, propaga para a NovaQI.
+- **NovaQI URLs reais:**
+  - iOS: `https://apps.apple.com/us/app/novaqi-scan/id6775790620`
+  - Android: `https://play.google.com/store/apps/details?id=app.novaqi`
+- **Quando VeganLand for publicado**, flip `rebrandToNovaqi: false` + preencher `iosUrl`/`androidUrl` em ambos `STORE_LINKS` (server.js) e `BRANDS` (about.js).
+- **Regra absoluta:** VeganLand e NovaQI usam SEMPRE os seus URLs respectivos — nunca cross-link. Resolver brand por Host header no servidor, `Brand.domain` no app. Ver memória `feedback_brand_urls.md`.
+
+### 5) `/get` Auto-Redirect Page
+
+- `GET /get` no server.js detecta User-Agent (`detectPlatform`): iOS → 302 App Store, Android → 302 Play Store, desktop/bot → chooser HTML
+- `?picker=1` força o chooser
+- Brand-aware via Host header
+- VeganLand entra no rebrand funnel (ponto 4 acima)
+- nginx routes `/get` adicionadas em ambos sites
+- Use para QR codes, bio social, email signatures
+
+### 6) Force Update
+
+- `GET /app/version` actualizado com URLs reais (de `STORE_LINKS[host]`)
+- `min` actualmente em **1.0.10** — qualquer pessoa em ≤1.0.9 cai em `ForceUpdateScreen`
+- Para forçar 1.0.11 depois de aprovado: editar `server/src/server.js` (~linha 736) → `min: '1.0.11'` → `pm2 restart veganland-api --update-env`
+
+### 7) OFF (OpenFoodFacts) — fix anterior
+
+- Bug de fim de Junho: produtos antigos guardados por imagem retornavam `productInfo.offMeta = null`. Corrigido em commit `2387b7e` (on-read enrichment) + `518127c` / `efdec09` (URLs reais).
+- `buildOffMeta` agora lê de `raw.nutriments` (API live shape) OU `raw` flat (bulk dump shape).
+- Use OFF API com User-Agent `VeganLand/1.0 (https://veganland.app)` (sem ele o WAF bloqueia respostas com HTML).
+
+---
+
+## Build / Deploy 1.0.11
+
+### Antes do build
+- ✅ `npm install` (Mac) — confirmar package versions correctas (`expo-doctor` 18/18)
+- ✅ `eas credentials` para iOS (APNs key já configurada — `2QK7NN5PZ6`)
+- ✅ Firebase config files no repo (`google-services.json`, `GoogleService-Info.plist`)
+- ✅ `firebase.json` no repo (analytics off por defeito até ATT consent)
+
+### Build
+```bash
+# Mac:
+git pull origin main
+npm install
+npm run build:ios:novaqi     # ~25 min (Firebase + static frameworks)
+npm run build:android:novaqi # ~15 min
+```
+
+### Submit
+- **iOS:** Davi prefere Transporter (em vez de `npm run submit:ios:novaqi`)
+- **Android:** download `.aab` no EAS + upload manual em Play Console (ainda sem service account `google-play-key.json`)
+
+### App Store Connect — antes do submit 1.0.11
+- App Privacy → Data Linked to You → Device ID: marcar Meta + **Google** (purposes Third-Party Advertising + Developer's Advertising + Analytics)
+- Adicionar Purchases (RevenueCat subscriptions)
+- Adicionar Sensitive Info (diet inclui halal → religious belief)
+- Adicionar Crash Data (Firebase recolhe)
+- Release Notes: "Convida amigos e ganha scans bónus 🎁. Notificações push para novidades."
+
+### Play Console — antes do submit
+- Data Safety: Device or other IDs + App activity → shared com Meta + Google
+- Release notes idem
+
+---
+
+## Credenciais — referência rápida
+
+| Item | Valor |
+|---|---|
+| Apple Team ID | `GS5MM3Y3AX` |
+| APNs Key (NovaQI Push) | Key ID `2QK7NN5PZ6` (em uso pelo EAS) |
+| Firebase Project | `novaqi-9dd63` |
+| Firebase Sender ID | `529528181342` |
+| App Store Connect App ID | `6775790620` |
+| Bundle ID iOS / package Android | `app.novaqi` |
+| FB App ID | `1717962282965252` |
+| Apple ID (eas.json) | `daviwazlawick@gmail.com` |
+| Apple ID (eas credentials login) | `davi.work.station@gmail.com` |
