@@ -97,7 +97,10 @@ export default {
         backgroundColor: isNovaQI ? '#1E1B4B' : '#2E7D52',
       },
       package: isNovaQI ? 'app.novaqi' : 'app.veganland',
-      permissions: ['android.permission.CAMERA'],
+      // AD_ID required by Google Play for apps targeting Android 13+ that
+      // use the advertising identifier — Meta SDK reads it for ad attribution.
+      // Without this, the ID is zeroed and Meta Ads attribution breaks.
+      permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
       edgeToEdgeEnabled: true,
       versionCode: 13,
       // Firebase config — required for FCM (push) and Firebase Analytics.
