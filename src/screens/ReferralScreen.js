@@ -27,15 +27,16 @@ export default function ReferralScreen({ navigation }) {
   const credit = stats?.credit_count || 0;
   const needed = stats?.referrals_needed || 3;
   const totalRewarded = stats?.total_rewarded || 0;
-  const promoUntil = stats?.promotional_starter_until;
+  const bonusRemaining = stats?.bonus_remaining || 0;
+  const bonusExpiresAt = stats?.bonus_expires_at;
   const progress = Math.min(1, credit / needed);
 
-  const promoMessage = useMemo(() => {
-    if (!promoUntil) return null;
-    const d = new Date(promoUntil);
+  const bonusExpiresFmt = useMemo(() => {
+    if (!bonusExpiresAt) return null;
+    const d = new Date(bonusExpiresAt);
     if (d <= new Date()) return null;
     return d.toLocaleDateString(language === 'pt' ? 'pt-PT' : language);
-  }, [promoUntil, language]);
+  }, [bonusExpiresAt, language]);
 
   function copyCode() {
     Clipboard.setString(code);
@@ -114,12 +115,14 @@ export default function ReferralScreen({ navigation }) {
           )}
         </View>
 
-        {promoMessage && (
+        {bonusRemaining > 0 && (
           <View style={styles.promoCard}>
-            <Text style={styles.promoEmoji}>✨</Text>
+            <Text style={styles.promoEmoji}>⚡</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.promoTitle}>{t(language, 'referral.promo_active')}</Text>
-              <Text style={styles.promoSub}>{t(language, 'referral.promo_until', { date: promoMessage })}</Text>
+              <Text style={styles.promoTitle}>{t(language, 'referral.bonus_balance', { count: bonusRemaining })}</Text>
+              {bonusExpiresFmt && (
+                <Text style={styles.promoSub}>{t(language, 'referral.bonus_expires', { date: bonusExpiresFmt })}</Text>
+              )}
             </View>
           </View>
         )}

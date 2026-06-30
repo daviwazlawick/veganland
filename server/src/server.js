@@ -459,12 +459,12 @@ function htmlReferralLanding(code, valid) {
 <div class="card">
   <span class="badge">🎁 CONVITE NOVAQI</span>
   <div class="gift">🌱</div>
-  <h1>Ganhas <b>1 mês de Starter grátis</b></h1>
+  <h1>Ganhas <b>+10 scans grátis</b></h1>
   <p style="color:#475569;margin:8px 0 0">Foste convidado para a NovaQI — a app que decifra ingredientes para o teu perfil em segundos.</p>
   <div class="code-box" id="code">${safe}</div>
   <a href="https://apps.apple.com/app/novaqi/id0000000000" class="btn btn-primary" onclick="copyCode()">📱 Instalar no iPhone</a>
   <a href="https://play.google.com/store/apps/details?id=app.novaqi" class="btn btn-secondary" onclick="copyCode()">🤖 Instalar no Android</a>
-  <p class="small">Já tens a app? Abre-a — o código será aplicado automaticamente. Ou introdúz <b>${safe}</b> em <i>Convidar amigos → Tenho um código</i>.</p>
+  <p class="small">Já tens a app? Abre-a — o código será aplicado automaticamente. Ou introduz <b>${safe}</b> em <i>Convidar amigos → Tenho um código</i>. Convidando 3 amigos ganhas <b>+30 scans bónus</b>.</p>
 </div>
 <div class="toast" id="toast">Código copiado para a área de transferência ✓</div>
 <script>
