@@ -127,25 +127,14 @@ export default {
           color: isNovaQI ? '#0B1E3F' : '#7CB518',
         },
       ],
-      // Firebase Analytics — feeds Google Ads UAC with first_open + custom events.
-      // v22 only ships a config plugin in @react-native-firebase/app; analytics
-      // is enabled automatically once the app is configured + google-services
-      // files are present.
-      '@react-native-firebase/app',
-      // RN Firebase requires static frameworks. Expo auto-enables modular
-      // headers for React-Core when useFrameworks is 'static' — do NOT add
-      // it via extraPods, that creates a duplicate React-Core declaration
-      // and pod install fails with "multiple dependencies with different
-      // sources for React-Core".
-      [
-        'expo-build-properties',
-        {
-          ios: {
-            useFrameworks: 'static',
-            deploymentTarget: '15.1',
-          },
-        },
-      ],
+      // @react-native-firebase was removed for v1.0.11 — incompatible with
+      // useFrameworks: 'static' on Expo SDK 54 / RN 0.81 (RNFBApp framework
+      // can't import React/RCTConvert.h as a modular header). Push notifications
+      // still work because expo-notifications relays through FCM directly via
+      // google-services.json on Android and APNs on iOS. Google Ads install
+      // attribution still works via Play Install Referrer + SKAdNetwork.
+      // Re-add Firebase Analytics once a stable Expo+RNFirebase combination
+      // ships that handles modular headers correctly.
       ...fbPlugin,
     ],
     updates: {
