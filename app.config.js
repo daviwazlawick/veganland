@@ -79,6 +79,9 @@ export default {
     ios: {
       supportsTablet: false,
       bundleIdentifier: isNovaQI ? 'app.novaqi' : 'app.veganland',
+      // Firebase config for iOS — required by @react-native-firebase/app at prebuild.
+      // File is committed at the repo root; EAS picks it up at build time.
+      googleServicesFile: isNovaQI ? './GoogleService-Info.plist' : undefined,
       infoPlist: {
         NSCameraUsageDescription: `${B} needs camera access to scan product labels and ingredients.`,
         NSPhotoLibraryUsageDescription: `${B} needs photo library access to analyze product images.`,
