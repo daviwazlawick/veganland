@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useReferral } from '../context/ReferralContext';
 import { BrandFonts } from '../brand';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
@@ -55,7 +56,10 @@ function titleCase(s) {
 }
 
 export default function ResultScreen({ navigation, route }) {
-  const { language } = useApp();
+  const { language, scanHistory } = useApp();
+  const { stats: referralStats } = useReferral();
+  const showReferralBanner = (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3)
+    && scanHistory.length > 0 && scanHistory.length % 5 === 0;
   const { result } = route.params;
   const cfg = STATUS_CONFIG[result.status] || STATUS_CONFIG.CAUTION;
   const [activeInfo, setActiveInfo] = useState(null);
@@ -322,6 +326,16 @@ export default function ResultScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {showReferralBanner && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Referral')}
+            style={resultReferralStyles.banner}
+            activeOpacity={0.9}
+          >
+            <Text style={resultReferralStyles.bannerText}>{t(language, 'referral.result_banner')}</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 110 }} />
       </ScrollView>
@@ -672,4 +686,12 @@ const styles = StyleSheet.create({
   scanAgainText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
   wrongProductBtn: { alignItems: 'center', paddingTop: 14 },
   wrongProductText: { color: Colors.textLight, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+});
+
+const resultReferralStyles = StyleSheet.create({
+  banner: {
+    backgroundColor: '#FFF8E1', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#FFCB3B', marginTop: 8,
+  },
+  bannerText: { fontSize: 13, fontWeight: '700', color: Colors.navy || '#0B1E3F', textAlign: 'center' },
 });

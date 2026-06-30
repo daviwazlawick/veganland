@@ -51,8 +51,8 @@ export function AuthProvider({ children }) {
     return u;
   }
 
-  async function register(email, password, disclaimerVersion) {
-    const data = await apiRegister(email, password, disclaimerVersion);
+  async function register(email, password, disclaimerVersion, referralCode = null) {
+    const data = await apiRegister(email, password, disclaimerVersion, referralCode);
     logRegistration('email');
     if (data.emailConfirmationSent) {
       const err = new Error('email_confirmation_required');

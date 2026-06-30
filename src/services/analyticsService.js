@@ -6,3 +6,6 @@ export function logRegistration() {}
 export function logStartTrial() {}
 export function logSubscribe() {}
 export function logScan() {}
+export function logInviteShared() {}
+export function logReferralQualified() {}
+export function logEvent() {}

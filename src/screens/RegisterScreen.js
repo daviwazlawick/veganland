@@ -13,6 +13,7 @@ import { BrandFonts } from '../brand';
 import Brand from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
+import { useReferral } from '../context/ReferralContext';
 
 const DISCLAIMER_VERSION = '1.0';
 
@@ -26,10 +27,12 @@ const DISCLAIMER_BLOCKS = [
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
   const { language, setLanguage } = useApp();
+  const { pendingCode, clearPendingCode, isValidShape } = useReferral();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [referralCode, setReferralCode] = useState(pendingCode || '');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
@@ -57,7 +60,9 @@ export default function RegisterScreen({ navigation }) {
     setError('');
     setLoading(true);
     try {
-      await register(email.trim(), password, DISCLAIMER_VERSION);
+      const codeToSend = referralCode && isValidShape(referralCode) ? referralCode.toUpperCase() : null;
+      await register(email.trim(), password, DISCLAIMER_VERSION, codeToSend);
+      if (codeToSend) await clearPendingCode();
     } catch (e) {
       if (e.code === 'EMAIL_CONFIRMATION_REQUIRED') {
         setConfirmationEmail(e.email);
@@ -249,6 +254,22 @@ export default function RegisterScreen({ navigation }) {
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry
               />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>🎁 {t(language, 'referral.register_field_label')}</Text>
+              <TextInput
+                style={styles.input}
+                value={referralCode}
+                onChangeText={text => setReferralCode(text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                placeholder="ABCD23"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="characters"
+                maxLength={6}
+              />
+              <Text style={[styles.fieldLabel, { marginTop: 4, fontSize: 11, color: Colors.textMuted, fontWeight: '400' }]}>
+                {t(language, 'referral.register_field_hint')}
+              </Text>
             </View>
 
             <TouchableOpacity

@@ -1,7 +1,8 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending } from './db.js';
+import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
@@ -428,6 +429,58 @@ function htmlAdminUserPage(data, token) {
   </body></html>`;
 }
 
+function htmlReferralLanding(code, valid) {
+  const safe = String(code).replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  if (!valid) {
+    return htmlPage('Link inválido',
+      '<p>Este link de convite não é válido. Pede um novo ao teu amigo.</p>',
+      '#FF4B4B'
+    );
+  }
+  return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0B1E3F">
+<title>NovaQI — Convite</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,#0B1E3F 0%,#1a3a6e 100%);color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:24px;padding:32px 24px;max-width:420px;width:100%;color:#0B1E3F;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+  .badge{display:inline-block;background:#FFCB3B;color:#0B1E3F;padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px}
+  h1{font-size:24px;margin:0 0 8px;line-height:1.3}
+  .gift{font-size:48px;margin:8px 0}
+  .code-box{background:#F4F6FA;border:2px dashed #0B1E3F;border-radius:12px;padding:16px;margin:20px 0;font-size:28px;font-weight:800;letter-spacing:4px;font-family:'Courier New',monospace}
+  .btn{display:block;width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:700;cursor:pointer;margin:10px 0;text-decoration:none;text-align:center}
+  .btn-primary{background:#FFCB3B;color:#0B1E3F}
+  .btn-secondary{background:#0B1E3F;color:#fff}
+  .small{font-size:13px;color:#6b7280;margin-top:20px;line-height:1.5}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0B1E3F;color:#fff;padding:12px 20px;border-radius:24px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast.show{opacity:1}
+</style></head><body>
+<div class="card">
+  <span class="badge">🎁 CONVITE NOVAQI</span>
+  <div class="gift">🌱</div>
+  <h1>Ganhas <b>1 mês de Starter grátis</b></h1>
+  <p style="color:#475569;margin:8px 0 0">Foste convidado para a NovaQI — a app que decifra ingredientes para o teu perfil em segundos.</p>
+  <div class="code-box" id="code">${safe}</div>
+  <a href="https://apps.apple.com/app/novaqi/id0000000000" class="btn btn-primary" onclick="copyCode()">📱 Instalar no iPhone</a>
+  <a href="https://play.google.com/store/apps/details?id=app.novaqi" class="btn btn-secondary" onclick="copyCode()">🤖 Instalar no Android</a>
+  <p class="small">Já tens a app? Abre-a — o código será aplicado automaticamente. Ou introdúz <b>${safe}</b> em <i>Convidar amigos → Tenho um código</i>.</p>
+</div>
+<div class="toast" id="toast">Código copiado para a área de transferência ✓</div>
+<script>
+  function copyCode(){
+    var c=document.getElementById('code').innerText.trim();
+    if(navigator.clipboard){navigator.clipboard.writeText(c).catch(function(){});}
+    else{var t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy');}catch(_){};document.body.removeChild(t);}
+    var el=document.getElementById('toast');el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2200);
+    try{fetch('/referral/track-click?code='+encodeURIComponent(c),{method:'POST'}).catch(function(){});}catch(_){}
+  }
+  // Copy immediately so the code is on clipboard before the user even taps a button
+  copyCode();
+</script>
+</body></html>`;
+}
+
 function isAuthorized(req) {
   if (!APP_API_KEY) return true;
   return req.headers['x-app-api-key'] === APP_API_KEY;
@@ -477,7 +530,7 @@ const server = http.createServer(async (req, res) => {
 
     // POST /auth/register
     if (req.method === 'POST' && req.url === '/auth/register') {
-      const { email, password, disclaimer_version } = await readJsonBody(req);
+      const { email, password, disclaimer_version, referral_code } = await readJsonBody(req);
       if (!email || !password) {
         sendJson(res, 400, { error: 'email and password are required' }, origin);
         return;
@@ -496,7 +549,8 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const passwordHash = await hashPassword(password);
-      const user = await createUser(email, passwordHash, disclaimer_version);
+      const validCode = referral_code && isValidCodeShape(referral_code) ? normalizeCode(referral_code) : null;
+      const user = await createUser(email, passwordHash, disclaimer_version, validCode);
       if (emailsEnabled()) {
         const confirmToken = crypto.randomBytes(32).toString('hex');
         await storeEmailConfirmationToken(user.id, confirmToken);
@@ -712,6 +766,35 @@ const server = http.createServer(async (req, res) => {
       }
       const history = await getUserHistory(claims.userId);
       sendJson(res, 200, { history }, origin);
+      return;
+    }
+
+    // GET /referral/me — current user's code + progress
+    if (req.method === 'GET' && req.url === '/referral/me') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const stats = await getReferralStats(claims.userId);
+      if (!stats) { sendJson(res, 404, { error: 'Not found' }, origin); return; }
+      sendJson(res, 200, stats, origin);
+      return;
+    }
+
+    // POST /referral/redeem — apply a code after registration (one-time)
+    if (req.method === 'POST' && req.url === '/referral/redeem') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { code } = await readJsonBody(req);
+      const result = await redeemReferralCode(claims.userId, code);
+      sendJson(res, result.ok ? 200 : 400, result, origin);
+      return;
+    }
+
+    // GET /r/:code — public landing page for referral links
+    if (req.method === 'GET' && req.url.startsWith('/r/')) {
+      const code = normalizeCode(req.url.slice('/r/'.length).split('?')[0].split('/')[0]);
+      const valid = isValidCodeShape(code);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlReferralLanding(code, valid));
       return;
     }
 

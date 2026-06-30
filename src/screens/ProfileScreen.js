@@ -12,6 +12,7 @@ import Brand from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe } from '../services/apiService';
+import { useReferral } from '../context/ReferralContext';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
 import { PremiumIcon, BrandName } from '../components/ui';
@@ -19,6 +20,7 @@ import { PremiumIcon, BrandName } from '../components/ui';
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
   const { user, token, logout } = useAuth();
+  const { stats: referralStats } = useReferral();
   const [usage, setUsage] = useState(null);
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
@@ -47,6 +49,26 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
 
         <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
+
+        <TouchableOpacity
+          style={referralCardStyles.card}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Referral')}
+        >
+          <View style={referralCardStyles.left}>
+            <Text style={referralCardStyles.emoji}>🎁</Text>
+          </View>
+          <View style={referralCardStyles.body}>
+            <Text style={referralCardStyles.title}>{t(language, 'referral.profile_card_title')}</Text>
+            <Text style={referralCardStyles.sub}>
+              {t(language, 'referral.profile_card_sub', {
+                credit: referralStats?.credit_count || 0,
+                total: referralStats?.referrals_needed || 3,
+              })}
+            </Text>
+          </View>
+          <Text style={referralCardStyles.chev}>›</Text>
+        </TouchableOpacity>
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
@@ -465,4 +487,18 @@ const styles = StyleSheet.create({
   legalDot: { fontSize: 12, color: Colors.border },
   deleteAccountBtn: { alignItems: 'center', paddingVertical: 8 },
   deleteAccountText: { fontSize: 13, color: Colors.danger, fontWeight: '600', textDecorationLine: 'underline' },
+});
+
+const referralCardStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#FFF8E1', borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: '#FFCB3B',
+  },
+  left: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFCB3B', alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 22 },
+  body: { flex: 1 },
+  title: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 18 },
+  sub: { fontSize: 12, color: Colors.headerMuted || '#6b7280', marginTop: 2 },
+  chev: { fontSize: 26, color: Colors.navy || '#0B1E3F', fontWeight: '700' },
 });

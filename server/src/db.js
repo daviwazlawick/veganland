@@ -2,6 +2,7 @@ import './env.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateReferralCode, normalizeCode } from './referralCode.js';
 
 export const SCAN_LIMITS = { free: 7, starter: 30, premium: 100, admin: null }; // null = unlimited
 
@@ -348,6 +349,10 @@ export async function saveScanEvent({ productId, userId, profile, language, stat
      values ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [productId || null, userId || null, getProfileKey(profile, language), language, status || null, source || null, title || null, result ? JSON.stringify(result) : null]
   );
+
+  // Qualify a pending referral on the first scan. Fire-and-forget — never let
+  // referral bookkeeping block or fail the scan response.
+  if (userId) qualifyReferralIfPending(userId).catch(err => console.warn('[referral] qualify failed', err?.message));
 }
 
 async function readLocalUsers() {
@@ -386,7 +391,7 @@ function publicUser(user) {
   };
 }
 
-export async function createUser(email, passwordHash, disclaimerVersion = null) {
+export async function createUser(email, passwordHash, disclaimerVersion = null, referralCodeInput = null) {
   const db = await getPool();
   const normalizedEmail = email.toLowerCase().trim();
   const disclaimerAt = disclaimerVersion ? new Date() : null;
@@ -409,13 +414,183 @@ export async function createUser(email, passwordHash, disclaimerVersion = null) 
     return publicUser(user);
   }
 
+  let referrerId = null;
+  if (referralCodeInput) {
+    const code = normalizeCode(referralCodeInput);
+    const ref = await db.query('select id from users where referral_code = $1', [code]);
+    referrerId = ref.rows[0]?.id || null;
+  }
+
+  let newCode = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateReferralCode();
+    const taken = await db.query('select 1 from users where referral_code = $1', [candidate]);
+    if (taken.rowCount === 0) { newCode = candidate; break; }
+  }
+
   const result = await db.query(
-    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version)
-     values ($1, $2, $3, $4)
+    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id)
+     values ($1, $2, $3, $4, $5, $6)
      returning id, email, created_at`,
-    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion]
+    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
-  return result.rows[0];
+
+  const user = result.rows[0];
+  if (referrerId) {
+    await db.query(
+      `insert into referral_events (referrer_id, referred_id, status)
+       values ($1, $2, 'pending')
+       on conflict do nothing`,
+      [referrerId, user.id]
+    );
+    // B's instant reward: 1 month of Starter, stackable on top of any existing promo
+    await grantPromotionalStarter(user.id, 30);
+  }
+
+  return user;
+}
+
+// Adds days of Starter to the user's promo window. Stacks: if a future date is
+// already set, extend from there; otherwise from now.
+export async function grantPromotionalStarter(userId, days) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(
+    `update users
+        set promotional_starter_until = case
+          when promotional_starter_until is null or promotional_starter_until < now()
+            then now() + ($2 || ' days')::interval
+          else promotional_starter_until + ($2 || ' days')::interval
+        end,
+        referral_total_rewarded = referral_total_rewarded + 1
+      where id = $1
+      returning promotional_starter_until`,
+    [userId, String(days)]
+  );
+  return res.rows[0]?.promotional_starter_until || null;
+}
+
+// Called when a referred user completes their first scan. Transitions the
+// referral_event from pending → qualified, increments the referrer's counter,
+// and grants a 1-month Starter reward every time the counter hits 3.
+const REFERRALS_PER_REWARD = 3;
+const MAX_LIFETIME_REWARDS = 12;
+
+export async function qualifyReferralIfPending(referredUserId) {
+  const db = await getPool();
+  if (!db) return null;
+  const client = await db.connect();
+  try {
+    await client.query('begin');
+    const ev = await client.query(
+      `update referral_events
+          set status = 'qualified', qualified_at = now()
+        where referred_id = $1 and status = 'pending'
+        returning referrer_id`,
+      [referredUserId]
+    );
+    if (ev.rowCount === 0) {
+      await client.query('commit');
+      return null;
+    }
+    const referrerId = ev.rows[0].referrer_id;
+
+    const counter = await client.query(
+      `update users
+          set referral_credit_count = referral_credit_count + 1
+        where id = $1
+        returning referral_credit_count, referral_total_rewarded`,
+      [referrerId]
+    );
+    const { referral_credit_count: count, referral_total_rewarded: rewarded } = counter.rows[0];
+
+    let granted = false;
+    if (count >= REFERRALS_PER_REWARD && rewarded < MAX_LIFETIME_REWARDS) {
+      await client.query(
+        `update users set referral_credit_count = referral_credit_count - $2 where id = $1`,
+        [referrerId, REFERRALS_PER_REWARD]
+      );
+      await client.query('commit');
+      await grantPromotionalStarter(referrerId, 30);
+      granted = true;
+      return { referrerId, granted };
+    }
+    await client.query('commit');
+    return { referrerId, granted };
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getReferralStats(userId) {
+  const db = await getPool();
+  if (!db) return null;
+  const [userRes, eventsRes] = await Promise.all([
+    db.query(
+      `select referral_code, referral_credit_count, referral_total_rewarded, promotional_starter_until
+         from users where id = $1`,
+      [userId]
+    ),
+    db.query(
+      `select status, count(*)::int as count
+         from referral_events
+        where referrer_id = $1
+        group by status`,
+      [userId]
+    ),
+  ]);
+  const u = userRes.rows[0];
+  if (!u) return null;
+  const counts = { pending: 0, qualified: 0 };
+  for (const row of eventsRes.rows) counts[row.status] = row.count;
+  return {
+    code: u.referral_code,
+    pending: counts.pending,
+    qualified: counts.qualified,
+    credit_count: u.referral_credit_count,
+    total_rewarded: u.referral_total_rewarded,
+    rewards_remaining: Math.max(0, MAX_LIFETIME_REWARDS - u.referral_total_rewarded),
+    referrals_needed: REFERRALS_PER_REWARD,
+    promotional_starter_until: u.promotional_starter_until,
+  };
+}
+
+// Redeem a code after registration (e.g. user installed app first, signed up
+// without code, then heard about referrals). Only works if the user has no
+// referrer yet AND has no qualifying scans yet (to avoid retroactive abuse).
+export async function redeemReferralCode(userId, codeInput) {
+  const db = await getPool();
+  if (!db) return { ok: false, error: 'no_db' };
+  const code = normalizeCode(codeInput);
+  if (!code) return { ok: false, error: 'invalid_code' };
+
+  const me = await db.query(
+    `select referred_by_user_id,
+            (select count(*) from scan_events where user_id = $1) as scans
+       from users where id = $1`,
+    [userId]
+  );
+  const row = me.rows[0];
+  if (!row) return { ok: false, error: 'user_not_found' };
+  if (row.referred_by_user_id) return { ok: false, error: 'already_referred' };
+  if (Number(row.scans) > 0) return { ok: false, error: 'already_active' };
+
+  const ref = await db.query('select id from users where referral_code = $1', [code]);
+  const referrerId = ref.rows[0]?.id;
+  if (!referrerId) return { ok: false, error: 'code_not_found' };
+  if (referrerId === userId) return { ok: false, error: 'self_referral' };
+
+  await db.query('update users set referred_by_user_id = $1 where id = $2', [referrerId, userId]);
+  await db.query(
+    `insert into referral_events (referrer_id, referred_id, status)
+       values ($1, $2, 'pending') on conflict do nothing`,
+    [referrerId, userId]
+  );
+  await grantPromotionalStarter(userId, 30);
+  return { ok: true, referrer_id: referrerId };
 }
 
 export async function setUserDisclaimerAccepted(userId, version) {
@@ -545,6 +720,24 @@ export async function getScanById(scanId, userId) {
   return result.rows[0] || null;
 }
 
+// Returns the user_type that determines this user's current scan limit.
+// If promotional_starter_until is in the future, treat as 'starter' even when
+// the stored user_type is 'free' (referral reward). The paid tier (RC-driven)
+// still wins when it's higher than starter, so premium users are unaffected.
+export async function getEffectiveUserType(userId) {
+  const db = await getPool();
+  if (!db) return 'starter';
+  const res = await db.query(
+    'select user_type, promotional_starter_until from users where id = $1',
+    [userId]
+  );
+  const row = res.rows[0];
+  if (!row) return 'starter';
+  const promoActive = row.promotional_starter_until && new Date(row.promotional_starter_until) > new Date();
+  if (row.user_type === 'free' && promoActive) return 'starter';
+  return row.user_type || 'starter';
+}
+
 export async function checkAndIncrementScanCounter(userId) {
   const db = await getPool();
   if (!db) return { allowed: true, count: 0, limit: SCAN_LIMITS.starter };
@@ -553,8 +746,7 @@ export async function checkAndIncrementScanCounter(userId) {
   const [year, mon] = month.split('-').map(Number);
   const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
 
-  const userRes = await db.query('select user_type from users where id = $1', [userId]);
-  const userType = userRes.rows[0]?.user_type || 'starter';
+  const userType = await getEffectiveUserType(userId);
   const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.starter;
 
   if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
@@ -803,11 +995,10 @@ export async function getScanUsage(userId) {
 
   if (!db) return { count: 0, limit: SCAN_LIMITS.starter, resets_at };
 
-  const [usageRes, userRes] = await Promise.all([
+  const [usageRes, userType] = await Promise.all([
     db.query('select count from scan_counters where user_id = $1 and month = $2', [userId, month]),
-    db.query('select user_type from users where id = $1', [userId]),
+    getEffectiveUserType(userId),
   ]);
-  const userType = userRes.rows[0]?.user_type || 'starter';
   const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.starter;
 
   if (limit === null) return { count: 0, limit: null, resets_at: null };

@@ -8,6 +8,7 @@ import { BrandFonts } from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon, BrandName } from '../components/ui';
+import { useReferral } from '../context/ReferralContext';
 
 const STATUS_CONFIG = {
   SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe',    labelKey: 'result.safe' },
@@ -19,6 +20,8 @@ const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory } = useApp();
+  const { stats: referralStats } = useReferral();
+  const showReferralHero = (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
   const allergies = profile
@@ -43,6 +46,22 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {showReferralHero && (
+          <TouchableOpacity
+            style={homeReferralStyles.hero}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Referral')}
+          >
+            <View style={homeReferralStyles.heroLeft}>
+              <Text style={homeReferralStyles.heroEmoji}>🎁</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={homeReferralStyles.heroTitle}>{t(language, 'referral.home_hero_title')}</Text>
+                <Text style={homeReferralStyles.heroCta}>{t(language, 'referral.home_hero_cta')} ›</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.profileCard}>
           <View style={styles.profileCardTop}>
@@ -268,4 +287,17 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
   emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
+});
+
+const homeReferralStyles = StyleSheet.create({
+  hero: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 20, padding: 16,
+    borderWidth: 1, borderColor: '#FFCB3B',
+    marginBottom: 16,
+  },
+  heroLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroEmoji: { fontSize: 32 },
+  heroTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 20 },
+  heroCta: { fontSize: 13, color: Colors.navy || '#0B1E3F', fontWeight: '700', marginTop: 4 },
 });

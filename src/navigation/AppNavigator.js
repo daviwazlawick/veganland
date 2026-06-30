@@ -22,6 +22,7 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 import DisclaimerScreen from '../screens/DisclaimerScreen';
+import ReferralScreen from '../screens/ReferralScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -149,6 +150,7 @@ export default function AppNavigator() {
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+            <Stack.Screen name="Referral" component={ReferralScreen} />
           </>
         ) : (
           <>
@@ -159,6 +161,7 @@ export default function AppNavigator() {
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+            <Stack.Screen name="Referral" component={ReferralScreen} />
           </>
         )}
       </Stack.Navigator>

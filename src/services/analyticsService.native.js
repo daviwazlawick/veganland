@@ -90,3 +90,15 @@ export function logSubscribe({ price, currency, planId } = {}) {
 export function logScan(status) {
   safeLog('Scan', { status: status || 'unknown' });
 }
+
+export function logInviteShared(params = {}) {
+  safeLog('InviteShared', params);
+}
+
+export function logReferralQualified(params = {}) {
+  safeLog('ReferralQualified', params);
+}
+
+export function logEvent(name, params = {}) {
+  safeLog(name, params);
+}

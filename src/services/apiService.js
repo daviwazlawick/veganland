@@ -85,15 +85,32 @@ export async function apiLogin(email, password) {
   return data;
 }
 
-export async function apiRegister(email, password, disclaimerVersion) {
+export async function apiRegister(email, password, disclaimerVersion, referralCode = null) {
   const response = await fetch(`${baseUrl()}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, disclaimer_version: disclaimerVersion }),
+    body: JSON.stringify({ email, password, disclaimer_version: disclaimerVersion, referral_code: referralCode || undefined }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Registration failed`);
   return data;
+}
+
+export async function apiGetReferral(token) {
+  const response = await fetch(`${baseUrl()}/referral/me`, { headers: appHeaders(token) });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed');
+  return data;
+}
+
+export async function apiRedeemReferral(token, code) {
+  const response = await fetch(`${baseUrl()}/referral/redeem`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ code }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { status: response.status, ...data };
 }
 
 export async function apiAcceptDisclaimer(token, disclaimerVersion) {

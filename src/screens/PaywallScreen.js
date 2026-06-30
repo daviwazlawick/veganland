@@ -17,6 +17,7 @@ import {
   ENTITLEMENT_PRO,
 } from '../services/purchasesService';
 import { logStartTrial, logSubscribe } from '../services/analyticsService';
+import { useReferral } from '../context/ReferralContext';
 
 const PLANS = [
   {
@@ -41,6 +42,7 @@ const PLANS = [
 export default function PaywallScreen({ navigation, route }) {
   const { language } = useApp();
   const { token, updateUserType } = useAuth();
+  const { stats: referralStats } = useReferral();
   const currentPlan = route?.params?.currentPlan || 'free';
   const [selected, setSelected] = useState(currentPlan === 'free' ? 'starter' : currentPlan);
   const [offering, setOffering] = useState(null);
@@ -48,6 +50,28 @@ export default function PaywallScreen({ navigation, route }) {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const isNative = Platform.OS !== 'web' && isPurchasesAvailable();
+  const [referralOfferShown, setReferralOfferShown] = useState(false);
+
+  function closeWithReferralOffer() {
+    const credit = referralStats?.credit_count || 0;
+    const needed = referralStats?.referrals_needed || 3;
+    if (referralOfferShown || credit >= needed || currentPlan !== 'free') {
+      navigation.goBack();
+      return;
+    }
+    setReferralOfferShown(true);
+    Alert.alert(
+      t(language, 'referral.paywall_modal_title'),
+      t(language, 'referral.paywall_modal_body'),
+      [
+        { text: t(language, 'plans.continue_free'), style: 'cancel', onPress: () => navigation.goBack() },
+        {
+          text: t(language, 'referral.paywall_modal_cta'),
+          onPress: () => { navigation.goBack(); setTimeout(() => navigation.navigate('Referral'), 100); },
+        },
+      ]
+    );
+  }
 
   useEffect(() => {
     if (isNative) {
@@ -169,7 +193,7 @@ export default function PaywallScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity onPress={closeWithReferralOffer} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t(language, 'plans.title')}</Text>
@@ -256,7 +280,7 @@ export default function PaywallScreen({ navigation, route }) {
         })}
 
         {currentPlan === 'free' && (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.continueFreeLinkWrap}>
+          <TouchableOpacity onPress={closeWithReferralOffer} style={styles.continueFreeLinkWrap}>
             <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
           </TouchableOpacity>
         )}
