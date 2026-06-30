@@ -498,7 +498,7 @@ function htmlStorePicker(brand, requestedPlatform) {
 </body></html>`;
 }
 
-function htmlReferralLanding(code, valid) {
+function htmlReferralLanding(code, valid, host) {
   const safe = String(code).replace(/[^A-Z0-9]/g, '').slice(0, 8);
   if (!valid) {
     return htmlPage('Link inválido',
@@ -506,6 +506,13 @@ function htmlReferralLanding(code, valid) {
       '#FF4B4B'
     );
   }
+  const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
+  const iosLink = brand.iosUrl
+    ? `<a href="${brand.iosUrl}" class="btn btn-primary" onclick="copyCode()">📱 Instalar no iPhone</a>`
+    : '';
+  const androidLink = brand.androidUrl
+    ? `<a href="${brand.androidUrl}" class="btn btn-secondary" onclick="copyCode()">🤖 Instalar no Android</a>`
+    : '';
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0B1E3F">
@@ -526,13 +533,13 @@ function htmlReferralLanding(code, valid) {
   .toast.show{opacity:1}
 </style></head><body>
 <div class="card">
-  <span class="badge">🎁 CONVITE NOVAQI</span>
-  <div class="gift">🌱</div>
+  <span class="badge">🎁 CONVITE ${brand.name.toUpperCase()}</span>
+  <div class="gift">${brand.emoji}</div>
   <h1>Ganhas <b>+10 scans grátis</b></h1>
-  <p style="color:#475569;margin:8px 0 0">Foste convidado para a NovaQI — a app que decifra ingredientes para o teu perfil em segundos.</p>
+  <p style="color:#475569;margin:8px 0 0">Foste convidado para a ${brand.name} — a app que decifra ingredientes para o teu perfil em segundos.</p>
   <div class="code-box" id="code">${safe}</div>
-  <a href="https://apps.apple.com/app/novaqi/id0000000000" class="btn btn-primary" onclick="copyCode()">📱 Instalar no iPhone</a>
-  <a href="https://play.google.com/store/apps/details?id=app.novaqi" class="btn btn-secondary" onclick="copyCode()">🤖 Instalar no Android</a>
+  ${iosLink}
+  ${androidLink}
   <p class="small">Já tens a app? Abre-a — o código será aplicado automaticamente. Ou introduz <b>${safe}</b> em <i>Convidar amigos → Tenho um código</i>. Convidando 3 amigos ganhas <b>+30 scans bónus</b>.</p>
 </div>
 <div class="toast" id="toast">Código copiado para a área de transferência ✓</div>
@@ -886,7 +893,7 @@ const server = http.createServer(async (req, res) => {
       const code = normalizeCode(req.url.slice('/r/'.length).split('?')[0].split('/')[0]);
       const valid = isValidCodeShape(code);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlReferralLanding(code, valid));
+      res.end(htmlReferralLanding(code, valid, host));
       return;
     }
 
