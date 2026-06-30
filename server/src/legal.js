@@ -251,6 +251,17 @@ export function htmlPrivacy(host) {
 <p><strong>Data recipient:</strong> Meta Platforms Ireland Ltd., 4 Grand Canal Square, Dublin 2, Ireland (EU controller) — see <a href="https://www.facebook.com/policy.php" target="_blank">Meta's Privacy Policy</a> for further details on their processing.</p>
 <p><strong>What we never send to Meta:</strong> your email address, name, dietary or allergy profile, scanned product photos, or ingredient lists.</p>
 
+<p>The mobile app also integrates <strong>Google Firebase Analytics</strong> for measuring our advertising on Google Ads (Universal App Campaigns, Performance Max, YouTube) and understanding aggregated app usage. When enabled, it processes:</p>
+<ul>
+  <li><span class="chip">Device identifiers</span> Advertising identifier (IDFA on iOS / Advertising ID on Android — same identifier as the Meta integration, no additional collection), App Instance ID, device model, operating system, language and country</li>
+  <li><span class="chip">App events</span> First open, session start, app updates, screen views and (when added in a future release) custom events such as registration and subscription</li>
+  <li><span class="chip">Coarse usage data</span> Session timestamps and aggregated activity</li>
+</ul>
+<p><strong>iOS:</strong> Firebase Analytics respects the same Apple ATT decision as the Meta SDK. If you decline tracking, the advertising identifier is not shared and event data is reported in Apple's aggregated SKAdNetwork format only.</p>
+<p><strong>Legal basis:</strong> consent (GDPR Art. 6(1)(a)). You can withdraw consent at any time by disabling tracking in your device settings or by uninstalling the app.</p>
+<p><strong>Data recipient:</strong> Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland (EU controller) — see <a href="https://policies.google.com/privacy" target="_blank">Google's Privacy Policy</a>. Firebase data is processed in the United States under Standard Contractual Clauses.</p>
+<p><strong>What we never send to Google:</strong> your email address, name, dietary or allergy profile, scanned product photos, or ingredient lists.</p>
+
 <h2>12. Push Notifications</h2>
 <p>With your permission, we send push notifications to your device to announce product updates, new features, and time-sensitive information such as referral rewards becoming available.</p>
 <ul>
