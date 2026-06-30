@@ -251,10 +251,20 @@ export function htmlPrivacy(host) {
 <p><strong>Data recipient:</strong> Meta Platforms Ireland Ltd., 4 Grand Canal Square, Dublin 2, Ireland (EU controller) — see <a href="https://www.facebook.com/policy.php" target="_blank">Meta's Privacy Policy</a> for further details on their processing.</p>
 <p><strong>What we never send to Meta:</strong> your email address, name, dietary or allergy profile, scanned product photos, or ingredient lists.</p>
 
-<h2>12. Changes to This Policy</h2>
+<h2>12. Push Notifications</h2>
+<p>With your permission, we send push notifications to your device to announce product updates, new features, and time-sensitive information such as referral rewards becoming available.</p>
+<ul>
+  <li><span class="chip">What we send</span> A short title and message, plus an optional internal route so tapping the notification opens the relevant screen in the app</li>
+  <li><span class="chip">What we collect</span> A device-bound push token issued by Apple (APNs) or Google (FCM), the device platform (iOS / Android), and the language you selected in the app — used only to address notifications to your device and translate them. We do not collect notification content interactions beyond what you tap inside the app.</li>
+  <li><span class="chip">Delivery provider</span> Notifications are dispatched via the Expo Push Service (Expo, Inc., USA), which relays to Apple Push Notification service and Firebase Cloud Messaging on our behalf. See <a href="https://expo.dev/privacy" target="_blank">Expo's Privacy Policy</a>.</li>
+  <li><span class="chip">Legal basis</span> Consent (GDPR Art. 6(1)(a)). The operating system prompts you the first time we request it; you can disable notifications at any time from your device settings, and your push token is deleted when you sign out or uninstall the app.</li>
+  <li><span class="chip">International transfer</span> Push tokens issued by APNs and FCM, and message payloads relayed by Expo, are processed in the United States under Standard Contractual Clauses.</li>
+</ul>
+
+<h2>13. Changes to This Policy</h2>
 <p>We will notify you of material changes via email or in-app notification at least 14 days before they take effect.</p>
 
-<h2>13. Contact & Data Protection Enquiries</h2>
+<h2>14. Contact & Data Protection Enquiries</h2>
 <p><strong>${b.ownerName}</strong><br>${b.ownerAddress}<br><a href="mailto:${b.ownerEmail}">${b.ownerEmail}</a></p>
 `);
 }

@@ -117,6 +117,7 @@ export default {
       [
         'expo-notifications',
         {
+          icon: isNovaQI ? './assets/novaqi/notification-icon.png' : './assets/veganland/notification-icon.png',
           color: isNovaQI ? '#0B1E3F' : '#7CB518',
         },
       ],
