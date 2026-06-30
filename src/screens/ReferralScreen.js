@@ -48,7 +48,7 @@ export default function ReferralScreen({ navigation }) {
     const url = `https://${Brand.domain}/r/${code}`;
     const message = t(language, 'referral.share_message', { code, url });
     try {
-      await Share.share({ message, url }, { dialogTitle: t(language, 'referral.share_title') });
+      await Share.share({ message }, { dialogTitle: t(language, 'referral.share_title') });
       logEvent('InviteShared', { code, language });
     } catch {}
   }
