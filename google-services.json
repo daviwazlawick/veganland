@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "529528181342",
+    "project_id": "novaqi-9dd63",
+    "storage_bucket": "novaqi-9dd63.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:529528181342:android:42e49ed64fa46a90cedacf",
+        "android_client_info": {
+          "package_name": "app.novaqi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCle1euBeQWf5qd9aqbDHfKwuVq3r5YySU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
