@@ -124,6 +124,14 @@ export default {
           color: isNovaQI ? '#0B1E3F' : '#7CB518',
         },
       ],
+      // Firebase Analytics — feeds Google Ads UAC with first_open + custom events
+      '@react-native-firebase/app',
+      '@react-native-firebase/analytics',
+      // RN Firebase 25+ requires static frameworks on iOS
+      [
+        'expo-build-properties',
+        { ios: { useFrameworks: 'static' } },
+      ],
       ...fbPlugin,
     ],
     updates: {
