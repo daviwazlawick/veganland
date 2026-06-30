@@ -725,10 +725,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     // GET /app/version — versão mínima obrigatória por plataforma
+    // To force everyone to update: bump `min` to the target version (e.g. '1.0.11')
+    // and `pm2 restart veganland-api`. Anyone on a lower version hits ForceUpdateScreen.
     if (req.method === 'GET' && req.url === '/app/version') {
+      const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
+      const novaqi = STORE_LINKS['novaqi.app'];
+      // VeganLand still funnels to NovaQI stores via rebrand.
+      const iosStore = brand.iosUrl || novaqi.iosUrl;
+      const androidStore = brand.androidUrl || novaqi.androidUrl;
       sendJson(res, 200, {
-        ios:     { min: '1.0.0', store_url: 'https://apps.apple.com/app/novaqi/id0000000000' },
-        android: { min: '1.0.0', store_url: 'https://play.google.com/store/apps/details?id=app.novaqi' },
+        ios:     { min: '1.0.0', store_url: iosStore },
+        android: { min: '1.0.0', store_url: androidStore },
         web:     { min: '1.0.0' },
       }, origin);
       return;
