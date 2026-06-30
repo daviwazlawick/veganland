@@ -444,8 +444,11 @@ const STORE_LINKS = {
     accent: '#7CB518',
     emoji: '🌱',
     // VeganLand is not published on either store yet — only NovaQI is live.
+    // Until VeganLand becomes its own app, veganland.app traffic is funnelled
+    // to NovaQI via htmlBrandMigrationLanding (set rebrandToNovaqi=true).
     iosUrl: null,
     androidUrl: null,
+    rebrandToNovaqi: true,
   },
 };
 
@@ -496,6 +499,54 @@ function htmlStorePicker(brand, requestedPlatform) {
   </div>
   ${note}
 </div>
+</body></html>`;
+}
+
+function htmlBrandMigrationLanding(code = null) {
+  const novaqi = STORE_LINKS['novaqi.app'];
+  const safeCode = code ? String(code).replace(/[^A-Z0-9]/g, '').slice(0, 8) : null;
+  const codeBox = safeCode ? `
+    <div class="code-box" id="code">${safeCode}</div>
+    <p class="small">Após instalar, abre a app — o código é aplicado automaticamente. Ou introduz <b>${safeCode}</b> em <i>Convidar amigos → Tenho um código</i> para ganhares <b>+10 scans grátis</b>.</p>
+  ` : '';
+  return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="${novaqi.color}">
+<title>VeganLand is now NovaQI</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,${novaqi.color} 0%,#1a3a6e 100%);color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:24px;padding:32px 24px;max-width:440px;width:100%;color:${novaqi.color};text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+  .badge{display:inline-block;background:#FFCB3B;color:${novaqi.color};padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px}
+  .arrow{font-size:28px;margin:8px 0;color:#94a3b8}
+  .old-name{font-size:20px;color:#94a3b8;text-decoration:line-through;font-weight:600}
+  .new-name{font-size:38px;font-weight:900;color:${novaqi.color};letter-spacing:-1px;line-height:1;margin-top:4px}
+  .new-name b{color:#FFCB3B;background:${novaqi.color};padding:0 6px;border-radius:6px}
+  p{color:#475569;margin:14px 0 0;line-height:1.5}
+  .code-box{background:#F4F6FA;border:2px dashed ${novaqi.color};border-radius:12px;padding:16px;margin:20px 0 4px;font-size:28px;font-weight:800;letter-spacing:4px;font-family:'Courier New',monospace}
+  .btn{display:block;width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:700;cursor:pointer;margin:10px 0;text-decoration:none;text-align:center}
+  .btn-primary{background:#FFCB3B;color:${novaqi.color}}
+  .btn-secondary{background:${novaqi.color};color:#fff}
+  .small{font-size:13px;color:#6b7280;margin-top:18px;line-height:1.5}
+</style></head><body>
+<div class="card">
+  <span class="badge">📢 NEW NAME, SAME APP</span>
+  <div class="old-name">VeganLand</div>
+  <div class="arrow">↓</div>
+  <div class="new-name"><b>NovaQI</b></div>
+  <p>The app you knew as VeganLand is now <b>NovaQI</b>. Same team, same features — fresh new look.</p>
+  ${codeBox}
+  <a href="${novaqi.iosUrl}" class="btn btn-primary"${safeCode ? ' onclick="copyCode()"' : ''}>📱 Install NovaQI on iPhone</a>
+  <a href="${novaqi.androidUrl}" class="btn btn-secondary"${safeCode ? ' onclick="copyCode()"' : ''}>🤖 Install NovaQI on Android</a>
+</div>
+${safeCode ? `<script>
+  function copyCode(){
+    var c=document.getElementById('code').innerText.trim();
+    if(navigator.clipboard){navigator.clipboard.writeText(c).catch(function(){});}
+    else{var t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy');}catch(_){};document.body.removeChild(t);}
+  }
+  copyCode();
+</script>` : ''}
 </body></html>`;
 }
 
@@ -874,6 +925,13 @@ const server = http.createServer(async (req, res) => {
       const url = new URL(req.url, 'http://x');
       const forcePicker = url.searchParams.get('picker') === '1';
 
+      // VeganLand has no app of its own — show "we became NovaQI" page instead.
+      if (brand.rebrandToNovaqi) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlBrandMigrationLanding());
+        return;
+      }
+
       if (!forcePicker && platform === 'ios' && brand.iosUrl) {
         res.writeHead(302, { Location: brand.iosUrl });
         res.end();
@@ -893,8 +951,13 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url.startsWith('/r/')) {
       const code = normalizeCode(req.url.slice('/r/'.length).split('?')[0].split('/')[0]);
       const valid = isValidCodeShape(code);
+      const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlReferralLanding(code, valid, host));
+      if (brand.rebrandToNovaqi) {
+        res.end(htmlBrandMigrationLanding(valid ? code : null));
+      } else {
+        res.end(htmlReferralLanding(code, valid, host));
+      }
       return;
     }
 
