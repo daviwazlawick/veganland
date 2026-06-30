@@ -429,6 +429,75 @@ function htmlAdminUserPage(data, token) {
   </body></html>`;
 }
 
+const STORE_LINKS = {
+  'novaqi.app': {
+    name: 'NovaQI',
+    color: '#0B1E3F',
+    accent: '#FFCB3B',
+    emoji: '🌱',
+    iosUrl: 'https://apps.apple.com/us/app/novaqi-scan/id6775790620',
+    androidUrl: 'https://play.google.com/store/apps/details?id=app.novaqi',
+  },
+  'veganland.app': {
+    name: 'VeganLand',
+    color: '#1C2B22',
+    accent: '#7CB518',
+    emoji: '🌱',
+    iosUrl: 'https://apps.apple.com/app/veganland/id0000000001',
+    androidUrl: 'https://play.google.com/store/apps/details?id=app.veganland',
+  },
+};
+
+function detectPlatform(ua) {
+  const s = String(ua || '').toLowerCase();
+  // Order matters: iPad in modern Safari can claim macOS; we treat any iOS family as ios.
+  if (/iphone|ipad|ipod/.test(s)) return 'ios';
+  // iPadOS 13+ Safari masquerades as macOS but exposes touch — accept it as ios.
+  if (/macintosh/.test(s) && /mobile/.test(s)) return 'ios';
+  if (/android/.test(s)) return 'android';
+  return 'other';
+}
+
+function htmlStorePicker(brand, requestedPlatform) {
+  const iosBtn = brand.iosUrl
+    ? `<a href="${brand.iosUrl}" class="btn btn-ios">📱 App Store · iPhone & iPad</a>`
+    : `<div class="btn btn-disabled">📱 iOS — coming soon</div>`;
+  const androidBtn = brand.androidUrl
+    ? `<a href="${brand.androidUrl}" class="btn btn-android">🤖 Google Play · Android</a>`
+    : `<div class="btn btn-disabled">🤖 Android — coming soon</div>`;
+  const note = requestedPlatform === 'android' && !brand.androidUrl
+    ? '<p class="small" style="color:#E63E11">Android version coming soon. Tap above for iOS or sign up at the website.</p>'
+    : '';
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="${brand.color}">
+<title>Get ${brand.name}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,${brand.color} 0%,#1a3a6e 100%);color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:24px;padding:36px 28px;max-width:420px;width:100%;color:${brand.color};text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+  .emoji{font-size:56px;margin:8px 0}
+  h1{font-size:26px;margin:0 0 8px;line-height:1.25}
+  p{color:#475569;margin:8px 0 0;line-height:1.5}
+  .btn{display:block;padding:16px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;margin:12px 0;text-decoration:none;text-align:center}
+  .btn-ios{background:${brand.color};color:#fff}
+  .btn-android{background:${brand.accent};color:${brand.color}}
+  .btn-disabled{background:#F4F6FA;color:#94a3b8;cursor:not-allowed}
+  .small{font-size:13px;color:#6b7280;margin-top:18px;line-height:1.5}
+</style></head><body>
+<div class="card">
+  <div class="emoji">${brand.emoji}</div>
+  <h1>Get ${brand.name}</h1>
+  <p>Scan ingredients, know if they match your diet — in seconds.</p>
+  <div style="margin-top:22px">
+    ${iosBtn}
+    ${androidBtn}
+  </div>
+  ${note}
+</div>
+</body></html>`;
+}
+
 function htmlReferralLanding(code, valid) {
   const safe = String(code).replace(/[^A-Z0-9]/g, '').slice(0, 8);
   if (!valid) {
@@ -786,6 +855,29 @@ const server = http.createServer(async (req, res) => {
       const { code } = await readJsonBody(req);
       const result = await redeemReferralCode(claims.userId, code);
       sendJson(res, result.ok ? 200 : 400, result, origin);
+      return;
+    }
+
+    // GET /get — auto-detect device and redirect to the right store
+    // Use ?picker=1 to force the chooser page (handy for testing or sharing).
+    if ((req.method === 'GET' || req.method === 'HEAD') && (req.url === '/get' || req.url.startsWith('/get?'))) {
+      const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
+      const platform = detectPlatform(req.headers['user-agent']);
+      const url = new URL(req.url, 'http://x');
+      const forcePicker = url.searchParams.get('picker') === '1';
+
+      if (!forcePicker && platform === 'ios' && brand.iosUrl) {
+        res.writeHead(302, { Location: brand.iosUrl });
+        res.end();
+        return;
+      }
+      if (!forcePicker && platform === 'android' && brand.androidUrl) {
+        res.writeHead(302, { Location: brand.androidUrl });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlStorePicker(brand, platform));
       return;
     }
 
