@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens } from './db.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
@@ -452,6 +452,84 @@ const STORE_LINKS = {
   },
 };
 
+// Send a batch of notifications via the Expo Push Service. Returns the
+// upstream "tickets" array so callers can log per-token failures.
+// Docs: https://docs.expo.dev/push-notifications/sending-notifications/
+async function sendExpoPush(messages) {
+  const valid = messages.filter(m => m && typeof m.to === 'string' && m.to.startsWith('ExponentPushToken'));
+  if (valid.length === 0) return { tickets: [], invalid: messages.length };
+  const tickets = [];
+  // Expo accepts up to 100 messages per request.
+  for (let i = 0; i < valid.length; i += 100) {
+    const chunk = valid.slice(i, i + 100);
+    try {
+      const r = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (Array.isArray(json.data)) tickets.push(...json.data);
+    } catch (e) {
+      console.warn('[push] batch failed', e.message);
+    }
+  }
+  return { tickets, invalid: messages.length - valid.length };
+}
+
+function htmlAdminPushPage(token, lastResult = null) {
+  const resultHtml = lastResult ? `<div class="result">${lastResult}</div>` : '';
+  return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<title>Push Broadcast — NovaQI Admin</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0B1E3F;color:#fff;margin:0;padding:32px;min-height:100vh}
+  .wrap{max-width:600px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 24px}
+  .card{background:#fff;color:#0B1E3F;border-radius:16px;padding:24px;margin-bottom:16px}
+  label{display:block;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px;color:#475569}
+  input,textarea,select{width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:12px;font-size:15px;font-family:inherit;color:#0B1E3F}
+  textarea{min-height:90px;resize:vertical}
+  .row{display:flex;gap:12px}.row > div{flex:1}
+  button{background:#FFCB3B;color:#0B1E3F;border:none;border-radius:12px;padding:14px 24px;font-size:16px;font-weight:800;cursor:pointer;margin-top:18px;width:100%}
+  .result{background:#dcfce7;color:#166534;padding:12px;border-radius:10px;margin-bottom:16px;font-size:14px}
+  .small{font-size:12px;color:#64748b;margin-top:6px}
+  a{color:#FFCB3B;text-decoration:none}
+</style></head><body>
+<div class="wrap">
+  <h1>📢 Push Broadcast</h1>
+  ${resultHtml}
+  <form method="POST" action="/admin/push/broadcast?token=${token}" class="card">
+    <label>Título</label>
+    <input name="title" required maxlength="80" placeholder="Novidade na NovaQI 🎁">
+    <label>Mensagem</label>
+    <textarea name="body" required maxlength="200" placeholder="Convida amigos e ganha +30 scans grátis. Toca para ver."></textarea>
+    <div class="row">
+      <div>
+        <label>Idioma (opcional)</label>
+        <select name="locale">
+          <option value="">Todos</option>
+          <option value="pt">pt</option><option value="en">en</option><option value="de">de</option>
+          <option value="fr">fr</option><option value="it">it</option><option value="es">es</option>
+        </select>
+      </div>
+      <div>
+        <label>Plano (opcional)</label>
+        <select name="user_type">
+          <option value="">Todos</option>
+          <option value="free">free</option><option value="starter">starter</option><option value="premium">premium</option>
+        </select>
+      </div>
+    </div>
+    <label>Link interno (opcional)</label>
+    <input name="route" placeholder="Referral · Profile · Home — vazio = abrir app">
+    <p class="small">O link interno é guardado no <code>data.route</code> e o app navega para esse ecrã ao tocar.</p>
+    <button type="submit">Enviar a todos os tokens com filtros activos</button>
+  </form>
+  <p style="text-align:center;font-size:13px"><a href="/admin?token=${token}">← Voltar ao admin</a></p>
+</div>
+</body></html>`;
+}
+
 function detectPlatform(ua) {
   const s = String(ua || '').toLowerCase();
   // Order matters: iPad in modern Safari can claim macOS; we treat any iOS family as ios.
@@ -894,6 +972,82 @@ const server = http.createServer(async (req, res) => {
       }
       const history = await getUserHistory(claims.userId);
       sendJson(res, 200, { history }, origin);
+      return;
+    }
+
+    // POST /push/register — store an Expo push token for this device
+    if (req.method === 'POST' && req.url === '/push/register') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { token: pushToken, platform, locale } = await readJsonBody(req);
+      if (!pushToken || typeof pushToken !== 'string') {
+        sendJson(res, 400, { error: 'token required' }, origin); return;
+      }
+      await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale });
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // POST /push/unregister — drop a token (on logout)
+    if (req.method === 'POST' && req.url === '/push/unregister') {
+      const { token: pushToken } = await readJsonBody(req);
+      if (pushToken) await deletePushToken(pushToken);
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // GET /admin/push — broadcast form (admin only)
+    if (req.method === 'GET' && req.url.startsWith('/admin/push') && !req.url.startsWith('/admin/push/broadcast')) {
+      if (!(await isAdminRequest(req))) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<p>Forbidden</p>');
+        return;
+      }
+      const token = new URL(req.url, 'http://x').searchParams.get('token');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAdminPushPage(token));
+      return;
+    }
+
+    // POST /admin/push/broadcast — send to filtered tokens (admin only)
+    if (req.method === 'POST' && req.url.startsWith('/admin/push/broadcast')) {
+      if (!(await isAdminRequest(req))) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<p>Forbidden</p>');
+        return;
+      }
+      const adminToken = new URL(req.url, 'http://x').searchParams.get('token');
+      const raw = await new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', () => resolve(body));
+        req.on('error', reject);
+      });
+      const form = Object.fromEntries(new URLSearchParams(raw));
+      const title = (form.title || '').trim();
+      const body = (form.body || '').trim();
+      const locale = (form.locale || '').trim() || null;
+      const userType = (form.user_type || '').trim() || null;
+      const route = (form.route || '').trim() || null;
+      if (!title || !body) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios'));
+        return;
+      }
+      const tokens = await listPushTokens({ locale, userType });
+      const messages = tokens.map(t => ({
+        to: t.token,
+        title,
+        body,
+        sound: 'default',
+        data: route ? { route } : {},
+      }));
+      const { tickets, invalid } = await sendExpoPush(messages);
+      const ok = tickets.filter(t => t.status === 'ok').length;
+      const errors = tickets.filter(t => t.status !== 'ok').length;
+      const summary = `✅ Enviadas: ${ok} · ❌ Erros: ${errors} · 🚫 Inválidos: ${invalid} · 📊 Total: ${tokens.length}`;
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAdminPushPage(adminToken, summary));
       return;
     }
 

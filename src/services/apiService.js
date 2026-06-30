@@ -103,6 +103,24 @@ export async function apiGetReferral(token) {
   return data;
 }
 
+export async function apiRegisterPush(token, { token: pushToken, platform, locale }) {
+  const response = await fetch(`${baseUrl()}/push/register`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ token: pushToken, platform, locale }),
+  });
+  return response.ok;
+}
+
+export async function apiUnregisterPush(pushToken) {
+  const response = await fetch(`${baseUrl()}/push/unregister`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(APP_API_KEY ? { 'x-app-api-key': APP_API_KEY } : {}) },
+    body: JSON.stringify({ token: pushToken }),
+  });
+  return response.ok;
+}
+
 export async function apiRedeemReferral(token, code) {
   const response = await fetch(`${baseUrl()}/referral/redeem`, {
     method: 'POST',

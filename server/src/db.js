@@ -803,6 +803,56 @@ export async function checkAndIncrementScanCounter(userId) {
   }
 }
 
+export async function upsertPushToken({ userId, token, platform, locale }) {
+  const db = await getPool();
+  if (!db || !token || !platform) return null;
+  const res = await db.query(
+    `insert into push_tokens (user_id, token, platform, locale)
+     values ($1, $2, $3, $4)
+     on conflict (token) do update set
+       user_id = excluded.user_id,
+       platform = excluded.platform,
+       locale = coalesce(excluded.locale, push_tokens.locale),
+       last_seen_at = now()
+     returning id`,
+    [userId || null, token, platform, locale || null]
+  );
+  return res.rows[0]?.id || null;
+}
+
+export async function deletePushToken(token) {
+  const db = await getPool();
+  if (!db || !token) return false;
+  const res = await db.query('delete from push_tokens where token = $1', [token]);
+  return res.rowCount > 0;
+}
+
+export async function listPushTokens({ locale, userType, includeAnonymous = false } = {}) {
+  const db = await getPool();
+  if (!db) return [];
+  const conditions = [];
+  const params = [];
+  if (!includeAnonymous) conditions.push('pt.user_id is not null');
+  if (locale) {
+    params.push(locale);
+    conditions.push(`pt.locale = $${params.length}`);
+  }
+  if (userType) {
+    params.push(userType);
+    conditions.push(`u.user_type = $${params.length}`);
+  }
+  const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
+  const res = await db.query(
+    `select pt.token, pt.platform, pt.locale, pt.user_id
+       from push_tokens pt
+       left join users u on u.id = pt.user_id
+      ${where}
+      order by pt.last_seen_at desc`,
+    params
+  );
+  return res.rows;
+}
+
 export async function deleteUserAccount(userId) {
   const db = await getPool();
   if (!db) throw new Error('No database');

@@ -7,7 +7,8 @@ import { PlusJakartaSans_500Medium, PlusJakartaSans_700Bold } from '@expo-google
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { ReferralProvider, useReferral } from './src/context/ReferralContext';
-import AppNavigator from './src/navigation/AppNavigator';
+import AppNavigator, { navigationRef } from './src/navigation/AppNavigator';
+import usePushNotifications from './src/hooks/usePushNotifications';
 import ForceUpdateScreen from './src/screens/ForceUpdateScreen';
 import PendingReferralPrompt from './src/components/PendingReferralPrompt';
 import Brand from './src/brand';
@@ -33,6 +34,8 @@ function AppContent() {
       scanClipboard();
     }
   }, [token, disclaimerAccepted, scanClipboard]);
+
+  usePushNotifications(navigationRef);
 
   if (updateState?.required) {
     return <ForceUpdateScreen storeUrl={updateState.storeUrl} />;
