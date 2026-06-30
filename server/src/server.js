@@ -443,8 +443,9 @@ const STORE_LINKS = {
     color: '#1C2B22',
     accent: '#7CB518',
     emoji: '🌱',
-    iosUrl: 'https://apps.apple.com/app/veganland/id0000000001',
-    androidUrl: 'https://play.google.com/store/apps/details?id=app.veganland',
+    // VeganLand is not published on either store yet — only NovaQI is live.
+    iosUrl: null,
+    androidUrl: null,
   },
 };
 

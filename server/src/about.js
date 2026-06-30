@@ -30,7 +30,7 @@ const BRANDS = {
     name: 'VeganLand', primary: '#7CB518', dark: '#1C2B22', light: '#F0F7E6', accent: '#5A9A0A',
     appUrl: 'https://veganland.app',
     privacyUrl: 'https://veganland.app/legal/privacy', termsUrl: 'https://veganland.app/legal/terms', supportUrl: 'https://veganland.app/support',
-    iosUrl: 'https://apps.apple.com/app/veganland/id0000000001', androidUrl: 'https://play.google.com/store/apps/details?id=app.veganland',
+    iosUrl: null, androidUrl: null, // VeganLand not yet published on either store
     headerLogo: `<span style="color:#fff;font-size:20px">🌱</span><span style="color:#fff;font-size:18px;font-weight:900;letter-spacing:-0.4px">VeganLand</span>`,
     heroLogo: `<span style="font-size:48px">🌱</span><span style="display:block;color:#fff;font-size:42px;font-weight:900;letter-spacing:-2px;line-height:1">VeganLand</span>`,
     plans: [
