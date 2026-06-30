@@ -97,6 +97,9 @@ export default {
       permissions: ['android.permission.CAMERA'],
       edgeToEdgeEnabled: true,
       versionCode: 13,
+      // Firebase config — required for FCM (push) and Firebase Analytics.
+      // The file is committed at the repo root; EAS picks it up at build time.
+      googleServicesFile: isNovaQI ? './google-services.json' : undefined,
     },
     web: {
       favicon: `${assets}/favicon.png`,
