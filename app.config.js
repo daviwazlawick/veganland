@@ -102,7 +102,7 @@ export default {
       // Without this, the ID is zeroed and Meta Ads attribution breaks.
       permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
       edgeToEdgeEnabled: true,
-      versionCode: 13,
+      versionCode: 14,
       // Firebase config — required for FCM (push) and Firebase Analytics.
       // The file is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './google-services.json' : undefined,
