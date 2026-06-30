@@ -127,10 +127,12 @@ export default {
           color: isNovaQI ? '#0B1E3F' : '#7CB518',
         },
       ],
-      // Firebase Analytics — feeds Google Ads UAC with first_open + custom events
+      // Firebase Analytics — feeds Google Ads UAC with first_open + custom events.
+      // v22 only ships a config plugin in @react-native-firebase/app; analytics
+      // is enabled automatically once the app is configured + google-services
+      // files are present.
       '@react-native-firebase/app',
-      '@react-native-firebase/analytics',
-      // RN Firebase 25+ requires static frameworks + iOS 15.1 deployment target
+      // RN Firebase requires static frameworks + iOS 15.1 deployment target
       [
         'expo-build-properties',
         {
