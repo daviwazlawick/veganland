@@ -127,10 +127,15 @@ export default {
       // Firebase Analytics — feeds Google Ads UAC with first_open + custom events
       '@react-native-firebase/app',
       '@react-native-firebase/analytics',
-      // RN Firebase 25+ requires static frameworks on iOS
+      // RN Firebase 25+ requires static frameworks + iOS 15.1 deployment target
       [
         'expo-build-properties',
-        { ios: { useFrameworks: 'static' } },
+        {
+          ios: {
+            useFrameworks: 'static',
+            deploymentTarget: '15.1',
+          },
+        },
       ],
       ...fbPlugin,
     ],
