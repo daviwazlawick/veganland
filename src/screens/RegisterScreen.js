@@ -27,20 +27,25 @@ const DISCLAIMER_BLOCKS = [
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
   const { language, setLanguage } = useApp();
-  const { pendingCode, clearPendingCode, isValidShape, scanClipboard } = useReferral();
+  const { pendingCode, clearPendingCode, isValidShape, scanClipboard, readClipboardNow } = useReferral();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [referralCode, setReferralCode] = useState(pendingCode || '');
 
-  // Try clipboard again when this screen opens — covers the case where
-  // App.js already ran once but the user only landed here later (e.g. after
-  // reading the check-your-email flow) and pastes the code manually.
-  useEffect(() => { scanClipboard(); }, [scanClipboard]);
+  // Always re-read the clipboard when this screen opens, even if the once-
+  // per-session scan already ran on boot. Covers the case where the user
+  // copies the code AFTER opening the app but before tapping Create Account.
+  useEffect(() => {
+    (async () => {
+      const fresh = await readClipboardNow();
+      if (fresh && !referralCode) setReferralCode(fresh);
+    })();
+  }, [readClipboardNow]);
 
-  // Auto-fill the code field when the clipboard scan finds one after mount,
-  // as long as the user hasn't typed something else.
+  // Also react to context updates (e.g. cold-boot scanClipboard that resolves
+  // after this screen mounts) so the field auto-fills without user action.
   useEffect(() => {
     if (pendingCode && !referralCode) setReferralCode(pendingCode);
   }, [pendingCode]);

@@ -45,6 +45,23 @@ export function ReferralProvider({ children }) {
     } catch {}
   }, []);
 
+  // Force-read the clipboard right now, bypassing the once-per-session guard.
+  // Used by RegisterScreen so a code copied AFTER app launch still auto-fills.
+  const readClipboardNow = useCallback(async () => {
+    try {
+      const raw = await Clipboard.getString();
+      if (!raw) return null;
+      const trimmed = raw.trim().toUpperCase();
+      if (!isValidShape(trimmed)) return null;
+      const dismissedJson = await AsyncStorage.getItem(STORAGE_DISMISSED);
+      const dismissed = dismissedJson ? JSON.parse(dismissedJson) : [];
+      if (Array.isArray(dismissed) && dismissed.includes(trimmed)) return null;
+      await AsyncStorage.setItem(STORAGE_PENDING, trimmed);
+      setPendingCode(trimmed);
+      return trimmed;
+    } catch { return null; }
+  }, []);
+
   const dismissPendingCode = useCallback(async () => {
     if (!pendingCode) return;
     try {
@@ -94,6 +111,7 @@ export function ReferralProvider({ children }) {
       pendingCode,
       stats,
       scanClipboard,
+      readClipboardNow,
       dismissPendingCode,
       clearPendingCode,
       refreshStats,
