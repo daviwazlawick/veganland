@@ -230,6 +230,7 @@ function htmlAdminPage(stats, token) {
   <header>
     <h1>NovaQI</h1>
     <span>ADMIN</span>
+    <a class="refresh" href="/admin/push?token=${token}" style="background:#FFCB3B;color:#0B1E3F;margin-right:6px">📢 Push</a>
     <a class="refresh" href="/admin?token=${token}">↻ Atualizar</a>
   </header>
   <main>

@@ -17,6 +17,12 @@ export function generateToken(userId, email) {
   return jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
+// Long-lived token for admin dashboard bookmarks. Effectively lifetime —
+// only revocable by rotating JWT_SECRET.
+export function generateAdminToken(userId, email) {
+  return jwt.sign({ userId, email, kind: 'admin' }, JWT_SECRET, { expiresIn: '100y' });
+}
+
 export function verifyToken(token) {
   try {
     return jwt.verify(token, JWT_SECRET);
