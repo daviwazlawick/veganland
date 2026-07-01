@@ -1,8 +1,31 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { apiGetHistory, apiGetMe, apiUpdateProfile } from '../services/apiService';
 import { requestTrackingPermission, logScan } from '../services/analyticsService';
+
+const SUPPORTED_LANGUAGES = ['pt', 'en', 'de', 'fr', 'it', 'es'];
+const FALLBACK_LANGUAGE = 'en';
+
+// Read the OS locale via RN's core NativeModules — no extra native dep,
+// safe over OTA. Returns a 2-letter code the app supports, or FALLBACK_LANGUAGE.
+function detectDeviceLanguage() {
+  try {
+    let raw;
+    if (Platform.OS === 'ios') {
+      const s = NativeModules.SettingsManager && NativeModules.SettingsManager.settings;
+      raw = (s && (s.AppleLocale || (Array.isArray(s.AppleLanguages) && s.AppleLanguages[0]))) || null;
+    } else if (Platform.OS === 'android') {
+      raw = NativeModules.I18nManager && NativeModules.I18nManager.localeIdentifier;
+    }
+    if (!raw) return FALLBACK_LANGUAGE;
+    const code = String(raw).slice(0, 2).toLowerCase();
+    return SUPPORTED_LANGUAGES.includes(code) ? code : FALLBACK_LANGUAGE;
+  } catch {
+    return FALLBACK_LANGUAGE;
+  }
+}
 
 const AppContext = createContext(null);
 
@@ -15,7 +38,7 @@ const STORAGE_KEYS = {
 
 export function AppProvider({ children }) {
   const { token } = useAuth();
-  const [language, setLanguageState] = useState('pt');
+  const [language, setLanguageState] = useState(detectDeviceLanguage);
   const [profile, setProfileState] = useState(null);
   const [scanHistory, setScanHistoryState] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
