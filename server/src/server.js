@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens } from './db.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
-import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken } from './auth.js';
+import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
@@ -167,10 +167,10 @@ function htmlAdminPage(stats, token) {
     const confirmedDot = u.email_confirmed
       ? `<span title="Email confirmado" style="color:#7CB518;font-size:10px">✔</span>`
       : `<span title="Email não confirmado" style="color:#D4A843;font-size:10px">!</span>`;
-    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}?token=${token}'">
+    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}'">
       <td>
         ${isNew ? `<span style="display:inline-block;background:#7CB518;color:#fff;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-right:4px;vertical-align:middle">NEW</span>` : ''}
-        <a href="/admin/user/${u.id}?token=${token}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a>
+        <a href="/admin/user/${u.id}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a>
         ${confirmedDot}
       </td>
       <td>${diet}</td>
@@ -230,8 +230,9 @@ function htmlAdminPage(stats, token) {
   <header>
     <h1>NovaQI</h1>
     <span>ADMIN</span>
-    <a class="refresh" href="/admin/push?token=${token}" style="background:#FFCB3B;color:#0B1E3F;margin-right:6px">📢 Push</a>
-    <a class="refresh" href="/admin?token=${token}">↻ Atualizar</a>
+    <a class="refresh" href="/admin/push" style="background:#FFCB3B;color:#0B1E3F;margin-right:6px">📢 Push</a>
+    <a class="refresh" href="/admin">↻ Atualizar</a>
+    <form method="POST" action="/admin/logout" style="display:inline;margin-left:6px"><button class="refresh" style="background:#FF4B4B;color:#fff;border:none;cursor:pointer">↩ Sair</button></form>
   </header>
   <main>
 
@@ -383,7 +384,7 @@ function htmlAdminUserPage(data, token) {
   </style></head>
   <body>
   <header>
-    <a href="/admin?token=${token}">← Voltar</a>
+    <a href="/admin">← Voltar</a>
     <h1>${user.email}</h1>
     <span>ADMIN</span>
   </header>
@@ -406,14 +407,14 @@ function htmlAdminUserPage(data, token) {
         <label>Plano</label>
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
           ${planBadge(userType)}
-          <form method="POST" action="/admin/user/${user.id}/set-type?token=${token}" style="display:flex;gap:8px;flex-wrap:wrap">
+          <form method="POST" action="/admin/user/${user.id}/set-type" style="display:flex;gap:8px;flex-wrap:wrap">
             ${['free','starter','premium','admin'].map(t => `<button type="submit" name="type" value="${t}" style="padding:5px 14px;border-radius:8px;border:2px solid ${t === userType ? '#1C2B22' : '#ddd'};background:${t === userType ? '#1C2B22' : '#fff'};color:${t === userType ? '#fff' : '#555'};font-size:12px;font-weight:700;cursor:pointer">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`).join('')}
           </form>
         </div>
       </div>
       <div class="field" style="grid-column:1/-1;margin-top:8px">
         <label>Ações</label>
-        <form method="POST" action="/admin/user/${user.id}/delete?token=${token}" onsubmit="return confirm('Tem certeza? Esta ação é irreversível e apaga todos os dados do utilizador.')">
+        <form method="POST" action="/admin/user/${user.id}/delete" onsubmit="return confirm('Tem certeza? Esta ação é irreversível e apaga todos os dados do utilizador.')">
           <button type="submit" style="padding:8px 20px;border-radius:8px;border:2px solid #FF4B4B;background:#fff;color:#FF4B4B;font-size:13px;font-weight:700;cursor:pointer">🗑 Apagar utilizador</button>
         </form>
       </div>
@@ -499,7 +500,7 @@ function htmlAdminPushPage(token, lastResult = null) {
 <div class="wrap">
   <h1>📢 Push Broadcast</h1>
   ${resultHtml}
-  <form method="POST" action="/admin/push/broadcast?token=${token}" class="card">
+  <form method="POST" action="/admin/push/broadcast" class="card">
     <label>Título</label>
     <input name="title" required maxlength="80" placeholder="Novidade na NovaQI 🎁">
     <label>Mensagem</label>
@@ -526,7 +527,7 @@ function htmlAdminPushPage(token, lastResult = null) {
     <p class="small">O link interno é guardado no <code>data.route</code> e o app navega para esse ecrã ao tocar.</p>
     <button type="submit">Enviar a todos os tokens com filtros activos</button>
   </form>
-  <p style="text-align:center;font-size:13px"><a href="/admin?token=${token}">← Voltar ao admin</a></p>
+  <p style="text-align:center;font-size:13px"><a href="/admin">← Voltar ao admin</a></p>
 </div>
 </body></html>`;
 }
@@ -699,13 +700,42 @@ function getAuthUser(req) {
   return verifyToken(token);
 }
 
+function readCookie(req, name) {
+  const raw = req.headers['cookie'] || '';
+  const parts = raw.split(';').map(s => s.trim());
+  for (const p of parts) {
+    const idx = p.indexOf('=');
+    if (idx < 0) continue;
+    if (p.slice(0, idx) === name) return decodeURIComponent(p.slice(idx + 1));
+  }
+  return null;
+}
+
+// Read admin session token from HttpOnly cookie first, then fall back to
+// ?token= query for backwards compatibility with old bookmarks / one-off
+// admin URLs. New links generated by the admin pages use clean URLs and
+// rely purely on the cookie.
 async function isAdminRequest(req) {
-  const token = new URL(req.url, 'http://x').searchParams.get('token');
+  const cookieToken = readCookie(req, 'admin_session');
+  const queryToken = new URL(req.url, 'http://x').searchParams.get('token');
+  const token = cookieToken || queryToken;
   if (!token) return false;
   const claims = verifyToken(token);
   if (!claims) return false;
   const user = await getUserById(claims.userId);
   return user?.user_type === 'admin';
+}
+
+function htmlAdminDenied() {
+  return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — NovaQI</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0B1E3F;color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#fff;color:#0B1E3F;border-radius:20px;padding:32px 28px;max-width:400px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+h1{margin:0 0 8px;font-size:22px}p{color:#64748b;font-size:14px;line-height:1.5}</style></head><body>
+<div class="card"><h1>🔒 Acesso restrito</h1>
+<p>O painel de administração só está acessível a partir da app NovaQI. Abre a app → Perfil → botão <b>Admin Panel</b>.</p>
+</div></body></html>`;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1199,14 +1229,32 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // GET /admin
+    // GET /admin — cookie-first, one-shot ?token= for handoff from the app
     if (req.method === 'GET' && (req.url === '/admin' || req.url === '/admin/' || req.url.startsWith('/admin?'))) {
+      // If the app just handed us a fresh short-lived token, exchange it for
+      // an HttpOnly cookie and redirect to a clean URL (no token in history).
+      const queryToken = new URL(req.url, 'http://x').searchParams.get('token');
+      const cookieToken = readCookie(req, 'admin_session');
+      if (queryToken && !cookieToken) {
+        const claims = verifyToken(queryToken);
+        if (claims) {
+          const user = await getUserById(claims.userId);
+          if (user?.user_type === 'admin') {
+            const session = generateAdminSession(user.id, user.email);
+            res.writeHead(302, {
+              'Set-Cookie': `admin_session=${session}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=14400`,
+              'Location': '/admin',
+            });
+            res.end();
+            return;
+          }
+        }
+      }
       if (!await isAdminRequest(req)) {
         res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlPage('Acesso negado', '<p>Você não tem permissão para acessar esta página.</p>', '#FF4B4B'));
+        res.end(htmlAdminDenied());
         return;
       }
-      const token = new URL(req.url, 'http://x').searchParams.get('token');
       const stats = await getAdminStats();
       if (!stats) {
         res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -1214,7 +1262,31 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPage(stats, token));
+      res.end(htmlAdminPage(stats, ''));
+      return;
+    }
+
+    // POST /admin/handoff — app calls this with the user's JWT to mint a
+    // one-shot admin URL that the app opens in the system browser. The URL
+    // burns after the /admin GET exchanges it for the HttpOnly cookie.
+    if (req.method === 'POST' && req.url === '/admin/handoff') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Not admin' }, origin); return; }
+      const oneShot = generateAdminToken(user.id, user.email);
+      const base = host.includes('veganland') ? 'https://veganland.app' : 'https://novaqi.app';
+      sendJson(res, 200, { url: `${base}/admin?token=${oneShot}` }, origin);
+      return;
+    }
+
+    // POST /admin/logout — clear the session cookie
+    if (req.method === 'POST' && req.url === '/admin/logout') {
+      res.writeHead(302, {
+        'Set-Cookie': 'admin_session=; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=0',
+        'Location': '/admin',
+      });
+      res.end();
       return;
     }
 
@@ -1254,7 +1326,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       await deleteUserAccount(userId);
-      res.writeHead(302, { Location: `/admin?token=${token}` });
+      res.writeHead(302, { Location: `/admin` });
       res.end();
       return;
     }
@@ -1281,7 +1353,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       await setUserType(userId, newType);
-      res.writeHead(302, { Location: `/admin/user/${userId}?token=${token}` });
+      res.writeHead(302, { Location: `/admin/user/${userId}` });
       res.end();
       return;
     }

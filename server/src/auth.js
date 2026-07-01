@@ -17,10 +17,18 @@ export function generateToken(userId, email) {
   return jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
-// Long-lived token for admin dashboard bookmarks. Effectively lifetime —
-// only revocable by rotating JWT_SECRET.
+// Short-lived one-shot token for admin console access. The app opens the
+// browser with this token; the server immediately exchanges it for an
+// HttpOnly session cookie, so the URL isn't bookmarkable/shareable.
 export function generateAdminToken(userId, email) {
-  return jwt.sign({ userId, email, kind: 'admin' }, JWT_SECRET, { expiresIn: '100y' });
+  return jwt.sign({ userId, email, kind: 'admin' }, JWT_SECRET, { expiresIn: '5m' });
+}
+
+// Session cookie set after successful admin-token exchange. Longer-lived so
+// the admin doesn't have to re-open from the app every time within a session,
+// but still bound to a single browser and revocable by rotating JWT_SECRET.
+export function generateAdminSession(userId, email) {
+  return jwt.sign({ userId, email, kind: 'admin_session' }, JWT_SECRET, { expiresIn: '4h' });
 }
 
 export function verifyToken(token) {

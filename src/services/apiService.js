@@ -103,6 +103,16 @@ export async function apiGetReferral(token) {
   return data;
 }
 
+export async function apiAdminHandoff(token) {
+  const response = await fetch(`${baseUrl()}/admin/handoff`, {
+    method: 'POST',
+    headers: appHeaders(token),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed');
+  return data.url;
+}
+
 export async function apiRegisterPush(token, { token: pushToken, platform, locale }) {
   const response = await fetch(`${baseUrl()}/push/register`, {
     method: 'POST',

@@ -11,7 +11,7 @@ import { BrandFonts } from '../brand';
 import Brand from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
-import { apiGetMe } from '../services/apiService';
+import { apiGetMe, apiAdminHandoff } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
@@ -224,7 +224,15 @@ export default function ProfileScreen({ navigation }) {
         {userType === 'admin' && (
           <TouchableOpacity
             style={styles.adminBtn}
-            onPress={() => WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`)}
+            onPress={async () => {
+              try {
+                const url = await apiAdminHandoff(token);
+                await WebBrowser.openBrowserAsync(url);
+              } catch (e) {
+                // fall back to legacy URL if the handoff endpoint isn't available yet
+                await WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`);
+              }
+            }}
             activeOpacity={0.85}
           >
             <Ionicons name="shield-checkmark" size={16} color="#1E1B4B" />
