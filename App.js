@@ -30,6 +30,14 @@ function AppContent() {
   const { scanClipboard } = useReferral();
 
   useEffect(() => {
+    // Scan clipboard on cold start so first-time users who tapped a
+    // referral link and installed the app see their code auto-filled on
+    // the register screen. Also re-scan after login+disclaimer for the
+    // pending-code modal.
+    scanClipboard();
+  }, [scanClipboard]);
+
+  useEffect(() => {
     if (token && disclaimerAccepted) {
       scanClipboard();
     }

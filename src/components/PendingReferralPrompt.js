@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useReferral } from '../context/ReferralContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 
 export default function PendingReferralPrompt() {
   const { language } = useApp();
+  const { token } = useAuth();
   const { pendingCode, redeem, dismissPendingCode } = useReferral();
   const [busy, setBusy] = useState(false);
 
-  if (!pendingCode) return null;
+  // Only offer to apply the code once the user is signed in. Before that
+  // the code stays in AsyncStorage so RegisterScreen can pre-fill it.
+  if (!pendingCode || !token) return null;
 
   async function applyCode() {
     setBusy(true);
