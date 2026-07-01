@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ScrollView,
+  Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -34,18 +35,22 @@ export default function RegisterScreen({ navigation }) {
   const [confirm, setConfirm] = useState('');
   const [referralCode, setReferralCode] = useState(pendingCode || '');
 
-  // Always re-read the clipboard when this screen opens, even if the once-
-  // per-session scan already ran on boot. Covers the case where the user
-  // copies the code AFTER opening the app but before tapping Create Account.
+  // Always re-read the clipboard directly on mount, bypassing the dismissed
+  // cache in ReferralContext. If the user copied the code (from the landing
+  // page or manually) it goes straight into the field regardless of history.
   useEffect(() => {
     (async () => {
-      const fresh = await readClipboardNow();
-      if (fresh && !referralCode) setReferralCode(fresh);
+      try {
+        const raw = await Clipboard.getString();
+        if (!raw) return;
+        const trimmed = String(raw).trim().toUpperCase();
+        if (isValidShape(trimmed) && !referralCode) setReferralCode(trimmed);
+      } catch {}
     })();
-  }, [readClipboardNow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Also react to context updates (e.g. cold-boot scanClipboard that resolves
-  // after this screen mounts) so the field auto-fills without user action.
+  // Also react to context updates (cold-boot scanClipboard resolving late).
   useEffect(() => {
     if (pendingCode && !referralCode) setReferralCode(pendingCode);
   }, [pendingCode]);
