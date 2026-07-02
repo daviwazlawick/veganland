@@ -11,4 +11,4 @@ export async function purchasePackage() { throw Object.assign(new Error('not_ava
 export async function restorePurchases() { throw Object.assign(new Error('not_available'), { userCancelled: false }); }
 export async function getCustomerInfo() { return null; }
 export function activeEntitlementId() { return null; }
-export function entitlementToUserType() { return 'starter'; }
+export function entitlementToUserType() { return 'free'; }

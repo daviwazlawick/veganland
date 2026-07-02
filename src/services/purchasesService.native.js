@@ -65,5 +65,5 @@ export function activeEntitlementId(customerInfo) {
 export function entitlementToUserType(entitlementId) {
   if (entitlementId === 'pro') return 'premium';
   if (entitlementId === 'starter') return 'starter';
-  return 'starter';
+  return 'free';
 }
