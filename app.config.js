@@ -66,7 +66,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.11', // NEVER bump without a new native build — runtimeVersion = appVersion
+    version: '1.0.12', // NEVER bump without a new native build — runtimeVersion = appVersion
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -102,7 +102,7 @@ export default {
       // Without this, the ID is zeroed and Meta Ads attribution breaks.
       permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
       edgeToEdgeEnabled: true,
-      versionCode: 14,
+      versionCode: 15,
       // Firebase config — required for FCM (push) and Firebase Analytics.
       // The file is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './google-services.json' : undefined,
