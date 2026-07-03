@@ -765,8 +765,8 @@ const server = http.createServer(async (req, res) => {
       const iosStore = brand.iosUrl || novaqi.iosUrl;
       const androidStore = brand.androidUrl || novaqi.androidUrl;
       sendJson(res, 200, {
-        ios:     { min: '1.0.11', store_url: iosStore },
-        android: { min: '1.0.10', store_url: androidStore },
+        ios:     { min: '1.0.12', store_url: iosStore },
+        android: { min: '1.0.12', store_url: androidStore },
         web:     { min: '1.0.0' },
       }, origin);
       return;
