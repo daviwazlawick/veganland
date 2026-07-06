@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { HIDE_FREE_OPTION } from '../constants/features';
 import Brand from '../brand';
 import {
   isPurchasesAvailable,
@@ -279,7 +280,7 @@ export default function PaywallScreen({ navigation, route }) {
           );
         })}
 
-        {currentPlan === 'free' && (
+        {currentPlan === 'free' && !HIDE_FREE_OPTION && (
           <TouchableOpacity onPress={closeWithReferralOffer} style={styles.continueFreeLinkWrap}>
             <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
           </TouchableOpacity>
@@ -319,6 +320,9 @@ export default function PaywallScreen({ navigation, route }) {
             : <Text style={styles.btnText}>{t(language, hasTrial(selected) ? 'plans.start_trial' : 'plans.subscribe')}</Text>
           }
         </TouchableOpacity>
+        {hasTrial(selected) && (
+          <Text style={styles.trialDisclosure}>{t(language, 'plans.trial_disclosure')}</Text>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -410,4 +414,8 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { backgroundColor: Colors.border },
   btnText: { color: Colors.white, fontSize: 18, fontWeight: '900' },
+  trialDisclosure: {
+    fontSize: 11, color: Colors.textMuted, textAlign: 'center',
+    marginTop: 8, paddingHorizontal: 8, lineHeight: 15,
+  },
 });

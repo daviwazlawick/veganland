@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import { HIDE_FREE_OPTION } from '../constants/features';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon } from '../components/ui';
@@ -226,9 +227,12 @@ export default function ProfileSetupScreen({ navigation }) {
                     </TouchableOpacity>
                   );
                 })}
-                <TouchableOpacity onPress={handleContinueFree} style={styles.continueFreeLinkWrap}>
-                  <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
-                </TouchableOpacity>
+                {!HIDE_FREE_OPTION && (
+                  <TouchableOpacity onPress={handleContinueFree} style={styles.continueFreeLinkWrap}>
+                    <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
+                  </TouchableOpacity>
+                )}
+                <Text style={styles.trialDisclosure}>{t(language, 'plans.trial_disclosure')}</Text>
               </View>
             ) : (
               <>
@@ -427,6 +431,10 @@ const styles = StyleSheet.create({
   planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
   continueFreeLinkWrap: { alignItems: 'center', paddingVertical: 12 },
   continueFreeLink: { fontSize: 13, color: Colors.textMuted, fontWeight: '500', textDecorationLine: 'underline' },
+  trialDisclosure: {
+    fontSize: 11, color: Colors.textMuted, textAlign: 'center',
+    marginTop: 12, paddingHorizontal: 8, lineHeight: 15,
+  },
   radio: {
     width: 24, height: 24, borderRadius: 12,
     borderWidth: 2, borderColor: Colors.border,

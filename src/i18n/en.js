@@ -109,6 +109,7 @@ export default {
     free_trial_badge: 'Free trial included',
     trial_ios: '2 weeks free trial',
     trial_android: '15 days free trial',
+    trial_disclosure: 'Free for 14 days, then billed automatically. Cancel anytime in your account settings — no charges during the trial.',
     best_value: 'Best value',
     restore: 'Restore purchases',
     restore_done: 'Purchases restored successfully',

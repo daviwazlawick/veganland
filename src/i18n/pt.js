@@ -109,6 +109,7 @@ export default {
     free_trial_badge: 'Período grátis incluído',
     trial_ios: '2 semanas de teste grátis',
     trial_android: '15 dias de teste grátis',
+    trial_disclosure: 'Grátis por 14 dias. Depois cobrado automaticamente. Cancela quando quiseres nas definições da conta — nada é cobrado durante o período de teste.',
     best_value: 'Melhor custo-benefício',
     restore: 'Restaurar compras',
     restore_done: 'Compras restauradas com sucesso',

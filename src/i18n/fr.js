@@ -109,6 +109,7 @@ export default {
     free_trial_badge: "Essai gratuit inclus",
     trial_ios: "2 semaines d'essai gratuit",
     trial_android: "15 jours d'essai gratuit",
+    trial_disclosure: "Gratuit pendant 14 jours. Ensuite facturé automatiquement. Annulez à tout moment dans les paramètres du compte — aucun frais pendant l'essai.",
     best_value: "Meilleur rapport qualité-prix",
     restore: "Restaurer les achats",
     restore_done: "Achats restaurés avec succès",
