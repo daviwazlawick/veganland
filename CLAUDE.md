@@ -264,12 +264,13 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 
 | Campo | Valor |
 |---|---|
-| version | `1.0.12` |
-| versionCode (Android) | `15` |
+| version | `1.0.13` (build em progresso, ainda não submetido) |
+| versionCode (Android) | `16` |
 | bundleIdentifier iOS | `app.novaqi` |
 | package Android | `app.novaqi` |
 | runtimeVersion policy | `appVersion` — OTA só chega a builds com a mesma versão |
 | force update `min` (servidor) | `1.0.12` (iOS + Android) — confirmar em `GET /app/version` |
+| Em produção actualmente | `1.0.12` na App Store e Play Store |
 
 **Histórico:**
 - 1.0.5 — rejeitado pela Apple (BetaRibbon, planos bloqueados, etc.)
@@ -280,6 +281,7 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 - 1.0.10 — **Meta SDK + ATT** (CompleteRegistration, StartTrial, Subscribe, Scan); Privacy Policy actualizada
 - 1.0.11 — **aprovado e em produção** (iOS + Android, Android já publicado na Play Store) — Push Notifications (APNs + FCM via Expo Push Service) + Programa de referência (referrals com bónus de scans). Firebase Analytics SDK foi tentado e **revertido** por incompatibilidade com Expo SDK 54 (ver secção "Firebase Analytics — tentativa revertida")
 - 1.0.12 — fix do Meta Client Token (tinha um char a mais no `eas.json`, quebrava auth do SDK), fix de bug no RevenueCat (`entitlementToUserType` dava plano starter grátis via "Restaurar compras"), force update `min` bumped pra 1.0.12 em ambas plataformas
+- 1.0.13 — **em build, NovaQI apenas** — Sign in with Apple + Sign in with Google (backend + app), esconder opção "Continue with Free plan" (feature flag), trial pill amber prominente, fixes de bugs pré-existentes (origin scope no catch + XSS no admin panel)
 
 ---
 
@@ -653,3 +655,166 @@ npm run build:android:novaqi # ~15 min
 | FB App ID | `1717962282965252` |
 | Apple ID (eas.json) | `daviwazlawick@gmail.com` |
 | Apple ID (eas credentials login) | `davi.work.station@gmail.com` |
+
+---
+
+## 1.0.13 — Sessão 2026-07-06 (em build, ainda não submetido)
+
+### 1) Sign in with Apple + Google (NovaQI apenas)
+
+**Decisão de arquitectura:** backend próprio valida os tokens dos providers, NÃO usa Firebase Auth. Motivos:
+- Já temos JWT + user model próprio; adicionar Firebase Auth seria duplicar identidades
+- `@react-native-firebase/*` continua incompatível com Expo SDK 54 + `useFrameworks: 'static'` (mesmo motivo que revertimos em 1.0.11)
+- Firebase continua a servir Analytics/Ads/Push — `google-services.json` + `GoogleService-Info.plist` são só para essas features, não Auth
+
+**Backend:**
+- Migração `021_oauth_identities.sql` — adiciona `apple_sub`, `google_sub`, `oauth_provider` em `users`; torna `password_hash` NULLABLE; índices únicos parciais em `apple_sub` e `google_sub`
+- `server/src/oauth.js` — `verifyGoogleIdToken` via `google-auth-library` (aceita qualquer audience em `GOOGLE_OAUTH_CLIENT_IDS`), `verifyAppleIdentityToken` via `jose` contra JWKs da Apple (`aud = APPLE_OAUTH_AUDIENCES`, `iss = appleid.apple.com`)
+- `server/src/db.js` — `findUserByOAuthSub(provider, sub)`, `linkOAuthToUser(userId, provider, sub)`, `createOAuthUser({ email, provider, sub, disclaimerVersion, referralCodeInput })`. OAuth users nascem com `email_confirmed = true` (o provider já verificou), sem password, com disclaimer aceite
+- `POST /auth/google` e `POST /auth/apple` em `server.js` — fluxo: **(a)** procura user por `sub` → **(b)** procura por email → link → **(c)** cria novo. Devolve `{ token, user: { id, email }, isNewUser }`. Em edge case Apple sem email + sem match, devolve `409 apple_email_missing_reauth_required`
+- `server/package.json` — adicionadas deps `google-auth-library` + `jose`
+- `server/.env` novos (gitignored):
+  - `GOOGLE_OAUTH_CLIENT_IDS=<web_client_id>,<ios_client_id>` — comma-separated, aceites como `aud` do id_token
+  - `APPLE_OAUTH_AUDIENCES=app.novaqi`
+
+**App:**
+- Packages: `expo-apple-authentication` `~8.0.8` + `@react-native-google-signin/google-signin` `^16.1.2`
+- `app.config.js` iOS: `usesAppleSignIn: true` (só se NovaQI) — puxa o entitlement `com.apple.developer.applesignin` para o provisioning profile
+- `app.config.js` plugins iOS-only: `expo-apple-authentication` + `@react-native-google-signin/google-signin` (config plugin com `iosUrlScheme` = `REVERSED_CLIENT_ID`)
+- `src/services/socialAuthService.native.js` — usa **lazy require + try/catch** para carregar os módulos nativos, para permitir que este bundle corra num runtime OTA para 1.0.12 (que não tem os módulos linkados) sem crashar
+- `src/services/socialAuthService.js` — web/no-op stub
+- `src/components/SocialAuthButtons.js` — renderiza o botão nativo Apple no iOS (`AppleAuthentication.AppleAuthenticationButton`) e um botão Google style guide-compliant. Guard `AppleAuthentication?.AppleAuthenticationButton && ...` para não crashar em runtimes sem o módulo
+- `src/context/AuthContext.js` — `signInWithProvider(provider, { disclaimerVersion, referralCode })`. No RegisterScreen passa `DISCLAIMER_VERSION` (aceitação implícita ao tocar, com hint text). No LoginScreen não passa — se user novo tentar login social, backend rejeita com `disclaimer_acceptance is required`
+- i18n em pt/en/de/es/fr/it: `auth.or`, `auth.continue_with_google`, `auth.social_failed`, `auth.social_apple_reauth`, `auth.social_terms_hint`
+- `eas.json` NovaQI profiles: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME`
+
+**Firebase project `novaqi-9dd63`:**
+- Web Client ID: `529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com`
+- iOS Client ID: `529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd.apps.googleusercontent.com`
+- REVERSED_CLIENT_ID: `com.googleusercontent.apps.529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd`
+- Android Client ID: `529528181342-2ci41o01dffrqd4ceh6mehfm8ujcb17q.apps.googleusercontent.com` (aparece só depois de SHA-1 adicionado)
+- SHA-1 do keystore EAS Android (novaqi-android): `FE:A1:14:DB:2C:0A:5D:EA:5A:7A:26:CD:6E:1F:26:A4:AF:D1:BA:EE` — adicionado no Firebase Console 2026-07-06
+- Analytics: ativo (dashboard mostra dados reais); `IS_ANALYTICS_ENABLED=false` no plist é artifact do download
+
+**Fix crítico do build iOS:** `AppCheckCore` (Swift, transitive dep de `GoogleSignIn`) precisa que `GoogleUtilities` + `RecaptchaInterop` gerem module maps. Resolvido com `expo-build-properties` no `app.config.js` — `extraPods` com `modular_headers: true` só para esses dois pods (evita `use_modular_headers!` global). Sem isto, `pod install` falha com "Swift pods cannot yet be integrated as static libraries".
+
+**Account linking automático:** se email do provider bate com user existente (email/password), o backend liga o `sub` automaticamente. Sem confirmação, sem fricção.
+
+**Apple relay email:** aceite tal como veio (`@privaterelay.appleid.com`). User pode trocar depois no `EditPersonalScreen`.
+
+**EAS credentials sync executado 2026-07-06:**
+- Provisioning profile `AFRYCGTQ4K` regenerado com o entitlement Apple Sign In (mesmo com `Synced capabilities: No updates` porque o App ID já tinha a capability enabled quando o EAS sync correu)
+- Android keystore existente reutilizado; SHA-1 usado para Firebase
+
+**Estado final da sessão:** Build iOS 1.0.13 a correr no EAS. Build Android adiado — sem créditos EAS disponíveis, será feito quando renovarem. Backend deployado, migração aplicada, endpoints testados via curl.
+
+---
+
+### 2) Feature flag `HIDE_FREE_OPTION` (experiência de 1 semana)
+
+Ficheiro: `src/constants/features.js` — flag `HIDE_FREE_OPTION = true`.
+
+**Aplicado em dois pontos:**
+- `src/screens/PaywallScreen.js:282` — esconde link "Continue with Free plan" no fim da lista quando `currentPlan === 'free'`
+- `src/screens/ProfileSetupScreen.js:229` — esconde link no onboarding (função `handleContinueFree` mantida no código, só o botão foi wrapped)
+
+**Objectivo:** medir se remover o escape hatch aumenta conversões para free trial. A/B experiment de 1 semana.
+
+**Como reverter:** editar `HIDE_FREE_OPTION = false` → commit → OTA. Sem native rebuild.
+
+**Compliance:** o free trial (2 semanas iOS / 15 dias Android via App Store/Play Store) continua visível — Apple 3.1.2(a) aceita. Se removêssemos O TRIAL, aí sim rejeição.
+
+---
+
+### 3) Trial disclosure + trial pill amber
+
+**`plans.trial_disclosure`** — micro-copy abaixo do CTA de subscribe, em 6 idiomas. Explica: *"Grátis por 14 dias. Depois cobrado automaticamente. Cancela quando quiseres nas definições da conta — nada é cobrado durante o período de teste."*
+- Renderizado no `PaywallScreen` só se `hasTrial(selected)`
+- Renderizado no `ProfileSetupScreen` sempre (durante onboarding é a primeira vez que o user vê preços)
+
+**`plans.trial_pill_ios` / `trial_pill_android`** — pill amber (`Colors.accent`, branco por cima, letter-spacing 0.6, sombra, borderRadius 999) com texto `🎁 2 SEMANAS GRÁTIS` / `🎁 15 DIAS GRÁTIS` em 6 idiomas. Substitui o texto verde 11pt subtil que existia antes.
+- `PaywallScreen`: em cada plan card que tem trial (`hasTrial(plan.id)`)
+- `ProfileSetupScreen`: em cada plan card (assume trial em ambos os planos)
+
+Cor: `Colors.accent` do brand — dourado no VeganLand (`#D4B06A`), amarelo/laranja no NovaQI (`#E8A020`). Zero branding logic no componente.
+
+---
+
+### 4) Bugs pré-existentes corrigidos
+
+**Bug 1 — `origin is not defined` no `catch` do handler HTTP (`server.js`)**
+- Introduzido 2026-05-25 (Fabricio, commit `a85b3211`)
+- `const origin` estava dentro do `try`; quando qualquer request faz throw (ex: Anthropic devolve JSON malformado em `analyzeProduct`), o `catch` tentava usar `origin` → `ReferenceError` → `unhandledRejection`. Não matava o processo, mas quebrava a resposta 500 ao cliente e poluía logs
+- Fix: mover `const origin = req.headers['origin'] || ''` e `const host = req.headers['host'] || ''` para ANTES do `try`
+
+**Bug 2 — XSS armazenado no admin panel (`server.js`)**
+- User input interpolado em HTML sem escape em `htmlAdminPage` (email, diet, monthLabel, joinedFull), `htmlAdminPushPage` (title, body, locale, user_type, route do histórico), `htmlAdminUserPage` (email, diet, allergies, product, brand, source, explanation, concerns)
+- Severidade: maioritariamente auto-XSS (só admin entra), mas `u.email` seria XSS armazenado se um user malicioso conseguisse registar email com `<script>...</script>`
+- Fix: helper global `esc(s)` no topo de `server.js` (linha 20), aplicado sistematicamente em todos os spots dinâmicos
+
+---
+
+### 5) Runtime versions e OTA — armadilha e workaround
+
+**Lição aprendida:** `runtimeVersion.policy = 'appVersion'` significa que cada OTA é publicado para o runtime igual ao `version` actual em `app.config.js`. Após bumpar version para `1.0.13` (commit `907516d`), o `npm run update:novaqi` publica para runtime `1.0.13` — NÃO chega a users em `1.0.12` (a versão da store).
+
+**Se precisares backportar OTA para uma versão em produção** (ex: `1.0.12`):
+```bash
+# 1. Editar TEMPORARIAMENTE a version no app.config.js
+sed -i.bak "s/version: '1.0.13'/version: '1.0.12'/" app.config.js
+
+# 2. Publicar OTA (agora vai para runtime 1.0.12)
+npm run update:novaqi
+npm run update:veganland
+
+# 3. Restaurar (NÃO commitar a mudança temporária)
+mv app.config.js.bak app.config.js
+```
+
+**Cuidado:** o bundle actual do repo pode conter código que depende de módulos nativos ausentes na build de produção (ex: `expo-apple-authentication` não existe em 1.0.12). Antes de fazer OTA para uma versão antiga, guardar TODOS os imports de módulos nativos novos com `try { require(...) } catch {}` (ver `src/services/socialAuthService.native.js` como exemplo).
+
+O flag `--runtime-version` foi REMOVIDO no `eas-cli` 20+; a única forma agora é editar `app.config.js` (ou usar `EXPO_PUBLIC_UPDATES_RUNTIME_VERSION` env var — não testado).
+
+**Decisão actual da sessão:** esperar por 1.0.13 aprovada em vez de OTA backport para 1.0.12. Motivo: menos superfície de risco, sample cleaner para A/B experiment, narrativa unificada no "What's New" (social login + hide free + trial pill juntos).
+
+---
+
+### 6) Componentes e ficheiros novos desta versão
+
+```
+src/services/
+  socialAuthService.native.js     — Apple + Google native flow (lazy require + try/catch)
+  socialAuthService.js            — web/no-op stub
+src/components/
+  SocialAuthButtons.js            — botão Apple oficial + botão Google style guide
+src/constants/
+  features.js                     — HIDE_FREE_OPTION flag
+server/src/
+  oauth.js                        — verifyGoogleIdToken + verifyAppleIdentityToken
+server/src/migrations/
+  021_oauth_identities.sql        — apple_sub, google_sub, oauth_provider
+```
+
+Alterações significativas:
+- `src/context/AuthContext.js` — `signInWithProvider`
+- `src/services/apiService.js` — `apiOAuthSignIn(provider, payload)`
+- `src/screens/LoginScreen.js` — `<SocialAuthButtons />` no fim do card
+- `src/screens/RegisterScreen.js` — `<SocialAuthButtons />` com `disclaimerVersion` + `referralCode`
+- `src/screens/PaywallScreen.js` — trial pill + trial disclosure + esconder continue-free
+- `src/screens/ProfileSetupScreen.js` — trial pill + trial disclosure + esconder continue-free
+- `app.config.js` — plugins social + `usesAppleSignIn` + `expo-build-properties` (modular_headers workaround)
+- `eas.json` — env vars Google novos, NovaQI profiles apenas
+- `package.json` — script `update:novaqi` inclui os env vars Google
+
+---
+
+### 7) Próximos passos ao retomar
+
+1. Confirmar que build iOS 1.0.13 no EAS passou (após o fix `expo-build-properties`)
+2. `eas submit --platform ios --latest` → TestFlight → testar Sign in with Apple + Sign in with Google + hide-free + trial pill em dispositivo real
+3. Submeter iOS 1.0.13 para App Store Review
+4. Quando créditos EAS renovarem: `eas build --platform android --profile novaqi-android` → `eas submit --platform android --latest`
+5. **App Store Connect** "What's New" 1.0.13: *"Sign in with Apple and Google for faster signup."*
+6. **Data Safety / Nutrition Labels:** NÃO precisam actualização (não coletamos dados novos; `sub` é anónimo)
+
+---
