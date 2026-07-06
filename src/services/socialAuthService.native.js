@@ -1,10 +1,11 @@
-import { Platform } from 'react-native';
+import { Platform, NativeModules, UIManager } from 'react-native';
 
 // Guard native module resolution so this bundle can run on older runtimes
 // (e.g. 1.0.12) that don't have expo-apple-authentication or
-// @react-native-google-signin/google-signin baked in yet. When the modules
-// aren't there, the require throws and we fall back to "unavailable" — the
-// UI hides the buttons instead of crashing on load.
+// @react-native-google-signin/google-signin baked in yet. Metro bundles
+// the JS regardless — the require() succeeds even when the native side
+// isn't linked, so we ALSO probe UIManager/NativeModules to confirm the
+// native code is actually available before advertising availability.
 let AppleAuthentication = null;
 let GoogleSignin = null;
 let statusCodes = null;
@@ -19,17 +20,29 @@ try {
   statusCodes = g.statusCodes;
 } catch { /* not installed in this native build */ }
 
+// The Apple button is a native view manager — its presence in UIManager is
+// the only reliable signal that the native code is actually linked. Without
+// this, rendering the button on 1.0.12 shows the "unimplemented component:
+// ViewManagerAdapter_ExpoAppleAuthenticationButton" red error.
+const APPLE_NATIVE_LINKED = !!(
+  UIManager.getViewManagerConfig?.('ExpoAppleAuthenticationButton') ||
+  UIManager.getViewManagerConfig?.('RNCAppleAuthenticationButton')
+);
+const GOOGLE_NATIVE_LINKED = !!(
+  NativeModules.RNGoogleSignin || NativeModules.RNGoogleSigninCGen
+);
+
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 
 let googleConfigured = false;
 
 export function isAppleAuthAvailable() {
-  return Platform.OS === 'ios' && !!AppleAuthentication?.signInAsync;
+  return Platform.OS === 'ios' && APPLE_NATIVE_LINKED && !!AppleAuthentication?.signInAsync;
 }
 
 export function isGoogleAuthAvailable() {
-  return !!GOOGLE_WEB_CLIENT_ID && !!GoogleSignin;
+  return !!GOOGLE_WEB_CLIENT_ID && GOOGLE_NATIVE_LINKED && !!GoogleSignin;
 }
 
 export async function initSocialAuth() {
