@@ -142,9 +142,7 @@ export function AppProvider({ children }) {
     setProfileState(newProfile);
     await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(newProfile));
     if (token) {
-      try {
-        await apiUpdateProfile({ diet_id: newProfile.dietId, allergy_ids: newProfile.allergyIds }, token);
-      } catch {}
+      await apiUpdateProfile({ diet_id: newProfile.dietId, allergy_ids: newProfile.allergyIds }, token);
     }
   }
 

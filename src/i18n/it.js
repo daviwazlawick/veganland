@@ -80,6 +80,7 @@ export default {
     of: 'di',
     none: 'Nessuna',
     select_diet: 'Seleziona una dieta',
+    save_error: "Impossibile salvare il tuo profilo. Controlla la connessione e riprova.",
     diet_step: 'Dieta',
     allergies_step: 'Sensibilità',
     how_do_you_eat: 'Come mangi?',

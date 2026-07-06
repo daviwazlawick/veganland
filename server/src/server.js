@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts } from './db.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
@@ -262,6 +262,25 @@ function htmlAdminPage(stats, token) {
       </div>
     </div>
 
+    <!-- Diet diagnostic -->
+    <div class="row cols-3">
+      <div class="card">
+        <div class="num">${stats.no_diet}</div>
+        <div class="lbl">Sem dieta definida</div>
+        <div class="sub">${stats.total_users > 0 ? Math.round((stats.no_diet / stats.total_users) * 100) : 0}% do total</div>
+      </div>
+      <div class="card">
+        <div class="num">${stats.no_diet_legacy}</div>
+        <div class="lbl">Sem dieta · contas antigas</div>
+        <div class="sub">criadas antes de 19/05 (pré diet-sync)</div>
+      </div>
+      <div class="card amber">
+        <div class="num">${stats.no_diet_recent}</div>
+        <div class="lbl">Sem dieta · contas recentes</div>
+        <div class="sub">criadas depois de 19/05 — investigar se crescer</div>
+      </div>
+    </div>
+
     <!-- Signup trend chart + plan breakdown -->
     <div class="row cols-2">
       <div class="section">
@@ -300,6 +319,12 @@ function htmlAdminPage(stats, token) {
         Utilizadores
         <span class="sub">mostrando ${stats.users.length} mais recentes</span>
       </h2>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#888;margin-bottom:14px;padding:10px 14px;background:#fafcf7;border-radius:10px">
+        <span><span style="display:inline-block;background:#7CB518;color:#fff;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;vertical-align:middle">NEW</span> cadastro nos últimos 7 dias</span>
+        <span><span style="color:#7CB518;font-weight:900">✔</span> email confirmado</span>
+        <span><span style="color:#D4A843;font-weight:900">!</span> email não confirmado</span>
+        <span>— na coluna Dieta = utilizador ainda não escolheu dieta</span>
+      </div>
       <table>
         <thead><tr>
           <th>Email</th><th>Dieta</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
@@ -479,14 +504,28 @@ async function sendExpoPush(messages) {
   return { tickets, invalid: messages.length - valid.length };
 }
 
-function htmlAdminPushPage(token, lastResult = null) {
+function htmlAdminPushPage(token, lastResult = null, history = []) {
   const resultHtml = lastResult ? `<div class="result">${lastResult}</div>` : '';
+  const historyRows = history.map(h => {
+    const when = new Date(h.created_at).toLocaleString('pt-BR');
+    const filters = [h.locale, h.user_type].filter(Boolean).join(' · ') || 'todos';
+    return `<tr>
+      <td style="font-size:12px;color:#64748b;white-space:nowrap">${when}</td>
+      <td><strong>${h.title}</strong><div style="color:#64748b;font-size:12px">${h.body}</div></td>
+      <td style="font-size:12px;color:#64748b">${filters}${h.route ? ` → ${h.route}` : ''}</td>
+      <td style="text-align:center">${h.total_count}</td>
+      <td style="text-align:center;color:#16a34a;font-weight:700">${h.ok_count}</td>
+      <td style="text-align:center;color:#dc2626">${h.error_count}</td>
+      <td style="text-align:center;color:#d97706">${h.invalid_count}</td>
+    </tr>`;
+  }).join('');
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <title>Push Broadcast — NovaQI Admin</title>
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0B1E3F;color:#fff;margin:0;padding:32px;min-height:100vh}
-  .wrap{max-width:600px;margin:0 auto}
+  .wrap{max-width:900px;margin:0 auto}
   h1{font-size:24px;margin:0 0 24px}
+  h2{font-size:16px;margin:0 0 14px}
   .card{background:#fff;color:#0B1E3F;border-radius:16px;padding:24px;margin-bottom:16px}
   label{display:block;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px;color:#475569}
   input,textarea,select{width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:12px;font-size:15px;font-family:inherit;color:#0B1E3F}
@@ -496,6 +535,9 @@ function htmlAdminPushPage(token, lastResult = null) {
   .result{background:#dcfce7;color:#166534;padding:12px;border-radius:10px;margin-bottom:16px;font-size:14px}
   .small{font-size:12px;color:#64748b;margin-top:6px}
   a{color:#FFCB3B;text-decoration:none}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding:0 8px 8px}
+  td{padding:10px 8px;border-top:1px solid #f0f0f0;vertical-align:top}
 </style></head><body>
 <div class="wrap">
   <h1>📢 Push Broadcast</h1>
@@ -527,6 +569,17 @@ function htmlAdminPushPage(token, lastResult = null) {
     <p class="small">O link interno é guardado no <code>data.route</code> e o app navega para esse ecrã ao tocar.</p>
     <button type="submit">Enviar a todos os tokens com filtros activos</button>
   </form>
+
+  <div class="card">
+    <h2>Histórico — últimos ${history.length}</h2>
+    <table>
+      <thead><tr>
+        <th>Quando</th><th>Mensagem</th><th>Filtros</th><th>Total</th><th>✅ Ok</th><th>❌ Erro</th><th>🚫 Inválido</th>
+      </tr></thead>
+      <tbody>${historyRows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">Nenhum broadcast enviado ainda</td></tr>'}</tbody>
+    </table>
+  </div>
+
   <p style="text-align:center;font-size:13px"><a href="/admin">← Voltar ao admin</a></p>
 </div>
 </body></html>`;
@@ -1042,8 +1095,9 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const token = new URL(req.url, 'http://x').searchParams.get('token');
+      const history = await listPushBroadcasts(30);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(token));
+      res.end(htmlAdminPushPage(token, null, history));
       return;
     }
 
@@ -1068,8 +1122,9 @@ const server = http.createServer(async (req, res) => {
       const userType = (form.user_type || '').trim() || null;
       const route = (form.route || '').trim() || null;
       if (!title || !body) {
+        const history = await listPushBroadcasts(30);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios'));
+        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history));
         return;
       }
       const tokens = await listPushTokens({ locale, userType });
@@ -1083,9 +1138,14 @@ const server = http.createServer(async (req, res) => {
       const { tickets, invalid } = await sendExpoPush(messages);
       const ok = tickets.filter(t => t.status === 'ok').length;
       const errors = tickets.filter(t => t.status !== 'ok').length;
+      await logPushBroadcast({
+        title, body, locale, userType, route,
+        totalCount: tokens.length, okCount: ok, errorCount: errors, invalidCount: invalid,
+      });
       const summary = `✅ Enviadas: ${ok} · ❌ Erros: ${errors} · 🚫 Inválidos: ${invalid} · 📊 Total: ${tokens.length}`;
+      const history = await listPushBroadcasts(30);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(adminToken, summary));
+      res.end(htmlAdminPushPage(adminToken, summary, history));
       return;
     }
 

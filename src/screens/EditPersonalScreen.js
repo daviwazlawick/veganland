@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, ScrollView, Image, KeyboardAvoidingView, Platform,
+  TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,8 +29,12 @@ export default function EditPersonalScreen({ navigation }) {
   }
 
   async function handleSave() {
-    await saveProfile({ ...profile, name: name.trim(), bio: bio.trim(), photoUri });
-    navigation.goBack();
+    try {
+      await saveProfile({ ...profile, name: name.trim(), bio: bio.trim(), photoUri });
+      navigation.goBack();
+    } catch {
+      Alert.alert('', t(language, 'profile_setup.save_error'));
+    }
   }
 
   const initials = name.trim()

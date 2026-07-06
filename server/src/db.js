@@ -853,6 +853,31 @@ export async function listPushTokens({ locale, userType, includeAnonymous = fals
   return res.rows;
 }
 
+export async function logPushBroadcast({ title, body, locale, userType, route, totalCount, okCount, errorCount, invalidCount }) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(
+    `insert into push_broadcasts (title, body, locale, user_type, route, total_count, ok_count, error_count, invalid_count)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     returning id`,
+    [title, body, locale || null, userType || null, route || null, totalCount, okCount, errorCount, invalidCount]
+  );
+  return res.rows[0]?.id || null;
+}
+
+export async function listPushBroadcasts(limit = 30) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(
+    `select id, title, body, locale, user_type, route, total_count, ok_count, error_count, invalid_count, created_at
+       from push_broadcasts
+      order by created_at desc
+      limit $1`,
+    [limit]
+  );
+  return res.rows;
+}
+
 export async function deleteUserAccount(userId) {
   const db = await getPool();
   if (!db) throw new Error('No database');
@@ -961,7 +986,7 @@ export async function getAdminStats() {
   const [
     usersRes, totalScansRes, monthScansRes, recentScansRes, userStatsRes, costRes,
     newTodayRes, newWeekRes, newMonthRes, planBreakdownRes, signupTrendRes,
-    activeWeekRes, confirmedRes,
+    activeWeekRes, confirmedRes, dietStatsRes,
   ] = await Promise.all([
     db.query(`SELECT COUNT(*) AS total FROM users`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events`),
@@ -1001,6 +1026,13 @@ export async function getAdminStats() {
       WHERE created_at > now() - interval '7 days'
     `),
     db.query(`SELECT COUNT(*) AS total FROM users WHERE email_confirmed = true`),
+    db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE diet_id IS NULL)::int AS no_diet,
+        COUNT(*) FILTER (WHERE diet_id IS NULL AND created_at < '2026-05-19')::int AS no_diet_legacy,
+        COUNT(*) FILTER (WHERE diet_id IS NULL AND created_at >= '2026-05-19')::int AS no_diet_recent
+      FROM users
+    `),
   ]);
 
   const planBreakdown = { free: 0, starter: 0, premium: 0, admin: 0 };
@@ -1021,6 +1053,9 @@ export async function getAdminStats() {
     signup_trend: signupTrendRes.rows,
     active_users_7d: Number(activeWeekRes.rows[0].total),
     confirmed_users: Number(confirmedRes.rows[0].total),
+    no_diet: Number(dietStatsRes.rows[0].no_diet),
+    no_diet_legacy: Number(dietStatsRes.rows[0].no_diet_legacy),
+    no_diet_recent: Number(dietStatsRes.rows[0].no_diet_recent),
     users: userStatsRes.rows,
   };
 }

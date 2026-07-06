@@ -47,6 +47,8 @@ export default function ProfileSetupScreen({ navigation }) {
       } else {
         navigation.navigate('Main');
       }
+    } catch {
+      Alert.alert('', t(language, 'profile_setup.save_error'));
     } finally {
       setSaving(false);
     }
@@ -61,6 +63,8 @@ export default function ProfileSetupScreen({ navigation }) {
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
       navigation.navigate('Main');
+    } catch {
+      Alert.alert('', t(language, 'profile_setup.save_error'));
     } finally {
       setSaving(false);
     }

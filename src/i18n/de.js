@@ -80,6 +80,7 @@ export default {
     of: 'von',
     none: 'Keine',
     select_diet: 'Bitte wähle eine Ernährung',
+    save_error: "Profil konnte nicht gespeichert werden. Bitte Verbindung prüfen und erneut versuchen.",
     diet_step: 'Ernährung',
     allergies_step: 'Empfindlichkeiten',
     how_do_you_eat: 'Wie ernährst du dich?',
