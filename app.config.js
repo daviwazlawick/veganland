@@ -153,6 +153,21 @@ export default {
       ...fbPlugin,
       ...appleSignInPlugin,
       ...googleSignInPlugin,
+      // GoogleSignin -> AppCheckCore (Swift) -> GoogleUtilities + RecaptchaInterop.
+      // The latter two aren't modules by default, which blocks Swift pod integration
+      // as static libraries. Enable module maps for just those two so we don't have
+      // to flip `use_modular_headers!` globally (which would touch every pod).
+      [
+        'expo-build-properties',
+        {
+          ios: {
+            extraPods: [
+              { name: 'GoogleUtilities', modular_headers: true },
+              { name: 'RecaptchaInterop', modular_headers: true },
+            ],
+          },
+        },
+      ],
     ],
     updates: {
       url: `https://u.expo.dev/${isNovaQI ? '08a6532d-79dd-4681-924f-471645e23370' : '64fa402d-0f4c-4582-8879-e032ddaa946e'}`,
