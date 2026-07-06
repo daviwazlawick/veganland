@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiLogin, apiRegister, apiGetMe } from '../services/apiService';
+import { apiLogin, apiRegister, apiGetMe, apiOAuthSignIn } from '../services/apiService';
+import { signInWithApple, signInWithGoogle } from '../services/socialAuthService';
 import { loginPurchasesUser, logoutPurchasesUser } from '../services/purchasesService';
 import { logRegistration } from '../services/analyticsService';
 
@@ -64,6 +65,24 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
+  // Social sign-in — the backend does account linking automatically when the
+  // returned email matches an existing user, so this is the same call for
+  // signup + login. disclaimerVersion is only used when creating a new user;
+  // the backend ignores it on linking / returning users.
+  async function signInWithProvider(provider, { disclaimerVersion, referralCode } = {}) {
+    const native = provider === 'apple' ? await signInWithApple() : await signInWithGoogle();
+    const payload = provider === 'apple'
+      ? { identity_token: native.identityToken, email: native.email }
+      : { id_token: native.idToken, email: native.email };
+    if (disclaimerVersion) payload.disclaimer_version = disclaimerVersion;
+    if (referralCode) payload.referral_code = referralCode;
+    const data = await apiOAuthSignIn(provider, payload);
+    if (data.isNewUser) logRegistration(provider);
+    await persistAuth(data.token, data.user);
+    loginPurchasesUser(data.user.id).catch(() => {});
+    return data.user;
+  }
+
   async function logout() {
     setToken(null);
     setUser(null);
@@ -93,7 +112,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, isLoaded, login, register, logout, updateUserType, refreshUser }}>
+    <AuthContext.Provider value={{ token, user, isLoaded, login, register, signInWithProvider, logout, updateUserType, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

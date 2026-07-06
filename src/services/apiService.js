@@ -96,6 +96,17 @@ export async function apiRegister(email, password, disclaimerVersion, referralCo
   return data;
 }
 
+export async function apiOAuthSignIn(provider, payload) {
+  const response = await fetch(`${baseUrl()}/auth/${provider}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `${provider}_sign_in_failed`);
+  return data;
+}
+
 export async function apiGetReferral(token) {
   const response = await fetch(`${baseUrl()}/referral/me`, { headers: appHeaders(token) });
   const data = await response.json().catch(() => ({}));

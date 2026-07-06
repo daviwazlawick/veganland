@@ -15,6 +15,7 @@ import Brand from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
+import SocialAuthButtons from '../components/SocialAuthButtons';
 
 const DISCLAIMER_VERSION = '1.0';
 
@@ -327,6 +328,13 @@ export default function RegisterScreen({ navigation }) {
             >
               <Text style={styles.btnText}>{t(language, 'auth.next_step')} →</Text>
             </TouchableOpacity>
+
+            <SocialAuthButtons
+              disclaimerVersion={DISCLAIMER_VERSION}
+              referralCode={referralCode && referralCode.length === 6 ? referralCode : null}
+              onError={(msg) => setError(msg)}
+            />
+            <Text style={styles.socialTermsHint}>{t(language, 'auth.social_terms_hint')}</Text>
           </View>
 
           <View style={styles.footer}>
@@ -430,6 +438,10 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
   footerLink: { fontSize: 14, color: Colors.primary, fontWeight: '800' },
+  socialTermsHint: {
+    fontSize: 10, color: Colors.textMuted, textAlign: 'center',
+    marginTop: 4, paddingHorizontal: 12, lineHeight: 14,
+  },
   // Step 2 — disclaimer
   backBtn: { alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 2, marginBottom: 4 },
   backBtnText: { fontSize: 14, color: Colors.primary, fontWeight: '700' },

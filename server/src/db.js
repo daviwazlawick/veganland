@@ -450,6 +450,82 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
   return user;
 }
 
+// --- OAuth (Sign in with Apple / Google) ---
+// providers: 'apple' | 'google'. Columns are apple_sub / google_sub.
+// Users created via OAuth have password_hash = null and email_confirmed = true
+// (the identity provider already verified the address, or emitted a relay one).
+
+const OAUTH_SUB_COLUMN = { apple: 'apple_sub', google: 'google_sub' };
+
+function oauthColumn(provider) {
+  const col = OAUTH_SUB_COLUMN[provider];
+  if (!col) throw new Error(`Unsupported OAuth provider: ${provider}`);
+  return col;
+}
+
+export async function findUserByOAuthSub(provider, sub) {
+  const db = await getPool();
+  if (!db || !sub) return null;
+  const col = oauthColumn(provider);
+  const res = await db.query(
+    `select id, email, email_confirmed, created_at from users where ${col} = $1`,
+    [sub]
+  );
+  return res.rows[0] || null;
+}
+
+export async function linkOAuthToUser(userId, provider, sub) {
+  const db = await getPool();
+  if (!db) throw new Error('No database');
+  const col = oauthColumn(provider);
+  await db.query(
+    `update users set ${col} = $1, oauth_provider = coalesce(oauth_provider, $2) where id = $3`,
+    [sub, provider, userId]
+  );
+}
+
+export async function createOAuthUser({ email, provider, sub, disclaimerVersion, referralCodeInput = null }) {
+  const db = await getPool();
+  if (!db) throw new Error('No database');
+  const normalizedEmail = email.toLowerCase().trim();
+  const col = oauthColumn(provider);
+  const disclaimerAt = disclaimerVersion ? new Date() : null;
+
+  let referrerId = null;
+  if (referralCodeInput) {
+    const code = normalizeCode(referralCodeInput);
+    const ref = await db.query('select id from users where referral_code = $1', [code]);
+    referrerId = ref.rows[0]?.id || null;
+  }
+
+  let newCode = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateReferralCode();
+    const taken = await db.query('select 1 from users where referral_code = $1', [candidate]);
+    if (taken.rowCount === 0) { newCode = candidate; break; }
+  }
+
+  const result = await db.query(
+    `insert into users (email, ${col}, oauth_provider, email_confirmed,
+                        disclaimer_accepted_at, disclaimer_version,
+                        referral_code, referred_by_user_id)
+     values ($1, $2, $3, true, $4, $5, $6, $7)
+     returning id, email, created_at`,
+    [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId]
+  );
+  const user = result.rows[0];
+  if (referrerId) {
+    await db.query(
+      `insert into referral_events (referrer_id, referred_id, status)
+       values ($1, $2, 'pending')
+       on conflict do nothing`,
+      [referrerId, user.id]
+    );
+    await grantBonusScans(user.id, REFERRED_SIGNUP_BONUS);
+  }
+  return user;
+}
+
 export const REFERRED_SIGNUP_BONUS = 10;
 export const REFERRER_REWARD_BONUS = 30;
 

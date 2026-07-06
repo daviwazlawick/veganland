@@ -11,6 +11,7 @@ import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
+import SocialAuthButtons from '../components/SocialAuthButtons';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -144,6 +145,10 @@ export default function LoginScreen({ navigation }) {
             <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
               <Text style={styles.forgotText}>{t(language, 'auth.forgot_password')}</Text>
             </TouchableOpacity>
+
+            <SocialAuthButtons
+              onError={(msg) => setErrorMessage(msg)}
+            />
           </View>
 
           <View style={styles.footer}>

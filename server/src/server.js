@@ -1,7 +1,8 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser } from './db.js';
+import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
 import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
@@ -862,6 +863,78 @@ const server = http.createServer(async (req, res) => {
         const token = generateToken(user.id, user.email);
         sendJson(res, 201, { token, user: { id: user.id, email: user.email }, emailConfirmationSent: false }, origin);
       }
+      return;
+    }
+
+    // POST /auth/google | POST /auth/apple — OAuth sign-in.
+    // App sends the provider's id_token; we validate, then
+    // (a) find user by sub → sign in, or
+    // (b) find user by email → link the sub and sign in, or
+    // (c) create a new OAuth-only user (password_hash null, email_confirmed true).
+    // Response always: { token, user: { id, email }, isNewUser }
+    if (req.method === 'POST' && (req.url === '/auth/google' || req.url === '/auth/apple')) {
+      const provider = req.url === '/auth/google' ? 'google' : 'apple';
+      const body = await readJsonBody(req);
+      const rawToken = provider === 'google' ? body.id_token : body.identity_token;
+      const referralCode = body.referral_code && isValidCodeShape(body.referral_code)
+        ? normalizeCode(body.referral_code) : null;
+      const disclaimerVersion = body.disclaimer_version || null;
+      // Apple returns the email only on the very first sign-in; the app may
+      // forward it in body.email to help us create the account on that first pass.
+      const emailFallback = (body.email || '').toLowerCase().trim() || null;
+
+      let identity;
+      try {
+        identity = provider === 'google'
+          ? await verifyGoogleIdToken(rawToken)
+          : await verifyAppleIdentityToken(rawToken);
+      } catch (e) {
+        sendJson(res, 401, { error: 'invalid_oauth_token', reason: e.message }, origin);
+        return;
+      }
+      const { sub } = identity;
+      const email = identity.email || emailFallback;
+
+      // (a) already linked
+      let user = await findUserByOAuthSub(provider, sub);
+
+      // (b) match by email → link
+      if (!user && email) {
+        const byEmail = await findUserByEmail(email);
+        if (byEmail) {
+          await linkOAuthToUser(byEmail.id, provider, sub);
+          user = byEmail;
+        }
+      }
+
+      // (c) new user
+      let isNewUser = false;
+      if (!user) {
+        if (!email) {
+          // Apple subsequent sign-in with no email + no existing account.
+          // Ask the app to sign the user out of Apple ID once so the next
+          // request carries the email claim again.
+          sendJson(res, 409, { error: 'apple_email_missing_reauth_required' }, origin);
+          return;
+        }
+        if (!disclaimerVersion) {
+          sendJson(res, 400, { error: 'disclaimer_acceptance is required' }, origin);
+          return;
+        }
+        user = await createOAuthUser({
+          email, provider, sub,
+          disclaimerVersion,
+          referralCodeInput: referralCode,
+        });
+        isNewUser = true;
+      }
+
+      const token = generateToken(user.id, user.email);
+      sendJson(res, 200, {
+        token,
+        user: { id: user.id, email: user.email },
+        isNewUser,
+      }, origin);
       return;
     }
 

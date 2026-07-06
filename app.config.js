@@ -8,6 +8,14 @@ const fbAppId = process.env.EXPO_PUBLIC_FB_APP_ID || '';
 const fbClientToken = process.env.EXPO_PUBLIC_FB_CLIENT_TOKEN || '';
 const fbConfigured = !!(fbAppId && fbClientToken);
 
+// Google Sign-In (NovaQI only). iOS URL scheme is the REVERSED_CLIENT_ID from
+// GoogleService-Info.plist (e.g. com.googleusercontent.apps.1234567890-abc).
+const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME || '';
+const googleSignInPlugin = isNovaQI && googleIosUrlScheme
+  ? [['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }]]
+  : [];
+const appleSignInPlugin = isNovaQI ? ['expo-apple-authentication'] : [];
+
 const SKADNETWORK_IDS = [
   'v9wttpbfk9.skadnetwork',
   'n38lu8286q.skadnetwork',
@@ -66,7 +74,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.12', // NEVER bump without a new native build — runtimeVersion = appVersion
+    version: '1.0.13', // NEVER bump without a new native build — runtimeVersion = appVersion
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -82,6 +90,10 @@ export default {
       // Firebase config for iOS — required by @react-native-firebase/app at prebuild.
       // File is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './GoogleService-Info.plist' : undefined,
+      // Sign in with Apple — adds the entitlement so EAS bakes it into the
+      // provisioning profile. Requires the capability enabled in the Apple
+      // Developer portal for App ID app.novaqi.
+      usesAppleSignIn: isNovaQI,
       infoPlist: {
         NSCameraUsageDescription: `${B} needs camera access to scan product labels and ingredients.`,
         NSPhotoLibraryUsageDescription: `${B} needs photo library access to analyze product images.`,
@@ -102,7 +114,7 @@ export default {
       // Without this, the ID is zeroed and Meta Ads attribution breaks.
       permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
       edgeToEdgeEnabled: true,
-      versionCode: 15,
+      versionCode: 16,
       // Firebase config — required for FCM (push) and Firebase Analytics.
       // The file is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './google-services.json' : undefined,
@@ -139,6 +151,8 @@ export default {
       // Re-add Firebase Analytics once a stable Expo+RNFirebase combination
       // ships that handles modular headers correctly.
       ...fbPlugin,
+      ...appleSignInPlugin,
+      ...googleSignInPlugin,
     ],
     updates: {
       url: `https://u.expo.dev/${isNovaQI ? '08a6532d-79dd-4681-924f-471645e23370' : '64fa402d-0f4c-4582-8879-e032ddaa946e'}`,
