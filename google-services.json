@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "529528181342-2ci41o01dffrqd4ceh6mehfm8ujcb17q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.novaqi",
+            "certificate_hash": "fea114db2c0a5dea5a7a26cd6e1f26a4afd1baee"
+          }
+        },
+        {
           "client_id": "529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com",
           "client_type": 3
         }
