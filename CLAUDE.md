@@ -375,7 +375,7 @@ REVENUECAT_WEBHOOK_SECRET=...
 
 **`users`**
 - `email_confirmed BOOLEAN NOT NULL DEFAULT false`
-- `diet_id TEXT`, `allergy_ids TEXT[]`
+- `diet_id TEXT`, `allergy_ids JSONB NOT NULL DEFAULT '[]'` (não é `TEXT[]` — é `jsonb`; `updateUserProfile` em `db.js` usa `JSON.stringify()` no valor, compatível)
 - `user_type TEXT NOT NULL DEFAULT 'free'` — valores: `free`, `starter`, `premium`, `admin`
 
 **`scan_counters`**
@@ -386,6 +386,12 @@ REVENUECAT_WEBHOOK_SECRET=...
 
 **`scan_events`**
 - `user_id`, `product_id`, `status`, `title`, `source`, `language`, `result JSONB`, `created_at`
+
+**`push_tokens`** (migração `019_push_tokens.sql`)
+- `user_id`, `token` (unique), `platform` (`ios`/`android`/`web`), `locale`, `last_seen_at`
+
+**`push_broadcasts`** (migração `020_push_broadcasts.sql`)
+- `title`, `body`, `locale`, `user_type`, `route`, `total_count`, `ok_count`, `error_count`, `invalid_count`, `created_at` — histórico de envios feitos em `/admin/push`
 
 ---
 
@@ -567,6 +573,26 @@ Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
 - **`POST /admin/logout`** — limpa o cookie.
 - **`GET/POST /admin/push*`** — broadcast de push continua a usar um token admin separado (lifetime, via query `?token=`), não o cookie de sessão.
 - Antes disto o admin era acessível por token estático direto na URL — mudou pra reduzir exposição (token na URL fica em logs/histórico).
+
+### Legenda da tabela de utilizadores (dashboard `/admin`)
+- Barra de legenda sempre visível acima da tabela (não só tooltip no hover): `NEW` = cadastro nos últimos 7 dias · `✔` verde = email confirmado · `!` amarelo = email não confirmado · `—` na coluna Dieta = utilizador ainda não escolheu dieta.
+
+### Diagnóstico de dieta (cards no dashboard)
+- `stats.no_diet` / `no_diet_legacy` / `no_diet_recent` — contagem de users com `diet_id IS NULL`, dividida em antes/depois de `2026-05-19` (data em que o diet-sync com o servidor entrou em produção, commit `213daf9`). Serve pra distinguir contas antigas que nunca vão ter dieta (legado, sem solução retroactiva) de um problema activo (se `no_diet_recent` crescer, investigar).
+- Implementado em `getAdminStats()` (`server/src/db.js`) + cards no `htmlAdminPage()` (`server/src/server.js`).
+
+### Push Broadcast — histórico (`push_broadcasts` table, migração `020_push_broadcasts.sql`)
+- Antes disto, cada broadcast de push (`POST /admin/push/broadcast`) só mostrava um resumo efémero na própria página — nada era persistido.
+- Agora cada envio grava `title, body, locale, user_type, route, total_count, ok_count, error_count, invalid_count, created_at` em `push_broadcasts` (`logPushBroadcast` em `db.js`).
+- `GET /admin/push` lista os últimos 30 broadcasts numa tabela abaixo do formulário (`listPushBroadcasts`).
+
+### RevenueCat — utilizadores contados divergem do Admin (não é bug)
+- RevenueCat pode mostrar bem mais utilizadores que o admin (ex: 200+ vs ~100+). **Motivo:** `initPurchases()` roda no module-scope de `App.js` — o SDK é inicializado assim que o app abre, antes de qualquer login, criando um "customer" anónimo no RevenueCat pra qualquer pessoa que apenas abra o app. Só `loginPurchasesUser(userId)` (chamado em `AuthContext` após login, ver `purchasesService.native.js`) associa esse ID anónimo a uma conta real. O admin conta só linhas reais na tabela `users`. A diferença é gente que abriu o app e nunca se registou — normal, não precisa de fix.
+
+### Bug corrigido: falha silenciosa ao salvar perfil (dieta/alergias)
+- `AppContext.saveProfile()` engolia qualquer erro da API (`catch {}`) — se o `PATCH /user/profile` falhasse por qualquer motivo, o user nunca sabia e seguia em frente achando que salvou. Auditoria não achou bug activo na query SQL (a coluna `allergy_ids` é `jsonb`, compatível com o `JSON.stringify` usado em `updateUserProfile`), mas a falha silenciosa em si já é um problema de observabilidade.
+- Corrigido: `saveProfile()` agora propaga o erro; `ProfileSetupScreen` e `EditPersonalScreen` mostram alerta (`profile_setup.save_error`, 6 idiomas) e permitem tentar de novo em vez de navegar como se tivesse dado certo.
+- Contas antigas sem dieta (criadas antes do diet-sync existir) não têm solução retroactiva automática — ver "Diagnóstico de dieta" acima.
 
 ---
 
