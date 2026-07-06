@@ -11,6 +11,7 @@
     "build:android:veganland": "eas build --platform android --profile veganland-android",
     "build:ios:novaqi": "eas build --platform ios --profile novaqi-ios",
     "build:ios:veganland": "eas build --platform ios --profile veganland-ios",
+    "doctor": "npx expo-doctor",
     "submit:android:novaqi": "eas submit --platform android --profile novaqi-android",
     "submit:ios:novaqi": "eas submit --platform ios --profile novaqi-ios",
     "update:novaqi": "rm -rf .expo && BRAND=novaqi EXPO_PUBLIC_BRAND=novaqi EXPO_PUBLIC_API_URL=https://novaqi.app EXPO_PUBLIC_APP_API_KEY=79se0AyWPbh963SvguuDFi10JsT0Mr9U EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_YnmIYLSJyriFzhvfSSnypZCFibv EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_yitutMbhXnSxJFnCqDqkNunlogI EXPO_PUBLIC_FB_APP_ID=1717962282965252 EXPO_PUBLIC_FB_CLIENT_TOKEN=0217ebfebacd37d56743ae72d0faa08b EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd.apps.googleusercontent.com eas update --branch production --clear-cache",
