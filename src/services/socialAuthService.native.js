@@ -1,9 +1,23 @@
 import { Platform } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
+
+// Guard native module resolution so this bundle can run on older runtimes
+// (e.g. 1.0.12) that don't have expo-apple-authentication or
+// @react-native-google-signin/google-signin baked in yet. When the modules
+// aren't there, the require throws and we fall back to "unavailable" — the
+// UI hides the buttons instead of crashing on load.
+let AppleAuthentication = null;
+let GoogleSignin = null;
+let statusCodes = null;
+
+try {
+  AppleAuthentication = require('expo-apple-authentication');
+} catch { /* not installed in this native build */ }
+
+try {
+  const g = require('@react-native-google-signin/google-signin');
+  GoogleSignin = g.GoogleSignin;
+  statusCodes = g.statusCodes;
+} catch { /* not installed in this native build */ }
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
@@ -11,15 +25,15 @@ const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 let googleConfigured = false;
 
 export function isAppleAuthAvailable() {
-  return Platform.OS === 'ios';
+  return Platform.OS === 'ios' && !!AppleAuthentication?.signInAsync;
 }
 
 export function isGoogleAuthAvailable() {
-  return !!GOOGLE_WEB_CLIENT_ID;
+  return !!GOOGLE_WEB_CLIENT_ID && !!GoogleSignin;
 }
 
 export async function initSocialAuth() {
-  if (!GOOGLE_WEB_CLIENT_ID || googleConfigured) return;
+  if (!GOOGLE_WEB_CLIENT_ID || !GoogleSignin || googleConfigured) return;
   GoogleSignin.configure({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
@@ -28,10 +42,8 @@ export async function initSocialAuth() {
   googleConfigured = true;
 }
 
-// Returns { idToken, email } — caller sends idToken to /auth/google. Throws
-// with err.userCancelled = true when the user dismisses the sheet, so screens
-// can silently ignore that case.
 export async function signInWithGoogle() {
+  if (!GoogleSignin) throw new Error('google_not_available');
   if (!GOOGLE_WEB_CLIENT_ID) throw new Error('google_not_configured');
   await initSocialAuth();
   try {
@@ -42,7 +54,7 @@ export async function signInWithGoogle() {
     if (!idToken) throw new Error('google_no_id_token');
     return { idToken, email };
   } catch (e) {
-    if (e?.code === statusCodes.SIGN_IN_CANCELLED || e?.code === statusCodes.IN_PROGRESS) {
+    if (e?.code === statusCodes?.SIGN_IN_CANCELLED || e?.code === statusCodes?.IN_PROGRESS) {
       const cancel = new Error('cancelled');
       cancel.userCancelled = true;
       throw cancel;
@@ -51,10 +63,8 @@ export async function signInWithGoogle() {
   }
 }
 
-// Returns { identityToken, email, fullName } — Apple only returns email/name
-// on the FIRST sign-in for a given user. We forward them so the backend can
-// create the account on that pass. Subsequent sign-ins just get the sub.
 export async function signInWithApple() {
+  if (!AppleAuthentication?.signInAsync) throw new Error('apple_not_available');
   if (Platform.OS !== 'ios') throw new Error('apple_ios_only');
   try {
     const credential = await AppleAuthentication.signInAsync({

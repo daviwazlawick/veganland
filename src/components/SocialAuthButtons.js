@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { isAppleAuthAvailable, isGoogleAuthAvailable, initSocialAuth } from '../services/socialAuthService';
+
+// Guard so OTA bundles pushed to older runtimes (which don't have the module
+// linked yet) don't crash on load — the buttons just don't render.
+let AppleAuthentication = null;
+try { AppleAuthentication = require('expo-apple-authentication'); } catch {}
 
 // Native-only social sign-in row. Shows Continue-with-Apple on iOS and
 // Continue-with-Google whenever the Google client ID is configured. Silent on
@@ -47,7 +51,7 @@ export default function SocialAuthButtons({ disclaimerVersion, referralCode, onE
         <View style={styles.line} />
       </View>
 
-      {showApple && (
+      {showApple && AppleAuthentication?.AppleAuthenticationButton && (
         Platform.OS === 'ios' ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
