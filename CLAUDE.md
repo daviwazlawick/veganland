@@ -79,15 +79,23 @@ src/
     PaywallScreen.js        — planos Free/Starter/Premium com RevenueCat
     ProfileSetupScreen.js   — dieta + alergias (usado em edição também)
     EditPersonalScreen.js   — nome + bio + avatar
+    ReferralScreen.js       — código de referral + progresso + partilhar
+    DeleteAccountScreen.js  — apagar conta
   context/
-    AppContext.js   — profile, language, scan history, saveProfile()
-    AuthContext.js  — login, register, logout, token JWT, updateUserType()
+    AppContext.js      — profile, language, scan history, saveProfile()
+    AuthContext.js     — login, register, logout, token JWT, updateUserType()
+    ReferralContext.js — lê clipboard por código pendente, armazena em AsyncStorage
   services/
-    apiService.js               — chamadas HTTP ao servidor
-    purchasesService.native.js  — RevenueCat SDK (iOS/Android)
-    purchasesService.js         — no-ops para web
+    apiService.js                  — chamadas HTTP ao servidor
+    purchasesService.native.js     — RevenueCat SDK (iOS/Android) — chaves hardcoded aqui
+    purchasesService.js            — no-ops para web
+    analyticsService.native.js     — Meta SDK (App ID/Client Token, eventos)
+    analyticsService.js            — no-ops para web
+    notificationsService.native.js — Expo push token registration
+    notificationsService.js        — no-ops para web
   hooks/
-    useForceUpdate.js — verifica versão mínima no servidor ao arrancar
+    useForceUpdate.js      — verifica versão mínima no servidor ao arrancar
+    usePushNotifications.js — regista push token + deep-link no tap
   constants/
     allergies.js    — ALLERGIES[] com id, icon, label por idioma
     diets.js        — DIETS[] com id, icon, label por idioma
@@ -122,8 +130,12 @@ server/src/
   support.js      — HTML da página /support (formulário de contacto GDPR)
   about.js        — HTML da página /about (marketing, multilíngue)
   web_i18n.js     — traduções para /about e /support (6 idiomas, detecta Accept-Language)
-  migrate.js      — migrações de BD
+  migrate.js      — migrações de BD (roda os ficheiros em migrations/ que ainda não correram)
+  migrations/     — SQL numerado (017_referrals.sql, 018_bonus_scans.sql, 019_push_tokens.sql, etc.)
   openFoodFacts.js — lookup por barcode e nome
+  referralCode.js  — gera código único de 6 chars (sem 0/1/O/I)
+  backfillReferralCodes.js — gerou códigos pros users existentes antes do referral program
+  env.js           — carrega .env manualmente (sem dependência dotenv)
 ```
 
 ---
@@ -181,8 +193,9 @@ server/src/
 ### RevenueCat — chaves API
 - iOS: `appl_yitutMbhXnSxJFnCqDqkNunlogI`
 - Android: `goog_YnmIYLSJyriFzhvfSSnypZCFibv`
-- Configuradas em `src/services/purchasesService.native.js` e `eas.json`
+- **As chaves reais usadas em runtime estão HARDCODED em `RC_KEYS` no `src/services/purchasesService.native.js`** — os `EXPO_PUBLIC_REVENUECAT_*` no `eas.json`/scripts npm nunca chegam a ser lidos (só existem como fallback morto no código). Pra mudar a chave, editar `purchasesService.native.js` directamente.
 - **Nota:** mudança de chaves RC requer novo build nativo (não é OTA)
+- **Bug corrigido (1.0.12):** `entitlementToUserType(null)` tinha fallback errado pra `'starter'` em vez de `'free'` — qualquer user tocando "Restaurar compras" sem ter comprado nada ganhava o plano starter grátis. Corrigido para retornar `'free'` quando não há entitlement activo.
 
 ### Meta / Facebook Ads tracking (1.0.10+)
 
@@ -251,11 +264,12 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 
 | Campo | Valor |
 |---|---|
-| version | `1.0.10` |
-| versionCode (Android) | `12` |
+| version | `1.0.12` |
+| versionCode (Android) | `15` |
 | bundleIdentifier iOS | `app.novaqi` |
 | package Android | `app.novaqi` |
 | runtimeVersion policy | `appVersion` — OTA só chega a builds com a mesma versão |
+| force update `min` (servidor) | `1.0.12` (iOS + Android) — confirmar em `GET /app/version` |
 
 **Histórico:**
 - 1.0.5 — rejeitado pela Apple (BetaRibbon, planos bloqueados, etc.)
@@ -264,7 +278,8 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 - 1.0.8 — **aprovado pela Apple** ✅, RC iOS key corrigida
 - 1.0.9 — fixes barcode/OFF fallback, MAY CONTAIN, traces, cache
 - 1.0.10 — **Meta SDK + ATT** (CompleteRegistration, StartTrial, Subscribe, Scan); Privacy Policy actualizada
-- 1.0.11 — **a submeter** — Push Notifications (APNs + FCM via Expo Push Service) + Firebase Analytics SDK + Programa de referência (referrals com bónus de scans). Para detalhes ver secções "Push Notifications", "Programa de Referência" e "Firebase / Google Ads"
+- 1.0.11 — **aprovado e em produção** (iOS + Android, Android já publicado na Play Store) — Push Notifications (APNs + FCM via Expo Push Service) + Programa de referência (referrals com bónus de scans). Firebase Analytics SDK foi tentado e **revertido** por incompatibilidade com Expo SDK 54 (ver secção "Firebase Analytics — tentativa revertida")
+- 1.0.12 — fix do Meta Client Token (tinha um char a mais no `eas.json`, quebrava auth do SDK), fix de bug no RevenueCat (`entitlementToUserType` dava plano starter grátis via "Restaurar compras"), force update `min` bumped pra 1.0.12 em ambas plataformas
 
 ---
 
@@ -282,13 +297,15 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 
 **OTA update command:**
 ```bash
-# Não usar npm run update:novaqi directamente (falha em modo non-interactive)
 EXPO_PUBLIC_BRAND=novaqi EXPO_PUBLIC_API_URL=https://novaqi.app \
 EXPO_PUBLIC_APP_API_KEY=79se0AyWPbh963SvguuDFi10JsT0Mr9U \
 EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_YnmIYLSJyriFzhvfSSnypZCFibv \
 EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_yitutMbhXnSxJFnCqDqkNunlogI \
+EXPO_PUBLIC_FB_APP_ID=1717962282965252 \
+EXPO_PUBLIC_FB_CLIENT_TOKEN=0217ebfebacd37d56743ae72d0faa08b \
 eas update --branch production --message "descrição"
 ```
+`npm run update:novaqi` no `package.json` já espelha este comando completo (RC key e FB vars foram corrigidas em 1.0.12), mas historicamente falhava em modo non-interactive — preferir correr o comando manual acima directamente. **Cuidado ao editar esse script:** se faltarem `EXPO_PUBLIC_FB_APP_ID`/`EXPO_PUBLIC_FB_CLIENT_TOKEN`, o OTA desliga o SDK do Meta silenciosamente (`fbConfigured` fica `false`).
 
 ---
 
@@ -440,31 +457,25 @@ cd /opt/veganland && node server/src/migrate.js
 ## Estado actual / Próximos passos
 
 ### Lançado ✅
-- NovaQI iOS — aprovado pela Apple (v1.0.8 → 1.0.9 em produção)
+- NovaQI iOS — aprovado pela Apple, em produção (1.0.12 mais recente)
+- NovaQI Android — publicado na Play Store
 - Web: novaqi.app + veganland.app
-
-### A submeter (1.0.10)
-- [ ] Obter `EXPO_PUBLIC_FB_APP_ID` + `EXPO_PUBLIC_FB_CLIENT_TOKEN` no Meta for Developers
-- [ ] Preencher env vars em `eas.json` (perfis novaqi-ios + novaqi-android)
-- [ ] Aceitar Data Processing Addendum em Meta Business Settings
-- [ ] `npm install` + `npm run build:ios:novaqi` + `npm run build:android:novaqi`
-- [ ] Actualizar Privacy Nutrition Labels no App Store Connect (Data Used to Track You)
-- [ ] Actualizar Data Safety no Google Play Console
-- [ ] Configurar eventos no Meta Events Manager (Subscribe = primary conversion, AEM schema iOS)
+- Meta SDK + ATT (1.0.10); Push Notifications + Programa de Referência (1.0.11)
+- Force update `min` 1.0.12 activo em ambas plataformas
+- Admin panel: acesso via handoff da app (JWT → token one-shot → cookie HttpOnly), ver secção "Admin Panel"
 
 ### Pendente
-- [ ] Lançamento Android (Google Play — conta em verificação)
-- [x] ~~Actualizar `store_url` em `/app/version` após publicação nas lojas~~ — URLs reais já no STORE_LINKS
-- [ ] Integração RevenueCat completa (IAP products no App Store Connect + Paid Apps Agreement)
-- [ ] google-play-key.json para submissão automática via EAS
+- [ ] Confirmar se falta algo na integração RevenueCat (IAP products no App Store Connect + Paid Apps Agreement)
+- [ ] `google-play-key.json` para submissão automática via EAS (upload do `.aab` ainda é manual)
 - [ ] Testes end-to-end do fluxo de confirmação de email
 - [ ] Admin: endpoint para inserir/editar produtos manualmente na BD
-- [x] ~~Push notifications~~ — em 1.0.11, a aguardar review
 - [ ] Conversions API server-side via webhook RevenueCat (deduplicação com Pixel — fase 2)
+- [ ] Limpar `google-services.json`/`GoogleService-Info.plist` órfãos (Firebase revertido) se não for reativar
+- [ ] VeganLand: publicar app própria nas lojas (hoje só web, funil de rebrand pra NovaQI) — flip `rebrandToNovaqi: false` quando acontecer
 
 ---
 
-## 1.0.11 (a submeter)
+## 1.0.11 — aprovado e em produção (iOS + Android)
 
 Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
 
@@ -489,7 +500,7 @@ Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
 - **Backfill:** `server/src/backfillReferralCodes.js` (gerou códigos para os 54 users existentes)
 - **Anti-fraude:** `users.email UNIQUE` + `referred_by_user_id` set uma vez + `referral_events UNIQUE (referrer_id, referred_id)` + qualificação exige scan real
 
-### 2) Push Notifications — 1.0.11 (a aguardar review)
+### 2) Push Notifications — 1.0.11 (aprovado, em produção)
 
 - **Stack:** `expo-notifications@~0.32.17` + `expo-device@~8.0.10` + Expo Push Service (relay para APNs/FCM)
 - **Não é OTA** — requer build nativo. Versão bumped 1.0.10 → 1.0.11, versionCode 12 → 13
@@ -507,20 +518,14 @@ Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
 - **nginx:** routes `/push/.+` e `/admin/push|/admin/push/.+` adicionadas em ambos sites
 - **Ícone de notificação:** `assets/novaqi/notification-icon.png` (96×96 white silhouette do target NovaQI, desenhado em PIL)
 
-### 3) Firebase Analytics SDK — para Google Ads UAC
+### 3) Firebase Analytics SDK — tentativa revertida (não está em produção)
 
-- **Stack:** `@react-native-firebase/app@^22.4.0` + `@react-native-firebase/analytics@^22.4.0`
-  - **IMPORTANTE:** v25 falha com "non-modular header" em Expo SDK 54. Sempre usar v22.x até confirmar compat.
-  - v22 só ship plugin para `app`, não `analytics` — apenas `@react-native-firebase/app` está no `plugins` do `app.config.js`
-- **`expo-build-properties`:** `useFrameworks: 'static'` + `deploymentTarget: '15.1'` (Firebase 22 precisa iOS 15+)
-- **Config files no repo:**
-  - `google-services.json` (Android, package `app.novaqi`, project `novaqi-9dd63`)
-  - `GoogleService-Info.plist` (iOS, bundle `app.novaqi`, mesmo project)
-  - `firebase.json` — `analytics_auto_collection_enabled: false` (defesa Apple ATT — só liga após consent)
-- **`analyticsService.native.js`** dispara eventos em paralelo para Meta + Firebase, usando event names canónicos do Firebase para Google Ads optimisation:
-  - `sign_up` (registo), `begin_checkout` (trial start), `purchase` com value+currency (subscribe), `product_scan`, `share`, `referral_qualified`
-- **Privacy Policy** (`legal.js` secção 11) tem clauses Meta + Google. Secção 12 cobre Push Notifications.
-- **App Store / Play Store Privacy Labels:** marcar Google ao mesmo nível que Meta (Device ID + Product Interaction → Third-Party Advertising + Developer's Advertising + Analytics)
+- **Foi tentado e removido** (commit `87739aa`) — `@react-native-firebase/app` + `expo-build-properties` (`useFrameworks: 'static'`) são incompatíveis com Expo SDK 54 / RN 0.81 (framework `RNFBApp` não consegue importar `React/RCTConvert.h` como modular header). O erro persistiu mesmo com downgrade pra v22.x e vários workarounds de pods/modular headers.
+- **`analyticsService.native.js` dispara eventos só para o Meta agora.** Os event names Firebase (`sign_up`, `begin_checkout`, `purchase`, `product_scan`, `share`, `referral_qualified`) mencionados numa versão anterior deste doc eram para o SDK do Firebase — foram descontinuados junto com a remoção.
+- `google-services.json` e `GoogleService-Info.plist` continuam no repo e referenciados em `app.config.js` (`ios.googleServicesFile` / `android.googleServicesFile`) mas estão **órfãos** — nenhum plugin nativo os processa mais. Inofensivo, mas candidatos a limpeza futura.
+- **Push notifications não dependem do Firebase** — `expo-notifications` fala directo com o Expo Push Service (relay pra APNs/FCM), sem precisar do SDK nativo do Firebase.
+- Atribuição de instalação pra Google Ads hoje depende de Play Install Referrer + SKAdNetwork (iOS), não de Firebase Analytics.
+- **Se for reativar no futuro:** esperar uma combinação estável Expo+RNFirebase que resolva o modular header, ou trocar a estratégia de `useFrameworks`.
 
 ### 4) Brand Migration (VeganLand → NovaQI)
 
@@ -544,14 +549,34 @@ Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
 ### 6) Force Update
 
 - `GET /app/version` actualizado com URLs reais (de `STORE_LINKS[host]`)
-- `min` actualmente em **1.0.10** — qualquer pessoa em ≤1.0.9 cai em `ForceUpdateScreen`
-- Para forçar 1.0.11 depois de aprovado: editar `server/src/server.js` (~linha 736) → `min: '1.0.11'` → `pm2 restart veganland-api --update-env`
+- `min` actualmente em **1.0.12** (iOS + Android) — qualquer pessoa em ≤1.0.11 cai em `ForceUpdateScreen`
+- Para forçar uma nova versão depois de aprovada: editar `server/src/server.js` (~linha 768, dentro de `GET /app/version`) → `min: 'X.X.X'` pra `ios`/`android` → `git pull && pm2 restart veganland-api --update-env` no servidor
 
 ### 7) OFF (OpenFoodFacts) — fix anterior
 
 - Bug de fim de Junho: produtos antigos guardados por imagem retornavam `productInfo.offMeta = null`. Corrigido em commit `2387b7e` (on-read enrichment) + `518127c` / `efdec09` (URLs reais).
 - `buildOffMeta` agora lê de `raw.nutriments` (API live shape) OU `raw` flat (bulk dump shape).
 - Use OFF API com User-Agent `VeganLand/1.0 (https://veganland.app)` (sem ele o WAF bloqueia respostas com HTML).
+
+---
+
+## Admin Panel — modelo de acesso (`server.js`)
+
+- **`GET /admin`** — cookie-first. Se não houver cookie `admin_session` válido, aceita um `?token=` one-shot vindo do handoff da app, troca por um cookie `HttpOnly; Secure; SameSite=Strict` (4h de validade) e redireciona pra `/admin` limpo (token não fica no histórico do browser).
+- **`POST /admin/handoff`** — a app chama isto com o JWT do user pra mintar o token one-shot consumido pelo passo acima.
+- **`POST /admin/logout`** — limpa o cookie.
+- **`GET/POST /admin/push*`** — broadcast de push continua a usar um token admin separado (lifetime, via query `?token=`), não o cookie de sessão.
+- Antes disto o admin era acessível por token estático direto na URL — mudou pra reduzir exposição (token na URL fica em logs/histórico).
+
+---
+
+## 1.0.12 — fixes de Meta SDK + RevenueCat
+
+- **Meta Client Token corrigido:** `eas.json` tinha um `b` extra no `EXPO_PUBLIC_FB_CLIENT_TOKEN` (33 chars em vez de 32) — SDK autenticava com token inválido, eventos não chegavam ao Events Manager. Corrigido em ambos os profiles (`novaqi-android`, `novaqi-ios`).
+- **RevenueCat — leak de plano grátis corrigido:** ver nota na secção "RevenueCat — chaves API" acima (`entitlementToUserType`).
+- **`package.json` `update:novaqi`:** tinha uma RevenueCat iOS key embaralhada (não fazia diferença real já que a key usada em runtime é a hardcoded em `purchasesService.native.js`, mas era um risco se algum dia essa env var passasse a ser lida) — corrigida, e adicionadas as vars `EXPO_PUBLIC_FB_APP_ID`/`EXPO_PUBLIC_FB_CLIENT_TOKEN` que faltavam nesse script.
+- **Version bump:** `1.0.11 → 1.0.12`, `versionCode 14 → 15`.
+- **Force update:** `min` bumped pra `1.0.12` em iOS e Android depois de confirmado que ambos builds estavam live nas lojas.
 
 ---
 
