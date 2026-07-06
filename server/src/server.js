@@ -17,6 +17,10 @@ const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET || '';
 
 const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app']);
 
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
 function corsHeaders(origin) {
   const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://veganland.app';
   return {
@@ -167,13 +171,13 @@ function htmlAdminPage(stats, token) {
     const confirmedDot = u.email_confirmed
       ? `<span title="Email confirmado" style="color:#7CB518;font-size:10px">✔</span>`
       : `<span title="Email não confirmado" style="color:#D4A843;font-size:10px">!</span>`;
-    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${u.id}'">
+    return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${esc(u.id)}'">
       <td>
         ${isNew ? `<span style="display:inline-block;background:#7CB518;color:#fff;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-right:4px;vertical-align:middle">NEW</span>` : ''}
-        <a href="/admin/user/${u.id}" style="color:#1C2B22;font-weight:700;text-decoration:none">${u.email}</a>
+        <a href="/admin/user/${esc(u.id)}" style="color:#1C2B22;font-weight:700;text-decoration:none">${esc(u.email)}</a>
         ${confirmedDot}
       </td>
-      <td>${diet}</td>
+      <td>${esc(diet)}</td>
       <td>${planBadge(userType)}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
       <td>
@@ -181,11 +185,11 @@ function htmlAdminPage(stats, token) {
           <div style="flex:1;height:6px;background:#eee;border-radius:3px;overflow:hidden">
             <div style="width:${monthBar}%;height:100%;background:#7CB518;border-radius:3px"></div>
           </div>
-          <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap">${monthLabel}</span>
+          <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap">${esc(monthLabel)}</span>
         </div>
       </td>
       <td style="color:#888;font-size:13px">${lastScan}</td>
-      <td style="color:#888;font-size:13px" title="${joinedFull}">${joined}</td>
+      <td style="color:#888;font-size:13px" title="${esc(joinedFull)}">${joined}</td>
     </tr>`;
   }).join('');
 
@@ -364,21 +368,22 @@ function htmlAdminUserPage(data, token) {
     const result = s.result ? JSON.parse(typeof s.result === 'string' ? s.result : JSON.stringify(s.result)) : null;
     const explanation = result?.explanation || '—';
     const concerns = Array.isArray(result?.concerns) && result.concerns.length
-      ? result.concerns.map(c => `<span style="background:#FBEAEA;color:#8A3D3D;padding:2px 7px;border-radius:5px;font-size:12px;font-weight:700">${c}</span>`).join(' ')
+      ? result.concerns.map(c => `<span style="background:#FBEAEA;color:#8A3D3D;padding:2px 7px;border-radius:5px;font-size:12px;font-weight:700">${esc(c)}</span>`).join(' ')
       : '';
+    const explanationTrimmed = explanation.length > 120 ? explanation.slice(0, 120) + '…' : explanation;
     return `<tr>
       <td style="white-space:nowrap;color:#888;font-size:12px">${date}</td>
-      <td><strong>${product}</strong>${brand}</td>
+      <td><strong>${esc(product)}</strong>${brand ? `<span style="color:#aaa;font-size:12px"> · ${esc(s.brand)}</span>` : ''}</td>
       <td><span style="background:${cfg.bg};color:${cfg.color};padding:3px 10px;border-radius:6px;font-size:12px;font-weight:800">${cfg.label}</span></td>
-      <td style="color:#aaa;font-size:12px">${s.source || '—'}</td>
-      <td style="font-size:13px;color:#555;max-width:300px">${explanation.length > 120 ? explanation.slice(0, 120) + '…' : explanation}</td>
+      <td style="color:#aaa;font-size:12px">${esc(s.source || '—')}</td>
+      <td style="font-size:13px;color:#555;max-width:300px">${esc(explanationTrimmed)}</td>
       <td>${concerns}</td>
     </tr>`;
   }).join('');
 
   return `<!DOCTYPE html><html lang="pt"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${user.email} — VeganLand Admin</title>
+  <title>${esc(user.email)} — VeganLand Admin</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f0;min-height:100vh;color:#222}
@@ -410,7 +415,7 @@ function htmlAdminUserPage(data, token) {
   <body>
   <header>
     <a href="/admin">← Voltar</a>
-    <h1>${user.email}</h1>
+    <h1>${esc(user.email)}</h1>
     <span>ADMIN</span>
   </header>
   <main>
@@ -424,10 +429,10 @@ function htmlAdminUserPage(data, token) {
     </div>
     <div class="profile">
       <h2>Perfil</h2>
-      <div class="field"><label>Email</label><span>${user.email}</span></div>
+      <div class="field"><label>Email</label><span>${esc(user.email)}</span></div>
       <div class="field"><label>Cadastro</label><span>${joined}</span></div>
-      <div class="field"><label>Dieta</label><span>${diet}</span></div>
-      <div class="field"><label>Sensibilidades</label><span>${allergies}</span></div>
+      <div class="field"><label>Dieta</label><span>${esc(diet)}</span></div>
+      <div class="field"><label>Sensibilidades</label><span>${esc(allergies)}</span></div>
       <div class="field" style="grid-column:1/-1">
         <label>Plano</label>
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
@@ -505,14 +510,14 @@ async function sendExpoPush(messages) {
 }
 
 function htmlAdminPushPage(token, lastResult = null, history = []) {
-  const resultHtml = lastResult ? `<div class="result">${lastResult}</div>` : '';
+  const resultHtml = lastResult ? `<div class="result">${esc(lastResult)}</div>` : '';
   const historyRows = history.map(h => {
     const when = new Date(h.created_at).toLocaleString('pt-BR');
-    const filters = [h.locale, h.user_type].filter(Boolean).join(' · ') || 'todos';
+    const filters = [h.locale, h.user_type].filter(Boolean).map(esc).join(' · ') || 'todos';
     return `<tr>
       <td style="font-size:12px;color:#64748b;white-space:nowrap">${when}</td>
-      <td><strong>${h.title}</strong><div style="color:#64748b;font-size:12px">${h.body}</div></td>
-      <td style="font-size:12px;color:#64748b">${filters}${h.route ? ` → ${h.route}` : ''}</td>
+      <td><strong>${esc(h.title)}</strong><div style="color:#64748b;font-size:12px">${esc(h.body)}</div></td>
+      <td style="font-size:12px;color:#64748b">${filters}${h.route ? ` → ${esc(h.route)}` : ''}</td>
       <td style="text-align:center">${h.total_count}</td>
       <td style="text-align:center;color:#16a34a;font-weight:700">${h.ok_count}</td>
       <td style="text-align:center;color:#dc2626">${h.error_count}</td>
@@ -792,9 +797,9 @@ h1{margin:0 0 8px;font-size:22px}p{color:#64748b;font-size:14px;line-height:1.5}
 }
 
 const server = http.createServer(async (req, res) => {
+  const origin = req.headers['origin'] || '';
+  const host = req.headers['host'] || '';
   try {
-    const origin = req.headers['origin'] || '';
-    const host = req.headers['host'] || '';
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204, corsHeaders(origin));
