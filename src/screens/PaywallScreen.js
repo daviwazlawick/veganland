@@ -246,13 +246,13 @@ export default function PaywallScreen({ navigation, route }) {
                     {t(language, `plans.${plan.descKey}`)}
                   </Text>
                   {hasTrial(plan.id) && (
-                    <Text style={styles.trialText}>
-                      {Platform.OS === 'ios'
-                        ? t(language, 'plans.trial_ios')
-                        : Platform.OS === 'android'
-                          ? t(language, 'plans.trial_android')
-                          : t(language, 'plans.free_trial_badge')}
-                    </Text>
+                    <View style={styles.trialPill}>
+                      <Text style={styles.trialPillText}>
+                        {Platform.OS === 'android'
+                          ? t(language, 'plans.trial_pill_android')
+                          : t(language, 'plans.trial_pill_ios')}
+                      </Text>
+                    </View>
                   )}
                 </View>
                 <View style={styles.planPriceWrap}>
@@ -378,6 +378,19 @@ const styles = StyleSheet.create({
   planNameSelected: { color: Colors.primaryDark },
   planDesc: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
   trialText: { fontSize: 11, color: Colors.safe, fontWeight: '700', marginTop: 4 },
+  trialPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 999, marginTop: 6,
+    shadowColor: Colors.accent, shadowOpacity: 0.35,
+    shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  trialPillText: {
+    color: Colors.white, fontSize: 11, fontWeight: '900',
+    letterSpacing: 0.6,
+  },
   planPriceWrap: { alignItems: 'flex-end' },
   planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
   planPriceSelected: { color: Colors.primaryDark },

@@ -114,6 +114,8 @@ export default {
     free_trial_badge: 'Testzeitraum inklusive',
     trial_ios: '2 Wochen kostenlos testen',
     trial_android: '15 Tage kostenlos testen',
+    trial_pill_ios: '🎁 2 WOCHEN GRATIS',
+    trial_pill_android: '🎁 15 TAGE GRATIS',
     trial_disclosure: '14 Tage kostenlos. Danach automatische Abrechnung. Jederzeit in den Kontoeinstellungen kündbar — während des Testzeitraums fallen keine Kosten an.',
     best_value: 'Bestes Preis-Leistungs-Verhältnis',
     restore: 'Käufe wiederherstellen',

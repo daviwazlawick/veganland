@@ -114,6 +114,8 @@ export default {
     free_trial_badge: "Prova gratuita inclusa",
     trial_ios: "2 settimane di prova gratuita",
     trial_android: "15 giorni di prova gratuita",
+    trial_pill_ios: '🎁 2 SETTIMANE GRATIS',
+    trial_pill_android: '🎁 15 GIORNI GRATIS',
     trial_disclosure: "Gratis per 14 giorni. Poi addebito automatico. Annulla quando vuoi nelle impostazioni dell'account — nessun costo durante la prova.",
     best_value: "Miglior rapporto qualità-prezzo",
     restore: "Ripristina acquisti",

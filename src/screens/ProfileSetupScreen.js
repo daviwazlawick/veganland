@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -213,6 +213,13 @@ export default function ProfileSetupScreen({ navigation }) {
                           <Text style={styles.planDesc}>
                             {t(language, `plans.${plan.descKey}`)}
                           </Text>
+                          <View style={styles.trialPill}>
+                            <Text style={styles.trialPillText}>
+                              {Platform.OS === 'android'
+                                ? t(language, 'plans.trial_pill_android')
+                                : t(language, 'plans.trial_pill_ios')}
+                            </Text>
+                          </View>
                         </View>
                         <View style={styles.planPriceWrap}>
                           <Text style={[styles.planPrice, sel && styles.planPriceSel]}>
@@ -431,6 +438,19 @@ const styles = StyleSheet.create({
   planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
   continueFreeLinkWrap: { alignItems: 'center', paddingVertical: 12 },
   continueFreeLink: { fontSize: 13, color: Colors.textMuted, fontWeight: '500', textDecorationLine: 'underline' },
+  trialPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 999, marginTop: 6,
+    shadowColor: Colors.accent, shadowOpacity: 0.35,
+    shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  trialPillText: {
+    color: Colors.white, fontSize: 11, fontWeight: '900',
+    letterSpacing: 0.6,
+  },
   trialDisclosure: {
     fontSize: 11, color: Colors.textMuted, textAlign: 'center',
     marginTop: 12, paddingHorizontal: 8, lineHeight: 15,
