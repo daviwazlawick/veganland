@@ -12,7 +12,12 @@
           "package_name": "app.novaqi"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCle1euBeQWf5qd9aqbDHfKwuVq3r5YySU"
@@ -20,7 +25,20 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "app.novaqi",
+                "app_store_id": "6775790620"
+              }
+            }
+          ]
         }
       }
     }
