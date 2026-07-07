@@ -429,9 +429,9 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
   }
 
   const result = await db.query(
-    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id)
-     values ($1, $2, $3, $4, $5, $6)
-     returning id, email, created_at`,
+    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type)
+     values ($1, $2, $3, $4, $5, $6, NULL)
+     returning id, email, user_type, created_at`,
     [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
 
@@ -468,7 +468,7 @@ export async function findUserByOAuthSub(provider, sub) {
   if (!db || !sub) return null;
   const col = oauthColumn(provider);
   const res = await db.query(
-    `select id, email, email_confirmed, created_at from users where ${col} = $1`,
+    `select id, email, email_confirmed, user_type, created_at from users where ${col} = $1`,
     [sub]
   );
   return res.rows[0] || null;
@@ -508,9 +508,9 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
   const result = await db.query(
     `insert into users (email, ${col}, oauth_provider, email_confirmed,
                         disclaimer_accepted_at, disclaimer_version,
-                        referral_code, referred_by_user_id)
-     values ($1, $2, $3, true, $4, $5, $6, $7)
-     returning id, email, created_at`,
+                        referral_code, referred_by_user_id, user_type)
+     values ($1, $2, $3, true, $4, $5, $6, $7, NULL)
+     returning id, email, user_type, created_at`,
     [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
   const user = result.rows[0];
@@ -676,7 +676,7 @@ export async function findUserByEmail(email) {
   }
 
   const result = await db.query(
-    `select id, email, password_hash, email_confirmed, created_at from users where email = $1`,
+    `select id, email, password_hash, email_confirmed, user_type, created_at from users where email = $1`,
     [normalizedEmail]
   );
   return result.rows[0] || null;
@@ -827,8 +827,12 @@ export async function checkAndIncrementScanCounter(userId) {
   const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
 
   const userRes = await db.query('select user_type from users where id = $1', [userId]);
-  const userType = userRes.rows[0]?.user_type || 'starter';
-  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.starter;
+  const userType = userRes.rows[0]?.user_type;
+  // Users without a tier (post-lock signups who haven't paid or redeemed a
+  // gift code) can't scan. Client-side paywall blocks the UI; this is the
+  // server-side safety net.
+  if (!userType) return { allowed: false, count: 0, limit: 0, resets_at };
+  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
 
   if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
 
@@ -1186,8 +1190,8 @@ export async function getScanUsage(userId) {
     db.query('select user_type, bonus_scans_remaining, bonus_scans_expires_at from users where id = $1', [userId]),
   ]);
   const u = userRes.rows[0] || {};
-  const userType = u.user_type || 'starter';
-  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : SCAN_LIMITS.starter;
+  const userType = u.user_type;
+  const limit = userType && userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
 
   const bonus_active = u.bonus_scans_expires_at && new Date(u.bonus_scans_expires_at) > new Date();
   const bonus_remaining = bonus_active ? (u.bonus_scans_remaining || 0) : 0;

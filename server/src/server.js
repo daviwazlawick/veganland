@@ -18,27 +18,14 @@ const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET || '';
 
 const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app']);
 
-// Users created on or after this date are locked behind the paywall on every
-// cold start until they hold a paid entitlement. Users created before this
-// date keep the legacy free-with-limit behavior. Change the cutoff here to
-// widen the population without touching the client.
-const PAYWALL_LOCK_START_DATE = new Date('2026-07-07T00:00:00Z');
-
-function isPaywallLocked(createdAt) {
-  if (!createdAt) return false;
-  const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
-  return !isNaN(d.getTime()) && d.getTime() >= PAYWALL_LOCK_START_DATE.getTime();
-}
-
-// Enriches the { id, email } snippet that auth endpoints already return with
-// the paywall_locked flag and created_at, so the app can decide the routing
-// without a follow-up /auth/me round-trip.
+// Auth endpoints return this trimmed user shape. user_type is explicitly
+// included (may be null for users who haven't picked a plan yet) so the app
+// can decide the initial route without a follow-up /auth/me call.
 function authUserPayload(user) {
   return {
     id: user.id,
     email: user.email,
-    created_at: user.created_at || null,
-    paywall_locked: isPaywallLocked(user.created_at),
+    user_type: user.user_type ?? null,
   };
 }
 
@@ -1097,10 +1084,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 404, { error: 'User not found' }, origin);
         return;
       }
-      sendJson(res, 200, {
-        user: { ...user, paywall_locked: isPaywallLocked(user.created_at) },
-        usage,
-      }, origin);
+      sendJson(res, 200, { user, usage }, origin);
       return;
     }
 

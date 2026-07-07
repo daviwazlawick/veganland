@@ -120,13 +120,12 @@ export default function AppNavigator() {
   const { token, user, isLoaded: authLoaded } = useAuth();
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
-  // Users flagged paywall_locked by the server (created on/after the cutoff)
-  // are routed to the paywall on every cold start unless they hold a paid
-  // entitlement. Legacy users (paywall_locked absent/false) keep the classic
-  // free-tier behavior.
-  const userType = user?.user_type;
-  const hasPaidTier = userType === 'starter' || userType === 'premium' || userType === 'admin';
-  const forcePaywall = user?.paywall_locked && !hasPaidTier;
+  // Users whose user_type is explicitly null (post-lock signups who haven't
+  // picked a plan yet) are routed to the paywall on every cold start.
+  // Legacy users (any tier, including 'free') and paid users go to Main.
+  // Cached sessions from before this change have user_type absent (undefined)
+  // and are treated as legacy — they are NOT forced into the paywall.
+  const forcePaywall = user?.user_type === null;
   const profileInitialRoute = forcePaywall ? 'Paywall' : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
