@@ -41,7 +41,7 @@ const PLANS = [
 
 export default function PaywallScreen({ navigation, route }) {
   const { language } = useApp();
-  const { token, updateUserType } = useAuth();
+  const { token, user, updateUserType } = useAuth();
   const currentPlan = route?.params?.currentPlan || 'free';
   const [selected, setSelected] = useState(currentPlan === 'free' ? 'starter' : currentPlan);
   const [offering, setOffering] = useState(null);
@@ -49,11 +49,24 @@ export default function PaywallScreen({ navigation, route }) {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const isNative = Platform.OS !== 'web' && isPurchasesAvailable();
+  // Post-lock users (no tier picked yet) can't leave the paywall — otherwise
+  // they'd land on Main and get treated as if they had free access.
+  const isLocked = user?.user_type === null;
 
   function handleClose() {
+    if (isLocked) return;
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('Main');
   }
+
+  useEffect(() => {
+    if (!isLocked) return;
+    navigation.setOptions({ gestureEnabled: false });
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+    });
+    return unsub;
+  }, [isLocked, navigation]);
 
   useEffect(() => {
     if (isNative) {
@@ -175,9 +188,13 @@ export default function PaywallScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
+        {isLocked ? (
+          <View style={styles.backBtn} />
+        ) : (
+          <TouchableOpacity onPress={handleClose} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Text style={styles.backText}>←</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>{t(language, 'plans.title')}</Text>
         <View style={{ width: 44 }} />
       </View>
