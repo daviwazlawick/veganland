@@ -94,6 +94,7 @@ export default function ProfileSetupScreen({ navigation }) {
 
   const canUpgrade = currentUserType !== 'premium' && currentUserType !== 'admin';
   const currentPlanForPaywall = currentUserType === 'starter' ? 'starter' : 'free';
+  const finalStep = isFirstTime ? 2 : 3;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,8 +108,12 @@ export default function ProfileSetupScreen({ navigation }) {
           <StepPill number={1} label={t(language, 'profile_setup.diet_step')} active={true} />
           <View style={[styles.connector, step >= 2 && styles.connectorActive]} />
           <StepPill number={2} label={t(language, 'profile_setup.allergies_step')} active={step >= 2} />
-          <View style={[styles.connector, step >= 3 && styles.connectorActive]} />
-          <StepPill number={3} label={t(language, 'profile_setup.plan_step')} active={step >= 3} />
+          {!isFirstTime && (
+            <>
+              <View style={[styles.connector, step >= 3 && styles.connectorActive]} />
+              <StepPill number={3} label={t(language, 'profile_setup.plan_step')} active={step >= 3} />
+            </>
+          )}
         </View>
       </View>
 
@@ -276,7 +281,7 @@ export default function ProfileSetupScreen({ navigation }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        {step < 3 ? (
+        {step < finalStep ? (
           <TouchableOpacity
             style={[styles.btn, step === 1 && !selectedDiet && styles.btnDisabled]}
             onPress={() => {
