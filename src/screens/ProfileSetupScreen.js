@@ -44,7 +44,10 @@ export default function ProfileSetupScreen({ navigation }) {
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
       if (isFirstTime) {
-        navigation.navigate('Paywall', { currentPlan: 'free' });
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+        });
       } else {
         navigation.navigate('Main');
       }

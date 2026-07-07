@@ -117,8 +117,14 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { token, isLoaded: authLoaded } = useAuth();
+  const { token, user, isLoaded: authLoaded } = useAuth();
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
+
+  // Users on the free tier are locked behind the paywall on every cold start.
+  // They can dismiss the paywall in-session but reopening the app lands on it again.
+  const userType = user?.user_type;
+  const forcePaywall = !userType || userType === 'free';
+  const profileInitialRoute = forcePaywall ? 'Paywall' : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
     return (
@@ -128,9 +134,15 @@ export default function AppNavigator() {
     );
   }
 
+  const initialRouteName =
+    !token ? 'Login' :
+    !disclaimerAccepted ? 'Disclaimer' :
+    !profile ? 'ProfileSetup' :
+    profileInitialRoute;
+
   return (
     <NavigationContainer ref={navigationRef} linking={linking}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
         {!token ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
@@ -160,7 +172,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
-            <Stack.Screen name="Paywall" component={PaywallScreen} />
+            <Stack.Screen name="Paywall" component={PaywallScreen} initialParams={{ currentPlan: 'free' }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
             <Stack.Screen name="Referral" component={ReferralScreen} />
           </>
