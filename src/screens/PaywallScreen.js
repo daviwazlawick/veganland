@@ -5,7 +5,6 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { HIDE_FREE_OPTION } from '../constants/features';
 import Brand from '../brand';
 import {
   isPurchasesAvailable,
@@ -278,11 +277,6 @@ export default function PaywallScreen({ navigation, route }) {
           );
         })}
 
-        {currentPlan === 'free' && !HIDE_FREE_OPTION && (
-          <TouchableOpacity onPress={closeWithReferralOffer} style={styles.continueFreeLinkWrap}>
-            <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
-          </TouchableOpacity>
-        )}
 
         {isNative && (
           <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreBtn}>
