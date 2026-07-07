@@ -120,10 +120,13 @@ export default function AppNavigator() {
   const { token, user, isLoaded: authLoaded } = useAuth();
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
-  // Users on the free tier are locked behind the paywall on every cold start.
-  // They can dismiss the paywall in-session but reopening the app lands on it again.
+  // Users flagged paywall_locked by the server (created on/after the cutoff)
+  // are routed to the paywall on every cold start unless they hold a paid
+  // entitlement. Legacy users (paywall_locked absent/false) keep the classic
+  // free-tier behavior.
   const userType = user?.user_type;
-  const forcePaywall = !userType || userType === 'free';
+  const hasPaidTier = userType === 'starter' || userType === 'premium' || userType === 'admin';
+  const forcePaywall = user?.paywall_locked && !hasPaidTier;
   const profileInitialRoute = forcePaywall ? 'Paywall' : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
