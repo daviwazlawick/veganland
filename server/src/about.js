@@ -34,7 +34,6 @@ const BRANDS = {
     headerLogo: `<span style="color:#fff;font-size:20px">🌱</span><span style="color:#fff;font-size:18px;font-weight:900;letter-spacing:-0.4px">VeganLand</span>`,
     heroLogo: `<span style="font-size:48px">🌱</span><span style="display:block;color:#fff;font-size:42px;font-weight:900;letter-spacing:-2px;line-height:1">VeganLand</span>`,
     plans: [
-      { id: 'free',    price: '€0',    period: '',       scans: '7',  trial: false },
       { id: 'starter', price: '€2.99', period: '/month', scans: '30', trial: true,  popular: true },
       { id: 'premium', price: '€5.99', period: '/month', scans: '100', trial: true },
     ],
@@ -47,7 +46,6 @@ const BRANDS = {
     headerLogo: NOVAQI_LOGO_HEADER,
     heroLogo: NOVAQI_HERO_LOGO,
     plans: [
-      { id: 'free',    price: '€0',    period: '',       scans: '7',  trial: false },
       { id: 'starter', price: '€2.99', period: '/month', scans: '30', trial: true,  popular: true },
       { id: 'premium', price: '€5.99', period: '/month', scans: '100', trial: true },
     ],
@@ -104,7 +102,7 @@ function planCard(b, plan, lang) {
     scansLine,
     lang === 'de' ? 'KI-Zutatenanalyse' : lang === 'fr' ? "Analyse d'ingrédients IA" : lang === 'pt' ? 'Análise de ingredientes IA' : lang === 'it' ? 'Analisi ingredienti IA' : lang === 'es' ? 'Análisis de ingredientes IA' : 'AI ingredient analysis',
     lang === 'de' ? 'Alle Ernährungsprofile' : lang === 'fr' ? 'Tous les profils alimentaires' : lang === 'pt' ? 'Todos os perfis alimentares' : lang === 'it' ? 'Tutti i profili alimentari' : lang === 'es' ? 'Todos los perfiles alimentarios' : 'All dietary profiles',
-    ...(plan.id !== 'free' ? [lang === 'de' ? 'Scan-Verlauf' : lang === 'fr' ? 'Historique des scans' : lang === 'pt' ? 'Histórico de scans' : lang === 'it' ? 'Cronologia scansioni' : lang === 'es' ? 'Historial de escaneos' : 'Scan history'] : []),
+    lang === 'de' ? 'Scan-Verlauf' : lang === 'fr' ? 'Historique des scans' : lang === 'pt' ? 'Histórico de scans' : lang === 'it' ? 'Cronologia scansioni' : lang === 'es' ? 'Historial de escaneos' : 'Scan history',
     ...(plan.id === 'premium' ? [lang === 'de' ? 'Unbegrenzter Verlauf' : lang === 'fr' ? 'Historique illimité' : lang === 'pt' ? 'Histórico ilimitado' : lang === 'it' ? 'Cronologia illimitata' : lang === 'es' ? 'Historial ilimitado' : 'Unlimited history'] : []),
   ];
   return `
