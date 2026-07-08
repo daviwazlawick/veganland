@@ -429,9 +429,9 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
   }
 
   const result = await db.query(
-    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type)
-     values ($1, $2, $3, $4, $5, $6, NULL)
-     returning id, email, user_type, created_at`,
+    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type, email_confirmed)
+     values ($1, $2, $3, $4, $5, $6, NULL, true)
+     returning id, email, user_type, created_at, email_confirmed`,
     [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
 

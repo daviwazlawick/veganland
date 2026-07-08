@@ -867,15 +867,8 @@ const server = http.createServer(async (req, res) => {
       const passwordHash = await hashPassword(password);
       const validCode = referral_code && isValidCodeShape(referral_code) ? normalizeCode(referral_code) : null;
       const user = await createUser(email, passwordHash, disclaimer_version, validCode);
-      if (emailsEnabled()) {
-        const confirmToken = crypto.randomBytes(32).toString('hex');
-        await storeEmailConfirmationToken(user.id, confirmToken);
-        sendConfirmationEmail(user.email, confirmToken, req.headers['host']).catch(console.error);
-        sendJson(res, 201, { emailConfirmationSent: true, email: user.email }, origin);
-      } else {
-        const token = generateToken(user.id, user.email);
-        sendJson(res, 201, { token, user: authUserPayload(user), emailConfirmationSent: false }, origin);
-      }
+      const token = generateToken(user.id, user.email);
+      sendJson(res, 201, { token, user: authUserPayload(user), emailConfirmationSent: false }, origin);
       return;
     }
 
@@ -1060,10 +1053,6 @@ const server = http.createServer(async (req, res) => {
       const valid = await verifyPassword(password, user.password_hash);
       if (!valid) {
         sendJson(res, 401, { error: 'Invalid email or password' }, origin);
-        return;
-      }
-      if (emailsEnabled() && !user.email_confirmed) {
-        sendJson(res, 403, { error: 'email_not_confirmed' }, origin);
         return;
       }
       const token = generateToken(user.id, user.email);
