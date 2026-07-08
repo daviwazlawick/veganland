@@ -917,7 +917,9 @@ export async function listPushTokens({ locale, userType, includeAnonymous = fals
     params.push(locale);
     conditions.push(`pt.locale = $${params.length}`);
   }
-  if (userType) {
+  if (userType === 'none') {
+    conditions.push(`u.user_type is null`);
+  } else if (userType) {
     params.push(userType);
     conditions.push(`u.user_type = $${params.length}`);
   }

@@ -578,6 +578,7 @@ function htmlAdminPushPage(token, lastResult = null, history = []) {
         <label>Plano (opcional)</label>
         <select name="user_type">
           <option value="">Todos</option>
+          <option value="none">sem plano (novos signups)</option>
           <option value="free">free</option><option value="starter">starter</option><option value="premium">premium</option>
         </select>
       </div>
