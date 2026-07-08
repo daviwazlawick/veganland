@@ -1115,9 +1115,10 @@ export async function getAdminStats() {
     `),
   ]);
 
-  const planBreakdown = { free: 0, starter: 0, premium: 0, admin: 0 };
+  const planBreakdown = { none: 0, free: 0, starter: 0, premium: 0, admin: 0 };
   for (const row of planBreakdownRes.rows) {
-    planBreakdown[row.user_type] = row.count;
+    const key = row.user_type ?? 'none';
+    planBreakdown[key] = row.count;
   }
 
   return {

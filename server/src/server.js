@@ -123,11 +123,11 @@ function htmlResetForm(token, host) {
 
 function planBadge(userType) {
   const cfg = {
-    free:    { label: 'Free',     bg: '#F5F5F5', color: '#666666' },
-    starter: { label: 'Starter',  bg: '#E8F4FF', color: '#1A5F8F' },
-    premium: { label: 'Premium',  bg: '#FFF1E2', color: '#9A6121' },
-    admin:   { label: 'Admin',    bg: '#E8F0FF', color: '#1A3A8F' },
-  }[userType] || { label: userType || 'free', bg: '#f0f0f0', color: '#888' };
+    free:    { label: 'Free',      bg: '#F5F5F5', color: '#666666' },
+    starter: { label: 'Starter',   bg: '#E8F4FF', color: '#1A5F8F' },
+    premium: { label: 'Premium',   bg: '#FFF1E2', color: '#9A6121' },
+    admin:   { label: 'Admin',     bg: '#E8F0FF', color: '#1A3A8F' },
+  }[userType] || { label: userType || 'Sem plano', bg: '#FBEAEA', color: '#8A3D3D' };
   return `<span style="background:${cfg.bg};color:${cfg.color};font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap">${cfg.label}</span>`;
 }
 
@@ -159,6 +159,7 @@ function htmlAdminPage(stats, token) {
   // Plan breakdown pills
   const pb = stats.plan_breakdown;
   const planPills = [
+    { label: 'Sem plano', count: pb.none || 0, color: '#8A3D3D', bg: '#FBEAEA' },
     { label: 'Free', count: pb.free, color: '#888', bg: '#f5f5f5' },
     { label: 'Starter', count: pb.starter, color: '#1A6B3E', bg: '#E5F5EC' },
     { label: 'Premium', count: pb.premium, color: '#7C3AED', bg: '#F3EEFF' },
@@ -175,8 +176,8 @@ function htmlAdminPage(stats, token) {
     const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
     const joinedFull = u.created_at ? new Date(u.created_at).toLocaleString('pt-BR') : '';
     const lastScan = u.last_scan ? new Date(u.last_scan).toLocaleDateString('pt-BR') : '—';
-    const userType = u.user_type || 'free';
-    const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.free;
+    const userType = u.user_type;
+    const limit = userType && userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
     const monthBar = limit === null ? 0 : Math.min(100, Math.round((u.scans_this_month / limit) * 100));
     const monthLabel = limit === null ? `${u.scans_this_month}/∞` : `${u.scans_this_month}/${limit}`;
     const isNew = u.created_at && (Date.now() - new Date(u.created_at).getTime()) < 7 * 24 * 3600 * 1000;
@@ -367,8 +368,8 @@ function htmlAdminUserPage(data, token) {
   const allergies = Array.isArray(user.allergy_ids) && user.allergy_ids.length
     ? user.allergy_ids.join(', ')
     : '—';
-  const userType = user.user_type || 'starter';
-  const limit = SCAN_LIMITS[userType] ?? SCAN_LIMITS.starter;
+  const userType = user.user_type;
+  const limit = userType && userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
   const monthBar = limit === null ? 0 : Math.min(100, Math.round((scans_this_month / limit) * 100));
   const monthLabel = limit === null ? `${scans_this_month}/∞` : `${scans_this_month}/${limit}`;
 
