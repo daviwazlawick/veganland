@@ -20,13 +20,15 @@ try {
   statusCodes = g.statusCodes;
 } catch { /* not installed in this native build */ }
 
-// The Apple button is a native view manager — its presence in UIManager is
-// the only reliable signal that the native code is actually linked. Without
-// this, rendering the button on 1.0.12 shows the "unimplemented component:
-// ViewManagerAdapter_ExpoAppleAuthenticationButton" red error.
+// The Apple button is a native view manager. UIManager.getViewManagerConfig
+// is the classic detector, but in New Architecture (Fabric) it returns falsy
+// even when the module IS linked — Fabric registers view managers via Codegen
+// instead of UIManager. NativeModules.ExpoAppleAuthentication covers that case
+// because TurboModules are still visible in NativeModules on New Arch.
 const APPLE_NATIVE_LINKED = !!(
   UIManager.getViewManagerConfig?.('ExpoAppleAuthenticationButton') ||
-  UIManager.getViewManagerConfig?.('RNCAppleAuthenticationButton')
+  UIManager.getViewManagerConfig?.('RNCAppleAuthenticationButton') ||
+  NativeModules.ExpoAppleAuthentication
 );
 const GOOGLE_NATIVE_LINKED = !!(
   NativeModules.RNGoogleSignin || NativeModules.RNGoogleSigninCGen
