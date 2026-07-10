@@ -1,4 +1,4 @@
-import { Platform, NativeModules, UIManager } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 
 // Guard native module resolution so this bundle can run on older runtimes
 // (e.g. 1.0.12) that don't have expo-apple-authentication or
@@ -20,16 +20,6 @@ try {
   statusCodes = g.statusCodes;
 } catch { /* not installed in this native build */ }
 
-// The Apple button is a native view manager. UIManager.getViewManagerConfig
-// is the classic detector, but in New Architecture (Fabric) it returns falsy
-// even when the module IS linked — Fabric registers view managers via Codegen
-// instead of UIManager. NativeModules.ExpoAppleAuthentication covers that case
-// because TurboModules are still visible in NativeModules on New Arch.
-const APPLE_NATIVE_LINKED = !!(
-  UIManager.getViewManagerConfig?.('ExpoAppleAuthenticationButton') ||
-  UIManager.getViewManagerConfig?.('RNCAppleAuthenticationButton') ||
-  NativeModules.ExpoAppleAuthentication
-);
 const GOOGLE_NATIVE_LINKED = !!(
   NativeModules.RNGoogleSignin || NativeModules.RNGoogleSigninCGen
 );
@@ -40,7 +30,7 @@ const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 let googleConfigured = false;
 
 export function isAppleAuthAvailable() {
-  return Platform.OS === 'ios' && APPLE_NATIVE_LINKED && !!AppleAuthentication?.signInAsync;
+  return Platform.OS === 'ios' && !!AppleAuthentication?.signInAsync;
 }
 
 export function isGoogleAuthAvailable() {
