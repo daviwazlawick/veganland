@@ -199,7 +199,23 @@ export default function PaywallScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>{t(language, 'plans.subtitle')}</Text>
+        <View style={styles.trialBanner}>
+          <Text style={styles.trialBannerTitle}>
+            {Platform.OS === 'android'
+              ? t(language, 'plans.trial_banner_android')
+              : t(language, 'plans.trial_banner_ios')}
+          </Text>
+          <Text style={styles.trialBannerSub}>{t(language, 'plans.trial_banner_sub')}</Text>
+        </View>
+
+        <View style={styles.trustStrip}>
+          {['trust_no_charge', 'trust_full_access', 'trust_cancel'].map(key => (
+            <View key={key} style={styles.trustItem}>
+              <Text style={styles.trustIcon}>✓</Text>
+              <Text style={styles.trustText}>{t(language, `plans.${key}`)}</Text>
+            </View>
+          ))}
+        </View>
 
         {PLANS.map(plan => {
           const isCurrent = plan.id === currentPlan;
@@ -333,6 +349,55 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14, color: Colors.textLight, textAlign: 'center',
     marginBottom: 24, fontWeight: '500',
+  },
+  trialBanner: {
+    backgroundColor: Colors.accent,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 24,
+    alignItems: 'center',
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  trialBannerTitle: {
+    color: Colors.white,
+    fontSize: 17,
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: 0.4,
+  },
+  trialBannerSub: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  trustStrip: {
+    gap: 8,
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trustIcon: {
+    color: Colors.safe,
+    fontSize: 14,
+    fontWeight: '900',
+    width: 18,
+  },
+  trustText: {
+    fontSize: 13,
+    color: Colors.textLight,
+    fontWeight: '600',
+    flex: 1,
   },
   planCard: {
     backgroundColor: Colors.glass,
