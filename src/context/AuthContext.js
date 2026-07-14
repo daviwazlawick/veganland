@@ -31,6 +31,16 @@ export function AuthProvider({ children }) {
       if (storedToken) {
         setToken(storedToken);
         if (storedUser) setUser(JSON.parse(storedUser));
+        // Background self-heal: pull the latest user from server so cached
+        // fields like onboarding_scan_used stay in sync even if the local
+        // update failed (app killed mid-flight, storage error, etc.).
+        apiGetMe(storedToken).then(data => {
+          if (data?.user) {
+            const merged = { ...(storedUser ? JSON.parse(storedUser) : {}), ...data.user };
+            setUser(merged);
+            AsyncStorage.setItem(USER_KEY, JSON.stringify(merged)).catch(() => {});
+          }
+        }).catch(() => {});
       }
       // A stored token also implies the app has been launched before
       // (legacy users upgrading from a build without LAUNCHED_KEY).
@@ -119,8 +129,23 @@ export function AuthProvider({ children }) {
     } catch {}
   }
 
+  // Flip the local onboarding_scan_used flag + persist synchronously.
+  // The server flips its own copy inside checkAndIncrementScanCounter, so
+  // once a scan succeeds we can assume it's true and don't need to wait
+  // for /auth/me to round-trip — protecting against the user killing the
+  // app before the async refresh completes.
+  async function markOnboardingScanUsed() {
+    if (!user) return;
+    if (user.onboarding_scan_used === true) return;
+    const updated = { ...user, onboarding_scan_used: true };
+    setUser(updated);
+    try {
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+    } catch {}
+  }
+
   return (
-    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser }}>
+    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser, markOnboardingScanUsed }}>
       {children}
     </AuthContext.Provider>
   );

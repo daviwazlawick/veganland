@@ -20,7 +20,7 @@ const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'];
 
 export default function ScanScreen({ navigation, route }) {
   const { language, profile, addScanToHistory } = useApp();
-  const { token, refreshUser } = useAuth();
+  const { token, refreshUser, markOnboardingScanUsed } = useAuth();
   const isOnboarding = route?.params?.onboarding === true;
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
@@ -102,7 +102,10 @@ export default function ScanScreen({ navigation, route }) {
 
       const scan = { ...result, date: new Date().toISOString() };
       await addScanToHistory(scan);
-      if (isOnboarding) refreshUser().catch(() => {});
+      if (isOnboarding) {
+        await markOnboardingScanUsed();
+        refreshUser().catch(() => {});
+      }
       setCameraActive(false);
       navigation.replace('Result', { result: scan, onboarding: isOnboarding });
     } catch (e) {
@@ -217,7 +220,10 @@ export default function ScanScreen({ navigation, route }) {
       }
       const scan = { ...result, date: new Date().toISOString(), imageUri };
       await addScanToHistory(scan);
-      if (isOnboarding) refreshUser().catch(() => {});
+      if (isOnboarding) {
+        await markOnboardingScanUsed();
+        refreshUser().catch(() => {});
+      }
       setCameraActive(false);
       navigation.replace('Result', { result: scan, onboarding: isOnboarding });
     } catch (e) {
