@@ -44,10 +44,21 @@ export default function ProfileSetupScreen({ navigation }) {
     try {
       await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
       if (isFirstTime) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
-        });
+        // New signups get one guided scan before the paywall.
+        // Users who already burned their onboarding scan (edge case: reinstall
+        // after paywall) go straight to the paywall as before.
+        const needsOnboardingScan = user?.onboarding_scan_used !== true;
+        if (needsOnboardingScan) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Scan', params: { onboarding: true } }],
+          });
+        } else {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+          });
+        }
       } else {
         navigation.navigate('Main');
       }

@@ -103,6 +103,43 @@ export async function sendSupportEmail({ name, email, topic, message, marketing 
   });
 }
 
+export async function sendOnboardingFeedbackEmail({ userEmail, userId, dietId, allergyIds, scanTitle, scanLanguage, scanPayload, comment }, host) {
+  if (!emailsEnabled()) return;
+  const brand = getBrand(host);
+  const cfg = getConfig(brand);
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  const allergiesStr = Array.isArray(allergyIds) && allergyIds.length ? allergyIds.join(', ') : '—';
+  const commentHtml = comment
+    ? `<p style="color:#333;font-size:14px;white-space:pre-wrap;background:#fff8ea;padding:12px;border-radius:8px;border-left:3px solid ${cfg.color}">${comment.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`
+    : `<p style="color:#999;font-size:13px;font-style:italic">(sem comentário do utilizador)</p>`;
+  const payloadJson = scanPayload
+    ? `<pre style="background:#f4f4f4;padding:12px;border-radius:8px;font-size:11px;color:#333;overflow:auto;max-height:280px;white-space:pre-wrap">${JSON.stringify(scanPayload, null, 2).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>`
+    : '';
+  await createTransport(brand).sendMail({
+    from: cfg.from,
+    to: cfg.from,
+    replyTo: userEmail ? `<${userEmail}>` : undefined,
+    subject: `👎 Onboarding feedback — ${cfg.name}`,
+    html: htmlWrapper(`
+      <p style="color:#333;font-size:15px;margin-bottom:16px;">Novo utilizador não gostou do primeiro scan.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#888;width:120px">User ID</td><td style="padding:8px 0;color:#222;font-weight:600">${userId}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0;color:#222"><a href="mailto:${userEmail || ''}" style="color:${cfg.color}">${userEmail || '—'}</a></td></tr>
+        <tr><td style="padding:8px 0;color:#888">Diet</td><td style="padding:8px 0;color:#222">${dietId || '—'}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Allergies</td><td style="padding:8px 0;color:#222">${allergiesStr}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Product</td><td style="padding:8px 0;color:#222">${(scanTitle || '—').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Language</td><td style="padding:8px 0;color:#222">${scanLanguage || '—'}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Submitted</td><td style="padding:8px 0;color:#888;font-size:12px">${now}</td></tr>
+      </table>
+      <hr style="border:none;border-top:1px solid #eee;margin:16px 0">
+      <p style="color:#888;font-size:12px;margin-bottom:4px">Comentário:</p>
+      ${commentHtml}
+      <p style="color:#888;font-size:12px;margin:16px 0 4px">Scan payload:</p>
+      ${payloadJson}
+    `, brand),
+  });
+}
+
 export async function sendPasswordResetEmail(email, token, host) {
   if (!emailsEnabled()) return;
   const brand = getBrand(host);

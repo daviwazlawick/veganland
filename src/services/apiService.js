@@ -230,3 +230,14 @@ export async function apiGetHistory(token) {
   if (!response.ok) throw new Error(data.error || `Failed to load history`);
   return data.history || [];
 }
+
+export async function apiSubmitFeedback(token, { scanId, rating, comment }) {
+  const response = await fetch(`${baseUrl()}/feedback`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ scanId, rating, comment: comment || undefined }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to submit feedback');
+  return data;
+}

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useReferral } from '../context/ReferralContext';
 import { BrandFonts } from '../brand';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
 import { ALLERGIES } from '../constants/allergies';
+import { apiSubmitFeedback } from '../services/apiService';
 
 const STATUS_CONFIG = {
   SAFE: {
@@ -57,10 +59,18 @@ function titleCase(s) {
 
 export default function ResultScreen({ navigation, route }) {
   const { language, scanHistory } = useApp();
+  const { token } = useAuth();
   const { stats: referralStats } = useReferral();
-  const showReferralBanner = (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3)
+  const isOnboarding = route?.params?.onboarding === true;
+  const showReferralBanner = !isOnboarding
+    && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3)
     && scanHistory.length > 0 && scanHistory.length % 5 === 0;
   const { result } = route.params;
+  const scanId = result?.scan_id || null;
+  const [feedbackState, setFeedbackState] = useState('idle'); // idle | commenting | sending | done
+  const [feedbackRating, setFeedbackRating] = useState(null); // 'up' | 'down' — which flow is active
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackError, setFeedbackError] = useState(null);
   const cfg = STATUS_CONFIG[result.status] || STATUS_CONFIG.CAUTION;
   const [activeInfo, setActiveInfo] = useState(null);
   const sourceKey = result.ingredients_source || result.productInfo?.source;
@@ -105,10 +115,16 @@ export default function ResultScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t(language, 'result.full_analysis')}</Text>
+        {isOnboarding ? (
+          <View style={{ width: 44 }} />
+        ) : (
+          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>←</Text>
+          </TouchableOpacity>
+        )}
+        <Text style={styles.headerTitle}>
+          {isOnboarding ? t(language, 'onboarding.scan_title') : t(language, 'result.full_analysis')}
+        </Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -337,6 +353,59 @@ export default function ResultScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
 
+        {isOnboarding && (
+          <View style={fbStyles.card}>
+            <Text style={fbStyles.headline}>{t(language, 'onboarding.feedback_headline')}</Text>
+            <Text style={fbStyles.sub}>{t(language, 'onboarding.feedback_sub')}</Text>
+            <View style={fbStyles.row}>
+              <TouchableOpacity
+                style={[fbStyles.thumb, fbStyles.thumbUp]}
+                activeOpacity={0.85}
+                disabled={feedbackState === 'sending'}
+                onPress={async () => {
+                  setFeedbackError(null);
+                  setFeedbackRating('up');
+                  setFeedbackState('sending');
+                  try {
+                    if (scanId) await apiSubmitFeedback(token, { scanId, rating: 'up' });
+                    setFeedbackState('done');
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                    });
+                  } catch (e) {
+                    setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
+                    setFeedbackState('idle');
+                    setFeedbackRating(null);
+                  }
+                }}
+              >
+                <Text style={fbStyles.thumbEmoji}>👍</Text>
+                <Text style={fbStyles.thumbLabel}>{t(language, 'onboarding.feedback_up')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[fbStyles.thumb, fbStyles.thumbDown]}
+                activeOpacity={0.85}
+                disabled={feedbackState === 'sending'}
+                onPress={() => {
+                  setFeedbackError(null);
+                  setFeedbackRating('down');
+                  setFeedbackState('commenting');
+                }}
+              >
+                <Text style={fbStyles.thumbEmoji}>👎</Text>
+                <Text style={fbStyles.thumbLabel}>{t(language, 'onboarding.feedback_down')}</Text>
+              </TouchableOpacity>
+            </View>
+            {feedbackState === 'sending' && (
+              <ActivityIndicator style={{ marginTop: 12 }} color={Colors.primaryDark} />
+            )}
+            {feedbackError && (
+              <Text style={fbStyles.error}>{feedbackError}</Text>
+            )}
+          </View>
+        )}
+
         <View style={{ height: 110 }} />
       </ScrollView>
 
@@ -396,18 +465,85 @@ export default function ResultScreen({ navigation, route }) {
         </TouchableOpacity>
       </Modal>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
-          <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.wrongProductBtn}
-          onPress={() => navigation.navigate('Scan', { photoMode: true, wrongProductBarcode: result.barcode || null })}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.wrongProductText}>{t(language, 'result.wrong_product')}</Text>
-        </TouchableOpacity>
-      </View>
+      {!isOnboarding && (
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
+            <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.wrongProductBtn}
+            onPress={() => navigation.navigate('Scan', { photoMode: true, wrongProductBarcode: result.barcode || null })}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.wrongProductText}>{t(language, 'result.wrong_product')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <Modal
+        visible={feedbackRating === 'down' && (feedbackState === 'commenting' || feedbackState === 'sending')}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (feedbackState === 'commenting') {
+            setFeedbackState('idle');
+            setFeedbackRating(null);
+          }
+        }}
+      >
+        <View style={fbStyles.modalBackdrop}>
+          <View style={fbStyles.modalCard}>
+            <Text style={fbStyles.modalTitle}>{t(language, 'onboarding.feedback_down_title')}</Text>
+            <Text style={fbStyles.modalSub}>{t(language, 'onboarding.feedback_down_sub')}</Text>
+            <TextInput
+              value={feedbackComment}
+              onChangeText={setFeedbackComment}
+              placeholder={t(language, 'onboarding.feedback_down_placeholder')}
+              placeholderTextColor={Colors.textMuted}
+              multiline
+              maxLength={2000}
+              style={fbStyles.input}
+              editable={feedbackState === 'commenting'}
+            />
+            {feedbackError && <Text style={fbStyles.error}>{feedbackError}</Text>}
+            <TouchableOpacity
+              style={[fbStyles.sendBtn, feedbackState === 'sending' && { opacity: 0.6 }]}
+              disabled={feedbackState === 'sending'}
+              activeOpacity={0.85}
+              onPress={async () => {
+                setFeedbackError(null);
+                setFeedbackState('sending');
+                try {
+                  if (scanId) {
+                    await apiSubmitFeedback(token, {
+                      scanId,
+                      rating: 'down',
+                      comment: feedbackComment.trim() || undefined,
+                    });
+                  }
+                  setFeedbackState('done');
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                  });
+                } catch (e) {
+                  setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
+                  setFeedbackState('commenting');
+                }
+              }}
+            >
+              {feedbackState === 'sending'
+                ? <ActivityIndicator color={Colors.white} />
+                : <Text style={fbStyles.sendBtnText}>
+                    {feedbackComment.trim()
+                      ? t(language, 'onboarding.feedback_send')
+                      : t(language, 'onboarding.feedback_skip_send')}
+                  </Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -694,4 +830,107 @@ const resultReferralStyles = StyleSheet.create({
     borderWidth: 1, borderColor: '#FFCB3B', marginTop: 8,
   },
   bannerText: { fontSize: 13, fontWeight: '700', color: Colors.navy || '#0B1E3F', textAlign: 'center' },
+});
+
+const fbStyles = StyleSheet.create({
+  card: {
+    marginTop: 20,
+    backgroundColor: Colors.primaryBg,
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryLight,
+    alignItems: 'center',
+    shadowColor: Colors.primaryDark,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  headline: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: Colors.primaryDark,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  sub: {
+    fontSize: 13,
+    color: Colors.textLight,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 14,
+    width: '100%',
+  },
+  thumb: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 2,
+  },
+  thumbUp: {
+    backgroundColor: Colors.safeLight,
+    borderColor: Colors.primary,
+  },
+  thumbDown: {
+    backgroundColor: Colors.cautionLight,
+    borderColor: Colors.caution,
+  },
+  thumbEmoji: { fontSize: 34 },
+  thumbLabel: { fontSize: 14, fontWeight: '800', color: Colors.text },
+  error: {
+    marginTop: 12,
+    fontSize: 12,
+    color: Colors.danger,
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  modalSub: {
+    fontSize: 13,
+    color: Colors.textLight,
+    fontWeight: '500',
+    marginBottom: 14,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    padding: 14,
+    minHeight: 110,
+    fontSize: 15,
+    color: Colors.text,
+    textAlignVertical: 'top',
+    backgroundColor: Colors.background,
+  },
+  sendBtn: {
+    marginTop: 14,
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  sendBtnText: { color: Colors.white, fontSize: 16, fontWeight: '900' },
 });

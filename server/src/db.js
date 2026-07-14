@@ -342,17 +342,20 @@ export async function saveAnalysis(productId, language, analysis) {
 
 export async function saveScanEvent({ productId, userId, profile, language, status, source, title, result }) {
   const db = await getPool();
-  if (!db) return;
+  if (!db) return null;
 
-  await db.query(
+  const inserted = await db.query(
     `insert into scan_events (product_id, user_id, profile_key, language, status, source, title, result)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     returning id`,
     [productId || null, userId || null, getProfileKey(profile, language), language, status || null, source || null, title || null, result ? JSON.stringify(result) : null]
   );
 
   // Qualify a pending referral on the first scan. Fire-and-forget — never let
   // referral bookkeeping block or fail the scan response.
   if (userId) qualifyReferralIfPending(userId).catch(err => console.warn('[referral] qualify failed', err?.message));
+
+  return inserted.rows[0]?.id || null;
 }
 
 async function readLocalUsers() {
@@ -431,7 +434,7 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
   const result = await db.query(
     `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type, email_confirmed)
      values ($1, $2, $3, $4, $5, $6, NULL, true)
-     returning id, email, user_type, created_at, email_confirmed`,
+     returning id, email, user_type, onboarding_scan_used, created_at, email_confirmed`,
     [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
 
@@ -468,7 +471,7 @@ export async function findUserByOAuthSub(provider, sub) {
   if (!db || !sub) return null;
   const col = oauthColumn(provider);
   const res = await db.query(
-    `select id, email, email_confirmed, user_type, created_at from users where ${col} = $1`,
+    `select id, email, email_confirmed, user_type, onboarding_scan_used, created_at from users where ${col} = $1`,
     [sub]
   );
   return res.rows[0] || null;
@@ -510,7 +513,7 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
                         disclaimer_accepted_at, disclaimer_version,
                         referral_code, referred_by_user_id, user_type)
      values ($1, $2, $3, true, $4, $5, $6, $7, NULL)
-     returning id, email, user_type, created_at`,
+     returning id, email, user_type, onboarding_scan_used, created_at`,
     [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
   const user = result.rows[0];
@@ -676,7 +679,7 @@ export async function findUserByEmail(email) {
   }
 
   const result = await db.query(
-    `select id, email, password_hash, email_confirmed, user_type, created_at from users where email = $1`,
+    `select id, email, password_hash, email_confirmed, user_type, onboarding_scan_used, created_at from users where email = $1`,
     [normalizedEmail]
   );
   return result.rows[0] || null;
@@ -690,7 +693,7 @@ export async function getUserById(id) {
   }
 
   const result = await db.query(
-    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, user_type, created_at, updated_at from users where id = $1`,
+    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, user_type, onboarding_scan_used, created_at, updated_at from users where id = $1`,
     [id]
   );
   return result.rows[0] || null;
@@ -826,12 +829,23 @@ export async function checkAndIncrementScanCounter(userId) {
   const [year, mon] = month.split('-').map(Number);
   const resets_at = `${mon === 12 ? year + 1 : year}-${String(mon === 12 ? 1 : mon + 1).padStart(2, '0')}-01`;
 
-  const userRes = await db.query('select user_type from users where id = $1', [userId]);
+  const userRes = await db.query(
+    'select user_type, onboarding_scan_used from users where id = $1',
+    [userId]
+  );
   const userType = userRes.rows[0]?.user_type;
-  // Users without a tier (post-lock signups who haven't paid or redeemed a
-  // gift code) can't scan. Client-side paywall blocks the UI; this is the
-  // server-side safety net.
-  if (!userType) return { allowed: false, count: 0, limit: 0, resets_at };
+  const onboardingUsed = userRes.rows[0]?.onboarding_scan_used === true;
+  // Users without a tier get exactly one guided onboarding scan. After
+  // that, client-side paywall blocks the UI and this branch is the
+  // server-side safety net (matches SCAN_LIMITS defense-in-depth).
+  if (!userType) {
+    if (onboardingUsed) return { allowed: false, count: 0, limit: 0, resets_at };
+    await db.query(
+      'update users set onboarding_scan_used = true where id = $1 and onboarding_scan_used = false',
+      [userId]
+    );
+    return { allowed: true, count: 1, limit: 1, resets_at: null, onboarding: true };
+  }
   const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
 
   if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
@@ -1190,11 +1204,25 @@ export async function getScanUsage(userId) {
 
   const [usageRes, userRes] = await Promise.all([
     db.query('select count from scan_counters where user_id = $1 and month = $2', [userId, month]),
-    db.query('select user_type, bonus_scans_remaining, bonus_scans_expires_at from users where id = $1', [userId]),
+    db.query('select user_type, bonus_scans_remaining, bonus_scans_expires_at, onboarding_scan_used from users where id = $1', [userId]),
   ]);
   const u = userRes.rows[0] || {};
   const userType = u.user_type;
-  const limit = userType && userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
+  const onboardingUsed = u.onboarding_scan_used === true;
+
+  // Null-tier users get 1 guided onboarding scan.
+  if (!userType) {
+    return {
+      count: onboardingUsed ? 1 : 0,
+      limit: 1,
+      resets_at: null,
+      bonus_remaining: 0,
+      bonus_expires_at: null,
+      onboarding: true,
+    };
+  }
+
+  const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
 
   const bonus_active = u.bonus_scans_expires_at && new Date(u.bonus_scans_expires_at) > new Date();
   const bonus_remaining = bonus_active ? (u.bonus_scans_remaining || 0) : 0;
@@ -1203,4 +1231,32 @@ export async function getScanUsage(userId) {
   if (limit === null) return { count: 0, limit: null, resets_at: null, bonus_remaining, bonus_expires_at };
 
   return { count: Number(usageRes.rows[0]?.count || 0), limit, resets_at, bonus_remaining, bonus_expires_at };
+}
+
+export async function insertScanFeedback({ scanId, userId, rating, comment, isOnboarding }) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(
+    `insert into scan_feedback (scan_id, user_id, rating, comment, is_onboarding)
+     values ($1, $2, $3, $4, $5)
+     on conflict (scan_id, user_id) do update
+       set rating = excluded.rating,
+           comment = excluded.comment,
+           created_at = now()
+     returning id`,
+    [scanId || null, userId, rating, comment || null, !!isOnboarding]
+  );
+  return res.rows[0]?.id || null;
+}
+
+export async function getScanForFeedback(scanId, userId) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(
+    `select id, title, language, result, created_at
+       from scan_events
+      where id = $1 and user_id = $2`,
+    [scanId, userId]
+  );
+  return res.rows[0] || null;
 }

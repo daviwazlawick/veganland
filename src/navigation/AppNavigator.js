@@ -121,12 +121,17 @@ export default function AppNavigator() {
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
   // Users whose user_type is explicitly null (post-lock signups who haven't
-  // picked a plan yet) are routed to the paywall on every cold start.
+  // picked a plan yet) are routed away from Main. If they still have their
+  // one free onboarding scan available, we send them through the guided
+  // Scan flow first; otherwise straight to the paywall.
   // Legacy users (any tier, including 'free') and paid users go to Main.
   // Cached sessions from before this change have user_type absent (undefined)
   // and are treated as legacy — they are NOT forced into the paywall.
-  const forcePaywall = user?.user_type === null;
-  const profileInitialRoute = forcePaywall ? 'Paywall' : 'Main';
+  const nullTier = user?.user_type === null;
+  const onboardingScanAvailable = nullTier && user?.onboarding_scan_used !== true;
+  const profileInitialRoute = onboardingScanAvailable
+    ? 'Scan'
+    : nullTier ? 'Paywall' : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
     return (
@@ -170,7 +175,12 @@ export default function AppNavigator() {
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen
+              name="Scan"
+              component={ScanScreen}
+              options={{ presentation: 'fullScreenModal' }}
+              initialParams={onboardingScanAvailable ? { onboarding: true } : undefined}
+            />
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />

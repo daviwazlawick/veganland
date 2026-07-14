@@ -1,11 +1,11 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
-import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail } from './email.js';
+import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail, sendOnboardingFeedbackEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
 import { htmlAboutPage } from './about.js';
@@ -26,6 +26,7 @@ function authUserPayload(user) {
     id: user.id,
     email: user.email,
     user_type: user.user_type ?? null,
+    onboarding_scan_used: user.onboarding_scan_used === true,
   };
 }
 
@@ -1155,6 +1156,62 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: 'token required' }, origin); return;
       }
       await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale });
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // POST /feedback — thumbs up/down on a scan result.
+    //
+    // Phase 1: guarded to null-tier users (onboarding flow only). Paid/legacy
+    // users get 403 here so we can add UI-side thumbs later without accidental
+    // writes. Removing the guard is a one-line change once the phase 2
+    // rollout is ready.
+    if (req.method === 'POST' && req.url === '/feedback') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (!user) { sendJson(res, 404, { error: 'User not found' }, origin); return; }
+      const isOnboarding = user.user_type === null || user.user_type === undefined;
+      if (!isOnboarding) {
+        sendJson(res, 403, { error: 'Feedback not enabled for your tier yet' }, origin);
+        return;
+      }
+      const body = await readJsonBody(req);
+      const scanId = String(body.scanId || '').trim();
+      const rating = body.rating === 'up' || body.rating === 'down' ? body.rating : null;
+      const rawComment = typeof body.comment === 'string' ? body.comment.trim().slice(0, 2000) : '';
+      if (!scanId || !rating) {
+        sendJson(res, 400, { error: 'scanId and rating (up|down) required' }, origin);
+        return;
+      }
+      const scan = await getScanForFeedback(scanId, claims.userId);
+      if (!scan) { sendJson(res, 404, { error: 'Scan not found' }, origin); return; }
+
+      await insertScanFeedback({
+        scanId,
+        userId: claims.userId,
+        rating,
+        comment: rawComment || null,
+        isOnboarding: true,
+      });
+
+      if (rating === 'down') {
+        try {
+          await sendOnboardingFeedbackEmail({
+            userEmail: user.email,
+            userId: user.id,
+            dietId: user.diet_id,
+            allergyIds: user.allergy_ids,
+            scanTitle: scan.title,
+            scanLanguage: scan.language,
+            scanPayload: scan.result,
+            comment: rawComment || null,
+          }, req.headers.host);
+        } catch (e) {
+          console.warn('[feedback] onboarding email failed', e?.message);
+        }
+      }
+
       sendJson(res, 200, { ok: true }, origin);
       return;
     }

@@ -20,7 +20,8 @@ const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'];
 
 export default function ScanScreen({ navigation, route }) {
   const { language, profile, addScanToHistory } = useApp();
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
+  const isOnboarding = route?.params?.onboarding === true;
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
   const [searchingText, setSearchingText] = useState(null);
@@ -45,6 +46,15 @@ export default function ScanScreen({ navigation, route }) {
   function handleClose() {
     clearTimeout(lockRef.current.timer);
     setCameraActive(false);
+    if (isOnboarding) {
+      // No previous screen to pop back to — reset to Paywall so users can
+      // still upgrade even if they bail on the guided scan.
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+      });
+      return;
+    }
     navigation.goBack();
   }
 
@@ -92,8 +102,9 @@ export default function ScanScreen({ navigation, route }) {
 
       const scan = { ...result, date: new Date().toISOString() };
       await addScanToHistory(scan);
+      if (isOnboarding) refreshUser().catch(() => {});
       setCameraActive(false);
-      navigation.replace('Result', { result: scan });
+      navigation.replace('Result', { result: scan, onboarding: isOnboarding });
     } catch (e) {
       setScanError(buildErrorMessage(e, language));
       setIsLimitError(e.status === 429);
@@ -206,8 +217,9 @@ export default function ScanScreen({ navigation, route }) {
       }
       const scan = { ...result, date: new Date().toISOString(), imageUri };
       await addScanToHistory(scan);
+      if (isOnboarding) refreshUser().catch(() => {});
       setCameraActive(false);
-      navigation.replace('Result', { result: scan });
+      navigation.replace('Result', { result: scan, onboarding: isOnboarding });
     } catch (e) {
       setScanError(buildErrorMessage(e, language));
       setIsLimitError(e.status === 429);
@@ -219,7 +231,7 @@ export default function ScanScreen({ navigation, route }) {
   async function navigateToResult(scan) {
     await addScanToHistory(scan);
     setCameraActive(false);
-    navigation.replace('Result', { result: scan });
+    navigation.replace('Result', { result: scan, onboarding: isOnboarding });
   }
 
   function buildErrorMessage(e, lang) {
@@ -303,7 +315,16 @@ export default function ScanScreen({ navigation, route }) {
             <View style={{ width: 52 }} />
           </View>
 
-          {isBarcodeStep && (
+          {isOnboarding && isBarcodeStep && (
+            <View style={onboardingScanStyles.hero} pointerEvents="none">
+              <Text style={onboardingScanStyles.heroTitle}>{t(language, 'onboarding.scan_title')}</Text>
+              <Text style={onboardingScanStyles.heroHeadline}>{t(language, 'onboarding.scan_headline')}</Text>
+              <Text style={onboardingScanStyles.heroSub}>{t(language, 'onboarding.scan_subtitle')}</Text>
+              <Text style={onboardingScanStyles.heroHint}>✨ {t(language, 'onboarding.scan_hint')}</Text>
+            </View>
+          )}
+
+          {!isOnboarding && isBarcodeStep && (
             <View style={styles.barcodeTitleRow} pointerEvents="none">
               <Text style={styles.barcodeTitle}>{t(language, 'scan.barcode_title')}</Text>
             </View>
@@ -668,4 +689,47 @@ const styles = StyleSheet.create({
   allowButtonText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   galleryOnlyButton: { padding: 12 },
   galleryOnlyText: { color: Colors.accent, fontSize: 15, fontWeight: '700' },
+});
+
+const onboardingScanStyles = StyleSheet.create({
+  hero: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  heroTitle: {
+    color: '#FFD37A',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  heroHeadline: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 27,
+  },
+  heroSub: {
+    color: 'rgba(255,255,255,0.86)',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  heroHint: {
+    color: '#FFD37A',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
 });

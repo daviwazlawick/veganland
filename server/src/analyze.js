@@ -420,7 +420,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     productInfo: buildSlimProductInfo(product || knownDbRow || imageInspection),
   };
 
-  await saveScanEvent({
+  const scanId = await saveScanEvent({
     productId: product?.id,
     userId: userId || null,
     profile,
@@ -431,5 +431,6 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     result: fullResult,
   });
 
+  if (scanId) fullResult.scan_id = scanId;
   return fullResult;
 }
