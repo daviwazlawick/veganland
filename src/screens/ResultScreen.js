@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -491,58 +491,73 @@ export default function ResultScreen({ navigation, route }) {
           }
         }}
       >
-        <View style={fbStyles.modalBackdrop}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={fbStyles.modalBackdrop}
+        >
+          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+            <View style={{ flex: 1 }} />
+          </TouchableWithoutFeedback>
           <View style={fbStyles.modalCard}>
-            <Text style={fbStyles.modalTitle}>{t(language, 'onboarding.feedback_down_title')}</Text>
-            <Text style={fbStyles.modalSub}>{t(language, 'onboarding.feedback_down_sub')}</Text>
-            <TextInput
-              value={feedbackComment}
-              onChangeText={setFeedbackComment}
-              placeholder={t(language, 'onboarding.feedback_down_placeholder')}
-              placeholderTextColor={Colors.textMuted}
-              multiline
-              maxLength={2000}
-              style={fbStyles.input}
-              editable={feedbackState === 'commenting'}
-            />
-            {feedbackError && <Text style={fbStyles.error}>{feedbackError}</Text>}
-            <TouchableOpacity
-              style={[fbStyles.sendBtn, feedbackState === 'sending' && { opacity: 0.6 }]}
-              disabled={feedbackState === 'sending'}
-              activeOpacity={0.85}
-              onPress={async () => {
-                setFeedbackError(null);
-                setFeedbackState('sending');
-                try {
-                  if (scanId) {
-                    await apiSubmitFeedback(token, {
-                      scanId,
-                      rating: 'down',
-                      comment: feedbackComment.trim() || undefined,
-                    });
-                  }
-                  setFeedbackState('done');
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
-                  });
-                } catch (e) {
-                  setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
-                  setFeedbackState('commenting');
-                }
-              }}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ flexGrow: 0 }}
+              showsVerticalScrollIndicator={false}
             >
-              {feedbackState === 'sending'
-                ? <ActivityIndicator color={Colors.white} />
-                : <Text style={fbStyles.sendBtnText}>
-                    {feedbackComment.trim()
-                      ? t(language, 'onboarding.feedback_send')
-                      : t(language, 'onboarding.feedback_skip_send')}
-                  </Text>
-              }
-            </TouchableOpacity>
+              <Text style={fbStyles.modalTitle}>{t(language, 'onboarding.feedback_down_title')}</Text>
+              <Text style={fbStyles.modalSub}>{t(language, 'onboarding.feedback_down_sub')}</Text>
+              <TextInput
+                value={feedbackComment}
+                onChangeText={setFeedbackComment}
+                placeholder={t(language, 'onboarding.feedback_down_placeholder')}
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                maxLength={2000}
+                style={fbStyles.input}
+                editable={feedbackState === 'commenting'}
+                returnKeyType="default"
+                blurOnSubmit={false}
+              />
+              {feedbackError && <Text style={fbStyles.error}>{feedbackError}</Text>}
+              <TouchableOpacity
+                style={[fbStyles.sendBtn, feedbackState === 'sending' && { opacity: 0.6 }]}
+                disabled={feedbackState === 'sending'}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  Keyboard.dismiss();
+                  setFeedbackError(null);
+                  setFeedbackState('sending');
+                  try {
+                    if (scanId) {
+                      await apiSubmitFeedback(token, {
+                        scanId,
+                        rating: 'down',
+                        comment: feedbackComment.trim() || undefined,
+                      });
+                    }
+                    setFeedbackState('done');
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                    });
+                  } catch (e) {
+                    setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
+                    setFeedbackState('commenting');
+                  }
+                }}
+              >
+                {feedbackState === 'sending'
+                  ? <ActivityIndicator color={Colors.white} />
+                  : <Text style={fbStyles.sendBtnText}>
+                      {feedbackComment.trim()
+                        ? t(language, 'onboarding.feedback_send')
+                        : t(language, 'onboarding.feedback_skip_send')}
+                    </Text>
+                }
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
