@@ -921,7 +921,7 @@ export async function deletePushToken(token) {
   return res.rowCount > 0;
 }
 
-export async function listPushTokens({ locale, userType, includeAnonymous = false } = {}) {
+export async function listPushTokens({ locale, userType, onboardingScanUsed, includeAnonymous = false } = {}) {
   const db = await getPool();
   if (!db) return [];
   const conditions = [];
@@ -936,6 +936,11 @@ export async function listPushTokens({ locale, userType, includeAnonymous = fals
   } else if (userType) {
     params.push(userType);
     conditions.push(`u.user_type = $${params.length}`);
+  }
+  if (onboardingScanUsed === 'used') {
+    conditions.push('u.onboarding_scan_used = true');
+  } else if (onboardingScanUsed === 'not_used') {
+    conditions.push('(u.onboarding_scan_used = false OR u.onboarding_scan_used IS NULL)');
   }
   const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
   const res = await db.query(
@@ -965,13 +970,38 @@ export async function listPushBroadcasts(limit = 30) {
   const db = await getPool();
   if (!db) return [];
   const res = await db.query(
-    `select id, title, body, locale, user_type, route, total_count, ok_count, error_count, invalid_count, created_at
-       from push_broadcasts
-      order by created_at desc
+    `select b.id, b.title, b.body, b.locale, b.user_type, b.route,
+            b.total_count, b.ok_count, b.error_count, b.invalid_count,
+            b.created_at,
+            coalesce((select count(*)::int from push_clicks c where c.broadcast_id = b.id), 0) as click_count
+       from push_broadcasts b
+      order by b.created_at desc
       limit $1`,
     [limit]
   );
   return res.rows;
+}
+
+export async function updatePushBroadcastCounts(broadcastId, { okCount, errorCount, invalidCount }) {
+  const db = await getPool();
+  if (!db || !broadcastId) return;
+  await db.query(
+    'update push_broadcasts set ok_count = $1, error_count = $2, invalid_count = $3 where id = $4',
+    [okCount, errorCount, invalidCount, broadcastId]
+  );
+}
+
+export async function logPushClick({ broadcastId, userId }) {
+  const db = await getPool();
+  if (!db || !broadcastId) return null;
+  const res = await db.query(
+    `insert into push_clicks (broadcast_id, user_id)
+     values ($1, $2)
+     on conflict (broadcast_id, user_id) where user_id is not null do nothing
+     returning id`,
+    [broadcastId, userId || null]
+  );
+  return res.rows[0]?.id || null;
 }
 
 export async function deleteUserAccount(userId) {
@@ -1092,13 +1122,13 @@ export async function getAdminStats() {
     db.query(`SELECT COUNT(*) AS total FROM scan_events WHERE created_at > now() - interval '24 hours'`),
     db.query(`
       SELECT
-        u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed,
+        u.id, u.email, u.diet_id, u.user_type, u.onboarding_scan_used, u.created_at, u.email_confirmed,
         COUNT(se.id)::int AS total_scans,
         MAX(se.created_at) AS last_scan,
         COUNT(se.id) FILTER (WHERE date_trunc('month', se.created_at) = date_trunc('month', now()))::int AS scans_this_month
       FROM users u
       LEFT JOIN scan_events se ON se.user_id = u.id
-      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.created_at, u.email_confirmed
+      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.onboarding_scan_used, u.created_at, u.email_confirmed
       ORDER BY u.created_at DESC
       LIMIT 200
     `),
@@ -1165,7 +1195,7 @@ export async function getAdminUserDetail(userId) {
 
   const [userRes, scansRes, monthRes] = await Promise.all([
     db.query(
-      `SELECT id, email, diet_id, allergy_ids, user_type, created_at, updated_at FROM users WHERE id = $1`,
+      `SELECT id, email, diet_id, allergy_ids, user_type, onboarding_scan_used, created_at, updated_at FROM users WHERE id = $1`,
       [userId]
     ),
     db.query(

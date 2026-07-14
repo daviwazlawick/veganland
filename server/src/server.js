@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -192,7 +192,7 @@ function htmlAdminPage(stats, token) {
         ${confirmedDot}
       </td>
       <td>${esc(diet)}</td>
-      <td>${planBadge(userType)}</td>
+      <td>${planBadge(userType)}${userType === null || userType === undefined ? (u.onboarding_scan_used ? '<div style="font-size:9px;color:#dc2626;font-weight:800;margin-top:2px">scan usado</div>' : '<div style="font-size:9px;color:#16a34a;font-weight:800;margin-top:2px">scan livre</div>') : ''}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
@@ -528,12 +528,15 @@ function htmlAdminPushPage(token, lastResult = null, history = []) {
   const historyRows = history.map(h => {
     const when = new Date(h.created_at).toLocaleString('pt-BR');
     const filters = [h.locale, h.user_type].filter(Boolean).map(esc).join(' · ') || 'todos';
+    const clicks = h.click_count || 0;
+    const openRate = h.ok_count > 0 ? Math.round((clicks / h.ok_count) * 100) : 0;
     return `<tr>
       <td style="font-size:12px;color:#64748b;white-space:nowrap">${when}</td>
       <td><strong>${esc(h.title)}</strong><div style="color:#64748b;font-size:12px">${esc(h.body)}</div></td>
       <td style="font-size:12px;color:#64748b">${filters}${h.route ? ` → ${esc(h.route)}` : ''}</td>
       <td style="text-align:center">${h.total_count}</td>
       <td style="text-align:center;color:#16a34a;font-weight:700">${h.ok_count}</td>
+      <td style="text-align:center;color:#2563eb;font-weight:700">${clicks}${h.ok_count > 0 ? `<div style="font-size:10px;color:#64748b;font-weight:500">${openRate}%</div>` : ''}</td>
       <td style="text-align:center;color:#dc2626">${h.error_count}</td>
       <td style="text-align:center;color:#d97706">${h.invalid_count}</td>
     </tr>`;
@@ -583,6 +586,14 @@ function htmlAdminPushPage(token, lastResult = null, history = []) {
           <option value="free">free</option><option value="starter">starter</option><option value="premium">premium</option>
         </select>
       </div>
+      <div>
+        <label>Scan grátis</label>
+        <select name="onboarding_scan_used">
+          <option value="">Todos</option>
+          <option value="not_used">ainda não usou</option>
+          <option value="used">já usou</option>
+        </select>
+      </div>
     </div>
     <label>Link interno (opcional)</label>
     <input name="route" placeholder="Referral · Profile · Home — vazio = abrir app">
@@ -594,9 +605,9 @@ function htmlAdminPushPage(token, lastResult = null, history = []) {
     <h2>Histórico — últimos ${history.length}</h2>
     <table>
       <thead><tr>
-        <th>Quando</th><th>Mensagem</th><th>Filtros</th><th>Total</th><th>✅ Ok</th><th>❌ Erro</th><th>🚫 Inválido</th>
+        <th>Quando</th><th>Mensagem</th><th>Filtros</th><th>Total</th><th>✅ Ok</th><th>👆 Opens</th><th>❌ Erro</th><th>🚫 Inválido</th>
       </tr></thead>
-      <tbody>${historyRows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">Nenhum broadcast enviado ainda</td></tr>'}</tbody>
+      <tbody>${historyRows || '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">Nenhum broadcast enviado ainda</td></tr>'}</tbody>
     </table>
   </div>
 
@@ -1216,6 +1227,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // POST /push/click — user tapped a broadcast notification.
+    // Idempotent per (broadcast_id, user_id); anonymous taps are rejected
+    // because attribution needs a user. Response is 200/no-op.
+    if (req.method === 'POST' && req.url === '/push/click') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      const broadcastId = String(body.broadcast_id || '').trim();
+      // UUID sanity: reject anything that isn't the canonical 36-char form
+      // so we don't fill the table with garbage from malformed clients.
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(broadcastId)) {
+        sendJson(res, 400, { error: 'valid broadcast_id (uuid) required' }, origin); return;
+      }
+      await logPushClick({ broadcastId, userId: claims.userId }).catch(() => {});
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
     // POST /push/unregister — drop a token (on logout)
     if (req.method === 'POST' && req.url === '/push/unregister') {
       const { token: pushToken } = await readJsonBody(req);
@@ -1257,6 +1286,7 @@ const server = http.createServer(async (req, res) => {
       const body = (form.body || '').trim();
       const locale = (form.locale || '').trim() || null;
       const userType = (form.user_type || '').trim() || null;
+      const onboardingScanUsed = (form.onboarding_scan_used || '').trim() || null;
       const route = (form.route || '').trim() || null;
       if (!title || !body) {
         const history = await listPushBroadcasts(30);
@@ -1264,21 +1294,32 @@ const server = http.createServer(async (req, res) => {
         res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history));
         return;
       }
-      const tokens = await listPushTokens({ locale, userType });
+      const tokens = await listPushTokens({ locale, userType, onboardingScanUsed });
+      // Log the broadcast first so we have an id to embed in each message's
+      // data payload — required for click tracking (client posts the id
+      // back on tap via POST /push/click).
+      const broadcastId = await logPushBroadcast({
+        title, body, locale, userType, route,
+        totalCount: tokens.length, okCount: 0, errorCount: 0, invalidCount: 0,
+      });
       const messages = tokens.map(t => ({
         to: t.token,
         title,
         body,
         sound: 'default',
-        data: route ? { route } : {},
+        data: {
+          ...(route ? { route } : {}),
+          ...(broadcastId ? { broadcast_id: broadcastId } : {}),
+        },
       }));
       const { tickets, invalid } = await sendExpoPush(messages);
       const ok = tickets.filter(t => t.status === 'ok').length;
       const errors = tickets.filter(t => t.status !== 'ok').length;
-      await logPushBroadcast({
-        title, body, locale, userType, route,
-        totalCount: tokens.length, okCount: ok, errorCount: errors, invalidCount: invalid,
-      });
+      if (broadcastId) {
+        await updatePushBroadcastCounts(broadcastId, {
+          okCount: ok, errorCount: errors, invalidCount: invalid,
+        });
+      }
       const summary = `✅ Enviadas: ${ok} · ❌ Erros: ${errors} · 🚫 Inválidos: ${invalid} · 📊 Total: ${tokens.length}`;
       const history = await listPushBroadcasts(30);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

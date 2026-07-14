@@ -74,7 +74,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.14', // NEVER bump without a new native build — runtimeVersion = appVersion
+    version: '1.0.15', // NEVER bump without a new native build — runtimeVersion = appVersion
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -114,7 +114,7 @@ export default {
       // Without this, the ID is zeroed and Meta Ads attribution breaks.
       permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
       edgeToEdgeEnabled: true,
-      versionCode: 17,
+      versionCode: 18,
       // Firebase config — required for FCM (push) and Firebase Analytics.
       // The file is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './google-services.json' : undefined,
@@ -171,6 +171,13 @@ export default {
     ],
     updates: {
       url: `https://u.expo.dev/${isNovaQI ? '08a6532d-79dd-4681-924f-471645e23370' : '64fa402d-0f4c-4582-8879-e032ddaa946e'}`,
+      // Fresh installs check for a newer OTA on first cold start and wait
+      // up to 8s during splash to apply it. Prevents the "first-open shows
+      // the stale bundled JS, second open finally shows the new UX" gap
+      // that would otherwise let new users see the old paywall lock before
+      // the OTA arrived.
+      fallbackToCacheTimeout: 8000,
+      checkAutomatically: 'ON_LOAD',
     },
     runtimeVersion: {
       policy: 'appVersion',

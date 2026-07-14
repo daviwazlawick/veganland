@@ -231,6 +231,15 @@ export async function apiGetHistory(token) {
   return data.history || [];
 }
 
+export async function apiReportPushClick(token, broadcastId) {
+  const response = await fetch(`${baseUrl()}/push/click`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ broadcast_id: broadcastId }),
+  });
+  return response.ok;
+}
+
 export async function apiSubmitFeedback(token, { scanId, rating, comment }) {
   const response = await fetch(`${baseUrl()}/feedback`, {
     method: 'POST',
