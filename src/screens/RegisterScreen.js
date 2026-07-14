@@ -351,15 +351,16 @@ export default function RegisterScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, padding: 24, paddingTop: 8, gap: 18, justifyContent: 'flex-start' },
+  scroll: { flexGrow: 1, padding: 24, paddingTop: 4, justifyContent: 'flex-start' },
   langBtn: {
     alignSelf: 'flex-end',
     backgroundColor: 'rgba(255,255,255,0.64)',
     borderRadius: 999, borderWidth: 1, borderColor: Colors.border,
     paddingHorizontal: 12, paddingVertical: 7,
+    marginBottom: 5,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 6, paddingTop: 0, paddingBottom: 4, marginTop: -13 },
+  hero: { alignItems: 'center', gap: 6, paddingTop: 0, paddingBottom: 4, marginBottom: 18 },
   appName: {
     fontSize: 32, fontWeight: '800',
     fontFamily: BrandFonts.heading || undefined,
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
   },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 16 },
   footerText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
   footerLink: { fontSize: 14, color: Colors.primary, fontWeight: '800' },
   socialTermsHint: {
