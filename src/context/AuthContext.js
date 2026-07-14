@@ -9,10 +9,12 @@ const AuthContext = createContext(null);
 
 const TOKEN_KEY = '@veganland_auth_token';
 const USER_KEY = '@veganland_auth_user';
+const LAUNCHED_KEY = '@veganland_launched';
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
+  const [hasLaunchedBefore, setHasLaunchedBefore] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -21,14 +23,18 @@ export function AuthProvider({ children }) {
 
   async function loadStoredAuth() {
     try {
-      const [storedToken, storedUser] = await Promise.all([
+      const [storedToken, storedUser, launched] = await Promise.all([
         AsyncStorage.getItem(TOKEN_KEY),
         AsyncStorage.getItem(USER_KEY),
+        AsyncStorage.getItem(LAUNCHED_KEY),
       ]);
       if (storedToken) {
         setToken(storedToken);
         if (storedUser) setUser(JSON.parse(storedUser));
       }
+      // A stored token also implies the app has been launched before
+      // (legacy users upgrading from a build without LAUNCHED_KEY).
+      setHasLaunchedBefore(launched === '1' || !!storedToken);
     } catch (e) {
       console.error('Failed to load auth', e);
     } finally {
@@ -39,9 +45,11 @@ export function AuthProvider({ children }) {
   async function persistAuth(newToken, newUser) {
     setToken(newToken);
     setUser(newUser);
+    setHasLaunchedBefore(true);
     await Promise.all([
       AsyncStorage.setItem(TOKEN_KEY, newToken),
       AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser)),
+      AsyncStorage.setItem(LAUNCHED_KEY, '1'),
     ]);
   }
 
@@ -112,7 +120,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, isLoaded, login, register, signInWithProvider, logout, updateUserType, refreshUser }}>
+    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

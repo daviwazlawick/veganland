@@ -117,7 +117,7 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { token, user, isLoaded: authLoaded } = useAuth();
+  const { token, user, hasLaunchedBefore, isLoaded: authLoaded } = useAuth();
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
   // Users whose user_type is explicitly null (post-lock signups who haven't
@@ -142,7 +142,7 @@ export default function AppNavigator() {
   }
 
   const initialRouteName =
-    !token ? 'Login' :
+    !token ? (hasLaunchedBefore ? 'Login' : 'Register') :
     !disclaimerAccepted ? 'Disclaimer' :
     !profile ? 'ProfileSetup' :
     profileInitialRoute;
