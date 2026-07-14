@@ -228,7 +228,7 @@ export default function RegisterScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.hero}>
-            <BrandLogo size={94} />
+            <BrandLogo size={68} />
             <BrandName
               style={styles.appName}
               prefixColor={Colors.navy}
@@ -351,7 +351,7 @@ export default function RegisterScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, padding: 24, gap: 24, justifyContent: 'center' },
+  scroll: { flexGrow: 1, padding: 24, paddingTop: 8, gap: 18, justifyContent: 'flex-start' },
   langBtn: {
     alignSelf: 'flex-end',
     backgroundColor: 'rgba(255,255,255,0.64)',
@@ -359,9 +359,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 10, paddingVertical: 10 },
+  hero: { alignItems: 'center', gap: 6, paddingVertical: 4 },
   appName: {
-    fontSize: 38, fontWeight: '800',
+    fontSize: 32, fontWeight: '800',
     fontFamily: BrandFonts.heading || undefined,
     letterSpacing: -1,
   },

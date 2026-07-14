@@ -78,7 +78,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.hero}>
-            <BrandLogo size={104} />
+            <BrandLogo size={72} />
             <BrandName
               style={styles.appName}
               prefixColor={Colors.navy}
@@ -165,7 +165,7 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, padding: 24, paddingTop: 16, gap: 20, justifyContent: 'center' },
+  scroll: { flexGrow: 1, padding: 24, paddingTop: 8, gap: 16, justifyContent: 'flex-start' },
   langBtn: {
     alignSelf: 'flex-end',
     backgroundColor: 'rgba(255,255,255,0.64)',
@@ -176,9 +176,9 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 10, paddingVertical: 8 },
+  hero: { alignItems: 'center', gap: 6, paddingVertical: 4 },
   appName: {
-    fontSize: 42, fontWeight: '800',
+    fontSize: 36, fontWeight: '800',
     fontFamily: BrandFonts.heading || undefined,
     letterSpacing: -1,
   },
