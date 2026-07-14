@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7,
   },
   langText: { color: Colors.textLight, fontSize: 13, fontWeight: '800' },
-  hero: { alignItems: 'center', gap: 6, paddingVertical: 4 },
+  hero: { alignItems: 'center', gap: 6, paddingTop: 0, paddingBottom: 4, marginTop: -13 },
   appName: {
     fontSize: 32, fontWeight: '800',
     fontFamily: BrandFonts.heading || undefined,
