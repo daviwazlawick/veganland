@@ -37,7 +37,15 @@ export async function initAnalytics() {
 
 export async function requestTrackingPermission() {
   if (!configured) return 'unavailable';
-  if (Platform.OS !== 'ios') return 'granted';
+  if (Platform.OS !== 'ios') {
+    // Android: no ATT prompt, but we still need to boot the Meta SDK here
+    // so install/registration/scan events flow. Without this, the SDK
+    // stays uninitialized and every AppEventsLogger.logEvent is a no-op
+    // — including the auto fb_mobile_activate_app (install) event, which
+    // breaks Meta Ads attribution on Android entirely.
+    if (!initialized) await initAnalytics();
+    return 'granted';
+  }
   try {
     const { status } = await requestTrackingPermissionsAsync();
     Settings.setAdvertiserTrackingEnabled(status === 'granted');

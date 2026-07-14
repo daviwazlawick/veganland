@@ -3,7 +3,7 @@ import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { apiGetHistory, apiGetMe, apiUpdateProfile } from '../services/apiService';
-import { requestTrackingPermission, logScan } from '../services/analyticsService';
+import { requestTrackingPermission, logScan, initAnalytics } from '../services/analyticsService';
 
 const SUPPORTED_LANGUAGES = ['pt', 'en', 'de', 'fr', 'it', 'es'];
 const FALLBACK_LANGUAGE = 'en';
@@ -97,6 +97,14 @@ export function AppProvider({ children }) {
       if (prof) setProfileState(JSON.parse(prof));
       if (history) setScanHistoryState(JSON.parse(history));
       if (disclaimer === 'true') setDisclaimerAcceptedState(true);
+      // Boot the Meta SDK early on Android so the fb_mobile_activate_app
+      // (install/open) event fires at cold start — this is what Meta uses
+      // for install attribution. On iOS we still wait for ATT via
+      // acceptDisclaimer() → requestTrackingPermission() so we stay
+      // compliant with App Store rules.
+      if (Platform.OS === 'android') {
+        initAnalytics().catch(() => {});
+      }
     } catch (e) {
       console.error('Failed to load storage', e);
     } finally {
