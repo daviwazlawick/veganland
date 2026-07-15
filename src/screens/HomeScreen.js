@@ -9,6 +9,7 @@ import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon, BrandName } from '../components/ui';
 import { useReferral } from '../context/ReferralContext';
+import { HIDE_REFERRAL } from '../constants/features';
 
 const STATUS_CONFIG = {
   SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe',    labelKey: 'result.safe' },
@@ -21,7 +22,8 @@ const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory } = useApp();
   const { stats: referralStats } = useReferral();
-  const showReferralHero = (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
+  const showReferralHero = !HIDE_REFERRAL
+    && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
   const allergies = profile

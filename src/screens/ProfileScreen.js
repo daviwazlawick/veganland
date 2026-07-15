@@ -13,6 +13,7 @@ import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe, apiAdminHandoff } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
+import { HIDE_REFERRAL } from '../constants/features';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
 import { PremiumIcon, BrandName } from '../components/ui';
@@ -50,25 +51,27 @@ export default function ProfileScreen({ navigation }) {
 
         <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
 
-        <TouchableOpacity
-          style={referralCardStyles.card}
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate('Referral')}
-        >
-          <View style={referralCardStyles.left}>
-            <Text style={referralCardStyles.emoji}>🎁</Text>
-          </View>
-          <View style={referralCardStyles.body}>
-            <Text style={referralCardStyles.title}>{t(language, 'referral.profile_card_title')}</Text>
-            <Text style={referralCardStyles.sub}>
-              {t(language, 'referral.profile_card_sub', {
-                credit: referralStats?.credit_count || 0,
-                total: referralStats?.referrals_needed || 3,
-              })}
-            </Text>
-          </View>
-          <Text style={referralCardStyles.chev}>›</Text>
-        </TouchableOpacity>
+        {!HIDE_REFERRAL && (
+          <TouchableOpacity
+            style={referralCardStyles.card}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Referral')}
+          >
+            <View style={referralCardStyles.left}>
+              <Text style={referralCardStyles.emoji}>🎁</Text>
+            </View>
+            <View style={referralCardStyles.body}>
+              <Text style={referralCardStyles.title}>{t(language, 'referral.profile_card_title')}</Text>
+              <Text style={referralCardStyles.sub}>
+                {t(language, 'referral.profile_card_sub', {
+                  credit: referralStats?.credit_count || 0,
+                  total: referralStats?.referrals_needed || 3,
+                })}
+              </Text>
+            </View>
+            <Text style={referralCardStyles.chev}>›</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>

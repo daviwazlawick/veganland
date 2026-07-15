@@ -10,6 +10,7 @@ import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
 import { ALLERGIES } from '../constants/allergies';
 import { apiSubmitFeedback } from '../services/apiService';
+import { HIDE_REFERRAL } from '../constants/features';
 
 const STATUS_CONFIG = {
   SAFE: {
@@ -62,7 +63,8 @@ export default function ResultScreen({ navigation, route }) {
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
   const isOnboarding = route?.params?.onboarding === true;
-  const showReferralBanner = !isOnboarding
+  const showReferralBanner = !HIDE_REFERRAL
+    && !isOnboarding
     && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3)
     && scanHistory.length > 0 && scanHistory.length % 5 === 0;
   const { result } = route.params;

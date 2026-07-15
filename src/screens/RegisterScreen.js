@@ -15,6 +15,7 @@ import Brand from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
+import { HIDE_REFERRAL } from '../constants/features';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 
 const DISCLAIMER_VERSION = '1.0';
@@ -278,21 +279,23 @@ export default function RegisterScreen({ navigation }) {
               />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>🎁 {t(language, 'referral.register_field_label')}</Text>
-              <TextInput
-                style={styles.input}
-                value={referralCode}
-                onChangeText={text => setReferralCode(text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-                placeholder="ABCD23"
-                placeholderTextColor={Colors.textMuted}
-                autoCapitalize="characters"
-                maxLength={6}
-              />
-              <Text style={[styles.fieldLabel, { marginTop: 4, fontSize: 11, color: Colors.textMuted, fontWeight: '400' }]}>
-                {t(language, 'referral.register_field_hint')}
-              </Text>
-            </View>
+            {!HIDE_REFERRAL && (
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>🎁 {t(language, 'referral.register_field_label')}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={referralCode}
+                  onChangeText={text => setReferralCode(text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                  placeholder="ABCD23"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="characters"
+                  maxLength={6}
+                />
+                <Text style={[styles.fieldLabel, { marginTop: 4, fontSize: 11, color: Colors.textMuted, fontWeight: '400' }]}>
+                  {t(language, 'referral.register_field_hint')}
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity
               style={styles.termsRow}
