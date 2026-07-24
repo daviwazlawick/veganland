@@ -294,6 +294,14 @@ export default function PaywallScreen({ navigation, route }) {
         })}
 
 
+        {!isLocked && (
+          <TouchableOpacity onPress={handleClose} style={styles.continueFreeLinkWrap}>
+            <Text style={styles.continueFreeLink}>
+              {t(language, 'plans.continue_free')}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {isNative && (
           <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreBtn}>
             <Text style={styles.restoreText}>
@@ -407,7 +415,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   planCardSelected: {
-    borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.75)',
+    borderColor: Colors.primary, backgroundColor: Colors.glass,
     shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
   },
   planCardCurrent: { borderColor: Colors.safe },

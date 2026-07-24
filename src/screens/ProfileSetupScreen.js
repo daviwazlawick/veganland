@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
   dietCardSelected: {
-    borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.7)',
+    borderColor: Colors.primary, backgroundColor: Colors.glass,
     shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 4,
   },
   dietCheckCircle: {
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
   planCardSelected: {
-    borderColor: Colors.primary, backgroundColor: 'rgba(255,255,255,0.75)',
+    borderColor: Colors.primary, backgroundColor: Colors.glass,
     shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
   },
   popularBadge: {
