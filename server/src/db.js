@@ -1004,6 +1004,23 @@ export async function logPushClick({ broadcastId, userId }) {
   return res.rows[0]?.id || null;
 }
 
+// Fire-and-forget: every /get or /r/:code hit that carried any utm_*
+// lands here. Failures are swallowed — attribution logging must never
+// break the landing-page redirect.
+export async function insertLinkClick({ utmSource, utmMedium, utmCampaign, path, platformDetected, userAgent }) {
+  try {
+    const db = await getPool();
+    if (!db) return;
+    await db.query(
+      `insert into link_clicks (utm_source, utm_medium, utm_campaign, path, platform_detected, user_agent)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [utmSource || null, utmMedium || null, utmCampaign || null, path, platformDetected || null, userAgent || null]
+    );
+  } catch (e) {
+    console.error('[link_clicks] insert failed:', e.message);
+  }
+}
+
 export async function deleteUserAccount(userId) {
   const db = await getPool();
   if (!db) throw new Error('No database');
@@ -1112,7 +1129,7 @@ export async function getAdminStats() {
   const [
     usersRes, totalScansRes, monthScansRes, recentScansRes, userStatsRes, costRes,
     newTodayRes, newWeekRes, newMonthRes, planBreakdownRes, signupTrendRes,
-    activeWeekRes, confirmedRes, dietStatsRes,
+    activeWeekRes, confirmedRes, dietStatsRes, utmOriginsRes,
   ] = await Promise.all([
     db.query(`SELECT COUNT(*) AS total FROM users`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events`),
@@ -1159,6 +1176,18 @@ export async function getAdminStats() {
         COUNT(*) FILTER (WHERE diet_id IS NULL AND created_at >= '2026-05-19')::int AS no_diet_recent
       FROM users
     `),
+    db.query(`
+      SELECT
+        COALESCE(utm_source,   '(none)') AS utm_source,
+        COALESCE(utm_campaign, '(none)') AS utm_campaign,
+        COALESCE(utm_medium,   '(none)') AS utm_medium,
+        COUNT(*)::int AS clicks
+      FROM link_clicks
+      WHERE created_at > now() - interval '30 days'
+      GROUP BY 1, 2, 3
+      ORDER BY clicks DESC
+      LIMIT 100
+    `),
   ]);
 
   const planBreakdown = { none: 0, free: 0, starter: 0, premium: 0, admin: 0 };
@@ -1183,6 +1212,7 @@ export async function getAdminStats() {
     no_diet: Number(dietStatsRes.rows[0].no_diet),
     no_diet_legacy: Number(dietStatsRes.rows[0].no_diet_legacy),
     no_diet_recent: Number(dietStatsRes.rows[0].no_diet_recent),
+    utm_origins: utmOriginsRes.rows,
     users: userStatsRes.rows,
   };
 }

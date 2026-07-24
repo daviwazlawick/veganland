@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -172,6 +172,15 @@ function htmlAdminPage(stats, token) {
   const unconfirmed = stats.total_users - stats.confirmed_users;
   const conversionRate = stats.total_users > 0 ? Math.round(((pb.starter + pb.premium) / stats.total_users) * 100) : 0;
 
+  const utmRows = (stats.utm_origins || []).map(o => `
+      <tr>
+        <td><strong>${esc(o.utm_source)}</strong></td>
+        <td>${esc(o.utm_campaign)}</td>
+        <td style="color:#888">${esc(o.utm_medium)}</td>
+        <td style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums">${o.clicks}</td>
+      </tr>`).join('');
+  const utmTotal = (stats.utm_origins || []).reduce((sum, o) => sum + Number(o.clicks || 0), 0);
+
   const rows = stats.users.map(u => {
     const diet = dietLabel[u.diet_id] || (u.diet_id || '—');
     const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—';
@@ -317,6 +326,17 @@ function htmlAdminPage(stats, token) {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Origens (UTM tracking) -->
+    <div class="section">
+      <h2>Origens <span class="sub">últimos 30 dias · ${utmTotal} clicks com utm_*</span></h2>
+      <table>
+        <thead><tr>
+          <th>utm_source</th><th>utm_campaign</th><th>utm_medium</th><th style="text-align:right">Clicks</th>
+        </tr></thead>
+        <tbody>${utmRows || '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:24px">Ainda sem clicks com UTMs. Adiciona ?utm_source=… aos teus links de marketing.</td></tr>'}</tbody>
+      </table>
     </div>
 
     <!-- Scan + cost row -->
@@ -626,6 +646,34 @@ function detectPlatform(ua) {
   return 'other';
 }
 
+// Marketing attribution: pluck utm_* out of a URL and rebuild the Play
+// Store URL with them encoded as an install-referrer payload.
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign'];
+
+function extractUtms(searchParams) {
+  const out = {};
+  let any = false;
+  for (const key of UTM_KEYS) {
+    const v = searchParams.get(key);
+    if (v && typeof v === 'string') {
+      const trimmed = v.trim().slice(0, 128);
+      if (trimmed) { out[key] = trimmed; any = true; }
+    }
+  }
+  return any ? out : null;
+}
+
+function appendPlayReferrer(playUrl, utms) {
+  if (!playUrl || !utms) return playUrl;
+  const referrer = UTM_KEYS
+    .filter(k => utms[k])
+    .map(k => `${k}=${encodeURIComponent(utms[k])}`)
+    .join('&');
+  if (!referrer) return playUrl;
+  const sep = playUrl.includes('?') ? '&' : '?';
+  return `${playUrl}${sep}referrer=${encodeURIComponent(referrer)}`;
+}
+
 function htmlStorePicker(brand, requestedPlatform) {
   const iosBtn = brand.iosUrl
     ? `<a href="${brand.iosUrl}" class="btn btn-ios">📱 App Store · iPhone & iPad</a>`
@@ -714,7 +762,7 @@ ${safeCode ? `<script>
 </body></html>`;
 }
 
-function htmlReferralLanding(code, valid, host) {
+function htmlReferralLanding(code, valid, host, brandOverride = null) {
   const safe = String(code).replace(/[^A-Z0-9]/g, '').slice(0, 8);
   if (!valid) {
     return htmlPage('Link inválido',
@@ -722,7 +770,7 @@ function htmlReferralLanding(code, valid, host) {
       '#FF4B4B'
     );
   }
-  const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
+  const brand = brandOverride || STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
   const iosLink = brand.iosUrl
     ? `<a href="${brand.iosUrl}" class="btn btn-primary" onclick="copyCode()">📱 Instalar no iPhone</a>`
     : '';
@@ -1354,6 +1402,18 @@ const server = http.createServer(async (req, res) => {
       const platform = detectPlatform(req.headers['user-agent']);
       const url = new URL(req.url, 'http://x');
       const forcePicker = url.searchParams.get('picker') === '1';
+      const utms = req.method === 'HEAD' ? null : extractUtms(url.searchParams);
+      if (utms) {
+        insertLinkClick({
+          utmSource: utms.utm_source, utmMedium: utms.utm_medium, utmCampaign: utms.utm_campaign,
+          path: '/get', platformDetected: platform, userAgent: req.headers['user-agent'],
+        });
+      }
+      // Play Install Referrer: append utms to the Android store URL so they
+      // survive the install and surface to the app on first launch.
+      const effectiveBrand = utms && brand.androidUrl
+        ? { ...brand, androidUrl: appendPlayReferrer(brand.androidUrl, utms) }
+        : brand;
 
       // VeganLand has no app of its own — show "we became NovaQI" page instead.
       if (brand.rebrandToNovaqi) {
@@ -1362,18 +1422,18 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      if (!forcePicker && platform === 'ios' && brand.iosUrl) {
-        res.writeHead(302, { Location: brand.iosUrl });
+      if (!forcePicker && platform === 'ios' && effectiveBrand.iosUrl) {
+        res.writeHead(302, { Location: effectiveBrand.iosUrl });
         res.end();
         return;
       }
-      if (!forcePicker && platform === 'android' && brand.androidUrl) {
-        res.writeHead(302, { Location: brand.androidUrl });
+      if (!forcePicker && platform === 'android' && effectiveBrand.androidUrl) {
+        res.writeHead(302, { Location: effectiveBrand.androidUrl });
         res.end();
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlStorePicker(brand, platform));
+      res.end(htmlStorePicker(effectiveBrand, platform));
       return;
     }
 
@@ -1382,11 +1442,23 @@ const server = http.createServer(async (req, res) => {
       const code = normalizeCode(req.url.slice('/r/'.length).split('?')[0].split('/')[0]);
       const valid = isValidCodeShape(code);
       const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
+      const rUrl = new URL(req.url, 'http://x');
+      const utms = extractUtms(rUrl.searchParams);
+      if (utms) {
+        const platform = detectPlatform(req.headers['user-agent']);
+        insertLinkClick({
+          utmSource: utms.utm_source, utmMedium: utms.utm_medium, utmCampaign: utms.utm_campaign,
+          path: '/r/', platformDetected: platform, userAgent: req.headers['user-agent'],
+        });
+      }
+      const effectiveBrand = utms && brand.androidUrl
+        ? { ...brand, androidUrl: appendPlayReferrer(brand.androidUrl, utms) }
+        : brand;
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       if (brand.rebrandToNovaqi) {
         res.end(htmlBrandMigrationLanding(valid ? code : null));
       } else {
-        res.end(htmlReferralLanding(code, valid, host));
+        res.end(htmlReferralLanding(code, valid, host, effectiveBrand));
       }
       return;
     }
