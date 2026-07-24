@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 24, paddingTop: 4, justifyContent: 'flex-start' },
   langBtn: {
     alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255,255,255,0.64)',
+    backgroundColor: Colors.card,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -185,9 +185,9 @@ const styles = StyleSheet.create({
   },
   tagline: { fontSize: 15, color: Colors.textLight, fontWeight: '500', textAlign: 'center', lineHeight: 22 },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: Colors.card,
     borderRadius: 28, padding: 26,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1, borderColor: Colors.border,
     gap: 18,
     shadowColor: Colors.navy,
     shadowOffset: { width: 0, height: 16 },
