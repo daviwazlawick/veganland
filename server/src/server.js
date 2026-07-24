@@ -543,11 +543,23 @@ async function sendExpoPush(messages) {
   return { tickets, invalid: messages.length - valid.length };
 }
 
+const PUSH_DIET_OPTIONS = [
+  { id: 'vegan',        label: '🌱 Vegan' },
+  { id: 'vegetarian',   label: '🥕 Vegetariano' },
+  { id: 'pescatarian',  label: '🐟 Pescatariano' },
+  { id: 'gluten_free',  label: '🌾 Sem Glúten' },
+  { id: 'halal',        label: '☪️ Halal' },
+  { id: 'omnivore',     label: '🍽️ Onívoro' },
+];
+
 function htmlAdminPushPage(token, lastResult = null, history = []) {
   const resultHtml = lastResult ? `<div class="result">${esc(lastResult)}</div>` : '';
   const historyRows = history.map(h => {
     const when = new Date(h.created_at).toLocaleString('pt-BR');
-    const filters = [h.locale, h.user_type].filter(Boolean).map(esc).join(' · ') || 'todos';
+    const dietsPart = Array.isArray(h.diets_filter) && h.diets_filter.length
+      ? h.diets_filter.map(esc).join('+')
+      : null;
+    const filters = [h.locale, h.user_type, dietsPart].filter(Boolean).map(esc).join(' · ') || 'todos';
     const clicks = h.click_count || 0;
     const openRate = h.ok_count > 0 ? Math.round((clicks / h.ok_count) * 100) : 0;
     return `<tr>
@@ -615,6 +627,17 @@ function htmlAdminPushPage(token, lastResult = null, history = []) {
         </select>
       </div>
     </div>
+    <label>Dietas (opcional · vazio = todas)</label>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;background:#f8fafc;padding:12px;border-radius:10px">
+      ${PUSH_DIET_OPTIONS.map(d => `
+        <label style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:#0B1E3F;cursor:pointer;margin:0;text-transform:none;letter-spacing:0">
+          <input type="checkbox" name="diet_id" value="${esc(d.id)}" style="width:auto;margin:0">
+          ${d.label}
+        </label>
+      `).join('')}
+    </div>
+    <p class="small">Se seleccionares várias, o push vai para users cujo <code>diet_id</code> esteja em qualquer uma. Users sem dieta definida são excluídos.</p>
+
     <label>Link interno (opcional)</label>
     <input name="route" placeholder="Referral · Profile · Home — vazio = abrir app">
     <p class="small">O link interno é guardado no <code>data.route</code> e o app navega para esse ecrã ao tocar.</p>
@@ -1329,25 +1352,30 @@ const server = http.createServer(async (req, res) => {
         req.on('end', () => resolve(body));
         req.on('error', reject);
       });
-      const form = Object.fromEntries(new URLSearchParams(raw));
+      const params = new URLSearchParams(raw);
+      const form = Object.fromEntries(params);
       const title = (form.title || '').trim();
       const body = (form.body || '').trim();
       const locale = (form.locale || '').trim() || null;
       const userType = (form.user_type || '').trim() || null;
       const onboardingScanUsed = (form.onboarding_scan_used || '').trim() || null;
       const route = (form.route || '').trim() || null;
+      const allowedDiets = new Set(PUSH_DIET_OPTIONS.map(d => d.id));
+      const dietIds = params.getAll('diet_id')
+        .map(v => (v || '').trim())
+        .filter(v => allowedDiets.has(v));
       if (!title || !body) {
         const history = await listPushBroadcasts(30);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history));
         return;
       }
-      const tokens = await listPushTokens({ locale, userType, onboardingScanUsed });
+      const tokens = await listPushTokens({ locale, userType, onboardingScanUsed, dietIds });
       // Log the broadcast first so we have an id to embed in each message's
       // data payload — required for click tracking (client posts the id
       // back on tap via POST /push/click).
       const broadcastId = await logPushBroadcast({
-        title, body, locale, userType, route,
+        title, body, locale, userType, route, dietsFilter: dietIds,
         totalCount: tokens.length, okCount: 0, errorCount: 0, invalidCount: 0,
       });
       const messages = tokens.map(t => ({

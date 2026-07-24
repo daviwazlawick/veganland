@@ -921,7 +921,7 @@ export async function deletePushToken(token) {
   return res.rowCount > 0;
 }
 
-export async function listPushTokens({ locale, userType, onboardingScanUsed, includeAnonymous = false } = {}) {
+export async function listPushTokens({ locale, userType, onboardingScanUsed, dietIds, includeAnonymous = false } = {}) {
   const db = await getPool();
   if (!db) return [];
   const conditions = [];
@@ -942,6 +942,10 @@ export async function listPushTokens({ locale, userType, onboardingScanUsed, inc
   } else if (onboardingScanUsed === 'not_used') {
     conditions.push('(u.onboarding_scan_used = false OR u.onboarding_scan_used IS NULL)');
   }
+  if (Array.isArray(dietIds) && dietIds.length) {
+    params.push(dietIds);
+    conditions.push(`u.diet_id = ANY($${params.length})`);
+  }
   const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
   const res = await db.query(
     `select pt.token, pt.platform, pt.locale, pt.user_id
@@ -954,14 +958,15 @@ export async function listPushTokens({ locale, userType, onboardingScanUsed, inc
   return res.rows;
 }
 
-export async function logPushBroadcast({ title, body, locale, userType, route, totalCount, okCount, errorCount, invalidCount }) {
+export async function logPushBroadcast({ title, body, locale, userType, route, totalCount, okCount, errorCount, invalidCount, dietsFilter }) {
   const db = await getPool();
   if (!db) return null;
+  const dietsArr = Array.isArray(dietsFilter) && dietsFilter.length ? dietsFilter : null;
   const res = await db.query(
-    `insert into push_broadcasts (title, body, locale, user_type, route, total_count, ok_count, error_count, invalid_count)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `insert into push_broadcasts (title, body, locale, user_type, route, total_count, ok_count, error_count, invalid_count, diets_filter)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      returning id`,
-    [title, body, locale || null, userType || null, route || null, totalCount, okCount, errorCount, invalidCount]
+    [title, body, locale || null, userType || null, route || null, totalCount, okCount, errorCount, invalidCount, dietsArr]
   );
   return res.rows[0]?.id || null;
 }
@@ -972,7 +977,7 @@ export async function listPushBroadcasts(limit = 30) {
   const res = await db.query(
     `select b.id, b.title, b.body, b.locale, b.user_type, b.route,
             b.total_count, b.ok_count, b.error_count, b.invalid_count,
-            b.created_at,
+            b.diets_filter, b.created_at,
             coalesce((select count(*)::int from push_clicks c where c.broadcast_id = b.id), 0) as click_count
        from push_broadcasts b
       order by b.created_at desc
