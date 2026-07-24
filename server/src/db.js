@@ -433,7 +433,7 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
 
   const result = await db.query(
     `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type, email_confirmed)
-     values ($1, $2, $3, $4, $5, $6, NULL, true)
+     values ($1, $2, $3, $4, $5, $6, 'free', true)
      returning id, email, user_type, onboarding_scan_used, created_at, email_confirmed`,
     [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
@@ -512,7 +512,7 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
     `insert into users (email, ${col}, oauth_provider, email_confirmed,
                         disclaimer_accepted_at, disclaimer_version,
                         referral_code, referred_by_user_id, user_type)
-     values ($1, $2, $3, true, $4, $5, $6, $7, NULL)
+     values ($1, $2, $3, true, $4, $5, $6, $7, 'free')
      returning id, email, user_type, onboarding_scan_used, created_at`,
     [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId]
   );
