@@ -7,7 +7,7 @@ import { Text, View, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import { BrandFonts, Brand } from '../brand';
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -126,8 +126,9 @@ export default function AppNavigator() {
   // Scan flow first; otherwise straight to the paywall.
   // Legacy users (any tier, including 'free') and paid users go to Main.
   // Cached sessions from before this change have user_type absent (undefined)
-  // and are treated as legacy — they are NOT forced into the paywall.
-  const nullTier = user?.user_type === null;
+  // and are treated as legacy — they are NOT forced into the paywall. Only
+  // NovaQI enforces the forced paywall; VeganLand is freemium.
+  const nullTier = user?.user_type === null && Brand.id === 'novaqi';
   const onboardingScanAvailable = nullTier && user?.onboarding_scan_used !== true;
   const profileInitialRoute = onboardingScanAvailable
     ? 'Scan'

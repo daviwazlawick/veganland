@@ -42,3 +42,15 @@ export const DIETS = [
     restrictions: [],
   },
 ];
+
+// VeganLand only exposes plant-based diets (vegan + vegetarian) — the other
+// options exist in the shared codebase for NovaQI. Any brand other than
+// 'veganland' gets the full list (i.e. NovaQI behavior is preserved).
+const VEGANLAND_DIET_IDS = ['vegan', 'vegetarian'];
+
+export function getDiets(brand) {
+  if (brand === 'veganland') {
+    return DIETS.filter(d => VEGANLAND_DIET_IDS.includes(d.id));
+  }
+  return DIETS;
+}

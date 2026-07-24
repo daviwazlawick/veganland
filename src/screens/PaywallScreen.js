@@ -49,8 +49,10 @@ export default function PaywallScreen({ navigation, route }) {
   const [restoring, setRestoring] = useState(false);
   const isNative = Platform.OS !== 'web' && isPurchasesAvailable();
   // Post-lock users (no tier picked yet) can't leave the paywall — otherwise
-  // they'd land on Main and get treated as if they had free access.
-  const isLocked = user?.user_type === null;
+  // they'd land on Main and get treated as if they had free access. Only
+  // NovaQI enforces the lock; VeganLand launches as freemium so paywall is
+  // always dismissible there.
+  const isLocked = user?.user_type === null && Brand.id === 'novaqi';
 
   function handleClose() {
     if (isLocked) return;

@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { HIDE_FREE_OPTION } from '../constants/features';
-import { DIETS } from '../constants/diets';
+import Brand from '../brand';
+import { getDiets } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon } from '../components/ui';
 
@@ -138,7 +139,7 @@ export default function ProfileSetupScreen({ navigation }) {
             <Text style={styles.sectionTitle}>{t(language, 'profile_setup.diet_title')}</Text>
             <Text style={styles.sectionSub}>{t(language, 'profile_setup.how_do_you_eat')}</Text>
             <View style={styles.dietGrid}>
-              {DIETS.map(diet => {
+              {getDiets(Brand.id).map(diet => {
                 const sel = selectedDiet === diet.id;
                 return (
                   <TouchableOpacity

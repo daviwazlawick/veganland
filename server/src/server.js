@@ -18,6 +18,14 @@ const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET || '';
 
 const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app']);
 
+// Which brand is calling us. Clients send `X-App-Brand: novaqi|veganland`.
+// Legacy NovaQI clients don't send the header — they get 'novaqi' by default,
+// which preserves the pre-white-label behavior byte-for-byte.
+function requestBrand(req) {
+  const raw = String(req.headers['x-app-brand'] || '').toLowerCase().trim();
+  return raw === 'veganland' ? 'veganland' : 'novaqi';
+}
+
 // Auth endpoints return this trimmed user shape. user_type is explicitly
 // included (may be null for users who haven't picked a plan yet) so the app
 // can decide the initial route without a follow-up /auth/me call.
@@ -38,7 +46,7 @@ function corsHeaders(origin) {
   const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://veganland.app';
   return {
     'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, x-app-brand, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
   };
 }
@@ -839,18 +847,29 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // GET /app/version — versão mínima obrigatória por plataforma
-    // To force everyone to update: bump `min` to the target version (e.g. '1.0.11')
-    // and `pm2 restart veganland-api`. Anyone on a lower version hits ForceUpdateScreen.
+    // GET /app/version — versão mínima obrigatória por plataforma. Brand vem
+    // do header X-App-Brand (env var do cliente), NÃO do Host — as apps batem
+    // no mesmo api.veganland.app independentemente da brand.
+    // To force everyone to update: bump the value in MIN_VERSIONS for the
+    // relevant brand and `pm2 restart veganland-api`. Anyone on a lower
+    // version hits ForceUpdateScreen.
     if (req.method === 'GET' && req.url === '/app/version') {
-      const brand = STORE_LINKS[host] || STORE_LINKS['novaqi.app'];
+      const brandId = requestBrand(req);
+      const linksHost = brandId === 'veganland' ? 'veganland.app' : 'novaqi.app';
+      const brand = STORE_LINKS[linksHost] || STORE_LINKS['novaqi.app'];
       const novaqi = STORE_LINKS['novaqi.app'];
-      // VeganLand still funnels to NovaQI stores via rebrand.
+      // VeganLand still funnels to NovaQI stores via rebrand (until its own
+      // store listings are live).
       const iosStore = brand.iosUrl || novaqi.iosUrl;
       const androidStore = brand.androidUrl || novaqi.androidUrl;
+      const MIN_VERSIONS = {
+        novaqi:    { ios: '1.0.15', android: '1.0.15' },
+        veganland: { ios: '1.0.0',  android: '1.0.0'  },
+      };
+      const mins = MIN_VERSIONS[brandId] || MIN_VERSIONS.novaqi;
       sendJson(res, 200, {
-        ios:     { min: '1.0.15', store_url: iosStore },
-        android: { min: '1.0.15', store_url: androidStore },
+        ios:     { min: mins.ios,     store_url: iosStore },
+        android: { min: mins.android, store_url: androidStore },
         web:     { min: '1.0.0' },
       }, origin);
       return;
@@ -878,7 +897,8 @@ const server = http.createServer(async (req, res) => {
       }
       const passwordHash = await hashPassword(password);
       const validCode = referral_code && isValidCodeShape(referral_code) ? normalizeCode(referral_code) : null;
-      const user = await createUser(email, passwordHash, disclaimer_version, validCode);
+      const brandId = requestBrand(req);
+      const user = await createUser(email, passwordHash, disclaimer_version, validCode, brandId);
       const token = generateToken(user.id, user.email);
       sendJson(res, 201, { token, user: authUserPayload(user), emailConfirmationSent: false }, origin);
       return;
@@ -942,6 +962,7 @@ const server = http.createServer(async (req, res) => {
         user = await createOAuthUser({
           email, provider, sub,
           disclaimerVersion,
+          brand: requestBrand(req),
           referralCodeInput: referralCode,
         });
         isNewUser = true;

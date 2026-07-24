@@ -5,7 +5,8 @@ import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
-import { DIETS } from '../constants/diets';
+import Brand from '../brand';
+import { getDiets } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon, BrandName } from '../components/ui';
 import { useReferral } from '../context/ReferralContext';
@@ -25,7 +26,7 @@ export default function HomeScreen({ navigation }) {
   const showReferralHero = !HIDE_REFERRAL
     && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
 
-  const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
+  const diet = profile ? getDiets(Brand.id).find(d => d.id === profile.dietId) : null;
   const allergies = profile
     ? (profile.allergyIds || []).map(id => ALLERGIES.find(a => a.id === id)).filter(Boolean)
     : [];

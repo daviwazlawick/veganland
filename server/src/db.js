@@ -394,7 +394,10 @@ function publicUser(user) {
   };
 }
 
-export async function createUser(email, passwordHash, disclaimerVersion = null, referralCodeInput = null) {
+// `brand` is the white-label origin ('novaqi' | 'veganland'). It controls the
+// initial user_type: NovaQI keeps the post-2026-07-07 forced-paywall behavior
+// (user_type = NULL), VeganLand launches as freemium (user_type = 'free').
+export async function createUser(email, passwordHash, disclaimerVersion = null, referralCodeInput = null, brand = 'novaqi') {
   const db = await getPool();
   const normalizedEmail = email.toLowerCase().trim();
   const disclaimerAt = disclaimerVersion ? new Date() : null;
@@ -431,11 +434,12 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
     if (taken.rowCount === 0) { newCode = candidate; break; }
   }
 
+  const initialUserType = brand === 'veganland' ? 'free' : null;
   const result = await db.query(
-    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type, email_confirmed)
-     values ($1, $2, $3, $4, $5, $6, NULL, true)
-     returning id, email, user_type, onboarding_scan_used, created_at, email_confirmed`,
-    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
+    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type, email_confirmed, brand)
+     values ($1, $2, $3, $4, $5, $6, $7, true, $8)
+     returning id, email, user_type, onboarding_scan_used, created_at, email_confirmed, brand`,
+    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId, initialUserType, brand]
   );
 
   const user = result.rows[0];
@@ -471,7 +475,7 @@ export async function findUserByOAuthSub(provider, sub) {
   if (!db || !sub) return null;
   const col = oauthColumn(provider);
   const res = await db.query(
-    `select id, email, email_confirmed, user_type, onboarding_scan_used, created_at from users where ${col} = $1`,
+    `select id, email, email_confirmed, user_type, onboarding_scan_used, created_at, brand from users where ${col} = $1`,
     [sub]
   );
   return res.rows[0] || null;
@@ -487,7 +491,7 @@ export async function linkOAuthToUser(userId, provider, sub) {
   );
 }
 
-export async function createOAuthUser({ email, provider, sub, disclaimerVersion, referralCodeInput = null }) {
+export async function createOAuthUser({ email, provider, sub, disclaimerVersion, referralCodeInput = null, brand = 'novaqi' }) {
   const db = await getPool();
   if (!db) throw new Error('No database');
   const normalizedEmail = email.toLowerCase().trim();
@@ -508,13 +512,14 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
     if (taken.rowCount === 0) { newCode = candidate; break; }
   }
 
+  const initialUserType = brand === 'veganland' ? 'free' : null;
   const result = await db.query(
     `insert into users (email, ${col}, oauth_provider, email_confirmed,
                         disclaimer_accepted_at, disclaimer_version,
-                        referral_code, referred_by_user_id, user_type)
-     values ($1, $2, $3, true, $4, $5, $6, $7, NULL)
-     returning id, email, user_type, onboarding_scan_used, created_at`,
-    [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId]
+                        referral_code, referred_by_user_id, user_type, brand)
+     values ($1, $2, $3, true, $4, $5, $6, $7, $8, $9)
+     returning id, email, user_type, onboarding_scan_used, created_at, brand`,
+    [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId, initialUserType, brand]
   );
   const user = result.rows[0];
   if (referrerId) {
@@ -679,7 +684,7 @@ export async function findUserByEmail(email) {
   }
 
   const result = await db.query(
-    `select id, email, password_hash, email_confirmed, user_type, onboarding_scan_used, created_at from users where email = $1`,
+    `select id, email, password_hash, email_confirmed, user_type, onboarding_scan_used, created_at, brand from users where email = $1`,
     [normalizedEmail]
   );
   return result.rows[0] || null;

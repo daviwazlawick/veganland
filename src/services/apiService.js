@@ -1,5 +1,10 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
 const APP_API_KEY = process.env.EXPO_PUBLIC_APP_API_KEY || '';
+// White-label build: every request tells the backend which brand is calling
+// so per-brand rules (user_type default, force-update min, analytics) stay
+// isolated. Default 'veganland' matches src/brand/index.js so a missing env
+// var behaves the same as the client's Brand resolution.
+const APP_BRAND = process.env.EXPO_PUBLIC_BRAND || 'veganland';
 
 function baseUrl() {
   return API_URL.replace(/\/$/, '');
@@ -8,6 +13,7 @@ function baseUrl() {
 function appHeaders(token) {
   return {
     'Content-Type': 'application/json',
+    'X-App-Brand': APP_BRAND,
     ...(APP_API_KEY ? { 'x-app-api-key': APP_API_KEY } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
@@ -72,7 +78,7 @@ export async function apiUpdateProfile(profileData, token) {
 export async function apiLogin(email, password) {
   const response = await fetch(`${baseUrl()}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND },
     body: JSON.stringify({ email, password }),
   });
   const data = await response.json().catch(() => ({}));
@@ -88,7 +94,7 @@ export async function apiLogin(email, password) {
 export async function apiRegister(email, password, disclaimerVersion, referralCode = null) {
   const response = await fetch(`${baseUrl()}/auth/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND },
     body: JSON.stringify({ email, password, disclaimer_version: disclaimerVersion, referral_code: referralCode || undefined }),
   });
   const data = await response.json().catch(() => ({}));
@@ -99,7 +105,7 @@ export async function apiRegister(email, password, disclaimerVersion, referralCo
 export async function apiOAuthSignIn(provider, payload) {
   const response = await fetch(`${baseUrl()}/auth/${provider}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND },
     body: JSON.stringify(payload),
   });
   const data = await response.json().catch(() => ({}));
@@ -136,7 +142,7 @@ export async function apiRegisterPush(token, { token: pushToken, platform, local
 export async function apiUnregisterPush(pushToken) {
   const response = await fetch(`${baseUrl()}/push/unregister`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(APP_API_KEY ? { 'x-app-api-key': APP_API_KEY } : {}) },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND, ...(APP_API_KEY ? { 'x-app-api-key': APP_API_KEY } : {}) },
     body: JSON.stringify({ token: pushToken }),
   });
   return response.ok;
@@ -155,7 +161,7 @@ export async function apiRedeemReferral(token, code) {
 export async function apiAcceptDisclaimer(token, disclaimerVersion) {
   const response = await fetch(`${baseUrl()}/user/disclaimer`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND, Authorization: `Bearer ${token}` },
     body: JSON.stringify({ disclaimer_version: disclaimerVersion }),
   });
   const data = await response.json().catch(() => ({}));
@@ -166,7 +172,7 @@ export async function apiAcceptDisclaimer(token, disclaimerVersion) {
 export async function apiForgotPassword(email) {
   const response = await fetch(`${baseUrl()}/auth/forgot-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND },
     body: JSON.stringify({ email }),
   });
   const data = await response.json().catch(() => ({}));
@@ -177,7 +183,7 @@ export async function apiForgotPassword(email) {
 export async function apiResendConfirmation(token) {
   const response = await fetch(`${baseUrl()}/auth/resend-confirmation`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'X-App-Brand': APP_BRAND, Authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Request failed');
@@ -187,7 +193,7 @@ export async function apiResendConfirmation(token) {
 export async function apiResendConfirmationByEmail(email) {
   const response = await fetch(`${baseUrl()}/auth/resend-confirmation-by-email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-App-Brand': APP_BRAND },
     body: JSON.stringify({ email }),
   });
   const data = await response.json().catch(() => ({}));
@@ -196,7 +202,9 @@ export async function apiResendConfirmationByEmail(email) {
 }
 
 export async function apiCheckAppVersion() {
-  const response = await fetch(`${baseUrl()}/app/version`).catch(() => null);
+  const response = await fetch(`${baseUrl()}/app/version`, {
+    headers: { 'X-App-Brand': APP_BRAND },
+  }).catch(() => null);
   if (!response?.ok) return null;
   return response.json().catch(() => null);
 }
@@ -224,7 +232,7 @@ export async function apiSetUserPlan(plan, token) {
 
 export async function apiGetHistory(token) {
   const response = await fetch(`${baseUrl()}/user/history`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'X-App-Brand': APP_BRAND, Authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Failed to load history`);

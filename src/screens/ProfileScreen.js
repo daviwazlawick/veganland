@@ -9,7 +9,7 @@ import { LANGUAGES, localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import Brand from '../brand';
-import { DIETS } from '../constants/diets';
+import { getDiets } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe, apiAdminHandoff } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
@@ -34,7 +34,7 @@ export default function ProfileScreen({ navigation }) {
     }).catch(() => {});
   }, [token]);
 
-  const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
+  const diet = profile ? getDiets(Brand.id).find(d => d.id === profile.dietId) : null;
   const allergies = profile
     ? (profile.allergyIds || []).map(id => ALLERGIES.find(a => a.id === id)).filter(Boolean)
     : [];
