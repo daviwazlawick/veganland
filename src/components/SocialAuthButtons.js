@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { isAppleAuthAvailable, isGoogleAuthAvailable, initSocialAuth } from '../services/socialAuthService';
+import { HIDE_GOOGLE_SIGNIN } from '../constants/features';
 
 // Guard so OTA bundles pushed to older runtimes (which don't have the module
 // linked yet) don't crash on load — the buttons just don't render.
@@ -20,7 +21,7 @@ export default function SocialAuthButtons({ disclaimerVersion, referralCode, onE
   const { language } = useApp();
   const [busy, setBusy] = useState(null); // 'apple' | 'google' | null
   const showApple = isAppleAuthAvailable();
-  const showGoogle = isGoogleAuthAvailable();
+  const showGoogle = !HIDE_GOOGLE_SIGNIN && isGoogleAuthAvailable();
 
   useEffect(() => { initSocialAuth().catch(() => {}); }, []);
 
