@@ -8,6 +8,7 @@ import { Colors } from '../constants/colors';
 import { HIDE_FREE_OPTION } from '../constants/features';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
+import { HALAL_STRICTNESS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { PremiumIcon } from '../components/ui';
 
 const { width } = Dimensions.get('window');
@@ -20,6 +21,7 @@ export default function ProfileSetupScreen({ navigation }) {
   const [step, setStep] = useState(1);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
   const [selectedAllergies, setSelectedAllergies] = useState(profile?.allergyIds || []);
+  const [halalStrictness, setHalalStrictness] = useState(profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS);
   const [selectedPlan, setSelectedPlan] = useState('starter');
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +44,11 @@ export default function ProfileSetupScreen({ navigation }) {
     }
     setSaving(true);
     try {
-      await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
+      await saveProfile({
+        dietId: selectedDiet,
+        allergyIds: selectedAllergies,
+        halalStrictness: selectedDiet === 'halal' ? halalStrictness : (profile?.halalStrictness || null),
+      });
       if (isFirstTime) {
         // New signups get one guided scan before the paywall.
         // Users who already burned their onboarding scan (edge case: reinstall
@@ -76,7 +82,11 @@ export default function ProfileSetupScreen({ navigation }) {
     }
     setSaving(true);
     try {
-      await saveProfile({ dietId: selectedDiet, allergyIds: selectedAllergies });
+      await saveProfile({
+        dietId: selectedDiet,
+        allergyIds: selectedAllergies,
+        halalStrictness: selectedDiet === 'halal' ? halalStrictness : (profile?.halalStrictness || null),
+      });
       navigation.navigate('Main');
     } catch {
       Alert.alert('', t(language, 'profile_setup.save_error'));
@@ -165,6 +175,35 @@ export default function ProfileSetupScreen({ navigation }) {
                 );
               })}
             </View>
+
+            {selectedDiet === 'halal' && (
+              <View style={styles.halalStrictWrap}>
+                <Text style={styles.halalStrictTitle}>{t(language, 'halal.strictness.title')}</Text>
+                <Text style={styles.halalStrictHint}>{t(language, 'halal.strictness.hint')}</Text>
+                {[
+                  { id: HALAL_STRICTNESS.CAUTIOUS, labelKey: 'halal.strictness.cautious', descKey: 'halal.strictness.cautious_desc' },
+                  { id: HALAL_STRICTNESS.MODERATE, labelKey: 'halal.strictness.moderate', descKey: 'halal.strictness.moderate_desc' },
+                ].map(opt => {
+                  const sel = halalStrictness === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.halalStrictOption, sel && styles.halalStrictOptionSelected]}
+                      onPress={() => setHalalStrictness(opt.id)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={[styles.halalStrictRadio, sel && styles.halalStrictRadioSel]}>
+                        {sel && <View style={styles.halalStrictRadioDot} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.halalStrictLabel, sel && styles.halalStrictLabelSel]}>{t(language, opt.labelKey)}</Text>
+                        <Text style={styles.halalStrictDesc}>{t(language, opt.descKey)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </>
         )}
 
@@ -404,6 +443,31 @@ const styles = StyleSheet.create({
   dietLabelSel: { color: Colors.primaryDark },
   dietDesc: { fontSize: 11, color: Colors.textLight, textAlign: 'center', fontWeight: '500', lineHeight: 15 },
   dietDescSel: { color: Colors.primaryDark },
+  halalStrictWrap: {
+    width: '100%', marginTop: 18, padding: 16,
+    backgroundColor: Colors.card, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.border, gap: 10,
+  },
+  halalStrictTitle: { fontSize: 15, fontWeight: '900', color: Colors.text },
+  halalStrictHint: { fontSize: 12, color: Colors.textLight, fontWeight: '500', lineHeight: 17, marginBottom: 4 },
+  halalStrictOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 12, borderRadius: 14,
+    borderWidth: 2, borderColor: Colors.border, backgroundColor: Colors.card,
+  },
+  halalStrictOptionSelected: {
+    borderColor: Colors.primary, backgroundColor: Colors.primaryLight + '20',
+  },
+  halalStrictRadio: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  halalStrictRadioSel: { borderColor: Colors.primary },
+  halalStrictRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+  halalStrictLabel: { fontSize: 14, fontWeight: '800', color: Colors.text },
+  halalStrictLabelSel: { color: Colors.primaryDark },
+  halalStrictDesc: { fontSize: 12, color: Colors.textLight, fontWeight: '500', marginTop: 2 },
   allergyGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
     gap: 10, justifyContent: 'center', width: '100%',

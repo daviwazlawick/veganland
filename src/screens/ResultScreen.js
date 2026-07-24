@@ -11,6 +11,7 @@ import { PremiumIcon } from '../components/ui';
 import { ALLERGIES } from '../constants/allergies';
 import { apiSubmitFeedback } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
+import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 
 const STATUS_CONFIG = {
   SAFE: {
@@ -58,8 +59,27 @@ function titleCase(s) {
   return String(s || '').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// Halal-only maps: halal engine status → visual STATUS_CONFIG bucket
+// (colors reused from safe/caution/danger so we don't multiply tokens)
+// and → banner title/subtitle i18n keys.
+const HALAL_TO_STATUS = {
+  [HALAL_STATUS.HALAL]: 'SAFE',
+  [HALAL_STATUS.MASHBOOH]: 'CAUTION',
+  [HALAL_STATUS.NOT_HALAL]: 'NOT_SAFE',
+};
+const HALAL_TITLE_KEYS = {
+  [HALAL_STATUS.HALAL]: 'halal.verdict.halal',
+  [HALAL_STATUS.MASHBOOH]: 'halal.verdict.mashbooh',
+  [HALAL_STATUS.NOT_HALAL]: 'halal.verdict.not_halal',
+};
+const HALAL_SUB_KEYS = {
+  [HALAL_STATUS.HALAL]: 'halal.subtitle.halal',
+  [HALAL_STATUS.MASHBOOH]: 'halal.subtitle.mashbooh',
+  [HALAL_STATUS.NOT_HALAL]: 'halal.subtitle.not_halal',
+};
+
 export default function ResultScreen({ navigation, route }) {
-  const { language, scanHistory } = useApp();
+  const { language, scanHistory, profile } = useApp();
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
   const isOnboarding = route?.params?.onboarding === true;
@@ -73,7 +93,6 @@ export default function ResultScreen({ navigation, route }) {
   const [feedbackRating, setFeedbackRating] = useState(null); // 'up' | 'down' — which flow is active
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackError, setFeedbackError] = useState(null);
-  const cfg = STATUS_CONFIG[result.status] || STATUS_CONFIG.CAUTION;
   const [activeInfo, setActiveInfo] = useState(null);
   const sourceKey = result.ingredients_source || result.productInfo?.source;
   const productName = result.product_name || result.productInfo?.product_name;
@@ -106,6 +125,30 @@ export default function ResultScreen({ navigation, route }) {
   const ingredients = Array.isArray(result.normalized_ingredients) && result.normalized_ingredients.length > 0
     ? result.normalized_ingredients
     : parseIngredients(ingredientsText);
+
+  // Halal-only overlay: the server has no halal rules today (see
+  // server/src/analyze.js applyProfileToAnalysis) — halal users would
+  // otherwise always see status='SAFE'. We re-derive verdict + flagged
+  // ingredients locally from the neutral analysis on this device.
+  const isHalal = profile?.dietId === 'halal';
+  const halalStrictness = profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS;
+  const halalResult = isHalal ? applyHalalRules(ingredients, halalStrictness) : null;
+  const halalFlagMap = new Map();
+  if (halalResult) {
+    for (const f of halalResult.flagged) halalFlagMap.set(f.ingredient, f);
+  }
+  const effectiveStatus = halalResult ? HALAL_TO_STATUS[halalResult.status] : result.status;
+  const cfg = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.CAUTION;
+  const bannerTitleText = halalResult
+    ? t(language, HALAL_TITLE_KEYS[halalResult.status])
+    : t(language, cfg.titleKey);
+  const bannerSubText = halalResult
+    ? t(language, HALAL_SUB_KEYS[halalResult.status])
+    : t(language, cfg.subtitleKey);
+  const halalConcernList = halalResult
+    ? halalResult.flagged.map(f => `${f.ingredient} — ${t(language, f.reasonKey)}`)
+    : null;
+  const displayConcerns = halalConcernList || (result.concerns || []);
 
   // OFF traces_tags (structured) take priority over AI-extracted traces
   const offTraces = Array.isArray(offMeta?.traces) && offMeta.traces.length > 0
@@ -148,8 +191,8 @@ export default function ResultScreen({ navigation, route }) {
           <View style={[styles.bannerIconCircle, { backgroundColor: cfg.bannerBg }]}>
             <PremiumIcon name={cfg.icon} size={64} color={Colors.white} />
           </View>
-          <Text style={styles.bannerTitle}>{t(language, cfg.titleKey)}</Text>
-          <Text style={styles.bannerSub}>{t(language, cfg.subtitleKey)}</Text>
+          <Text style={styles.bannerTitle}>{bannerTitleText}</Text>
+          <Text style={styles.bannerSub}>{bannerSubText}</Text>
           <View style={styles.statusBadge}>
             <PremiumIcon name={cfg.icon} size={22} />
           </View>
@@ -259,11 +302,16 @@ export default function ResultScreen({ navigation, route }) {
           {ingredients.length > 0 ? (
             <View style={styles.ingredientsWrap}>
               {ingredients.map((item, i) => {
-                const lower = item.toLowerCase();
-                const flagged = concerns.some(c => {
-                  const cl = c.toLowerCase();
-                  return lower.includes(cl) || cl.includes(lower);
-                });
+                const halalFlag = halalFlagMap.get(item);
+                const flagged = halalResult
+                  ? !!halalFlag
+                  : (() => {
+                      const lower = item.toLowerCase();
+                      return concerns.some(c => {
+                        const cl = c.toLowerCase();
+                        return lower.includes(cl) || cl.includes(lower);
+                      });
+                    })();
                 return (
                   <View key={i} style={[styles.ingredientChip, flagged && styles.ingredientChipFlagged]}>
                     <Text style={[styles.ingredientText, flagged && styles.ingredientTextFlagged]}>{item}</Text>
@@ -310,13 +358,13 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         )}
 
-        {result.concerns && result.concerns.length > 0 && (
+        {displayConcerns.length > 0 && (
           <View style={styles.concernsCard}>
             <View style={styles.concernsHeader}>
               <PremiumIcon name="caution" size={24} />
               <Text style={styles.concernsTitle}>{t(language, 'result.concerns')}</Text>
             </View>
-            {result.concerns.map((item, i) => (
+            {displayConcerns.map((item, i) => (
               <View key={i} style={styles.concernItem}>
                 <View style={styles.concernBullet} />
                 <Text style={styles.concernText}>{item}</Text>
@@ -325,7 +373,7 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         )}
 
-        {(!result.concerns || result.concerns.length === 0) && result.status === 'SAFE' && (
+        {displayConcerns.length === 0 && effectiveStatus === 'SAFE' && (
           <View style={styles.noConcernsCard}>
             <PremiumIcon name="safe" size={52} />
             <Text style={styles.noConcernsTitle}>
@@ -339,6 +387,9 @@ export default function ResultScreen({ navigation, route }) {
           <Text style={styles.disclaimerIcon}>⚠️</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
+            {isHalal && (
+              <Text style={styles.halalCertLine}>{t(language, 'halal.cert_line')}</Text>
+            )}
             <TouchableOpacity onPress={() => Linking.openURL('https://www.anthropic.com')} activeOpacity={0.7}>
               <Text style={styles.disclaimerSource}>{t(language, 'result.ai_source')}</Text>
             </TouchableOpacity>
@@ -819,6 +870,7 @@ const styles = StyleSheet.create({
   },
   disclaimerIcon: { fontSize: 16, lineHeight: 20 },
   disclaimerText: { fontSize: 12, color: Colors.cautionDark, lineHeight: 18, fontWeight: '500', marginBottom: 4 },
+  halalCertLine: { fontSize: 12, color: Colors.cautionDark, lineHeight: 18, fontWeight: '700', marginBottom: 6 },
   disclaimerSource: { fontSize: 11, color: Colors.cautionDark, textDecorationLine: 'underline', fontWeight: '600', opacity: 0.7 },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

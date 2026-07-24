@@ -71,6 +71,10 @@ export function AppProvider({ children }) {
           photoUri: local.photoUri,
           dietId: user.diet_id,
           allergyIds: user.allergy_ids || [],
+          // Legacy accounts (pre-2026-07) return no halal_strictness.
+          // Fall back to the local value so the pref survives a re-login,
+          // then to null so the client applies its own default (cautious).
+          halalStrictness: user.halal_strictness ?? local.halalStrictness ?? null,
         };
         setProfileState(serverProfile);
         await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(serverProfile));
@@ -150,7 +154,14 @@ export function AppProvider({ children }) {
     setProfileState(newProfile);
     await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(newProfile));
     if (token) {
-      await apiUpdateProfile({ diet_id: newProfile.dietId, allergy_ids: newProfile.allergyIds }, token);
+      const payload = { diet_id: newProfile.dietId, allergy_ids: newProfile.allergyIds };
+      // Only ship halal_strictness when the diet is halal — keeps the
+      // wire minimal for other diets and avoids overwriting the column
+      // to null when a halal user temporarily switches to another diet.
+      if (newProfile.dietId === 'halal' && newProfile.halalStrictness) {
+        payload.halal_strictness = newProfile.halalStrictness;
+      }
+      await apiUpdateProfile(payload, token);
     }
   }
 

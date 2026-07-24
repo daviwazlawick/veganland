@@ -158,7 +158,15 @@ server/src/
 ### Perfil
 - Dieta: vegan, vegetarian, pescatarian, glutenFree, halal, omnivore
 - 22 tipos de sensibilidades (alimentares + cosméticos + vestuário)
-- Guardado local (AsyncStorage) + servidor (users.diet_id, users.allergy_ids)
+- Guardado local (AsyncStorage) + servidor (users.diet_id, users.allergy_ids, users.halal_strictness)
+
+### Experiência halal (2026-07)
+- **Motor**: `src/constants/halalRules.js` — mapa de ingredientes/E-codes → status halal (`halal` / `mashbooh` / `not_halal`). Client-side puro, zero deps, OTA-safe. Testes reprodutíveis em `/tmp/halal-test/test.mjs` (copiar halalRules.js → .mjs porque o package não é ESM).
+- **Ativação**: só quando `profile.dietId === 'halal'`. Outros diets nunca chamam o motor — comportamento existente intacto.
+- **Rigor**: `profile.halalStrictness` = `'cautious'` (default) | `'moderate'`. Selector escondido em `ProfileSetupScreen` para outros diets. Persistido em `users.halal_strictness` via migration 027 (coluna nullable → cliente aplica default quando ausente).
+- **⚠️ REGRA DE ARQUITECTURA**: a lógica halal NUNCA deve subir para os prompts de `server/src/anthropic.js` nem para o formato do cache neutro (`applyProfileToAnalysis` em `server/src/analyze.js` só cobre vegan/vegetarian/glutenFree). O cache é **neutro por produto+idioma**, partilhado por todos os diets — misturar halal ali quebraria vegan/vegetarian. Toda regra halal vive no cliente, aplicada por cima do resultado neutro que já vem do servidor.
+- **UI overrides (halal-only)**: `ResultScreen.js` sobrepõe banner title/subtitle (Halal ✓ / Mashbooh / Not Halal), concerns list (com motivos por ingrediente), chips flagged, e mostra `halal.cert_line` no disclaimer box. Cores mantêm-se (safe/caution/danger).
+- **Compliance Apple 1.4.1**: label principal é "Not Halal", nunca "Haram". A palavra "haram" só aparece nos motivos por-ingrediente para casos inequívocos (gelatina suína, banha, álcool, vinho/cerveja). Cert reminder informa, não prescreve veredito religioso.
 
 ### Scan / Análise
 - Foto da câmera ou galeria

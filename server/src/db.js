@@ -389,6 +389,7 @@ function publicUser(user) {
     city: user.city || null,
     diet_id: user.diet_id || null,
     allergy_ids: Array.isArray(user.allergy_ids) ? user.allergy_ids : [],
+    halal_strictness: user.halal_strictness || null,
     created_at: user.created_at,
     updated_at: user.updated_at || null,
   };
@@ -693,7 +694,7 @@ export async function getUserById(id) {
   }
 
   const result = await db.query(
-    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, user_type, onboarding_scan_used, created_at, updated_at from users where id = $1`,
+    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, halal_strictness, user_type, onboarding_scan_used, created_at, updated_at from users where id = $1`,
     [id]
   );
   return result.rows[0] || null;
@@ -702,7 +703,7 @@ export async function getUserById(id) {
 export async function updateUserProfile(userId, data) {
   const db = await getPool();
 
-  const allowed = ['name', 'birth_date', 'country', 'city', 'address', 'phone', 'avatar_url', 'diet_id', 'allergy_ids'];
+  const allowed = ['name', 'birth_date', 'country', 'city', 'address', 'phone', 'avatar_url', 'diet_id', 'allergy_ids', 'halal_strictness'];
 
   if (!db) {
     const users = await readLocalUsers();
