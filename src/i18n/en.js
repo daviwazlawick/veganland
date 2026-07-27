@@ -413,4 +413,13 @@ export default {
       natural_flavor: 'Natural flavor or vanilla extract — may contain residual alcohol',
     },
   },
+  app_survey: {
+    title: 'Help us make this perfect for you 🙏',
+    body: "You've already scanned a couple of products — that means a lot to us!\n\nWe're a small team working hard every day to make this app truly useful for you. What's missing? Is there a feature you'd love to have? We read every single message.",
+    placeholder: "Tell us what you'd love to see...",
+    submit: 'Send',
+    skip: 'Maybe later',
+    thanks_title: 'Thank you so much! 💚',
+    thanks_body: 'Your message goes straight to our team. We read every word and use it to decide what to build next.',
+  },
 };

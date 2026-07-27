@@ -413,4 +413,13 @@ export default {
       natural_flavor: "Arôme naturel ou extrait de vanille — peut contenir de l'alcool résiduel",
     },
   },
+  app_survey: {
+    title: 'Aide-nous à la rendre parfaite pour toi 🙏',
+    body: "Tu as déjà scanné quelques produits — ça compte beaucoup pour nous !\n\nNous sommes une petite équipe qui travaille dur chaque jour pour que cette app soit vraiment utile pour toi. Qu'est-ce qui manque ? Il y a une fonctionnalité que tu aimerais avoir ? On lit chaque message.",
+    placeholder: 'Dis-nous ce que tu aimerais voir...',
+    submit: 'Envoyer',
+    skip: 'Peut-être plus tard',
+    thanks_title: 'Merci beaucoup ! 💚',
+    thanks_body: "Ton message va directement à notre équipe. On lit chaque mot et on s'en sert pour décider quoi construire ensuite.",
+  },
 };

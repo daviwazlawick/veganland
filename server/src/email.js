@@ -160,3 +160,30 @@ export async function sendPasswordResetEmail(email, token, host) {
     `, brand),
   });
 }
+
+export async function sendAppSurveyEmail({ userEmail, userId, dietId, language, message }, host) {
+  if (!emailsEnabled()) return;
+  const brand = getBrand(host);
+  const cfg = getConfig(brand);
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  const msgHtml = `<p style="color:#333;font-size:14px;white-space:pre-wrap;background:#f0f9ee;padding:14px;border-radius:8px;border-left:3px solid ${cfg.color}">${message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`;
+  await createTransport(brand).sendMail({
+    from: cfg.from,
+    to: cfg.from,
+    replyTo: userEmail ? `<${userEmail}>` : undefined,
+    subject: `💬 App survey — ${cfg.name}`,
+    html: htmlWrapper(`
+      <p style="color:#333;font-size:15px;margin-bottom:16px;">Um utilizador partilhou o que gostaria de ver na app.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#888;width:120px">User ID</td><td style="padding:8px 0;color:#222;font-weight:600">${userId}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0;color:#222"><a href="mailto:${userEmail || ''}" style="color:${cfg.color}">${userEmail || '—'}</a></td></tr>
+        <tr><td style="padding:8px 0;color:#888">Dieta</td><td style="padding:8px 0;color:#222">${dietId || '—'}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Língua</td><td style="padding:8px 0;color:#222">${language || '—'}</td></tr>
+        <tr><td style="padding:8px 0;color:#888">Data</td><td style="padding:8px 0;color:#888;font-size:12px">${now}</td></tr>
+      </table>
+      <hr style="border:none;border-top:1px solid #eee;margin:16px 0">
+      <p style="color:#888;font-size:12px;margin-bottom:4px">Mensagem:</p>
+      ${msgHtml}
+    `, brand),
+  });
+}

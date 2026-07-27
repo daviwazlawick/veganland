@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -9,9 +9,10 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
 import { ALLERGIES } from '../constants/allergies';
-import { apiSubmitFeedback } from '../services/apiService';
+import { apiSubmitFeedback, apiSubmitAppSurvey } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
+import AppSurveyModal from '../components/ui/AppSurveyModal';
 
 const STATUS_CONFIG = {
   SAFE: {
@@ -79,7 +80,7 @@ const HALAL_SUB_KEYS = {
 };
 
 export default function ResultScreen({ navigation, route }) {
-  const { language, scanHistory, profile } = useApp();
+  const { language, scanHistory, profile, appSurveyDone, markAppSurveyDone } = useApp();
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
   const isOnboarding = route?.params?.onboarding === true;
@@ -94,6 +95,13 @@ export default function ResultScreen({ navigation, route }) {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackError, setFeedbackError] = useState(null);
   const [activeInfo, setActiveInfo] = useState(null);
+  const [showAppSurvey, setShowAppSurvey] = useState(false);
+
+  useEffect(() => {
+    if (appSurveyDone || scanHistory.length < 2) return;
+    const timer = setTimeout(() => setShowAppSurvey(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
   const sourceKey = result.ingredients_source || result.productInfo?.source;
   const productName = result.product_name || result.productInfo?.product_name;
   const ingredientsText = result.productInfo?.ingredients_text || result.ingredients_text;
@@ -612,6 +620,21 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <AppSurveyModal
+        visible={showAppSurvey}
+        language={language}
+        token={token}
+        onSubmit={async (message) => {
+          await apiSubmitAppSurvey(token, { message, language });
+          await markAppSurveyDone();
+        }}
+        onSkip={async () => {
+          setShowAppSurvey(false);
+          await markAppSurveyDone();
+        }}
+        onDone={() => setShowAppSurvey(false)}
+      />
     </SafeAreaView>
   );
 }

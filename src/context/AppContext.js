@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
   language: '@veganland_language',
   scan_history: '@veganland_scan_history',
   disclaimer: '@veganland_disclaimer_accepted',
+  app_survey_done: '@veganland_app_survey_done',
 };
 
 export function AppProvider({ children }) {
@@ -44,6 +45,7 @@ export function AppProvider({ children }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const [disclaimerAccepted, setDisclaimerAcceptedState] = useState(false);
+  const [appSurveyDone, setAppSurveyDoneState] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -91,16 +93,18 @@ export function AppProvider({ children }) {
 
   async function loadAll() {
     try {
-      const [lang, prof, history, disclaimer] = await Promise.all([
+      const [lang, prof, history, disclaimer, surveyDone] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.language),
         AsyncStorage.getItem(STORAGE_KEYS.profile),
         AsyncStorage.getItem(STORAGE_KEYS.scan_history),
         AsyncStorage.getItem(STORAGE_KEYS.disclaimer),
+        AsyncStorage.getItem(STORAGE_KEYS.app_survey_done),
       ]);
       if (lang) setLanguageState(lang);
       if (prof) setProfileState(JSON.parse(prof));
       if (history) setScanHistoryState(JSON.parse(history));
       if (disclaimer === 'true') setDisclaimerAcceptedState(true);
+      if (surveyDone === 'true') setAppSurveyDoneState(true);
       // Boot the Meta SDK early on Android so the fb_mobile_activate_app
       // (install/open) event fires at cold start — this is what Meta uses
       // for install attribution. On iOS we still wait for ATT via
@@ -120,6 +124,11 @@ export function AppProvider({ children }) {
     setDisclaimerAcceptedState(true);
     await AsyncStorage.setItem(STORAGE_KEYS.disclaimer, 'true');
     requestTrackingPermission().catch(() => {});
+  }
+
+  async function markAppSurveyDone() {
+    setAppSurveyDoneState(true);
+    await AsyncStorage.setItem(STORAGE_KEYS.app_survey_done, 'true');
   }
 
   async function loadServerHistory() {
@@ -203,6 +212,8 @@ export function AppProvider({ children }) {
         isProfileLoaded,
         disclaimerAccepted,
         acceptDisclaimer,
+        appSurveyDone,
+        markAppSurveyDone,
       }}
     >
       {children}

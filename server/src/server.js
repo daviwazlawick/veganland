@@ -1,11 +1,11 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
-import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail, sendOnboardingFeedbackEmail } from './email.js';
+import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail, sendOnboardingFeedbackEmail, sendAppSurveyEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
 import { htmlAboutPage } from './about.js';
@@ -1294,6 +1294,25 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // POST /app-survey — one-time open-text feedback from users, triggered
+    // client-side after the 2nd scan. Saved to DB + email notification.
+    if (req.method === 'POST' && req.url === '/app-survey') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (!user) { sendJson(res, 404, { error: 'User not found' }, origin); return; }
+      const body = await readJsonBody(req);
+      const message = typeof body.message === 'string' ? body.message.trim().slice(0, 3000) : '';
+      if (!message) { sendJson(res, 400, { error: 'message required' }, origin); return; }
+      const language = typeof body.language === 'string' ? body.language.slice(0, 10) : null;
+      await insertAppSurvey({ userId: claims.userId, message, dietId: user.diet_id, language });
+      sendAppSurveyEmail({ userEmail: user.email, userId: user.id, dietId: user.diet_id, language, message }, req.headers.host).catch(e => {
+        console.warn('[app-survey] email failed', e?.message);
+      });
       sendJson(res, 200, { ok: true }, origin);
       return;
     }

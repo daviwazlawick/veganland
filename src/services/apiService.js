@@ -250,3 +250,14 @@ export async function apiSubmitFeedback(token, { scanId, rating, comment }) {
   if (!response.ok) throw new Error(data.error || 'Failed to submit feedback');
   return data;
 }
+
+export async function apiSubmitAppSurvey(token, { message, language }) {
+  const response = await fetch(`${baseUrl()}/app-survey`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ message, language }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to submit survey');
+  return data;
+}

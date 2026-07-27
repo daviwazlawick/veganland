@@ -1326,3 +1326,13 @@ export async function getScanForFeedback(scanId, userId) {
   );
   return res.rows[0] || null;
 }
+
+export async function insertAppSurvey({ userId, message, dietId, language }) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(
+    `insert into app_survey (user_id, message, diet_id, language) values ($1,$2,$3,$4) returning id`,
+    [userId || null, message, dietId || null, language || null]
+  );
+  return res.rows[0]?.id || null;
+}

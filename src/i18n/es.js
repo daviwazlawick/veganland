@@ -413,4 +413,13 @@ export default {
       natural_flavor: 'Aroma natural o extracto de vainilla — puede contener alcohol residual',
     },
   },
+  app_survey: {
+    title: 'Ayúdanos a hacerla perfecta para ti 🙏',
+    body: '¡Ya has escaneado algunos productos — eso significa mucho para nosotros!\n\nSomos un equipo pequeño que trabaja duro todos los días para que esta app sea verdaderamente útil para ti. ¿Qué falta? ¿Hay alguna función que te encantaría tener? Leemos cada mensaje.',
+    placeholder: 'Cuéntanos qué te gustaría ver...',
+    submit: 'Enviar',
+    skip: 'Quizás más tarde',
+    thanks_title: '¡Muchas gracias! 💚',
+    thanks_body: 'Tu mensaje llega directamente a nuestro equipo. Leemos cada palabra y la usamos para decidir qué construir a continuación.',
+  },
 };

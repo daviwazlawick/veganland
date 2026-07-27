@@ -413,4 +413,13 @@ export default {
       natural_flavor: 'Aroma natural ou extrato de baunilha — pode conter álcool residual',
     },
   },
+  app_survey: {
+    title: 'Ajuda-nos a torná-la perfeita para ti 🙏',
+    body: 'Já fizeste alguns scans — isso significa muito para nós!\n\nSomos uma equipa pequena que trabalha todos os dias para tornar esta app verdadeiramente útil para ti. O que falta? Há alguma funcionalidade que gostavas de ter? Lemos todas as mensagens.',
+    placeholder: 'Diz-nos o que gostavas de ver...',
+    submit: 'Enviar',
+    skip: 'Mais tarde',
+    thanks_title: 'Muito obrigado! 💚',
+    thanks_body: 'A tua mensagem vai diretamente para a nossa equipa. Lemos cada palavra e usamo-la para decidir o que construir a seguir.',
+  },
 };
