@@ -1,6 +1,7 @@
 import {
   analyzeFreshProduce,
   analyzeIngredients,
+  analyzeProductByKnowledge,
   buildInvalidImageResult,
   buildMissingIngredientsResult,
   evaluateProductIngredients,
@@ -401,6 +402,11 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         await saveAnalysis(product.id, lang, neutralAnalysis);
       }
       result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+    } else if (imageInspection.product_name || imageInspection.brand) {
+      // We identified the product but couldn't find its ingredient list anywhere.
+      // Ask Claude to reason from its own knowledge rather than bouncing the
+      // user back to take another photo — profile is applied inside the prompt.
+      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }

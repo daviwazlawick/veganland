@@ -212,8 +212,10 @@ export default function ScanScreen({ navigation, route }) {
         setScanError(t(language, 'errors.not_a_product'));
         return;
       }
-      // Only ask for ingredients photo if we have truly no ingredients at all
-      if (scanStep === 'photo' && (result.ingredients_source === 'knowledge' || result.ingredients_source === 'missing') && !result.normalized_ingredients?.length) {
+      // Only ask for an ingredients photo when the server truly couldn't identify
+      // the product at all — knowledge-based results (server used Claude's
+      // built-in knowledge) go straight through even without a visible label.
+      if (scanStep === 'photo' && result.ingredients_source === 'missing' && !result.normalized_ingredients?.length) {
         setPendingResult({ ...result, date: new Date().toISOString(), imageUri });
         setNoIngredientsPrompt(true);
         return;
