@@ -42,7 +42,7 @@ const BRANDS = {
     name: 'NovaQI', primary: '#E8A020', dark: '#1E1B4B', light: '#F0F0FA', accent: '#F5A623',
     appUrl: 'https://novaqi.app',
     privacyUrl: 'https://novaqi.app/legal/privacy', termsUrl: 'https://novaqi.app/legal/terms', supportUrl: 'https://novaqi.app/support',
-    iosUrl: 'https://apps.apple.com/us/app/novaqi-scan/id6775790620', androidUrl: null,
+    iosUrl: 'https://apps.apple.com/us/app/novaqi-scan/id6775790620', androidUrl: 'https://play.google.com/store/apps/details?id=app.novaqi',
     headerLogo: NOVAQI_LOGO_HEADER,
     heroLogo: NOVAQI_HERO_LOGO,
     plans: [
@@ -57,7 +57,7 @@ const SVG_GOOGLE = `<svg width="20" height="22" viewBox="0 0 512 512" fill="none
 
 function storeButtons(b, t) {
   const androidBtn = b.androidUrl
-    ? `<a href="${b.androidUrl}" class="btn-s btn-google">
+    ? `<a href="${b.androidUrl}" class="btn-s btn-google" onclick="if(window.fbq)fbq('track','Lead',{content_name:'google_play'})">
       ${SVG_GOOGLE}
       <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Google Play</span></span>
     </a>`
@@ -66,7 +66,7 @@ function storeButtons(b, t) {
       <span><span class="btn-lbl">${t('about_dl_google')}</span><span class="btn-nm">Coming soon</span></span>
     </span>`;
   return `<div class="btns">
-    <a href="${b.iosUrl}" class="btn-s btn-apple">
+    <a href="${b.iosUrl}" class="btn-s btn-apple" onclick="if(window.fbq)fbq('track','Lead',{content_name:'app_store'})">
       ${SVG_APPLE}
       <span><span class="btn-lbl">${t('about_dl_apple')}</span><span class="btn-nm">App Store</span></span>
     </a>
@@ -147,6 +147,7 @@ export function htmlAboutPage(host, lang) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&display=swap" rel="stylesheet">
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');fbq('track','ViewContent',{content_name:'${b.name}',content_category:'App'});</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:#fff;color:#1a1a1a;line-height:1.6;-webkit-font-smoothing:antialiased}

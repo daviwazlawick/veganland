@@ -723,7 +723,9 @@ function htmlStorePicker(brand, requestedPlatform) {
   .btn-android{background:${brand.accent};color:${brand.color}}
   .btn-disabled{background:#F4F6FA;color:#94a3b8;cursor:not-allowed}
   .small{font-size:13px;color:#6b7280;margin-top:18px;line-height:1.5}
-</style></head><body>
+</style>
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');fbq('track','Lead',{content_name:'store_picker'});</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
+</head><body>
 <div class="card">
   <div class="emoji">${brand.emoji}</div>
   <h1>Get ${brand.name}</h1>
@@ -763,7 +765,9 @@ function htmlBrandMigrationLanding(code = null) {
   .btn-primary{background:#FFCB3B;color:${novaqi.color}}
   .btn-secondary{background:${novaqi.color};color:#fff}
   .small{font-size:13px;color:#6b7280;margin-top:18px;line-height:1.5}
-</style></head><body>
+</style>
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
+</head><body>
 <div class="card">
   <span class="badge">📢 NEW NAME, SAME APP</span>
   <div class="old-name">VeganLand</div>
@@ -818,7 +822,9 @@ function htmlReferralLanding(code, valid, host, brandOverride = null) {
   .small{font-size:13px;color:#6b7280;margin-top:20px;line-height:1.5}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0B1E3F;color:#fff;padding:12px 20px;border-radius:24px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
   .toast.show{opacity:1}
-</style></head><body>
+</style>
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');fbq('track','Lead',{content_name:'referral_landing'});</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
+</head><body>
 <div class="card">
   <span class="badge">🎁 CONVITE ${brand.name.toUpperCase()}</span>
   <div class="gift">${brand.emoji}</div>

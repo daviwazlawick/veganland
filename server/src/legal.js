@@ -61,7 +61,9 @@ a:hover{text-decoration:underline}
 footer{text-align:center;padding:24px;font-size:12px;color:#aaa}
 footer a{color:#aaa}
 @media(max-width:600px){.card{padding:24px}.hero{padding:28px 20px 40px}.hero h1{font-size:22px}}
-</style></head>
+</style>
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
+</head>
 <body>
 <header>
   <a class="logo" href="${b.appUrl}">${b.logo}</a>
