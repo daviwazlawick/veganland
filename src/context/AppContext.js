@@ -180,10 +180,13 @@ export function AppProvider({ children }) {
     // For client-side diet engines (halal, kosher) the server has no rules —
     // it always returns a generic SAFE/CAUTION. Recompute the effective status
     // here so history cards reflect the user's actual dietary profile.
+    // If the product carries an OFF certification label for the user's diet,
+    // trust that certification and skip the engine.
     let effectiveStatus = scan.status;
     const ings = scan.normalized_ingredients || [];
+    const offLabels = (scan.productInfo?.offMeta?.labels || []).map(l => String(l).toLowerCase());
     if (ings.length) {
-      if (profile?.dietId === 'halal') {
+      if (profile?.dietId === 'halal' && !offLabels.includes('halal')) {
         const { status } = applyHalalRules(ings, profile.halalStrictness || DEFAULT_HALAL_STRICTNESS);
         const map = {
           [HALAL_STATUS.HALAL]: 'SAFE',
@@ -191,7 +194,7 @@ export function AppProvider({ children }) {
           [HALAL_STATUS.NOT_HALAL]: 'NOT_SAFE',
         };
         effectiveStatus = map[status] || scan.status;
-      } else if (profile?.dietId === 'kosher') {
+      } else if (profile?.dietId === 'kosher' && !offLabels.includes('kosher') && !offLabels.includes('orthodox union kosher')) {
         const { status } = applyKosherRules(ings);
         const map = {
           [KOSHER_STATUS.KOSHER]: 'SAFE',

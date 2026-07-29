@@ -129,11 +129,12 @@ export default function HomeScreen({ navigation }) {
             </Text>
             {scanHistory.slice(0, 5).map((scan, i) => {
               const ings = scan.normalized_ingredients;
+              const scanLabels = (scan.productInfo?.offMeta?.labels || []).map(l => String(l).toLowerCase());
               let effectiveStatus = scan.status;
               if (ings?.length) {
-                if (profile?.dietId === 'halal') {
+                if (profile?.dietId === 'halal' && !scanLabels.includes('halal')) {
                   effectiveStatus = HALAL_TO_STATUS[applyHalalRules(ings, profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS).status] || scan.status;
-                } else if (profile?.dietId === 'kosher') {
+                } else if (profile?.dietId === 'kosher' && !scanLabels.includes('kosher') && !scanLabels.includes('orthodox union kosher')) {
                   effectiveStatus = KOSHER_TO_STATUS[applyKosherRules(ings).status] || scan.status;
                 }
               }

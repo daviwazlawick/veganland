@@ -165,7 +165,9 @@ function resultText(language, key, params = {}) {
 const DIET_CERT_LABELS = {
   vegan:       ['vegan', 'european-vegetarian-union-vegan', 'plant-based'],
   vegetarian:  ['vegetarian', 'vegan', 'european-vegetarian-union', 'european-vegetarian-union-vegan', 'plant-based'],
-  gluten_free: ['no-gluten', 'gluten-free', 'no-gluten'],
+  gluten_free: ['no-gluten', 'gluten-free'],
+  halal:       ['halal'],
+  kosher:      ['kosher', 'orthodox-union-kosher'],
 };
 
 function normalizeLabel(tag) {

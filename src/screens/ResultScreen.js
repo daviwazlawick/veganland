@@ -151,11 +151,17 @@ export default function ResultScreen({ navigation, route }) {
   // Client-side diet engines (halal, kosher): the server has no rules for
   // these diets — it always returns a generic SAFE/CAUTION. Re-derive the
   // verdict + flagged ingredients locally from the neutral analysis.
+  // Exception: if the product carries a matching OFF certification label,
+  // trust the certification and skip the engine — a certified halal/kosher
+  // product with "gelatin (unspecified)" has already been verified by a body.
+  const offLabels = (offMeta?.labels || []).map(l => String(l).toLowerCase());
   const isHalal = profile?.dietId === 'halal';
   const isKosher = profile?.dietId === 'kosher';
+  const halalCertified = isHalal && offLabels.includes('halal');
+  const kosherCertified = isKosher && (offLabels.includes('kosher') || offLabels.includes('orthodox union kosher'));
   const halalStrictness = profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS;
-  const halalResult = isHalal ? applyHalalRules(ingredients, halalStrictness) : null;
-  const kosherResult = isKosher ? applyKosherRules(ingredients) : null;
+  const halalResult = isHalal && !halalCertified ? applyHalalRules(ingredients, halalStrictness) : null;
+  const kosherResult = isKosher && !kosherCertified ? applyKosherRules(ingredients) : null;
   const halalFlagMap = new Map();
   if (halalResult) {
     for (const f of halalResult.flagged) halalFlagMap.set(f.ingredient, f);
