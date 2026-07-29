@@ -157,9 +157,27 @@ function resultText(language, key, params = {}) {
   );
 }
 
-function applyProfileToAnalysis(analysis, profile, language) {
+// Maps each diet to OFF label slugs that certify compatibility.
+// When a product carries a matching label, we trust the certification and
+// skip the "ambiguous ingredients → CAUTION" escalation — it would otherwise
+// flag a vegan-certified product with CAUTION just because lecithin or glycerin
+// lacks an explicit plant-origin declaration on the label.
+const DIET_CERT_LABELS = {
+  vegan:       ['vegan', 'european-vegetarian-union-vegan', 'plant-based'],
+  vegetarian:  ['vegetarian', 'vegan', 'european-vegetarian-union', 'european-vegetarian-union-vegan', 'plant-based'],
+  gluten_free: ['no-gluten', 'gluten-free', 'no-gluten'],
+};
+
+function normalizeLabel(tag) {
+  return String(tag || '').toLowerCase().replace(/^[a-z]{2}:/i, '').trim();
+}
+
+function applyProfileToAnalysis(analysis, profile, language, productLabels = []) {
   const diet = profile?.dietId || 'none';
   const allergyIds = Array.isArray(profile?.allergyIds) ? profile.allergyIds : [];
+  const normalizedProductLabels = (productLabels || []).map(normalizeLabel);
+  const certLabels = DIET_CERT_LABELS[diet] || [];
+  const hasDietCertification = certLabels.some(cl => normalizedProductLabels.includes(cl));
 
   let concerns = [];
   let status = 'SAFE';
@@ -193,7 +211,7 @@ function applyProfileToAnalysis(analysis, profile, language) {
 
   const hasProfile = diet !== 'none' || allergyIds.length > 0;
   const isKnowledgeBased = analysis.ingredients_source === 'knowledge';
-  if (hasProfile && !isKnowledgeBased && status === 'SAFE' && analysis.ambiguous?.length > 0) {
+  if (hasProfile && !isKnowledgeBased && status === 'SAFE' && analysis.ambiguous?.length > 0 && !hasDietCertification) {
     status = 'CAUTION';
     concerns.push(...analysis.ambiguous);
   }
@@ -358,7 +376,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         await saveAnalysis(freshProduct.id, lang, neutralAnalysis);
       }
       product = freshProduct;
-      result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+      result = applyProfileToAnalysis(neutralAnalysis, profile, lang, product?.labels_tags);
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }
@@ -377,7 +395,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
           neutralAnalysis = await analyzeIngredients(product.ingredients_text, product, lang, 'image', productType);
           await saveAnalysis(product.id, lang, neutralAnalysis);
         }
-        result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+        result = applyProfileToAnalysis(neutralAnalysis, profile, lang, product?.labels_tags);
       } else {
         result = await evaluateProductIngredients(imageInspection.ingredients_text.trim(), imageInspection, profile, lang, 'image', productType);
       }
@@ -401,7 +419,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
         );
         await saveAnalysis(product.id, lang, neutralAnalysis);
       }
-      result = applyProfileToAnalysis(neutralAnalysis, profile, lang);
+      result = applyProfileToAnalysis(neutralAnalysis, profile, lang, product?.labels_tags);
     } else if (imageInspection.product_name || imageInspection.brand) {
       // We identified the product but couldn't find its ingredient list anywhere.
       // Ask Claude to reason from its own knowledge rather than bouncing the
