@@ -413,6 +413,30 @@ export default {
       natural_flavor: 'Aroma natural ou extrato de baunilha — pode conter álcool residual',
     },
   },
+  kosher: {
+    verdict: {
+      kosher: 'Kosher ✓',
+      supervision: 'Requer Supervisão',
+      not_kosher: 'Não Kosher',
+    },
+    subtitle: {
+      kosher: 'Todos os ingredientes parecem cumprir os requisitos kosher',
+      supervision: 'Requer produto com certificação kosher — verifica o selo',
+      not_kosher: 'Contém ingredientes não kosher',
+    },
+    cert_line: 'Verifica sempre o selo de certificação kosher (hechsher) na embalagem.',
+    reason: {
+      pork: 'Contém porco ou derivados — não kosher',
+      lard: 'Banha (lard) — não kosher',
+      shellfish: 'Marisco ou crustáceos — não kosher',
+      blood: 'Sangue ou produtos de sangue — não kosher',
+      gelatin_unspecified: 'Gelatina sem origem especificada — requer certificação kosher',
+      wine_grape: 'Vinho ou produto de uva — requer vinho com certificação kosher',
+      rennet: 'Coalho sem origem especificada — o queijo deve ter certificação kosher',
+      meat_uncertified: 'Carne/aves sem certificação de abate kosher',
+      meat_dairy_mix: 'O produto parece conter carne e laticínios em simultâneo — não kosher (basar b\'chalav)',
+    },
+  },
   app_survey: {
     title: 'Ajuda-nos a torná-la perfeita para ti 🙏',
     body: 'Já fizeste alguns scans — isso significa muito para nós!\n\nSomos uma equipa pequena que trabalha todos os dias para tornar esta app verdadeiramente útil para ti. O que falta? Há alguma funcionalidade que gostavas de ter? Lemos todas as mensagens.',

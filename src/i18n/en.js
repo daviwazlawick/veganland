@@ -413,6 +413,30 @@ export default {
       natural_flavor: 'Natural flavor or vanilla extract — may contain residual alcohol',
     },
   },
+  kosher: {
+    verdict: {
+      kosher: 'Kosher ✓',
+      supervision: 'Requires Supervision',
+      not_kosher: 'Not Kosher',
+    },
+    subtitle: {
+      kosher: 'All ingredients appear to meet kosher requirements',
+      supervision: 'Requires a kosher-certified product — check the seal',
+      not_kosher: 'Contains ingredients that are not kosher',
+    },
+    cert_line: 'Always verify the kosher certification seal (hechsher) on the package.',
+    reason: {
+      pork: 'Contains pork or derivatives — not kosher',
+      lard: 'Lard — not kosher',
+      shellfish: 'Shellfish or crustaceans — not kosher',
+      blood: 'Blood or blood products — not kosher',
+      gelatin_unspecified: 'Gelatin of unspecified origin — requires kosher certification',
+      wine_grape: 'Wine or grape product — requires kosher-certified wine',
+      rennet: 'Rennet of unspecified origin — cheese must be certified kosher',
+      meat_uncertified: 'Meat/poultry without kosher slaughter certification',
+      meat_dairy_mix: 'Product appears to contain both meat and dairy — not kosher (basar b\'chalav)',
+    },
+  },
   app_survey: {
     title: 'Help us make this perfect for you 🙏',
     body: "You've already scanned a couple of products — that means a lot to us!\n\nWe're a small team working hard every day to make this app truly useful for you. What's missing? Is there a feature you'd love to have? We read every single message.",

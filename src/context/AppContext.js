@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { apiGetHistory, apiGetMe, apiUpdateProfile } from '../services/apiService';
 import { requestTrackingPermission, logScan, initAnalytics } from '../services/analyticsService';
+import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
+import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
 
 const SUPPORTED_LANGUAGES = ['pt', 'en', 'de', 'fr', 'it', 'es'];
 const FALLBACK_LANGUAGE = 'en';
@@ -175,8 +177,32 @@ export function AppProvider({ children }) {
   }
 
   async function addScanToHistory(scan) {
+    // For client-side diet engines (halal, kosher) the server has no rules —
+    // it always returns a generic SAFE/CAUTION. Recompute the effective status
+    // here so history cards reflect the user's actual dietary profile.
+    let effectiveStatus = scan.status;
+    const ings = scan.normalized_ingredients || [];
+    if (ings.length) {
+      if (profile?.dietId === 'halal') {
+        const { status } = applyHalalRules(ings, profile.halalStrictness || DEFAULT_HALAL_STRICTNESS);
+        const map = {
+          [HALAL_STATUS.HALAL]: 'SAFE',
+          [HALAL_STATUS.MASHBOOH]: 'CAUTION',
+          [HALAL_STATUS.NOT_HALAL]: 'NOT_SAFE',
+        };
+        effectiveStatus = map[status] || scan.status;
+      } else if (profile?.dietId === 'kosher') {
+        const { status } = applyKosherRules(ings);
+        const map = {
+          [KOSHER_STATUS.KOSHER]: 'SAFE',
+          [KOSHER_STATUS.SUPERVISION]: 'CAUTION',
+          [KOSHER_STATUS.NOT_KOSHER]: 'NOT_SAFE',
+        };
+        effectiveStatus = map[status] || scan.status;
+      }
+    }
     const entry = {
-      status: scan.status,
+      status: effectiveStatus,
       title: scan.title,
       date: scan.date || new Date().toISOString(),
       ingredients_source: scan.ingredients_source,

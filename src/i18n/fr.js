@@ -413,6 +413,30 @@ export default {
       natural_flavor: "Arôme naturel ou extrait de vanille — peut contenir de l'alcool résiduel",
     },
   },
+  kosher: {
+    verdict: {
+      kosher: 'Casher ✓',
+      supervision: 'Supervision requise',
+      not_kosher: 'Non casher',
+    },
+    subtitle: {
+      kosher: 'Tous les ingrédients semblent conformes aux règles casher',
+      supervision: 'Nécessite un produit certifié casher — vérifier le sceau',
+      not_kosher: 'Contient des ingrédients non casher',
+    },
+    cert_line: "Vérifiez toujours le sceau de certification casher (hechsher) sur l'emballage.",
+    reason: {
+      pork: 'Contient du porc ou des dérivés — non casher',
+      lard: 'Saindoux (lard) — non casher',
+      shellfish: 'Fruits de mer ou crustacés — non casher',
+      blood: 'Sang ou produits sanguins — non casher',
+      gelatin_unspecified: "Gélatine d'origine non spécifiée — certification casher requise",
+      wine_grape: 'Vin ou produit à base de raisin — vin certifié casher requis',
+      rennet: "Présure d'origine non spécifiée — le fromage doit être certifié casher",
+      meat_uncertified: "Viande/volaille sans certification d'abattage casher",
+      meat_dairy_mix: "Le produit semble contenir de la viande et des produits laitiers — non casher (basar b'chalav)",
+    },
+  },
   app_survey: {
     title: 'Aide-nous à la rendre parfaite pour toi 🙏',
     body: "Tu as déjà scanné quelques produits — ça compte beaucoup pour nous !\n\nNous sommes une petite équipe qui travaille dur chaque jour pour que cette app soit vraiment utile pour toi. Qu'est-ce qui manque ? Il y a une fonctionnalité que tu aimerais avoir ? On lit chaque message.",

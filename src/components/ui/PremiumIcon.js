@@ -14,6 +14,7 @@ const ICON_ACCENTS = {
   pescatarian: '#5C8BA8',
   gluten_free: Colors.accent,
   halal: Colors.forest,
+  kosher: '#2155A0',
   omnivore: Colors.textLight,
   peanuts: Colors.accent,
   tree_nuts: Colors.accentDark,
@@ -65,6 +66,7 @@ const ICON_MAP = {
   pescatarian:   { lib: 'mci', name: 'fish' },
   gluten_free:   { lib: 'mci', name: 'barley-off' },
   halal:         { lib: 'mci', name: 'food-halal' },
+  kosher:        { lib: 'mci', name: 'star-david' },
   omnivore:      { lib: 'mci', name: 'silverware-fork-knife' },
   // Food allergies
   peanuts:       { lib: 'mci', name: 'peanut' },

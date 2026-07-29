@@ -11,11 +11,18 @@ import { PremiumIcon, BrandName } from '../components/ui';
 import { useReferral } from '../context/ReferralContext';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
+import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
 
 const HALAL_TO_STATUS = {
   [HALAL_STATUS.HALAL]: 'SAFE',
   [HALAL_STATUS.MASHBOOH]: 'CAUTION',
   [HALAL_STATUS.NOT_HALAL]: 'NOT_SAFE',
+};
+
+const KOSHER_TO_STATUS = {
+  [KOSHER_STATUS.KOSHER]: 'SAFE',
+  [KOSHER_STATUS.SUPERVISION]: 'CAUTION',
+  [KOSHER_STATUS.NOT_KOSHER]: 'NOT_SAFE',
 };
 
 const STATUS_CONFIG = {
@@ -121,10 +128,15 @@ export default function HomeScreen({ navigation }) {
               {t(language, 'home.recent_scans')} {scanHistory.length > 0 ? `(${Math.min(scanHistory.length, 5)})` : ''}
             </Text>
             {scanHistory.slice(0, 5).map((scan, i) => {
-              const isHalal = profile?.dietId === 'halal';
-              const effectiveStatus = isHalal && scan.normalized_ingredients?.length
-                ? HALAL_TO_STATUS[applyHalalRules(scan.normalized_ingredients, profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS).status]
-                : scan.status;
+              const ings = scan.normalized_ingredients;
+              let effectiveStatus = scan.status;
+              if (ings?.length) {
+                if (profile?.dietId === 'halal') {
+                  effectiveStatus = HALAL_TO_STATUS[applyHalalRules(ings, profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS).status] || scan.status;
+                } else if (profile?.dietId === 'kosher') {
+                  effectiveStatus = KOSHER_TO_STATUS[applyKosherRules(ings).status] || scan.status;
+                }
+              }
               const cfg = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.CAUTION;
               return (
                 <TouchableOpacity

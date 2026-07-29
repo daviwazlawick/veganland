@@ -12,6 +12,7 @@ import { ALLERGIES } from '../constants/allergies';
 import { apiSubmitFeedback, apiSubmitAppSurvey } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
+import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
 import AppSurveyModal from '../components/ui/AppSurveyModal';
 
 const STATUS_CONFIG = {
@@ -60,9 +61,6 @@ function titleCase(s) {
   return String(s || '').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// Halal-only maps: halal engine status → visual STATUS_CONFIG bucket
-// (colors reused from safe/caution/danger so we don't multiply tokens)
-// and → banner title/subtitle i18n keys.
 const HALAL_TO_STATUS = {
   [HALAL_STATUS.HALAL]: 'SAFE',
   [HALAL_STATUS.MASHBOOH]: 'CAUTION',
@@ -77,6 +75,22 @@ const HALAL_SUB_KEYS = {
   [HALAL_STATUS.HALAL]: 'halal.subtitle.halal',
   [HALAL_STATUS.MASHBOOH]: 'halal.subtitle.mashbooh',
   [HALAL_STATUS.NOT_HALAL]: 'halal.subtitle.not_halal',
+};
+
+const KOSHER_TO_STATUS = {
+  [KOSHER_STATUS.KOSHER]: 'SAFE',
+  [KOSHER_STATUS.SUPERVISION]: 'CAUTION',
+  [KOSHER_STATUS.NOT_KOSHER]: 'NOT_SAFE',
+};
+const KOSHER_TITLE_KEYS = {
+  [KOSHER_STATUS.KOSHER]: 'kosher.verdict.kosher',
+  [KOSHER_STATUS.SUPERVISION]: 'kosher.verdict.supervision',
+  [KOSHER_STATUS.NOT_KOSHER]: 'kosher.verdict.not_kosher',
+};
+const KOSHER_SUB_KEYS = {
+  [KOSHER_STATUS.KOSHER]: 'kosher.subtitle.kosher',
+  [KOSHER_STATUS.SUPERVISION]: 'kosher.subtitle.supervision',
+  [KOSHER_STATUS.NOT_KOSHER]: 'kosher.subtitle.not_kosher',
 };
 
 export default function ResultScreen({ navigation, route }) {
@@ -134,29 +148,48 @@ export default function ResultScreen({ navigation, route }) {
     ? result.normalized_ingredients
     : parseIngredients(ingredientsText);
 
-  // Halal-only overlay: the server has no halal rules today (see
-  // server/src/analyze.js applyProfileToAnalysis) — halal users would
-  // otherwise always see status='SAFE'. We re-derive verdict + flagged
-  // ingredients locally from the neutral analysis on this device.
+  // Client-side diet engines (halal, kosher): the server has no rules for
+  // these diets — it always returns a generic SAFE/CAUTION. Re-derive the
+  // verdict + flagged ingredients locally from the neutral analysis.
   const isHalal = profile?.dietId === 'halal';
+  const isKosher = profile?.dietId === 'kosher';
   const halalStrictness = profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS;
   const halalResult = isHalal ? applyHalalRules(ingredients, halalStrictness) : null;
+  const kosherResult = isKosher ? applyKosherRules(ingredients) : null;
   const halalFlagMap = new Map();
   if (halalResult) {
     for (const f of halalResult.flagged) halalFlagMap.set(f.ingredient, f);
   }
-  const effectiveStatus = halalResult ? HALAL_TO_STATUS[halalResult.status] : result.status;
+  const kosherFlagMap = new Map();
+  if (kosherResult) {
+    for (const f of kosherResult.flagged) kosherFlagMap.set(f.ingredient, f);
+  }
+  const effectiveStatus = halalResult
+    ? HALAL_TO_STATUS[halalResult.status]
+    : kosherResult
+      ? KOSHER_TO_STATUS[kosherResult.status]
+      : result.status;
   const cfg = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.CAUTION;
   const bannerTitleText = halalResult
     ? t(language, HALAL_TITLE_KEYS[halalResult.status])
-    : t(language, cfg.titleKey);
+    : kosherResult
+      ? t(language, KOSHER_TITLE_KEYS[kosherResult.status])
+      : t(language, cfg.titleKey);
   const bannerSubText = halalResult
     ? t(language, HALAL_SUB_KEYS[halalResult.status])
-    : t(language, cfg.subtitleKey);
+    : kosherResult
+      ? t(language, KOSHER_SUB_KEYS[kosherResult.status])
+      : t(language, cfg.subtitleKey);
   const halalConcernList = halalResult
     ? halalResult.flagged.map(f => `${f.ingredient} — ${t(language, f.reasonKey)}`)
     : null;
-  const displayConcerns = halalConcernList || (result.concerns || []);
+  const kosherConcernList = kosherResult
+    ? [
+        ...kosherResult.flagged.map(f => `${f.ingredient} — ${t(language, f.reasonKey)}`),
+        ...(kosherResult.meatDairyMix ? [t(language, 'kosher.reason.meat_dairy_mix')] : []),
+      ]
+    : null;
+  const displayConcerns = halalConcernList || kosherConcernList || (result.concerns || []);
 
   // OFF traces_tags (structured) take priority over AI-extracted traces
   const offTraces = Array.isArray(offMeta?.traces) && offMeta.traces.length > 0
@@ -311,15 +344,18 @@ export default function ResultScreen({ navigation, route }) {
             <View style={styles.ingredientsWrap}>
               {ingredients.map((item, i) => {
                 const halalFlag = halalFlagMap.get(item);
+                const kosherFlag = kosherFlagMap.get(item);
                 const flagged = halalResult
                   ? !!halalFlag
-                  : (() => {
-                      const lower = item.toLowerCase();
-                      return concerns.some(c => {
-                        const cl = c.toLowerCase();
-                        return lower.includes(cl) || cl.includes(lower);
-                      });
-                    })();
+                  : kosherResult
+                    ? !!kosherFlag
+                    : (() => {
+                        const lower = item.toLowerCase();
+                        return concerns.some(c => {
+                          const cl = c.toLowerCase();
+                          return lower.includes(cl) || cl.includes(lower);
+                        });
+                      })();
                 return (
                   <View key={i} style={[styles.ingredientChip, flagged && styles.ingredientChipFlagged]}>
                     <Text style={[styles.ingredientText, flagged && styles.ingredientTextFlagged]}>{item}</Text>
@@ -397,6 +433,9 @@ export default function ResultScreen({ navigation, route }) {
             <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
             {isHalal && (
               <Text style={styles.halalCertLine}>{t(language, 'halal.cert_line')}</Text>
+            )}
+            {isKosher && (
+              <Text style={styles.halalCertLine}>{t(language, 'kosher.cert_line')}</Text>
             )}
             <TouchableOpacity onPress={() => Linking.openURL('https://www.anthropic.com')} activeOpacity={0.7}>
               <Text style={styles.disclaimerSource}>{t(language, 'result.ai_source')}</Text>

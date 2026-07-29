@@ -35,6 +35,13 @@ export const DIETS = [
     restrictions: ['pork', 'alcohol', 'lard', 'gelatin_pork'],
   },
   {
+    id: 'kosher',
+    icon: 'kosher',
+    label: { pt: 'Kosher', en: 'Kosher', de: 'Koscher', fr: 'Casher', it: 'Kasher', es: 'Kosher' },
+    description: { pt: 'Conforme a lei judaica', en: 'Compliant with Jewish dietary law', de: 'Nach jüdischem Speisegesetz', fr: 'Conforme à la loi alimentaire juive', it: 'Conforme alla legge alimentare ebraica', es: 'Conforme a la ley alimentaria judía' },
+    restrictions: ['pork', 'shellfish', 'blood', 'lard', 'gelatin_unspecified'],
+  },
+  {
     id: 'omnivore',
     icon: 'omnivore',
     label: { pt: 'Onívoro', en: 'Omnivore', de: 'Omnivor', fr: 'Omnivore', it: 'Onnivoro', es: 'Omnívoro' },

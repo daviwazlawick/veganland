@@ -413,6 +413,30 @@ export default {
       natural_flavor: "Aroma naturale o estratto di vaniglia — può contenere alcol residuo",
     },
   },
+  kosher: {
+    verdict: {
+      kosher: 'Kasher ✓',
+      supervision: 'Supervisione richiesta',
+      not_kosher: 'Non kasher',
+    },
+    subtitle: {
+      kosher: 'Tutti gli ingredienti sembrano conformi alle regole kasher',
+      supervision: 'Richiede un prodotto certificato kasher — verifica il sigillo',
+      not_kosher: 'Contiene ingredienti non kasher',
+    },
+    cert_line: "Verifica sempre il sigillo di certificazione kasher (hechsher) sulla confezione.",
+    reason: {
+      pork: 'Contiene maiale o derivati — non kasher',
+      lard: 'Strutto (lard) — non kasher',
+      shellfish: 'Frutti di mare o crostacei — non kasher',
+      blood: 'Sangue o prodotti del sangue — non kasher',
+      gelatin_unspecified: 'Gelatina di origine non specificata — certificazione kasher richiesta',
+      wine_grape: "Vino o prodotto a base d'uva — vino certificato kasher richiesto",
+      rennet: 'Caglio di origine non specificata — il formaggio deve essere certificato kasher',
+      meat_uncertified: 'Carne/pollame senza certificazione di macellazione kasher',
+      meat_dairy_mix: "Il prodotto sembra contenere carne e latticini — non kasher (basar b'chalav)",
+    },
+  },
   app_survey: {
     title: 'Aiutaci a renderla perfetta per te 🙏',
     body: 'Hai già scansionato alcuni prodotti — questo significa molto per noi!\n\nSiamo un piccolo team che lavora duramente ogni giorno per rendere questa app davvero utile per te. Cosa manca? C\'è una funzione che vorresti avere? Leggiamo ogni messaggio.',
