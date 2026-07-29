@@ -86,7 +86,7 @@ export default function ReferralScreen({ navigation }) {
         <View style={styles.heroCard}>
           <Text style={styles.heroEmoji}>🎁</Text>
           <Text style={styles.heroTitle}>{t(language, 'referral.hero_title')}</Text>
-          <Text style={styles.heroSub}>{t(language, 'referral.hero_subtitle', { count: needed })}</Text>
+          <Text style={styles.heroSub}>{t(language, 'referral.hero_subtitle')}</Text>
         </View>
 
         <View style={styles.codeCard}>

@@ -447,8 +447,8 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
        on conflict do nothing`,
       [referrerId, user.id]
     );
-    // B's instant reward: 10 bonus scans, valid 30 days
-    await grantBonusScans(user.id, REFERRED_SIGNUP_BONUS);
+    // B gets double their plan's monthly scans for the first month
+    await grantBonusScans(user.id, referredSignupBonus(user.user_type));
   }
 
   return user;
@@ -525,18 +525,18 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
        on conflict do nothing`,
       [referrerId, user.id]
     );
-    await grantBonusScans(user.id, REFERRED_SIGNUP_BONUS);
+    await grantBonusScans(user.id, referredSignupBonus(user.user_type));
   }
   return user;
 }
 
-export const REFERRED_SIGNUP_BONUS = 10;
-export const REFERRER_REWARD_BONUS = 30;
-
-// Called when a referred user completes their first scan. Transitions the
-// referral_event from pending → qualified, increments the referrer's counter,
-// and grants REFERRER_REWARD_BONUS scans every time the counter hits 3.
-const REFERRALS_PER_REWARD = 3;
+export const REFERRER_REWARD_BONUS = 5;    // referrer gets 5 scans when 3 friends qualify
+const REFERRALS_PER_REWARD = 3;            // 3 qualified referrals unlock the reward
+// Referred user gets double their plan's monthly allocation for their first month.
+// Computed dynamically at grant time so it scales with upgrades.
+function referredSignupBonus(userType) {
+  return SCAN_LIMITS[userType] || SCAN_LIMITS.free;
+}
 
 export async function qualifyReferralIfPending(referredUserId) {
   const db = await getPool();
@@ -621,7 +621,7 @@ export async function getReferralStats(userId) {
     total_rewarded: u.referral_total_rewarded,
     referrals_needed: REFERRALS_PER_REWARD,
     referrer_reward: REFERRER_REWARD_BONUS,
-    referred_bonus: REFERRED_SIGNUP_BONUS,
+    referred_bonus: SCAN_LIMITS.free,
     bonus_remaining: bonus_active ? u.bonus_scans_remaining : 0,
     bonus_expires_at: bonus_active ? u.bonus_scans_expires_at : null,
   };
@@ -658,7 +658,8 @@ export async function redeemReferralCode(userId, codeInput) {
        values ($1, $2, 'pending') on conflict do nothing`,
     [referrerId, userId]
   );
-  await grantBonusScans(userId, REFERRED_SIGNUP_BONUS);
+  const userRow = await db.query('select user_type from users where id = $1', [userId]);
+  await grantBonusScans(userId, referredSignupBonus(userRow.rows[0]?.user_type));
   return { ok: true, referrer_id: referrerId };
 }
 
