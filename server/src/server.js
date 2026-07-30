@@ -697,6 +697,17 @@ function appendPlayReferrer(playUrl, utms) {
   return `${playUrl}${sep}referrer=${encodeURIComponent(referrer)}`;
 }
 
+function htmlPixelRedirect(destination, contentName) {
+  const safe = destination.replace(/"/g, '&quot;');
+  return `<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="0;url=${safe}">
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');fbq('track','Lead',{content_name:'${contentName}'});window.location.replace('${safe}');</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=Lead&noscript=1"/></noscript>
+</head><body></body></html>`;
+}
+
 function htmlStorePicker(brand, requestedPlatform) {
   const iosBtn = brand.iosUrl
     ? `<a href="${brand.iosUrl}" class="btn btn-ios">📱 App Store · iPhone & iPad</a>`
@@ -828,12 +839,12 @@ function htmlReferralLanding(code, valid, host, brandOverride = null) {
 <div class="card">
   <span class="badge">🎁 CONVITE ${brand.name.toUpperCase()}</span>
   <div class="gift">${brand.emoji}</div>
-  <h1>Ganhas <b>+10 scans grátis</b></h1>
+  <h1>Ganhas <b>o dobro dos scans do teu plano</b> no primeiro mês</h1>
   <p style="color:#475569;margin:8px 0 0">Foste convidado para a ${brand.name} — a app que decifra ingredientes para o teu perfil em segundos.</p>
   <div class="code-box" id="code">${safe}</div>
   ${iosLink}
   ${androidLink}
-  <p class="small">Já tens a app? Abre-a — o código será aplicado automaticamente. Ou introduz <b>${safe}</b> em <i>Convidar amigos → Tenho um código</i>. Convidando 3 amigos ganhas <b>+30 scans bónus</b>.</p>
+  <p class="small">Já tens a app? Abre-a — o código é aplicado automaticamente. Ou introduz <b>${safe}</b> em <i>Convidar amigos → Tenho um código</i>.</p>
 </div>
 <div class="toast" id="toast">Código copiado para a área de transferência ✓</div>
 <script>
@@ -1476,13 +1487,13 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (!forcePicker && platform === 'ios' && effectiveBrand.iosUrl) {
-        res.writeHead(302, { Location: effectiveBrand.iosUrl });
-        res.end();
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPixelRedirect(effectiveBrand.iosUrl, 'store_redirect_ios'));
         return;
       }
       if (!forcePicker && platform === 'android' && effectiveBrand.androidUrl) {
-        res.writeHead(302, { Location: effectiveBrand.androidUrl });
-        res.end();
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(htmlPixelRedirect(effectiveBrand.androidUrl, 'store_redirect_android'));
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
