@@ -172,11 +172,25 @@ function htmlAdminPage(stats, token) {
   const unconfirmed = stats.total_users - stats.confirmed_users;
   const conversionRate = stats.total_users > 0 ? Math.round(((pb.starter + pb.premium) / stats.total_users) * 100) : 0;
 
+  const pathBadge = p => {
+    if (!p || p === '?') return `<span style="color:#aaa;font-size:11px">?</span>`;
+    if (p === '/get') return `<span style="background:#e0f2fe;color:#0369a1;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">/get</span>`;
+    if (p.startsWith('/r/')) return `<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">referral</span>`;
+    return `<span style="color:#888;font-size:11px">${esc(p)}</span>`;
+  };
+  const platformBadge = p => {
+    if (!p || p === '?') return `<span style="color:#aaa;font-size:11px">?</span>`;
+    if (p === 'ios') return `<span style="background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">iOS</span>`;
+    if (p === 'android') return `<span style="background:#fefce8;color:#854d0e;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">Android</span>`;
+    return `<span style="color:#888;font-size:11px">${esc(p)}</span>`;
+  };
   const utmRows = (stats.utm_origins || []).map(o => `
       <tr>
         <td><strong>${esc(o.utm_source)}</strong></td>
         <td>${esc(o.utm_campaign)}</td>
         <td style="color:#888">${esc(o.utm_medium)}</td>
+        <td>${pathBadge(o.path)}</td>
+        <td>${platformBadge(o.platform)}</td>
         <td style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums">${o.clicks}</td>
       </tr>`).join('');
   const utmTotal = (stats.utm_origins || []).reduce((sum, o) => sum + Number(o.clicks || 0), 0);
@@ -330,12 +344,13 @@ function htmlAdminPage(stats, token) {
 
     <!-- Origens (UTM tracking) -->
     <div class="section">
-      <h2>Origens <span class="sub">últimos 30 dias · ${utmTotal} clicks com utm_*</span></h2>
+      <h2>Origens <span class="sub">últimos 30 dias · ${utmTotal} clicks com utm_* (bots filtrados)</span></h2>
+      <p style="font-size:12px;color:#888;margin:-8px 0 12px">Bots, crawlers e pings de verificação de anúncios (TikTok, Facebook etc.) são excluídos automaticamente — por isso os números são menores do que nos painéis das plataformas.</p>
       <table>
         <thead><tr>
-          <th>utm_source</th><th>utm_campaign</th><th>utm_medium</th><th style="text-align:right">Clicks</th>
+          <th>utm_source</th><th>utm_campaign</th><th>utm_medium</th><th>Página</th><th>Plataforma</th><th style="text-align:right">Clicks reais</th>
         </tr></thead>
-        <tbody>${utmRows || '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:24px">Ainda sem clicks com UTMs. Adiciona ?utm_source=… aos teus links de marketing.</td></tr>'}</tbody>
+        <tbody>${utmRows || '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Ainda sem clicks com UTMs. Adiciona ?utm_source=… aos teus links de marketing.</td></tr>'}</tbody>
       </table>
     </div>
 

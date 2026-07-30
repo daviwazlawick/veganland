@@ -1185,15 +1185,20 @@ export async function getAdminStats() {
     `),
     db.query(`
       SELECT
-        COALESCE(utm_source,   '(none)') AS utm_source,
-        COALESCE(utm_campaign, '(none)') AS utm_campaign,
-        COALESCE(utm_medium,   '(none)') AS utm_medium,
+        COALESCE(utm_source,      '(none)') AS utm_source,
+        COALESCE(utm_campaign,    '(none)') AS utm_campaign,
+        COALESCE(utm_medium,      '(none)') AS utm_medium,
+        COALESCE(path,            '?')      AS path,
+        COALESCE(platform_detected,'?')     AS platform,
         COUNT(*)::int AS clicks
       FROM link_clicks
       WHERE created_at > now() - interval '30 days'
-      GROUP BY 1, 2, 3
+        AND user_agent IS NOT NULL
+        AND user_agent <> ''
+        AND lower(user_agent) NOT SIMILAR TO '%(bot|crawler|spider|slurp|bytespider|facebookexternalhit|pinterest|whatsapp|telegram|preview|ahrefsbot|semrushbot|mj12bot|dotbot|baiduspider|yandexbot|petalbot)%'
+      GROUP BY 1, 2, 3, 4, 5
       ORDER BY clicks DESC
-      LIMIT 100
+      LIMIT 150
     `),
   ]);
 
