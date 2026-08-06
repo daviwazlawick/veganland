@@ -1342,3 +1342,161 @@ export async function insertAppSurvey({ userId, message, dietId, language }) {
   );
   return res.rows[0]?.id || null;
 }
+
+// ─── Nutrition Tracking ───────────────────────────────────────────────────────
+
+export function suggestNutritionGoals(profile = {}) {
+  const { sex, birth_date, height_cm, weight_kg, activity_level, goal } = profile;
+  if (!weight_kg || !height_cm || !birth_date) {
+    return { calories_kcal: 2000, protein_g: 50, fat_g: 65, carbs_g: 260, fiber_g: 25, sugar_g: 50, salt_g: 2.3, water_ml: 2000, is_default: true };
+  }
+  const age = Math.max(10, Math.floor((Date.now() - new Date(birth_date)) / (365.25 * 24 * 3600 * 1000)));
+  const w = Number(weight_kg), h = Number(height_cm);
+  let bmr = 10 * w + 6.25 * h - 5 * age + (sex === 'male' ? 5 : -161);
+  const multipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+  let tdee = bmr * (multipliers[activity_level] || 1.375);
+  if (goal === 'lose') tdee -= 500;
+  else if (goal === 'gain') tdee += 300;
+  tdee = Math.max(1200, Math.round(tdee));
+  const proteinPerKg = goal === 'gain' ? 2.2 : goal === 'lose' ? 2.0 : 1.6;
+  const protein_g = Math.round(w * proteinPerKg);
+  const fat_g = Math.round((tdee * 0.27) / 9);
+  const carbs_g = Math.max(50, Math.round((tdee - protein_g * 4 - fat_g * 9) / 4));
+  return {
+    calories_kcal: tdee,
+    protein_g,
+    fat_g,
+    carbs_g,
+    fiber_g: 25,
+    sugar_g: Math.round(tdee * 0.05 / 4),
+    salt_g: 2.3,
+    water_ml: Math.round(w * 35),
+    is_default: false,
+  };
+}
+
+export async function getBodyProfile(userId) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(`select * from user_body_profile where user_id = $1`, [userId]);
+  return res.rows[0] || null;
+}
+
+export async function saveBodyProfile(userId, data) {
+  const db = await getPool();
+  if (!db) return null;
+  const { sex, birth_date, height_cm, weight_kg, activity_level, goal } = data;
+  await db.query(`
+    insert into user_body_profile (user_id, sex, birth_date, height_cm, weight_kg, activity_level, goal, updated_at)
+    values ($1,$2,$3,$4,$5,$6,$7,now())
+    on conflict (user_id) do update set
+      sex = excluded.sex, birth_date = excluded.birth_date, height_cm = excluded.height_cm,
+      weight_kg = excluded.weight_kg, activity_level = excluded.activity_level,
+      goal = excluded.goal, updated_at = now()`,
+    [userId, sex || null, birth_date || null, height_cm || null, weight_kg || null, activity_level || null, goal || null]
+  );
+  return true;
+}
+
+export async function getNutritionGoals(userId) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(`select * from user_nutrition_goals where user_id = $1`, [userId]);
+  if (res.rows[0]) return res.rows[0];
+  const profile = await getBodyProfile(userId);
+  return { ...suggestNutritionGoals(profile || {}), is_custom: false };
+}
+
+export async function saveNutritionGoals(userId, goals) {
+  const db = await getPool();
+  if (!db) return null;
+  const { calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml } = goals;
+  await db.query(`
+    insert into user_nutrition_goals (user_id, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, is_custom, updated_at)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,now())
+    on conflict (user_id) do update set
+      calories_kcal=$2, protein_g=$3, fat_g=$4, carbs_g=$5, fiber_g=$6,
+      sugar_g=$7, salt_g=$8, water_ml=$9, is_custom=true, updated_at=now()`,
+    [userId, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml]
+  );
+  return true;
+}
+
+export async function addConsumptionEntry(userId, entry) {
+  const db = await getPool();
+  if (!db) return null;
+  const { product_name, barcode, source, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, consumed_at, notes } = entry;
+  const res = await db.query(`
+    insert into consumption_log
+      (user_id, product_name, barcode, source, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, consumed_at, notes)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+    returning id`,
+    [userId, product_name || null, barcode || null, source || 'scan', grams || null, meal_type || null,
+     calories_kcal || null, protein_g || null, fat_g || null, carbs_g || null,
+     fiber_g || null, sugar_g || null, salt_g || null, water_ml || null,
+     consumed_at || null, notes || null]
+  );
+  return res.rows[0]?.id;
+}
+
+export async function deleteConsumptionEntry(userId, entryId) {
+  const db = await getPool();
+  if (!db) return false;
+  const res = await db.query(`delete from consumption_log where id=$1 and user_id=$2 returning id`, [entryId, userId]);
+  return !!res.rows[0];
+}
+
+export async function getDayLog(userId, date) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(`
+    select * from consumption_log
+    where user_id=$1
+      and consumed_at >= ($2::date)
+      and consumed_at <  ($2::date + interval '1 day')
+    order by consumed_at asc`,
+    [userId, date]
+  );
+  return res.rows;
+}
+
+export async function getNutritionReport(userId, fromDate, toDate) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(`
+    select
+      to_char(consumed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+      meal_type,
+      COUNT(*)::int AS entries,
+      ROUND(SUM(calories_kcal)::numeric, 1) AS calories_kcal,
+      ROUND(SUM(protein_g)::numeric, 1) AS protein_g,
+      ROUND(SUM(fat_g)::numeric, 1) AS fat_g,
+      ROUND(SUM(carbs_g)::numeric, 1) AS carbs_g,
+      ROUND(SUM(fiber_g)::numeric, 1) AS fiber_g,
+      ROUND(SUM(sugar_g)::numeric, 1) AS sugar_g,
+      ROUND(SUM(salt_g)::numeric, 2) AS salt_g,
+      COALESCE(SUM(water_ml),0)::int AS water_ml
+    from consumption_log
+    where user_id=$1
+      and consumed_at >= ($2::date)
+      and consumed_at <  ($3::date + interval '1 day')
+    group by 1, 2
+    order by 1 asc, 2`,
+    [userId, fromDate, toDate]
+  );
+  return res.rows;
+}
+
+export async function logWeight(userId, weightKg) {
+  const db = await getPool();
+  if (!db) return null;
+  const res = await db.query(`insert into weight_log (user_id, weight_kg) values ($1,$2) returning id, recorded_at`, [userId, weightKg]);
+  return res.rows[0];
+}
+
+export async function getWeightHistory(userId, limit = 90) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(`select weight_kg, recorded_at from weight_log where user_id=$1 order by recorded_at desc limit $2`, [userId, limit]);
+  return res.rows;
+}

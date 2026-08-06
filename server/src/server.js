@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -1451,6 +1451,112 @@ const server = http.createServer(async (req, res) => {
       const history = await listPushBroadcasts(30);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(htmlAdminPushPage(adminToken, summary, history));
+      return;
+    }
+
+    // ── Nutrition API ─────────────────────────────────────────────────────────
+
+    // GET /nutrition/profile
+    if (req.method === 'GET' && req.url === '/nutrition/profile') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const profile = await getBodyProfile(claims.userId);
+      sendJson(res, 200, profile || {}, origin);
+      return;
+    }
+
+    // PUT /nutrition/profile
+    if (req.method === 'PUT' && req.url === '/nutrition/profile') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      await saveBodyProfile(claims.userId, body);
+      const profile = await getBodyProfile(claims.userId);
+      const suggested = suggestNutritionGoals(profile);
+      sendJson(res, 200, { ok: true, suggested }, origin);
+      return;
+    }
+
+    // GET /nutrition/goals
+    if (req.method === 'GET' && req.url === '/nutrition/goals') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const goals = await getNutritionGoals(claims.userId);
+      sendJson(res, 200, goals, origin);
+      return;
+    }
+
+    // PUT /nutrition/goals
+    if (req.method === 'PUT' && req.url === '/nutrition/goals') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      await saveNutritionGoals(claims.userId, body);
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // POST /nutrition/log
+    if (req.method === 'POST' && req.url === '/nutrition/log') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      const id = await addConsumptionEntry(claims.userId, body);
+      sendJson(res, 200, { ok: true, id }, origin);
+      return;
+    }
+
+    // DELETE /nutrition/log/:id
+    if (req.method === 'DELETE' && req.url.startsWith('/nutrition/log/')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const entryId = parseInt(req.url.split('/nutrition/log/')[1]);
+      if (!entryId) { sendJson(res, 400, { error: 'Invalid id' }, origin); return; }
+      const ok = await deleteConsumptionEntry(claims.userId, entryId);
+      sendJson(res, ok ? 200 : 404, { ok }, origin);
+      return;
+    }
+
+    // GET /nutrition/log?date=YYYY-MM-DD
+    if (req.method === 'GET' && req.url.startsWith('/nutrition/log')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const u = new URL(req.url, 'http://x');
+      const date = u.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+      const entries = await getDayLog(claims.userId, date);
+      sendJson(res, 200, entries, origin);
+      return;
+    }
+
+    // GET /nutrition/report?from=YYYY-MM-DD&to=YYYY-MM-DD
+    if (req.method === 'GET' && req.url.startsWith('/nutrition/report')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const u = new URL(req.url, 'http://x');
+      const to = u.searchParams.get('to') || new Date().toISOString().slice(0, 10);
+      const from = u.searchParams.get('from') || new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+      const rows = await getNutritionReport(claims.userId, from, to);
+      sendJson(res, 200, { from, to, rows }, origin);
+      return;
+    }
+
+    // POST /nutrition/weight
+    if (req.method === 'POST' && req.url === '/nutrition/weight') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { weight_kg } = await readJsonBody(req);
+      if (!weight_kg || isNaN(weight_kg)) { sendJson(res, 400, { error: 'Invalid weight' }, origin); return; }
+      const row = await logWeight(claims.userId, weight_kg);
+      sendJson(res, 200, { ok: true, ...row }, origin);
+      return;
+    }
+
+    // GET /nutrition/weight
+    if (req.method === 'GET' && req.url === '/nutrition/weight') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const rows = await getWeightHistory(claims.userId);
+      sendJson(res, 200, rows, origin);
       return;
     }
 

@@ -261,3 +261,55 @@ export async function apiSubmitAppSurvey(token, { message, language }) {
   if (!response.ok) throw new Error(data.error || 'Failed to submit survey');
   return data;
 }
+
+// ── Nutrition API ─────────────────────────────────────────────────────────────
+
+export async function apiGetBodyProfile(token) {
+  const r = await fetch(`${baseUrl()}/nutrition/profile`, { headers: appHeaders(token) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiSaveBodyProfile(token, data) {
+  const r = await fetch(`${baseUrl()}/nutrition/profile`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(data) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiGetNutritionGoals(token) {
+  const r = await fetch(`${baseUrl()}/nutrition/goals`, { headers: appHeaders(token) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiSaveNutritionGoals(token, goals) {
+  const r = await fetch(`${baseUrl()}/nutrition/goals`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(goals) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiLogConsumption(token, entry) {
+  const r = await fetch(`${baseUrl()}/nutrition/log`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(entry) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiDeleteConsumption(token, id) {
+  const r = await fetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'DELETE', headers: appHeaders(token) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiGetDayLog(token, date) {
+  const r = await fetch(`${baseUrl()}/nutrition/log?date=${date}`, { headers: appHeaders(token) });
+  return r.json().catch(() => []);
+}
+
+export async function apiGetNutritionReport(token, from, to) {
+  const r = await fetch(`${baseUrl()}/nutrition/report?from=${from}&to=${to}`, { headers: appHeaders(token) });
+  return r.json().catch(() => ({ rows: [] }));
+}
+
+export async function apiLogWeight(token, weight_kg) {
+  const r = await fetch(`${baseUrl()}/nutrition/weight`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify({ weight_kg }) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiGetWeightHistory(token) {
+  const r = await fetch(`${baseUrl()}/nutrition/weight`, { headers: appHeaders(token) });
+  return r.json().catch(() => []);
+}

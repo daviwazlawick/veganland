@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useReferral } from '../context/ReferralContext';
+import { useNutrition } from '../context/NutritionContext';
 import { BrandFonts } from '../brand';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
@@ -97,6 +98,7 @@ export default function ResultScreen({ navigation, route }) {
   const { language, scanHistory, profile, appSurveyDone, markAppSurveyDone } = useApp();
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
+  const { logConsumption } = useNutrition();
   const isOnboarding = route?.params?.onboarding === true;
   const showReferralBanner = !HIDE_REFERRAL
     && !isOnboarding
@@ -109,6 +111,36 @@ export default function ResultScreen({ navigation, route }) {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackError, setFeedbackError] = useState(null);
   const [activeInfo, setActiveInfo] = useState(null);
+  const [consumeModal, setConsumeModal] = useState(false);
+  const [consumeGrams, setConsumeGrams] = useState('100');
+  const [consumeMeal, setConsumeMeal] = useState('lunch');
+  const [consumeLogging, setConsumeLogging] = useState(false);
+  const [consumeLogged, setConsumeLogged] = useState(false);
+
+  async function handleLogConsume() {
+    const grams = parseFloat(consumeGrams) || 100;
+    const factor = grams / 100;
+    const n = nutrition || {};
+    setConsumeLogging(true);
+    await logConsumption({
+      product_name: result?.title || result?.productInfo?.offMeta?.product_name || '',
+      barcode: result?.barcode || null,
+      source: 'scan',
+      grams,
+      meal_type: consumeMeal,
+      calories_kcal: n.energy_kcal ? Math.round(n.energy_kcal * factor * 10) / 10 : null,
+      protein_g:     n.proteins    ? Math.round(n.proteins    * factor * 10) / 10 : null,
+      fat_g:         n.fat         ? Math.round(n.fat         * factor * 10) / 10 : null,
+      carbs_g:       n.carbohydrates ? Math.round(n.carbohydrates * factor * 10) / 10 : null,
+      fiber_g:       n.fiber       ? Math.round(n.fiber       * factor * 10) / 10 : null,
+      sugar_g:       n.sugars      ? Math.round(n.sugars      * factor * 10) / 10 : null,
+      salt_g:        n.salt        ? Math.round(n.salt        * factor * 100) / 100 : null,
+    });
+    setConsumeLogging(false);
+    setConsumeLogged(true);
+    setConsumeModal(false);
+    setTimeout(() => setConsumeLogged(false), 3000);
+  }
   const [showAppSurvey, setShowAppSurvey] = useState(false);
 
   useEffect(() => {
@@ -573,9 +605,14 @@ export default function ResultScreen({ navigation, route }) {
 
       {!isOnboarding && (
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
-            <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
-          </TouchableOpacity>
+          <View style={styles.consumeRow}>
+            <TouchableOpacity style={styles.consumeBtn} onPress={() => setConsumeModal(true)} activeOpacity={0.85}>
+              <Text style={styles.consumeBtnText}>{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
+              <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
             style={styles.wrongProductBtn}
             onPress={() => navigation.navigate('Scan', { photoMode: true, wrongProductBarcode: result.barcode || null })}
@@ -585,6 +622,47 @@ export default function ResultScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal visible={consumeModal} transparent animationType="slide">
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <TouchableWithoutFeedback onPress={() => setConsumeModal(false)}>
+            <View style={{ flex: 1 }} />
+          </TouchableWithoutFeedback>
+          <View style={styles.consumeModalCard}>
+            <Text style={styles.consumeModalTitle}>{t(language, 'nutrition.consume_modal_title')}</Text>
+            <Text style={styles.consumeProductName} numberOfLines={1}>{result?.title || ''}</Text>
+            <Text style={styles.consumeFieldLabel}>{t(language, 'nutrition.meal_label')}</Text>
+            <View style={styles.mealRow}>
+              {['breakfast','lunch','dinner','snack'].map(m => (
+                <TouchableOpacity key={m} onPress={() => setConsumeMeal(m)} style={[styles.mealBtn, consumeMeal === m && styles.mealBtnActive]}>
+                  <Text style={[styles.mealBtnText, consumeMeal === m && styles.mealBtnTextActive]}>{t(language, `nutrition.${m}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.consumeFieldLabel}>{t(language, 'nutrition.portion_label')}</Text>
+            <View style={styles.portionRow}>
+              <TextInput
+                style={styles.portionInput}
+                value={consumeGrams}
+                onChangeText={setConsumeGrams}
+                keyboardType="decimal-pad"
+                placeholder={t(language, 'nutrition.portion_placeholder')}
+                placeholderTextColor="#94a3b8"
+              />
+              <Text style={styles.portionUnit}>g</Text>
+            </View>
+            {nutrition?.energy_kcal && (
+              <Text style={styles.consumePreview}>
+                ≈ {Math.round(nutrition.energy_kcal * (parseFloat(consumeGrams) || 100) / 100)} kcal
+                {nutrition.proteins ? `  ·  ${Math.round(nutrition.proteins * (parseFloat(consumeGrams) || 100) / 100)}g prot` : ''}
+              </Text>
+            )}
+            <TouchableOpacity onPress={handleLogConsume} disabled={consumeLogging} style={[styles.consumeLogBtn, consumeLogging && { opacity: 0.6 }]}>
+              <Text style={styles.consumeLogBtnText}>{consumeLogging ? '…' : t(language, 'nutrition.log_btn')}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={feedbackRating === 'down' && (feedbackState === 'commenting' || feedbackState === 'sending')}
@@ -959,6 +1037,25 @@ const styles = StyleSheet.create({
   scanAgainText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
   wrongProductBtn: { alignItems: 'center', paddingTop: 14 },
   wrongProductText: { color: Colors.textLight, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+  consumeRow: { flexDirection: 'row', gap: 10 },
+  consumeBtn: { flex: 1, backgroundColor: '#10B981', borderRadius: 18, paddingVertical: 18, alignItems: 'center' },
+  consumeBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  consumeModalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 36, gap: 10 },
+  consumeModalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center', marginBottom: 2 },
+  consumeProductName: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 6 },
+  consumeFieldLabel: { fontSize: 12, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6 },
+  mealRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  mealBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1.5, borderColor: '#e2e8f0' },
+  mealBtnActive: { backgroundColor: Colors.navy || '#0B1E3F', borderColor: Colors.navy || '#0B1E3F' },
+  mealBtnText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
+  mealBtnTextActive: { color: '#fff' },
+  portionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  portionInput: { flex: 1, borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 20, fontWeight: '700', textAlign: 'center', color: Colors.navy || '#0B1E3F' },
+  portionUnit: { fontSize: 16, fontWeight: '700', color: '#64748b' },
+  consumePreview: { fontSize: 13, color: '#10B981', fontWeight: '700', textAlign: 'center' },
+  consumeLogBtn: { backgroundColor: '#10B981', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 4 },
+  consumeLogBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });
 
 const resultReferralStyles = StyleSheet.create({

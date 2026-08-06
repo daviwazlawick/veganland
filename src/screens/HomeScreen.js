@@ -9,6 +9,7 @@ import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon, BrandName } from '../components/ui';
 import { useReferral } from '../context/ReferralContext';
+import { useNutrition } from '../context/NutritionContext';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
@@ -36,6 +37,7 @@ const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory } = useApp();
   const { stats: referralStats } = useReferral();
+  const { goals, todayTotals } = useNutrition();
   const showReferralHero = !HIDE_REFERRAL
     && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
 
@@ -62,6 +64,33 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {goals?.calories_kcal > 0 && (
+          <TouchableOpacity style={homeNutritionStyles.widget} onPress={() => navigation.navigate('NutritionDashboard')} activeOpacity={0.88}>
+            <View style={homeNutritionStyles.row}>
+              <Text style={homeNutritionStyles.title}>{t(language, 'nutrition.home_widget_title')}</Text>
+              <Text style={homeNutritionStyles.cta}>{t(language, 'nutrition.home_widget_cta')} ›</Text>
+            </View>
+            <View style={homeNutritionStyles.bars}>
+              {[
+                { key: 'calories_kcal', color: '#FFCB3B', label: 'kcal' },
+                { key: 'protein_g',     color: '#3B82F6', label: 'prot' },
+                { key: 'carbs_g',       color: '#8B5CF6', label: 'carbs' },
+                { key: 'fat_g',         color: '#F97316', label: 'fat' },
+              ].map(f => {
+                const pct = goals[f.key] > 0 ? Math.min(1, (todayTotals[f.key] || 0) / goals[f.key]) : 0;
+                return (
+                  <View key={f.key} style={homeNutritionStyles.barWrap}>
+                    <View style={homeNutritionStyles.barTrack}>
+                      <View style={[homeNutritionStyles.barFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
+                    </View>
+                    <Text style={homeNutritionStyles.barLabel}>{Math.round(todayTotals[f.key] || 0)} <Text style={{ color: '#94a3b8' }}>{f.label}</Text></Text>
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        )}
 
         {showReferralHero && (
           <TouchableOpacity
@@ -326,4 +355,16 @@ const homeReferralStyles = StyleSheet.create({
   heroEmoji: { fontSize: 32 },
   heroTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 20 },
   heroCta: { fontSize: 13, color: Colors.navy || '#0B1E3F', fontWeight: '700', marginTop: 4 },
+});
+
+const homeNutritionStyles = StyleSheet.create({
+  widget: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 13, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  cta: { fontSize: 12, color: Colors.navy || '#0B1E3F', fontWeight: '600' },
+  bars: { gap: 6 },
+  barWrap: { gap: 3 },
+  barTrack: { height: 5, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: 5, borderRadius: 3 },
+  barLabel: { fontSize: 11, fontWeight: '700', color: Colors.navy || '#0B1E3F' },
 });

@@ -13,6 +13,7 @@ import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe, apiAdminHandoff } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
+import { useNutrition } from '../context/NutritionContext';
 import { HIDE_REFERRAL } from '../constants/features';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
@@ -22,6 +23,7 @@ export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
   const { user, token, logout } = useAuth();
   const { stats: referralStats } = useReferral();
+  const { goals, todayTotals } = useNutrition();
   const [usage, setUsage] = useState(null);
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
@@ -72,6 +74,43 @@ export default function ProfileScreen({ navigation }) {
             <Text style={referralCardStyles.chev}>›</Text>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity
+          style={nutritionCardStyles.card}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate(goals?.calories_kcal ? 'NutritionDashboard' : 'BodyProfile')}
+        >
+          <View style={nutritionCardStyles.left}>
+            <Text style={nutritionCardStyles.emoji}>🥗</Text>
+          </View>
+          <View style={nutritionCardStyles.body}>
+            <Text style={nutritionCardStyles.title}>{t(language, 'nutrition.tab')}</Text>
+            {goals?.calories_kcal ? (
+              <View style={nutritionCardStyles.barsWrap}>
+                {[
+                  { key: 'calories_kcal', color: '#FFCB3B', label: t(language, 'nutrition.calories') },
+                  { key: 'protein_g',     color: '#3B82F6', label: t(language, 'nutrition.protein') },
+                  { key: 'carbs_g',       color: '#8B5CF6', label: t(language, 'nutrition.carbs') },
+                ].map(f => {
+                  const pct = Math.min(1, (todayTotals[f.key] || 0) / goals[f.key]);
+                  return (
+                    <View key={f.key} style={nutritionCardStyles.miniBarWrap}>
+                      <View style={nutritionCardStyles.miniTrack}>
+                        <View style={[nutritionCardStyles.miniFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
+                      </View>
+                    </View>
+                  );
+                })}
+                <Text style={nutritionCardStyles.sub}>
+                  {Math.round(todayTotals.calories_kcal || 0)} / {Math.round(goals.calories_kcal)} kcal
+                </Text>
+              </View>
+            ) : (
+              <Text style={nutritionCardStyles.sub}>{t(language, 'nutrition.setup_prompt_cta')} →</Text>
+            )}
+          </View>
+          <Text style={nutritionCardStyles.chev}>›</Text>
+        </TouchableOpacity>
 
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
@@ -512,4 +551,22 @@ const referralCardStyles = StyleSheet.create({
   title: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 18 },
   sub: { fontSize: 12, color: Colors.headerMuted || '#6b7280', marginTop: 2 },
   chev: { fontSize: 26, color: Colors.navy || '#0B1E3F', fontWeight: '700' },
+});
+
+const nutritionCardStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#F0FDF4', borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: '#86EFAC',
+  },
+  left: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#22C55E', alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 22 },
+  body: { flex: 1, gap: 6 },
+  title: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 18 },
+  sub: { fontSize: 12, color: Colors.headerMuted || '#6b7280', marginTop: 2 },
+  chev: { fontSize: 26, color: Colors.navy || '#0B1E3F', fontWeight: '700' },
+  barsWrap: { gap: 4 },
+  miniBarWrap: { height: 5, backgroundColor: '#DCFCE7', borderRadius: 3, overflow: 'hidden' },
+  miniTrack: { flex: 1, backgroundColor: '#DCFCE7', borderRadius: 3, overflow: 'hidden' },
+  miniFill: { height: 5, borderRadius: 3 },
 });
