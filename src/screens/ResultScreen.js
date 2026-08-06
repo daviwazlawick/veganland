@@ -203,7 +203,11 @@ export default function ResultScreen({ navigation, route }) {
     for (const f of kosherResult.flagged) kosherFlagMap.set(f.ingredient, f);
   }
   const FOOD_PRODUCT_TYPES = new Set(['fresh_produce', 'processed_food']);
-  const isFood = !result.product_type || FOOD_PRODUCT_TYPES.has(result.product_type);
+  const SUPPLEMENT_CATEGORY_TERMS = ['supplement', 'vitamin', 'mineral', 'multivitamin', 'probiotic', 'protein powder'];
+  const isSupplementByCategory = (offMeta?.categories || []).some(c =>
+    SUPPLEMENT_CATEGORY_TERMS.some(k => String(c).toLowerCase().includes(k))
+  );
+  const isFood = !isSupplementByCategory && (!result.product_type || FOOD_PRODUCT_TYPES.has(result.product_type));
 
   const effectiveStatus = halalResult
     ? HALAL_TO_STATUS[halalResult.status]

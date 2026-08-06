@@ -81,6 +81,15 @@ async function resolveProductIngredients(imageInspection) {
 
 const NON_FOOD_TYPES = ['cosmetic', 'clothing', 'cleaning', 'other'];
 
+const SUPPLEMENT_CATEGORY_TERMS = ['supplement', 'vitamin', 'mineral', 'multivitamin', 'probiotic', 'protein powder', 'nutraceutical', 'herbal'];
+
+function productTypeFromCategories(categoriesTags) {
+  if (!Array.isArray(categoriesTags) || categoriesTags.length === 0) return null;
+  const joined = categoriesTags.join(' ').toLowerCase();
+  if (SUPPLEMENT_CATEGORY_TERMS.some(k => joined.includes(k))) return 'supplement';
+  return null;
+}
+
 const ALLERGEN_ALIASES = {
   tree_nuts: ['tree_nuts', 'nuts'],
   gluten: ['gluten', 'wheat'],
@@ -287,8 +296,9 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       known = await enrichKnownRowIfNeeded(known);
       knownDbRow = known;
       const src = known.source || 'processed_food';
+      const catType = productTypeFromCategories(known.categories_tags);
       imageInspection = {
-        product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
+        product_type: catType || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
         product_name: known.product_name,
         brand: known.brand,
         barcode: known.barcode,
@@ -343,9 +353,10 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       if (known) {
         known = await enrichKnownRowIfNeeded(known);
         const src = known.source || 'processed_food';
+        const catType2 = productTypeFromCategories(known.categories_tags);
         imageInspection = {
           ...imageInspection,
-          product_type: src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food',
+          product_type: catType2 || imageInspection.product_type || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
           product_name: known.product_name || imageInspection.product_name,
           brand: known.brand || imageInspection.brand,
           barcode: known.barcode,
@@ -440,6 +451,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   // same blob — otherwise scan history reopens without the OFF UI.
   const fullResult = {
     ...result,
+    product_type: productType,
     // knownDbRow has OFF columns (allergens_tags, nutriscore_grade, etc.) that
     // imageInspection lacks — prefer it so offMeta survives when the product
     // exists in our DB but has no ingredients yet.
