@@ -1425,16 +1425,16 @@ export async function saveNutritionGoals(userId, goals) {
 export async function addConsumptionEntry(userId, entry) {
   const db = await getPool();
   if (!db) return null;
-  const { product_name, barcode, source, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, consumed_at, notes } = entry;
+  const { product_name, barcode, source, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, notes } = entry;
   const res = await db.query(`
     insert into consumption_log
-      (user_id, product_name, barcode, source, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, consumed_at, notes)
-    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      (user_id, product_name, barcode, source, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, notes)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
     returning id`,
     [userId, product_name || null, barcode || null, source || 'scan', grams || null, meal_type || null,
      calories_kcal || null, protein_g || null, fat_g || null, carbs_g || null,
      fiber_g || null, sugar_g || null, salt_g || null, water_ml || null,
-     consumed_at || null, notes || null]
+     notes || null]
   );
   return res.rows[0]?.id;
 }
