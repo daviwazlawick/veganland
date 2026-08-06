@@ -315,6 +315,12 @@ export async function apiGetWeightHistory(token) {
   return r.json().catch(() => []);
 }
 
+export async function apiGetRecentPlates(token) {
+  const r = await fetch(`${baseUrl()}/nutrition/plates`, { headers: appHeaders(token) });
+  if (!r.ok) return [];
+  return r.json();
+}
+
 export async function apiSearchFood(token, query) {
   const r = await fetch(`${baseUrl()}/nutrition/search?q=${encodeURIComponent(query)}`, {
     headers: appHeaders(token),

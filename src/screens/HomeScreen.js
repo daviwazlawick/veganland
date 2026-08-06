@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -10,6 +10,8 @@ import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon, BrandName } from '../components/ui';
 import { useReferral } from '../context/ReferralContext';
 import { useNutrition } from '../context/NutritionContext';
+import { useAuth } from '../context/AuthContext';
+import { apiGetRecentPlates } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
@@ -37,7 +39,22 @@ const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory } = useApp();
   const { stats: referralStats } = useReferral();
-  const { goals, todayTotals } = useNutrition();
+  const { goals, todayTotals, logConsumption } = useNutrition();
+  const { token } = useAuth();
+  const [loggingWater, setLoggingWater] = useState(false);
+  const [recentPlates, setRecentPlates] = useState([]);
+
+  useEffect(() => {
+    if (!token) return;
+    apiGetRecentPlates(token).then(setRecentPlates).catch(() => {});
+  }, [token]);
+
+  async function quickLogWater(ml) {
+    if (loggingWater) return;
+    setLoggingWater(true);
+    try { await logConsumption({ product_name: 'Water', source: 'manual', water_ml: ml, meal_type: null }); } catch {}
+    setLoggingWater(false);
+  }
   const showReferralHero = !HIDE_REFERRAL
     && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
 
@@ -116,6 +133,25 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.quickRow}>
+          <TouchableOpacity style={[styles.quickBtn, styles.addFoodBtn]} onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })} activeOpacity={0.85}>
+            <Text style={styles.quickIcon}>✏️</Text>
+            <Text style={styles.quickTitle}>{t(language, 'nutrition.add_food')}</Text>
+          </TouchableOpacity>
+          <View style={[styles.quickBtn, styles.waterQuickBtn]}>
+            <Text style={styles.quickIcon}>💧</Text>
+            <Text style={styles.quickTitle}>{t(language, 'nutrition.water')}</Text>
+            <Text style={styles.waterTodayText}>{Math.round(todayTotals.water_ml || 0)} ml</Text>
+            <View style={styles.waterQuickBtns}>
+              {[250, 500].map(ml => (
+                <TouchableOpacity key={ml} style={styles.waterMlBtn} onPress={() => quickLogWater(ml)} disabled={loggingWater} activeOpacity={0.75}>
+                  <Text style={styles.waterMlText}>+{ml}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
         {scanHistory.length > 0 && (
           <View style={styles.historySection}>
             <Text style={styles.historyHeading}>
@@ -156,6 +192,27 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        )}
+
+        {recentPlates.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={styles.historyHeading}>🍽️ {t(language, 'nutrition.recent_plates')}</Text>
+            {recentPlates.slice(0, 5).map((entry, i) => (
+              <View key={i} style={[styles.historyItem, { borderLeftColor: '#22C55E' }]}>
+                <View style={[styles.historyIconWrap, { backgroundColor: '#F0FDF4' }]}>
+                  <Text style={{ fontSize: 22 }}>🍽️</Text>
+                </View>
+                <View style={styles.historyContent}>
+                  <Text style={styles.historyTitle} numberOfLines={1}>{entry.product_name}</Text>
+                  <Text style={styles.historyDate}>
+                    {entry.calories_kcal ? `${Math.round(entry.calories_kcal)} kcal` : ''}
+                    {entry.protein_g ? `  ·  ${Math.round(entry.protein_g)}g prot` : ''}
+                    {'  ·  '}{new Date(entry.consumed_at).toLocaleDateString(localeFor(language))}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -224,6 +281,23 @@ const styles = StyleSheet.create({
   actionIcon: { fontSize: 32 },
   actionTitle: { fontSize: 15, fontWeight: '800', color: Colors.white, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
   actionSub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
+  quickRow: { flexDirection: 'row', gap: 12 },
+  quickBtn: {
+    flex: 1, alignItems: 'center', gap: 6,
+    backgroundColor: Colors.card,
+    borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12,
+    borderWidth: 1.5, borderColor: '#E5E7EB',
+    shadowColor: Colors.navy, shadowOpacity: 0.05, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  addFoodBtn: {},
+  waterQuickBtn: {},
+  quickIcon: { fontSize: 24 },
+  quickTitle: { fontSize: 13, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
+  waterTodayText: { fontSize: 16, fontWeight: '800', color: '#06B6D4' },
+  waterQuickBtns: { flexDirection: 'row', gap: 6, marginTop: 2 },
+  waterMlBtn: { backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#BFDBFE' },
+  waterMlText: { fontSize: 12, fontWeight: '700', color: '#2563EB' },
   historySection: { gap: 10 },
   historyHeading: {
     fontSize: 17, fontWeight: '700', color: Colors.text,

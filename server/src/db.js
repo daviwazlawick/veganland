@@ -1460,6 +1460,22 @@ export async function getDayLog(userId, date) {
   return res.rows;
 }
 
+export async function getRecentPlateLogs(userId, limit = 10) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(`
+    select distinct on (product_name, consumed_at::date)
+      id, product_name, calories_kcal, protein_g, fat_g, carbs_g, consumed_at, meal_type
+    from consumption_log
+    where user_id=$1 and source='plate_photo'
+    order by product_name, consumed_at::date, consumed_at desc`,
+    [userId]
+  );
+  // sort by consumed_at desc after dedup
+  const sorted = res.rows.sort((a, b) => new Date(b.consumed_at) - new Date(a.consumed_at));
+  return sorted.slice(0, limit);
+}
+
 export async function getNutritionReport(userId, fromDate, toDate) {
   const db = await getPool();
   if (!db) return [];

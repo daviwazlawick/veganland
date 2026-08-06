@@ -2,7 +2,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { analyzePlate } from './anthropic.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts, getRecentPlateLogs } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -1495,6 +1495,15 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       await saveNutritionGoals(claims.userId, body);
       sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // GET /nutrition/plates — recent plate analysis logs
+    if (req.method === 'GET' && req.url === '/nutrition/plates') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const rows = await getRecentPlateLogs(claims.userId);
+      sendJson(res, 200, rows, origin);
       return;
     }
 

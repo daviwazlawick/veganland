@@ -43,7 +43,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   );
 }
 
-export default function NutritionDashboardScreen({ navigation }) {
+export default function NutritionDashboardScreen({ navigation, route }) {
   const { language } = useApp();
   const { token } = useAuth();
   const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, refresh, addWeight, weightHistory } = useNutrition();
@@ -59,7 +59,15 @@ export default function NutritionDashboardScreen({ navigation }) {
   const [suggestions, setSuggestions] = useState([]);
   const searchTimer = useRef(null);
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  useFocusEffect(useCallback(() => {
+    refresh();
+    if (route?.params?.openAddFood) {
+      setAddEntry(EMPTY_ENTRY);
+      setSuggestions([]);
+      setAddModal(true);
+      navigation.setParams({ openAddFood: false });
+    }
+  }, [refresh, route?.params?.openAddFood]));
 
   const byMeal = MEALS.reduce((acc, m) => { acc[m] = todayLog.filter(e => e.meal_type === m); return acc; }, {});
   const noGoals = !goals || !goals.calories_kcal;
