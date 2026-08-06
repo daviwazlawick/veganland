@@ -4,15 +4,20 @@
     "appVersionSource": "local"
   },
   "build": {
-    "dev-veganland-ios": {
+    "dev-novaqi-ios": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "BRAND": "veganland",
-        "EXPO_PUBLIC_BRAND": "veganland",
-        "EXPO_PUBLIC_API_URL": "https://veganland.app",
+        "BRAND": "novaqi",
+        "EXPO_PUBLIC_BRAND": "novaqi",
+        "EXPO_PUBLIC_API_URL": "https://novaqi.app",
         "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "test_KvEHZeYRSGjmfSlXOXTqCEssMxK"
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_yitutMbhXnSxJFnCqDqkNunlogI",
+        "EXPO_PUBLIC_FB_APP_ID": "1717962282965252",
+        "EXPO_PUBLIC_FB_CLIENT_TOKEN": "0217ebfebacd37d56743ae72d0faa08b",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd"
       },
       "ios": {
         "simulator": false
