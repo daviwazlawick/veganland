@@ -45,16 +45,21 @@ export default function BodyProfileScreen({ navigation }) {
       Alert.alert('', 'Weight must be between 20 and 500 kg.'); return;
     }
     setSaving(true);
-    const res = await saveBodyProfile({
-      sex: sex || null,
-      birth_date: birthDate || null,
-      height_cm: heightNum || null,
-      weight_kg: weightNum || null,
-      activity_level: activity,
-      goal,
-    });
-    setSaving(false);
-    navigation.navigate('NutritionGoals', { suggested: res?.suggested });
+    try {
+      const res = await saveBodyProfile({
+        sex: sex || null,
+        birth_date: birthDate || null,
+        height_cm: heightNum || null,
+        weight_kg: weightNum || null,
+        activity_level: activity,
+        goal,
+      });
+      navigation.navigate('NutritionGoals', { suggested: res?.suggested });
+    } catch (e) {
+      Alert.alert('Erro', 'Não foi possível salvar. Tenta novamente.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const OptionRow = ({ options, selected, onSelect, labelKey }) => (
