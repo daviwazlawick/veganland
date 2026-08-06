@@ -16,7 +16,7 @@ const APP_API_KEY = process.env.APP_API_KEY || '';
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 8 * 1024 * 1024);
 const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET || '';
 
-const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app']);
+const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app', 'http://localhost:8081', 'http://localhost:19006', 'http://localhost:19000']);
 
 // Auth endpoints return this trimmed user shape. user_type is explicitly
 // included (may be null for users who haven't picked a plan yet) so the app
