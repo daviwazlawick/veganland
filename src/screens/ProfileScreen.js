@@ -15,15 +15,30 @@ import { apiGetMe, apiAdminHandoff } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
 import { useNutrition } from '../context/NutritionContext';
 import { HIDE_REFERRAL } from '../constants/features';
+import { PremiumIcon, BrandName } from '../components/ui';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
-import { PremiumIcon, BrandName } from '../components/ui';
+
+function SectionLabel({ label }) {
+  return <Text style={s.sectionLabel}>{label}</Text>;
+}
+
+function Row({ icon, label, value, onPress, danger, chevron = true }) {
+  return (
+    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1} disabled={!onPress}>
+      {icon ? <Text style={s.rowIcon}>{icon}</Text> : null}
+      <Text style={[s.rowLabel, danger && s.rowLabelDanger]}>{label}</Text>
+      {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : null}
+      {onPress && chevron ? <Text style={[s.rowChev, danger && s.rowChevDanger]}>›</Text> : null}
+    </TouchableOpacity>
+  );
+}
 
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile } = useApp();
   const { user, token, logout } = useAuth();
   const { stats: referralStats } = useReferral();
-  const { goals, todayTotals } = useNutrition();
+  const { goals, todayTotals, bodyProfile } = useNutrition();
   const [usage, setUsage] = useState(null);
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
@@ -43,274 +58,226 @@ export default function ProfileScreen({ navigation }) {
 
   const legalBase = `https://${Brand.domain}/legal`;
 
+  const planLabel = {
+    free: t(language, 'profile.plan_free'),
+    starter: t(language, 'profile.plan_starter'),
+    premium: t(language, 'profile.plan_premium'),
+    admin: t(language, 'profile.plan_admin'),
+  }[userType] || userType;
+
+  const planColor = { free: '#94a3b8', starter: '#1A5F8F', premium: '#92400E', admin: '#1E1B4B' }[userType] || '#94a3b8';
+  const planBg   = { free: '#F1F5F9', starter: '#E8F4FF', premium: '#FFF1E2', admin: '#EEF0FF' }[userType] || '#F1F5F9';
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t(language, 'profile.title')}</Text>
+    <SafeAreaView style={s.container} edges={['top']}>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>{t(language, 'profile.title')}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 110 }]}>
 
+        {/* ── Personal ── */}
         <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
 
+        {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
-          <TouchableOpacity
-            style={referralCardStyles.card}
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Referral')}
-          >
-            <View style={referralCardStyles.left}>
-              <Text style={referralCardStyles.emoji}>🎁</Text>
-            </View>
-            <View style={referralCardStyles.body}>
-              <Text style={referralCardStyles.title}>{t(language, 'referral.profile_card_title')}</Text>
-              <Text style={referralCardStyles.sub}>
+          <TouchableOpacity style={s.referralCard} activeOpacity={0.9} onPress={() => navigation.navigate('Referral')}>
+            <Text style={s.referralEmoji}>🎁</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.referralTitle}>{t(language, 'referral.profile_card_title')}</Text>
+              <Text style={s.referralSub}>
                 {t(language, 'referral.profile_card_sub', {
                   credit: referralStats?.credit_count || 0,
                   total: referralStats?.referrals_needed || 3,
                 })}
               </Text>
             </View>
-            <Text style={referralCardStyles.chev}>›</Text>
+            <Text style={s.referralChev}>›</Text>
           </TouchableOpacity>
         )}
 
+        {/* ── Diet & Health ── */}
+        <SectionLabel label={t(language, 'profile.diet')} />
+        <View style={s.card}>
+          <TouchableOpacity style={s.dietRow} activeOpacity={0.8} onPress={() => navigation.navigate('ProfileSetup')}>
+            <View style={s.dietIconWrap}>
+              <PremiumIcon name={diet?.icon || 'vegan'} size={38} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.dietName}>{diet?.label[language] || diet?.label?.en || t(language, 'profile.no_profile')}</Text>
+              {diet && <Text style={s.dietDesc} numberOfLines={1}>{diet.description[language] || diet.description.en}</Text>}
+            </View>
+            <Text style={s.rowChev}>›</Text>
+          </TouchableOpacity>
+
+          {allergies.length > 0 && (
+            <View style={s.allergySection}>
+              <Text style={s.allergyHeader}>{t(language, 'profile.allergies')}</Text>
+              <View style={s.allergyWrap}>
+                {allergies.map(a => (
+                  <View key={a.id} style={s.allergyChip}>
+                    <PremiumIcon name={a.icon} size={14} />
+                    <Text style={s.allergyChipText}>{a.label[language] || a.label.en}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {allergies.length === 0 && (
+            <TouchableOpacity onPress={() => navigation.navigate('ProfileSetup')} style={s.noAllergyRow}>
+              <Text style={s.noAllergyText}>+ {t(language, 'profile.allergies')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── Nutrition ── */}
+        <SectionLabel label={t(language, 'nutrition.tab')} />
         <TouchableOpacity
-          style={nutritionCardStyles.card}
+          style={s.card}
           activeOpacity={0.9}
           onPress={() => navigation.navigate(goals?.calories_kcal ? 'NutritionDashboard' : 'BodyProfile')}
         >
-          <View style={nutritionCardStyles.left}>
-            <Text style={nutritionCardStyles.emoji}>🥗</Text>
-          </View>
-          <View style={nutritionCardStyles.body}>
-            <Text style={nutritionCardStyles.title}>{t(language, 'nutrition.tab')}</Text>
-            {goals?.calories_kcal ? (
-              <View style={nutritionCardStyles.barsWrap}>
+          {goals?.calories_kcal ? (
+            <>
+              <View style={s.nutritionTopRow}>
+                <View>
+                  <Text style={s.nutritionKcal}>{Math.round(todayTotals.calories_kcal || 0)} <Text style={s.nutritionKcalUnit}>kcal {t(language, 'nutrition.period_today')}</Text></Text>
+                  <Text style={s.nutritionGoal}>/ {Math.round(goals.calories_kcal)} kcal {t(language, 'nutrition.goals_title')}</Text>
+                </View>
+                <Text style={s.rowChev}>›</Text>
+              </View>
+              <View style={s.macroGrid}>
                 {[
-                  { key: 'calories_kcal', color: '#FFCB3B', label: t(language, 'nutrition.calories') },
-                  { key: 'protein_g',     color: '#3B82F6', label: t(language, 'nutrition.protein') },
-                  { key: 'carbs_g',       color: '#8B5CF6', label: t(language, 'nutrition.carbs') },
+                  { key: 'protein_g', label: t(language, 'nutrition.protein'), color: '#3B82F6', unit: 'g' },
+                  { key: 'carbs_g',   label: t(language, 'nutrition.carbs'),   color: '#8B5CF6', unit: 'g' },
+                  { key: 'fat_g',     label: t(language, 'nutrition.fat'),     color: '#F97316', unit: 'g' },
                 ].map(f => {
-                  const pct = Math.min(1, (todayTotals[f.key] || 0) / goals[f.key]);
+                  const val = Math.round(todayTotals[f.key] || 0);
+                  const goal = Math.round(goals[f.key] || 0);
+                  const pct = goal > 0 ? Math.min(1, val / goal) : 0;
                   return (
-                    <View key={f.key} style={nutritionCardStyles.miniBarWrap}>
-                      <View style={nutritionCardStyles.miniTrack}>
-                        <View style={[nutritionCardStyles.miniFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
+                    <View key={f.key} style={s.macroCol}>
+                      <Text style={s.macroVal}>{val}<Text style={s.macroUnit}>{f.unit}</Text></Text>
+                      <View style={s.macroTrack}>
+                        <View style={[s.macroFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
                       </View>
+                      <Text style={s.macroLabel}>{f.label}</Text>
                     </View>
                   );
                 })}
-                <Text style={nutritionCardStyles.sub}>
-                  {Math.round(todayTotals.calories_kcal || 0)} / {Math.round(goals.calories_kcal)} kcal
-                </Text>
               </View>
-            ) : (
-              <Text style={nutritionCardStyles.sub}>{t(language, 'nutrition.setup_prompt_cta')} →</Text>
-            )}
-          </View>
-          <Text style={nutritionCardStyles.chev}>›</Text>
+              <Row icon="⚙️" label={t(language, 'nutrition.goals_title')} onPress={() => navigation.navigate('BodyProfile')} chevron />
+            </>
+          ) : (
+            <View style={s.nutritionSetup}>
+              <Text style={s.nutritionSetupTitle}>{t(language, 'nutrition.setup_prompt_title')}</Text>
+              <Text style={s.nutritionSetupBody}>{t(language, 'nutrition.setup_prompt_body')}</Text>
+              <View style={s.nutritionSetupCta}>
+                <Text style={s.nutritionSetupCtaText}>{t(language, 'nutrition.setup_prompt_cta')} ›</Text>
+              </View>
+            </View>
+          )}
         </TouchableOpacity>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>{t(language, 'profile.diet')}</Text>
-            <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ProfileSetup')}>
-              <Text style={styles.editBtnText}>{t(language, 'profile.edit')}</Text>
-            </TouchableOpacity>
-          </View>
-          {diet ? (
-            <View style={styles.dietRow}>
-              <View style={styles.dietIconWrap}>
-                <PremiumIcon name={diet.icon} size={42} />
-              </View>
-              <View>
-                <Text style={styles.dietName}>{diet.label[language] || diet.label.en}</Text>
-                <Text style={styles.dietDesc}>{diet.description[language] || diet.description.en}</Text>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.noData}>{t(language, 'profile.no_profile')}</Text>
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t(language, 'profile.allergies')}</Text>
-          {allergies.length > 0 ? (
-            <View style={styles.allergiesWrap}>
-              {allergies.map(a => (
-                <View key={a.id} style={styles.allergyBadge}>
-                  <PremiumIcon name={a.icon} size={18} />
-                  <Text style={styles.allergyLabel}>{a.label[language] || a.label.en}</Text>
+        {/* ── Plan & Usage ── */}
+        {user && usage != null && (
+          <>
+            <SectionLabel label={t(language, 'profile.scans_this_month')} />
+            <View style={s.card}>
+              <View style={s.planRow}>
+                <Text style={s.planUsageText}>
+                  {usage.limit === null
+                    ? t(language, 'profile.plan_unlimited')
+                    : `${usage.count} / ${usage.limit}`}
+                </Text>
+                <View style={[s.planBadge, { backgroundColor: planBg }]}>
+                  <Text style={[s.planBadgeText, { color: planColor }]}>{planLabel}</Text>
                 </View>
-              ))}
+              </View>
+              {usage.limit !== null && (
+                <View style={s.usageBar}>
+                  <View style={[s.usageFill, { width: `${Math.min(100, (usage.count / usage.limit) * 100)}%` }]} />
+                </View>
+              )}
+              {usage.resets_at && (
+                <Text style={s.usageReset}>
+                  {t(language, 'profile.renews_on', {
+                    date: new Date(usage.resets_at).toLocaleDateString(localeFor(language)),
+                  })}
+                </Text>
+              )}
+              {(userType === 'free' || userType === 'starter') && (
+                <TouchableOpacity style={s.upgradeBtn} onPress={() => navigation.navigate('Paywall', { currentPlan: userType })} activeOpacity={0.85}>
+                  <Text style={s.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+                </TouchableOpacity>
+              )}
+              {(userType === 'starter' || userType === 'premium') && Platform.OS !== 'web' && (
+                <Row label={t(language, 'profile.manage_subscription')} onPress={() => Linking.openURL(Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions')} />
+              )}
             </View>
-          ) : (
-            <Text style={styles.noData}>{t(language, 'profile.no_allergies')}</Text>
-          )}
-        </View>
+          </>
+        )}
 
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{t(language, 'profile.language')}</Text>
-          <View style={styles.langRow}>
+        {/* ── Language ── */}
+        <SectionLabel label={t(language, 'profile.language')} />
+        <View style={s.card}>
+          <View style={s.langGrid}>
             {LANGUAGES.map(item => (
               <TouchableOpacity
                 key={item.code}
-                style={[styles.langOption, language === item.code && styles.langOptionActive]}
+                style={[s.langItem, language === item.code && s.langItemActive]}
                 onPress={() => setLanguage(item.code)}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
               >
-                <Text style={styles.langFlag}>{item.flag}</Text>
-                <Text style={[styles.langLabel, language === item.code && styles.langLabelActive]}>
-                  {item.name}
-                </Text>
-                {language === item.code && (
-                  <View style={styles.langCheck}>
-                    <Text style={styles.langCheckText}>✓</Text>
-                  </View>
-                )}
+                <Text style={s.langFlag}>{item.flag}</Text>
+                <Text style={[s.langName, language === item.code && s.langNameActive]}>{item.name}</Text>
+                {language === item.code && <Text style={s.langCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
+        {/* ── Account ── */}
         {user && (
-          <View style={styles.accountCard}>
-            <View style={styles.accountRow}>
-              <View style={styles.accountIconWrap}>
-                <PremiumIcon name="profile" size={34} />
+          <>
+            <SectionLabel label={t(language, 'profile.account')} />
+            <View style={s.card}>
+              <View style={s.accountEmailRow}>
+                <Ionicons name="person-circle-outline" size={22} color={Colors.textMuted} />
+                <Text style={s.accountEmail} numberOfLines={1}>{user.email}</Text>
               </View>
-              <View style={styles.accountInfo}>
-                <Text style={styles.accountLabel}>{t(language, 'profile.account')}</Text>
-                <Text style={styles.accountEmail}>{user.email}</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.85}>
-              <Text style={styles.logoutText}>{t(language, 'profile.sign_out')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {user && usage != null && (
-          <View style={styles.usageCard}>
-            <View style={styles.usageHeader}>
-              <View style={styles.usageTitleRow}>
-                <Text style={styles.usageLabel}>{t(language, 'profile.scans_this_month')}</Text>
-                <View style={[
-                  styles.planBadge,
-                  userType === 'starter' && styles.planBadgeStarter,
-                  userType === 'premium' && styles.planBadgePremium,
-                  userType === 'admin' && styles.planBadgeAdmin,
-                ]}>
-                  <Text style={[
-                    styles.planBadgeText,
-                    userType === 'starter' && styles.planBadgeTextStarter,
-                    userType === 'premium' && styles.planBadgeTextPremium,
-                    userType === 'admin' && styles.planBadgeTextAdmin,
-                  ]}>
-                    {userType === 'free'
-                      ? t(language, 'profile.plan_free')
-                      : userType === 'starter'
-                        ? t(language, 'profile.plan_starter')
-                        : userType === 'premium'
-                          ? t(language, 'profile.plan_premium')
-                          : t(language, 'profile.plan_admin')}
-                  </Text>
-                </View>
-              </View>
-              {usage.limit === null ? (
-                <Text style={styles.usageCount}>{t(language, 'profile.plan_unlimited')}</Text>
-              ) : (
-                <Text style={styles.usageCount}>
-                  {usage.count}<Text style={styles.usageLimit}>/{usage.limit}</Text>
-                </Text>
+              {userType === 'admin' && (
+                <Row icon="🛡️" label="Admin Panel" onPress={async () => {
+                  try {
+                    const url = await apiAdminHandoff(token);
+                    await WebBrowser.openBrowserAsync(url);
+                  } catch {
+                    await WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`);
+                  }
+                }} />
               )}
+              <Row label={t(language, 'profile.terms')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)} />
+              <Row label={t(language, 'profile.privacy')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)} />
+              <Row label={t(language, 'profile.imprint')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/imprint`)} />
             </View>
-            {usage.limit !== null && (
-              <View style={styles.usageBarBg}>
-                <View style={[styles.usageBarFill, { width: `${Math.min(100, (usage.count / usage.limit) * 100)}%` }]} />
-              </View>
-            )}
-            {usage.resets_at && (
-              <Text style={styles.usageReset}>
-                {t(language, 'profile.renews_on', {
-                  date: new Date(usage.resets_at).toLocaleDateString(localeFor(language)),
-                })}
-              </Text>
-            )}
-            {(userType === 'free' || userType === 'starter') && (
-              <TouchableOpacity
-                style={styles.upgradeBtn}
-                onPress={() => navigation.navigate('Paywall', { currentPlan: userType })}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
-              </TouchableOpacity>
-            )}
-            {(userType === 'starter' || userType === 'premium') && Platform.OS !== 'web' && (
-              <TouchableOpacity
-                style={styles.manageSubBtn}
-                onPress={() => Linking.openURL(
-                  Platform.OS === 'ios'
-                    ? 'https://apps.apple.com/account/subscriptions'
-                    : 'https://play.google.com/store/account/subscriptions'
-                )}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.manageSubText}>{t(language, 'profile.manage_subscription')}</Text>
-              </TouchableOpacity>
-            )}
+          </>
+        )}
+
+        {/* ── Danger zone ── */}
+        {user && (
+          <View style={s.card}>
+            <Row label={t(language, 'profile.sign_out')} onPress={logout} danger />
+            <Row label={t(language, 'profile.delete_account')} onPress={() => navigation.navigate('DeleteAccount')} danger />
           </View>
         )}
 
-        {userType === 'admin' && (
-          <TouchableOpacity
-            style={styles.adminBtn}
-            onPress={async () => {
-              try {
-                const url = await apiAdminHandoff(token);
-                await WebBrowser.openBrowserAsync(url);
-              } catch (e) {
-                // fall back to legacy URL if the handoff endpoint isn't available yet
-                await WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`);
-              }
-            }}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="shield-checkmark" size={16} color="#1E1B4B" />
-            <Text style={styles.adminBtnText}>Admin Panel</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.aboutCard}>
-          <PremiumIcon name="scan" size={54} color={Colors.primary} />
-          <BrandName
-            style={styles.aboutTitle}
-            prefixColor={Colors.white}
-            suffixColor={Colors.primary}
-          />
-          <Text style={styles.aboutText}>{t(language, 'profile.about_text')}</Text>
+        {/* ── About ── */}
+        <View style={s.aboutCard}>
+          <BrandName style={s.aboutTitle} prefixColor={Colors.white} suffixColor={Colors.primary} />
+          <Text style={s.aboutText}>{t(language, 'profile.about_text')}</Text>
         </View>
 
-        <View style={styles.legalFooter}>
-          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)}>
-            <Text style={styles.legalLink}>{t(language, 'profile.terms')}</Text>
-          </TouchableOpacity>
-          <Text style={styles.legalDot}>·</Text>
-          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)}>
-            <Text style={styles.legalLink}>{t(language, 'profile.privacy')}</Text>
-          </TouchableOpacity>
-          <Text style={styles.legalDot}>·</Text>
-          <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/imprint`)}>
-            <Text style={styles.legalLink}>{t(language, 'profile.imprint')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {user && (
-          <TouchableOpacity style={styles.deleteAccountBtn} onPress={() => navigation.navigate('DeleteAccount')} activeOpacity={0.7}>
-            <Text style={styles.deleteAccountText}>{t(language, 'profile.delete_account')}</Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -325,248 +292,192 @@ function PersonalHero({ profile, user, language, navigation }) {
     : null;
 
   return (
-    <View style={heroStyles.card}>
-      <View style={heroStyles.row}>
-        <View style={heroStyles.avatarWrap}>
-          {photoUri ? (
-            <Image source={{ uri: photoUri }} style={heroStyles.avatarImage} />
-          ) : (
-            <View style={heroStyles.avatarPlaceholder}>
-              {initials ? (
-                <Text style={heroStyles.initials}>{initials}</Text>
-              ) : (
-                <Ionicons name="person" size={32} color="rgba(255,255,255,0.7)" />
-              )}
-            </View>
-          )}
-        </View>
-        <View style={heroStyles.info}>
-          {name ? (
-            <Text style={heroStyles.name} numberOfLines={1}>{name}</Text>
-          ) : (
-            <Text style={heroStyles.namePlaceholder}>{t(language, 'personal.name_placeholder')}</Text>
-          )}
-          {user?.email && (
-            <Text style={heroStyles.email} numberOfLines={1}>{user.email}</Text>
-          )}
-          {bio ? <Text style={heroStyles.bio} numberOfLines={2}>{bio}</Text> : null}
-        </View>
+    <TouchableOpacity style={s.heroCard} activeOpacity={0.88} onPress={() => navigation.navigate('EditPersonal')}>
+      <View style={s.heroAvatarWrap}>
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={s.heroAvatar} />
+        ) : (
+          <View style={s.heroAvatarPlaceholder}>
+            {initials
+              ? <Text style={s.heroInitials}>{initials}</Text>
+              : <Ionicons name="person" size={28} color="rgba(255,255,255,0.7)" />}
+          </View>
+        )}
       </View>
-      <TouchableOpacity style={heroStyles.editBtn} onPress={() => navigation.navigate('EditPersonal')} activeOpacity={0.85}>
-        <Ionicons name="pencil" size={14} color={Colors.primary} />
-        <Text style={heroStyles.editBtnText}>{t(language, 'personal.edit')}</Text>
-      </TouchableOpacity>
-    </View>
+      <View style={s.heroInfo}>
+        {name
+          ? <Text style={s.heroName} numberOfLines={1}>{name}</Text>
+          : <Text style={s.heroNameEmpty}>{t(language, 'personal.name_placeholder')}</Text>}
+        {user?.email && <Text style={s.heroEmail} numberOfLines={1}>{user.email}</Text>}
+        {bio ? <Text style={s.heroBio} numberOfLines={2}>{bio}</Text> : null}
+      </View>
+      <View style={s.heroEditBadge}>
+        <Ionicons name="pencil" size={13} color={Colors.primary} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
-const heroStyles = StyleSheet.create({
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F0F2F7' },
+  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: Colors.headerBg },
+  headerTitle: { fontSize: 34, fontWeight: '800', color: Colors.headerText, fontFamily: BrandFonts.heading || undefined },
+  scroll: { paddingHorizontal: 16, paddingTop: 16, gap: 0 },
+
+  sectionLabel: {
+    fontSize: 11, fontWeight: '800', color: '#94a3b8',
+    textTransform: 'uppercase', letterSpacing: 1,
+    marginTop: 20, marginBottom: 8, marginLeft: 4,
+  },
+
   card: {
-    backgroundColor: Colors.primaryBg,
-    borderRadius: 28, padding: 18,
-    borderWidth: 1, borderColor: Colors.primaryLight,
-    gap: 16,
+    backgroundColor: '#fff', borderRadius: 18,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    overflow: 'hidden', marginBottom: 2,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  avatarWrap: { flexShrink: 0 },
-  avatarImage: {
-    width: 72, height: 72, borderRadius: 36,
-    borderWidth: 3, borderColor: Colors.primary + '60',
+
+  // Personal Hero
+  heroCard: {
+    backgroundColor: '#fff', borderRadius: 18,
+    borderWidth: 1, borderColor: '#E5E7EB',
+    padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14,
   },
-  avatarPlaceholder: {
-    width: 72, height: 72, borderRadius: 36,
+  heroAvatarWrap: {},
+  heroAvatar: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderColor: Colors.primaryLight },
+  heroAvatarPlaceholder: {
+    width: 60, height: 60, borderRadius: 30,
     backgroundColor: Colors.navy,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.primaryLight,
   },
-  initials: {
-    fontSize: 26, fontWeight: '800', color: Colors.white,
-    fontFamily: BrandFonts.heading || undefined,
-  },
-  info: { flex: 1, gap: 3 },
-  name: {
-    fontSize: 20, fontWeight: '800', color: Colors.text,
-    fontFamily: BrandFonts.headingMed || undefined,
-  },
-  namePlaceholder: { fontSize: 15, color: Colors.textMuted, fontStyle: 'italic' },
-  email: { fontSize: 12, color: Colors.textLight, fontWeight: '600' },
-  bio: { fontSize: 13, color: Colors.textLight, fontWeight: '500', marginTop: 2 },
-  editBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start',
+  heroInitials: { fontSize: 22, fontWeight: '800', color: '#fff', fontFamily: BrandFonts.heading || undefined },
+  heroInfo: { flex: 1 },
+  heroName: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  heroNameEmpty: { fontSize: 15, color: Colors.textMuted, fontStyle: 'italic' },
+  heroEmail: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  heroBio: { fontSize: 12, color: Colors.textLight, marginTop: 3 },
+  heroEditBadge: {
+    width: 30, height: 30, borderRadius: 15,
     backgroundColor: Colors.primaryLight,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
+    alignItems: 'center', justifyContent: 'center',
   },
-  editBtnText: { fontSize: 13, color: Colors.primary, fontWeight: '700' },
-});
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: Colors.headerBg,
+  // Referral
+  referralCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFBEB', borderRadius: 18, padding: 14,
+    borderWidth: 1, borderColor: '#FDE68A', marginTop: 12,
   },
-  headerTitle: {
-    fontSize: 34, fontWeight: '700', color: Colors.headerText,
-    fontFamily: BrandFonts.heading || undefined,
+  referralEmoji: { fontSize: 24 },
+  referralTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+  referralSub: { fontSize: 12, color: '#B45309', marginTop: 1 },
+  referralChev: { fontSize: 22, color: '#B45309', fontWeight: '700' },
+
+  // Rows
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9',
   },
-  content: { padding: 16, gap: 14, paddingBottom: 40 },
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 28, padding: 18,
-    borderWidth: 1, borderColor: Colors.border,
-    gap: 14,
+  rowIcon: { fontSize: 16, marginRight: 10 },
+  rowLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text },
+  rowLabelDanger: { color: '#EF4444' },
+  rowValue: { fontSize: 13, color: Colors.textMuted, maxWidth: 140 },
+  rowChev: { fontSize: 20, color: '#CBD5E1', fontWeight: '700', marginLeft: 4 },
+  rowChevDanger: { color: '#FCA5A5' },
+
+  // Diet
+  dietRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
   },
-  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardLabel: {
-    fontSize: 13, fontWeight: '800', color: Colors.textMuted,
-    letterSpacing: 0.5, textTransform: 'uppercase',
-  },
-  editBtn: {
-    backgroundColor: Colors.primaryLight,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
-  },
-  editBtnText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '700' },
-  dietRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dietIconWrap: {
-    width: 52, height: 52, borderRadius: 16,
+    width: 50, height: 50, borderRadius: 14,
     backgroundColor: Colors.primaryBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  dietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
-  dietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
-  noData: { fontSize: 14, color: Colors.textMuted, fontStyle: 'italic' },
-  allergiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  allergyBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.primaryLight,
-    borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+  dietName: { fontSize: 15, fontWeight: '800', color: Colors.text },
+  dietDesc: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  allergySection: {
+    paddingHorizontal: 16, paddingBottom: 14,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    paddingTop: 12,
   },
-  allergyLabel: { fontSize: 13, color: Colors.primaryDark, fontWeight: '700' },
-  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  langOption: {
-    width: '48%', flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Colors.backgroundSecondary,
-    borderRadius: 14, padding: 12,
-    borderWidth: 1, borderColor: Colors.border,
-  },
-  langOptionActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryBg },
-  langFlag: { fontSize: 13, fontWeight: '800', color: Colors.textLight },
-  langLabel: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.textLight },
-  langLabelActive: { color: Colors.primaryDark },
-  langCheck: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  langCheckText: { color: Colors.white, fontSize: 12, fontWeight: '900' },
-  accountCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 20, padding: 18,
-    borderWidth: 1, borderColor: Colors.border,
-    gap: 14,
-  },
-  accountRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  accountIconWrap: {
-    width: 50, height: 50, borderRadius: 25,
+  allergyHeader: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  allergyWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  allergyChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5,
+    borderWidth: 1, borderColor: Colors.primaryLight,
   },
-  accountInfo: { flex: 1 },
-  accountLabel: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  accountEmail: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
-  logoutBtn: {
-    backgroundColor: Colors.dangerLight,
-    borderRadius: 14, paddingVertical: 14, alignItems: 'center',
-    borderWidth: 2, borderColor: Colors.danger + '30',
+  allergyChipText: { fontSize: 11, fontWeight: '700', color: Colors.primaryDark },
+  noAllergyRow: {
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9',
   },
-  logoutText: { fontSize: 15, fontWeight: '800', color: Colors.dangerDark },
-  usageCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 20, padding: 18,
-    borderWidth: 1, borderColor: Colors.border,
-    gap: 10,
-  },
-  usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  usageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planBadge: { backgroundColor: '#FFF3D6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  planBadgeStarter: { backgroundColor: '#E8F4FF' },
-  planBadgePremium: { backgroundColor: '#FFFBEB' },
-  planBadgeAdmin: { backgroundColor: '#EEF0FF' },
-  planBadgeText: { fontSize: 11, fontWeight: '800', color: '#B87600' },
-  planBadgeTextStarter: { color: '#1A5F8F' },
-  planBadgeTextPremium: { color: '#92400E' },
-  planBadgeTextAdmin: { color: '#1E1B4B' },
-  usageLabel: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
-  usageCount: { fontSize: 20, fontWeight: '900', color: Colors.text },
-  usageLimit: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
-  usageBarBg: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
-  usageBarFill: { height: 8, backgroundColor: Colors.primary, borderRadius: 4 },
-  usageReset: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  noAllergyText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
+
+  // Nutrition
+  nutritionTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
+  nutritionKcal: { fontSize: 22, fontWeight: '900', color: Colors.navy || '#0B1E3F' },
+  nutritionKcalUnit: { fontSize: 13, fontWeight: '500', color: '#64748b' },
+  nutritionGoal: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
+  macroGrid: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+  macroCol: { flex: 1, alignItems: 'center', gap: 4 },
+  macroVal: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  macroUnit: { fontSize: 11, fontWeight: '500', color: '#94a3b8' },
+  macroTrack: { width: '100%', height: 5, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+  macroFill: { height: 5, borderRadius: 3 },
+  macroLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' },
+  nutritionSetup: { padding: 20, gap: 6 },
+  nutritionSetupTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  nutritionSetupBody: { fontSize: 13, color: '#64748b', lineHeight: 18 },
+  nutritionSetupCta: { marginTop: 6 },
+  nutritionSetupCtaText: { fontSize: 14, fontWeight: '700', color: Colors.primary },
+
+  // Plan
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+  planUsageText: { fontSize: 20, fontWeight: '900', color: Colors.text },
+  planBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
+  planBadgeText: { fontSize: 12, fontWeight: '800' },
+  usageBar: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden', marginHorizontal: 16, marginBottom: 8 },
+  usageFill: { height: 6, backgroundColor: Colors.primary, borderRadius: 3 },
+  usageReset: { fontSize: 11, color: '#94a3b8', paddingHorizontal: 16, paddingBottom: 10 },
   upgradeBtn: {
-    backgroundColor: Colors.primaryDark,
-    borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4,
+    backgroundColor: Colors.navy || '#0B1E3F',
+    marginHorizontal: 16, marginBottom: 14, marginTop: 4,
+    padding: 13, borderRadius: 12, alignItems: 'center',
   },
-  upgradeBtnText: { fontSize: 15, fontWeight: '800', color: Colors.white },
-  manageSubBtn: { alignItems: 'center', paddingVertical: 10, marginTop: 2 },
-  manageSubText: { fontSize: 13, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
-  adminBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#EEF0FF',
-    borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1, borderColor: '#C7C5E8',
+  upgradeBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+
+  // Language
+  langGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 10, gap: 6 },
+  langItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    width: '47%', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9,
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E5E7EB',
   },
-  adminBtnText: { fontSize: 15, fontWeight: '800', color: '#1E1B4B' },
+  langItemActive: { backgroundColor: Colors.primaryBg, borderColor: Colors.primary },
+  langFlag: { fontSize: 16 },
+  langName: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.textMuted },
+  langNameActive: { color: Colors.primaryDark, fontWeight: '700' },
+  langCheck: { fontSize: 12, color: Colors.primary, fontWeight: '900' },
+
+  // Account
+  accountEmailRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  accountEmail: { flex: 1, fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
+
+  // About
   aboutCard: {
-    backgroundColor: Colors.aboutCardBg,
-    borderRadius: 20, padding: 24,
-    alignItems: 'center', gap: 8,
-    borderBottomWidth: 4, borderBottomColor: Colors.aboutCardBorder,
+    marginTop: 20, marginBottom: 4,
+    backgroundColor: Colors.aboutCardBg || Colors.navy,
+    borderRadius: 18, padding: 22, alignItems: 'center', gap: 6,
+    borderBottomWidth: 4, borderBottomColor: Colors.aboutCardBorder || Colors.primary,
   },
-  aboutTitle: {
-    fontSize: 22, fontWeight: '900',
-    fontFamily: BrandFonts.heading || undefined,
-  },
-  aboutText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 20, fontWeight: '500' },
-  legalFooter: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 8, paddingVertical: 8,
-  },
-  legalLink: { fontSize: 12, color: Colors.textMuted, fontWeight: '600', textDecorationLine: 'underline' },
-  legalDot: { fontSize: 12, color: Colors.border },
-  deleteAccountBtn: { alignItems: 'center', paddingVertical: 8 },
-  deleteAccountText: { fontSize: 13, color: Colors.danger, fontWeight: '600', textDecorationLine: 'underline' },
-});
-
-const referralCardStyles = StyleSheet.create({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#FFF8E1', borderRadius: 18, padding: 16,
-    borderWidth: 1, borderColor: '#FFCB3B',
-  },
-  left: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFCB3B', alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 22 },
-  body: { flex: 1 },
-  title: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 18 },
-  sub: { fontSize: 12, color: Colors.headerMuted || '#6b7280', marginTop: 2 },
-  chev: { fontSize: 26, color: Colors.navy || '#0B1E3F', fontWeight: '700' },
-});
-
-const nutritionCardStyles = StyleSheet.create({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#F0FDF4', borderRadius: 18, padding: 16,
-    borderWidth: 1, borderColor: '#86EFAC',
-  },
-  left: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#22C55E', alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 22 },
-  body: { flex: 1, gap: 6 },
-  title: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 18 },
-  sub: { fontSize: 12, color: Colors.headerMuted || '#6b7280', marginTop: 2 },
-  chev: { fontSize: 26, color: Colors.navy || '#0B1E3F', fontWeight: '700' },
-  barsWrap: { gap: 4 },
-  miniBarWrap: { height: 5, backgroundColor: '#DCFCE7', borderRadius: 3, overflow: 'hidden' },
-  miniTrack: { flex: 1, backgroundColor: '#DCFCE7', borderRadius: 3, overflow: 'hidden' },
-  miniFill: { height: 5, borderRadius: 3 },
+  aboutTitle: { fontSize: 20, fontWeight: '900', fontFamily: BrandFonts.heading || undefined },
+  aboutText: { fontSize: 12, color: 'rgba(255,255,255,0.75)', textAlign: 'center', lineHeight: 18 },
 });

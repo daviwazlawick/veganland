@@ -41,11 +41,6 @@ export default function HomeScreen({ navigation }) {
   const showReferralHero = !HIDE_REFERRAL
     && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3);
 
-  const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
-  const allergies = profile
-    ? (profile.allergyIds || []).map(id => ALLERGIES.find(a => a.id === id)).filter(Boolean)
-    : [];
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -107,36 +102,6 @@ export default function HomeScreen({ navigation }) {
             </View>
           </TouchableOpacity>
         )}
-
-        <View style={styles.profileCard}>
-          <View style={styles.profileCardTop}>
-            <View style={styles.dietCircle}>
-              <PremiumIcon name={diet?.icon || 'vegan'} size={46} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileDietName}>{diet?.label[language] || diet?.label.en || t(language, 'home.setup_profile')}</Text>
-              <Text style={styles.profileDietDesc}>{diet?.description[language] || diet?.description.en || ''}</Text>
-            </View>
-            <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('ProfileSetup')}>
-              <PremiumIcon name="settings" size={22} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {allergies.length > 0 && (
-            <View style={styles.allergiesRow}>
-              {allergies.map(a => (
-                <View key={a.id} style={styles.allergyChip}>
-                  <PremiumIcon name={a.icon} size={18} />
-                  <Text style={styles.allergyChipText}>{a.label[language] || a.label.en}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {allergies.length === 0 && diet && (
-            <Text style={styles.noAllergies}>{t(language, 'home.no_allergies_configured')}</Text>
-          )}
-        </View>
 
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.scanBtnHalf} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
@@ -242,43 +207,6 @@ const styles = StyleSheet.create({
   scanCountNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
   scanCountLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -2 },
   scroll: { padding: 20, gap: 18, paddingBottom: 130 },
-  profileCard: {
-    backgroundColor: Colors.glass,
-    borderRadius: 28,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
-    gap: 16,
-    shadowColor: Colors.navy,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.10,
-    shadowRadius: 30,
-    elevation: 8,
-  },
-  profileCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  dietCircle: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  profileInfo: { flex: 1 },
-  profileDietName: { fontSize: 17, fontWeight: '800', color: Colors.text },
-  profileDietDesc: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
-  editBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: Colors.primaryLight,
-  },
-  allergiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  allergyChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.primaryBg,
-    borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 1, borderColor: Colors.primaryLight,
-  },
-  allergyChipText: { fontSize: 12, color: Colors.primaryDark, fontWeight: '700' },
-  noAllergies: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
   actionRow: { flexDirection: 'row', gap: 12 },
   scanBtnHalf: {
     flex: 1, alignItems: 'center', gap: 6,
