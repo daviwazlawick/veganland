@@ -1566,9 +1566,14 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/analyze-plate') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const { image, language } = await readJsonBody(req);
+      const { image, language, profile: bodyProfile } = await readJsonBody(req);
       if (!image) { sendJson(res, 400, { error: 'image required' }, origin); return; }
-      const result = await analyzePlate(image, language || 'en');
+      let profile = bodyProfile || null;
+      if (!profile && claims.userId) {
+        const u = await getUserById(claims.userId);
+        if (u?.diet_id) profile = { dietId: u.diet_id, allergyIds: u.allergy_ids || [] };
+      }
+      const result = await analyzePlate(image, language || 'en', profile);
       sendJson(res, 200, result, origin);
       return;
     }

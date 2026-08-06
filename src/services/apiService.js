@@ -315,11 +315,11 @@ export async function apiGetWeightHistory(token) {
   return r.json().catch(() => []);
 }
 
-export async function apiAnalyzePlate(token, imageBase64, language) {
+export async function apiAnalyzePlate(token, imageBase64, language, profile) {
   const r = await fetch(`${baseUrl()}/analyze-plate`, {
     method: 'POST',
     headers: appHeaders(token),
-    body: JSON.stringify({ image: imageBase64, language }),
+    body: JSON.stringify({ image: imageBase64, language, profile: profile || null }),
   });
   if (!r.ok) throw new Error('plate_analysis_failed');
   return r.json();

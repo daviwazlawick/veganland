@@ -8,12 +8,19 @@ import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
+import { PremiumIcon } from '../components/ui';
 import { apiAnalyzePlate } from '../services/apiService';
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
 
+const STATUS_CONFIG = {
+  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe',    labelKey: 'result.safe' },
+  CAUTION:  { color: Colors.cautionDark, bg: Colors.cautionLight, strip: Colors.caution, icon: 'caution', labelKey: 'result.caution' },
+  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger',  labelKey: 'result.not_safe' },
+};
+
 export default function PlateAnalysisScreen({ navigation }) {
-  const { language } = useApp();
+  const { language, profile } = useApp();
   const { token } = useAuth();
   const { logConsumption } = useNutrition();
   const insets = useSafeAreaInsets();
@@ -71,7 +78,7 @@ export default function PlateAnalysisScreen({ navigation }) {
   async function analyzeImage(base64) {
     setAnalyzing(true);
     try {
-      const data = await apiAnalyzePlate(token, base64, language);
+      const data = await apiAnalyzePlate(token, base64, language, profile);
       setResult(data);
       if (!data.items || data.items.length === 0) {
         Alert.alert('', t(language, 'nutrition.plate_no_food'));
@@ -108,6 +115,9 @@ export default function PlateAnalysisScreen({ navigation }) {
       setLogging(false);
     }
   }
+
+  const verdict = result?.diet_verdict;
+  const cfg = verdict?.status ? (STATUS_CONFIG[verdict.status] || STATUS_CONFIG.CAUTION) : null;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -170,26 +180,61 @@ export default function PlateAnalysisScreen({ navigation }) {
 
             {!analyzing && result?.items?.length > 0 && (
               <>
+                {/* ── Diet Verdict Banner ── */}
+                {cfg && (
+                  <View style={[s.verdictCard, { backgroundColor: cfg.bg, borderColor: cfg.strip }]}>
+                    <View style={[s.verdictIconWrap, { backgroundColor: cfg.strip + '30' }]}>
+                      <PremiumIcon name={cfg.icon} size={36} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.verdictStatus, { color: cfg.color }]}>{t(language, cfg.labelKey)}</Text>
+                      {verdict.explanation ? (
+                        <Text style={[s.verdictExplanation, { color: cfg.color }]}>{verdict.explanation}</Text>
+                      ) : null}
+                      {verdict.concerns?.length > 0 && (
+                        <View style={s.verdictConcerns}>
+                          {verdict.concerns.map((c, i) => (
+                            <Text key={i} style={[s.verdictConcernItem, { color: cfg.color }]}>• {c}</Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                {/* ── Items ── */}
                 <View style={s.card}>
                   <Text style={s.sectionTitle}>{t(language, 'nutrition.plate_items_found')} ({result.items.length})</Text>
-                  {result.items.map((item, i) => (
-                    <View key={i} style={s.itemRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.itemName}>{item.name}</Text>
-                        <Text style={s.itemMacros}>
-                          {Math.round(item.grams || 0)}g
-                          {item.calories_kcal ? `  ·  ${Math.round(item.calories_kcal)} kcal` : ''}
-                          {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
-                        </Text>
+                  {result.items.map((item, i) => {
+                    const itemCfg = item.item_status ? (STATUS_CONFIG[item.item_status] || null) : null;
+                    return (
+                      <View key={i} style={[s.itemRow, itemCfg && { borderLeftWidth: 3, borderLeftColor: itemCfg.strip, paddingLeft: 10 }]}>
+                        <View style={{ flex: 1 }}>
+                          <View style={s.itemNameRow}>
+                            <Text style={s.itemName}>{item.name}</Text>
+                            {itemCfg && item.item_status !== 'SAFE' && (
+                              <View style={[s.itemStatusDot, { backgroundColor: itemCfg.strip }]} />
+                            )}
+                          </View>
+                          <Text style={s.itemMacros}>
+                            {Math.round(item.grams || 0)}g
+                            {item.calories_kcal ? `  ·  ${Math.round(item.calories_kcal)} kcal` : ''}
+                            {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
+                          </Text>
+                          {item.item_concern ? (
+                            <Text style={[s.itemConcern, { color: itemCfg?.color || '#94a3b8' }]}>{item.item_concern}</Text>
+                          ) : null}
+                        </View>
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                   <View style={s.totalRow}>
                     <Text style={s.totalLabel}>Total</Text>
                     <Text style={s.totalValue}>{Math.round(result.total?.calories_kcal || 0)} kcal</Text>
                   </View>
                 </View>
 
+                {/* ── Meal selector & Log ── */}
                 <View style={s.card}>
                   <Text style={s.sectionTitle}>{t(language, 'nutrition.meal_label')}</Text>
                   <View style={s.mealRow}>
@@ -241,11 +286,26 @@ const s = StyleSheet.create({
   retakeBtnText: { fontSize: 13, color: '#64748b', fontWeight: '600' },
   analyzingCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#E5E7EB' },
   analyzingText: { fontSize: 14, color: '#64748b', fontWeight: '600' },
+
+  verdictCard: {
+    borderRadius: 18, padding: 16,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+    borderWidth: 2,
+  },
+  verdictIconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  verdictStatus: { fontSize: 16, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
+  verdictExplanation: { fontSize: 13, fontWeight: '500', marginTop: 4, lineHeight: 18, opacity: 0.85 },
+  verdictConcerns: { marginTop: 6, gap: 2 },
+  verdictConcernItem: { fontSize: 12, fontWeight: '600', lineHeight: 17 },
+
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 8 },
+  itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemName: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
+  itemStatusDot: { width: 8, height: 8, borderRadius: 4 },
   itemMacros: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  itemConcern: { fontSize: 11, fontWeight: '600', marginTop: 3, fontStyle: 'italic' },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8 },
   totalLabel: { fontSize: 13, fontWeight: '700', color: '#475569' },
   totalValue: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F' },

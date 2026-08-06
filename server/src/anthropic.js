@@ -935,16 +935,57 @@ export function buildMissingIngredientsResult(product, language) {
   };
 }
 
-export async function analyzePlate(imageBase64, language = 'en') {
+export async function analyzePlate(imageBase64, language = 'en', profile = null) {
   const lang = responseLanguage(language);
-  const prompt = `You are a nutrition expert analyzing a photo of a meal or food plate.
+  const { diet, allergies } = profileDescription(profile, language);
+  const isPt = language === 'pt' || language === 'pt-BR';
 
-Identify every distinct food item visible. For each item, estimate:
+  const dietRulesBlock = diet === 'none' ? '' : isPt ? `
+DIETA DO UTILIZADOR: ${diet}
+Alergias: ${allergies}
+
+Regras de compatibilidade:
+- "vegan": qualquer carne, peixe, frutos do mar, lacticínios, ovos, mel ou derivado animal = NOT_SAFE
+- "vegetarian": carne, peixe, frutos do mar = NOT_SAFE; lacticínios e ovos = SAFE
+- "pescatarian": apenas carne de mamíferos/aves = NOT_SAFE; peixe e marisco = SAFE
+- "halal": carne de porco, álcool, sangue = NOT_SAFE; carne cuja origem/abate seja desconhecida = CAUTION
+- "kosher": carne de porco, marisco, mistura carne+lacticínios no mesmo prato = NOT_SAFE
+- "gluten_free": trigo, centeio, cevada, aveia = NOT_SAFE
+- "paleo": leguminosas, grãos, produtos lácteos processados, açúcar refinado = CAUTION
+- "keto": qualquer alimento rico em hidratos de carbono (pão, massa, arroz, fruta, açúcar) = CAUTION
+- "onivore": tudo é SAFE a menos que contenha alergénios declarados
+
+Para alergias: qualquer alimento que contenha ou possa conter o alergénio = NOT_SAFE ou CAUTION.
+
+Avalia CADA item individualmente e fornece um veredicto geral para o prato inteiro.` : `
+USER DIET: ${diet}
+Allergies: ${allergies}
+
+Compatibility rules:
+- "vegan": any meat, fish, seafood, dairy, eggs, honey, or animal derivative = NOT_SAFE
+- "vegetarian": meat, fish, seafood = NOT_SAFE; dairy and eggs = SAFE
+- "pescatarian": mammal/poultry meat only = NOT_SAFE; fish and shellfish = SAFE
+- "halal": pork, alcohol, blood = NOT_SAFE; meat of unknown origin/slaughter = CAUTION
+- "kosher": pork, shellfish, mixing meat+dairy on same plate = NOT_SAFE
+- "gluten_free": wheat, rye, barley, oats = NOT_SAFE
+- "paleo": legumes, grains, processed dairy, refined sugar = CAUTION
+- "keto": any high-carb food (bread, pasta, rice, fruit, sugar) = CAUTION
+- "omnivore": everything is SAFE unless it contains declared allergens
+
+For allergies: any food containing or likely containing the allergen = NOT_SAFE or CAUTION.
+
+Evaluate EACH item individually and provide an overall verdict for the whole plate.`;
+
+  const prompt = `You are a nutrition and dietary expert analyzing a photo of a meal or food plate.
+${dietRulesBlock}
+
+Identify every distinct food item visible. For each item estimate:
 - A clear name in ${lang}
-- Portion size in grams (realistic estimate based on visual proportions)
-- Nutritional values per the estimated portion
+- Portion size in grams (realistic estimate)
+- Nutritional values for that portion
+${diet !== 'none' ? `- Whether it is compatible with the user's diet (item_status: "SAFE", "CAUTION", or "NOT_SAFE" and a brief item_concern if not SAFE)` : ''}
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON:
 {
   "items": [
     {
@@ -954,24 +995,32 @@ Return ONLY valid JSON in this exact format:
       "protein_g": 10.5,
       "fat_g": 5.2,
       "carbs_g": 20.0,
-      "fiber_g": 2.1
+      "fiber_g": 2.1${diet !== 'none' ? `,
+      "item_status": "SAFE",
+      "item_concern": null` : ''}
     }
-  ]
+  ]${diet !== 'none' ? `,
+  "diet_verdict": {
+    "status": "SAFE",
+    "concerns": [],
+    "explanation": "Brief explanation of the overall verdict in ${lang}"
+  }` : ''}
 }
 
 Rules:
-- Be conservative with portion estimates (typical serving sizes)
+- Conservative portion estimates (typical serving sizes)
 - Round values to 1 decimal place
-- If you cannot identify food (blurry, not food, etc.) return {"items": []}
-- Include ALL visible food items including sauces, sides, drinks
-- Do not include plate, cutlery or non-food items`;
+- If you cannot identify food return {"items": []}
+- Include ALL visible food items: sauces, sides, drinks
+- Do not include plate, cutlery, or non-food items
+- Be accurate and honest about diet compatibility — do not guess when in doubt, use CAUTION`;
 
   const content = [
     { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
     { type: 'text', text: prompt },
   ];
 
-  const text = await callClaude(content, 1200, MODEL_ANALYSIS);
+  const text = await callClaude(content, 1600, MODEL_ANALYSIS);
   try {
     const parsed = extractJson(text);
     const items = Array.isArray(parsed.items) ? parsed.items : [];
@@ -983,8 +1032,8 @@ Rules:
       fiber_g:       acc.fiber_g       + (Number(item.fiber_g)       || 0),
     }), { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 });
     Object.keys(total).forEach(k => { total[k] = Math.round(total[k] * 10) / 10; });
-    return { items, total };
+    return { items, total, diet_verdict: parsed.diet_verdict || null };
   } catch {
-    return { items: [], total: { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 } };
+    return { items: [], total: { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 }, diet_verdict: null };
   }
 }
