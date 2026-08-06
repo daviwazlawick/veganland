@@ -162,6 +162,50 @@ async function fetchByQuery(query) {
   return products.map(mapOpenFoodFactsProduct).find(Boolean) || null;
 }
 
+export async function searchOffProducts(query, limit = 10) {
+  try {
+    const fields = [
+      'code', 'product_name', 'generic_name', 'brands',
+      'nutriments',
+    ].join(',');
+    const params = new URLSearchParams({
+      search_terms: query,
+      search_simple: '1',
+      action: 'process',
+      json: '1',
+      page_size: String(limit),
+      fields,
+    });
+    const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?${params}`, {
+      headers: { 'User-Agent': 'VeganLand/1.0 (https://veganland.app)' },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    return (data.products || [])
+      .filter(p => p.product_name)
+      .map(p => {
+        const n = p.nutriments || {};
+        const kcal = n['energy-kcal_100g'] || n['energy-kcal'] || (n['energy_100g'] ? n['energy_100g'] / 4.184 : null);
+        return {
+          product_name: [p.brands, p.product_name].filter(Boolean).join(' '),
+          calories_kcal: kcal ? Math.round(kcal * 10) / 10 : null,
+          protein_g:     n.proteins_100g     != null ? Math.round(n.proteins_100g * 10) / 10     : null,
+          fat_g:         n.fat_100g           != null ? Math.round(n.fat_100g * 10) / 10           : null,
+          carbs_g:       n.carbohydrates_100g != null ? Math.round(n.carbohydrates_100g * 10) / 10 : null,
+          fiber_g:       n.fiber_100g         != null ? Math.round(n.fiber_100g * 10) / 10         : null,
+          sugar_g:       n.sugars_100g        != null ? Math.round(n.sugars_100g * 10) / 10        : null,
+          salt_g:        n.salt_100g          != null ? Math.round(n.salt_100g * 100) / 100        : null,
+          grams: 100,
+          source: 'off_live',
+        };
+      })
+      .filter(p => p.calories_kcal != null);
+  } catch {
+    return [];
+  }
+}
+
 export async function findProductIdentity(barcode) {
   const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,generic_name,brands`);
   if (!response.ok) return null;

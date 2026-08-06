@@ -2,6 +2,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { analyzePlate } from './anthropic.js';
+import { searchOffProducts } from './openFoodFacts.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts, getRecentPlateLogs } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
@@ -1507,15 +1508,25 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // GET /nutrition/search?q=... — food product autocomplete
+    // GET /nutrition/search?q=... — food product autocomplete (DB + OFF live)
     if (req.method === 'GET' && req.url.startsWith('/nutrition/search')) {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const u = new URL(req.url, 'http://x');
       const q = (u.searchParams.get('q') || '').trim();
       if (q.length < 2) { sendJson(res, 200, [], origin); return; }
-      const results = await searchFoodProducts(q, claims.userId);
-      sendJson(res, 200, results, origin);
+      // Run DB search and OFF live search in parallel
+      const [dbResults, offResults] = await Promise.all([
+        searchFoodProducts(q, claims.userId),
+        searchOffProducts(q, 10),
+      ]);
+      // Merge: DB results first (have logged context), then OFF results not already in DB list
+      const dbNames = new Set(dbResults.map(r => r.product_name.toLowerCase()));
+      const merged = [
+        ...dbResults,
+        ...offResults.filter(r => !dbNames.has(r.product_name.toLowerCase())),
+      ].slice(0, 20);
+      sendJson(res, 200, merged, origin);
       return;
     }
 

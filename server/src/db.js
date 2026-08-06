@@ -1521,10 +1521,10 @@ export async function searchFoodProducts(query, userId) {
   const db = await getPool();
   if (!db || !query) return [];
   const q = `%${query.trim()}%`;
-  // 1. User's own history first (most relevant, grams as logged)
-  // 2. Global aggregated from all users (crowdsourced avg macros)
   const res = await db.query(`
-    with user_hist as (
+    with
+    -- 1. User's own consumption history (highest priority, exact macros as logged)
+    user_hist as (
       select
         product_name,
         round(avg(calories_kcal)::numeric, 1) as calories_kcal,
@@ -1544,6 +1544,7 @@ export async function searchFoodProducts(query, userId) {
         and calories_kcal is not null
       group by product_name
     ),
+    -- 2. Global consumption history (avg macros from all users)
     global_hist as (
       select
         product_name,
@@ -1563,15 +1564,42 @@ export async function searchFoodProducts(query, userId) {
         and calories_kcal is not null
       group by product_name
     ),
+    -- 3. Products table + scan_events nutrition JSON (OFF database)
+    -- nutrition_100g lives at result->'productInfo'->'offMeta'->'nutrition_100g'
+    scanned_products as (
+      select distinct on (p.id)
+        coalesce(p.brand || ' ' || p.product_name, p.product_name) as product_name,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal')::numeric, 1) as calories_kcal,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'proteins')::numeric, 1)    as protein_g,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'fat')::numeric, 1)         as fat_g,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'carbohydrates')::numeric, 1) as carbs_g,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'fiber')::numeric, 1)       as fiber_g,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'sugars')::numeric, 1)      as sugar_g,
+        round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'salt')::numeric, 2)        as salt_g,
+        100::numeric as grams,
+        1 as freq,
+        3 as priority
+      from products p
+      join scan_events se on se.product_id = p.id
+      where (p.product_name ilike $1 or p.brand ilike $1)
+        and se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal' is not null
+      order by p.id, se.created_at desc
+    ),
     combined as (
       select * from user_hist
       union all
-      select * from global_hist where product_name not in (select product_name from user_hist)
+      select * from global_hist
+        where product_name not in (select product_name from user_hist)
+      union all
+      select * from scanned_products
+        where product_name not in (select product_name from user_hist)
+          and product_name not in (select product_name from global_hist)
     )
     select product_name, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, grams
     from combined
+    where calories_kcal is not null
     order by priority asc, freq desc
-    limit 10`,
+    limit 15`,
     [q, userId]
   );
   return res.rows;
