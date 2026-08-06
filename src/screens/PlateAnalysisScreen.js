@@ -64,6 +64,7 @@ export default function PlateAnalysisScreen({ navigation }) {
   const [editIndex, setEditIndex] = useState(null); // null = new item
   const [editDraft, setEditDraft] = useState(EMPTY_ITEM());
   const [suggestions, setSuggestions] = useState([]);
+  const [perGram, setPerGram] = useState(null); // per-gram ratios for proportional recalc
 
   useEffect(() => {
     if (result?.items) setEditableItems(result.items.map(i => ({ ...i })));
@@ -86,20 +87,46 @@ export default function PlateAnalysisScreen({ navigation }) {
     setSuggestions([]);
     if (index === null) {
       setEditDraft(EMPTY_ITEM());
+      setPerGram(null);
     } else {
       const item = editableItems[index];
+      const g = parseFloat(item.grams) || 0;
       setEditDraft({
-        name:         String(item.name || ''),
-        grams:        item.grams         != null ? String(item.grams)         : '',
-        calories_kcal:item.calories_kcal != null ? String(item.calories_kcal) : '',
-        protein_g:    item.protein_g     != null ? String(item.protein_g)     : '',
-        fat_g:        item.fat_g         != null ? String(item.fat_g)         : '',
-        carbs_g:      item.carbs_g       != null ? String(item.carbs_g)       : '',
-        fiber_g:      item.fiber_g       != null ? String(item.fiber_g)       : '',
+        name:          String(item.name || ''),
+        grams:         item.grams         != null ? String(item.grams)         : '',
+        calories_kcal: item.calories_kcal != null ? String(item.calories_kcal) : '',
+        protein_g:     item.protein_g     != null ? String(item.protein_g)     : '',
+        fat_g:         item.fat_g         != null ? String(item.fat_g)         : '',
+        carbs_g:       item.carbs_g       != null ? String(item.carbs_g)       : '',
+        fiber_g:       item.fiber_g       != null ? String(item.fiber_g)       : '',
       });
+      setPerGram(g > 0 ? {
+        calories_kcal: (parseFloat(item.calories_kcal) || 0) / g,
+        protein_g:     (parseFloat(item.protein_g)     || 0) / g,
+        fat_g:         (parseFloat(item.fat_g)         || 0) / g,
+        carbs_g:       (parseFloat(item.carbs_g)       || 0) / g,
+        fiber_g:       (parseFloat(item.fiber_g)       || 0) / g,
+      } : null);
     }
     setEditIndex(index);
     setEditModal(true);
+  }
+
+  function handleGramsChange(text) {
+    const newG = parseFloat(text);
+    if (perGram && !isNaN(newG) && newG > 0) {
+      setEditDraft(d => ({
+        ...d,
+        grams:         text,
+        calories_kcal: String(Math.round(perGram.calories_kcal * newG * 10) / 10),
+        protein_g:     String(Math.round(perGram.protein_g     * newG * 10) / 10),
+        fat_g:         String(Math.round(perGram.fat_g         * newG * 10) / 10),
+        carbs_g:       String(Math.round(perGram.carbs_g       * newG * 10) / 10),
+        fiber_g:       String(Math.round(perGram.fiber_g       * newG * 10) / 10),
+      }));
+    } else {
+      setEditDraft(d => ({ ...d, grams: text }));
+    }
   }
 
   function saveEdit() {
@@ -395,9 +422,16 @@ export default function PlateAnalysisScreen({ navigation }) {
               <Text style={s.modalTitle}>
                 {editIndex === null ? t(language, 'nutrition.plate_add_item') : t(language, 'nutrition.plate_edit_item')}
               </Text>
-              <TouchableOpacity onPress={() => setEditModal(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Text style={s.modalClose}>×</Text>
-              </TouchableOpacity>
+              <View style={s.modalHeaderActions}>
+                {editIndex !== null && (
+                  <TouchableOpacity onPress={() => deleteItem(editIndex)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.modalDeleteIcon}>
+                    <Text style={s.modalDeleteIconText}>🗑️</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setEditModal(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Text style={s.modalClose}>×</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View>
@@ -431,7 +465,7 @@ export default function PlateAnalysisScreen({ navigation }) {
               <View style={s.modalRow2}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalLabel}>{t(language, 'nutrition.body_weight')} (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.grams} onChangeText={v => setEditDraft(d => ({ ...d, grams: v }))} placeholder="100" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  <TextInput style={s.modalInput} value={editDraft.grams} onChangeText={handleGramsChange} placeholder="100" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalLabel}>Kcal</Text>
@@ -457,12 +491,6 @@ export default function PlateAnalysisScreen({ navigation }) {
               <TouchableOpacity style={s.modalSaveBtn} onPress={saveEdit} activeOpacity={0.85}>
                 <Text style={s.modalSaveBtnText}>{t(language, 'personal.save')}</Text>
               </TouchableOpacity>
-
-              {editIndex !== null && (
-                <TouchableOpacity style={s.modalDeleteBtn} onPress={() => deleteItem(editIndex)} activeOpacity={0.85}>
-                  <Text style={s.modalDeleteBtnText}>{t(language, 'nutrition.plate_delete_item')}</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -540,6 +568,9 @@ const s = StyleSheet.create({
   },
   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  modalHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  modalDeleteIcon: { padding: 2 },
+  modalDeleteIconText: { fontSize: 20 },
   modalClose: { fontSize: 26, color: '#94a3b8', fontWeight: '400', lineHeight: 28 },
   modalLabel: { fontSize: 11, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6, marginTop: 12 },
   modalInput: {
