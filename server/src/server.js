@@ -1566,6 +1566,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/analyze-plate') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const usage = await checkAndIncrementScanCounter(claims.userId);
+      if (!usage.allowed) {
+        sendJson(res, 429, { error: 'Monthly scan limit reached', usage }, origin);
+        return;
+      }
       const { image, language, profile: bodyProfile } = await readJsonBody(req);
       if (!image) { sendJson(res, 400, { error: 'image required' }, origin); return; }
       let profile = bodyProfile || null;
@@ -1574,7 +1579,7 @@ const server = http.createServer(async (req, res) => {
         if (u?.diet_id) profile = { dietId: u.diet_id, allergyIds: u.allergy_ids || [] };
       }
       const result = await analyzePlate(image, language || 'en', profile);
-      sendJson(res, 200, result, origin);
+      sendJson(res, 200, { ...result, usage }, origin);
       return;
     }
 

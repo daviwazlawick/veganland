@@ -321,6 +321,7 @@ export async function apiAnalyzePlate(token, imageBase64, language, profile) {
     headers: appHeaders(token),
     body: JSON.stringify({ image: imageBase64, language, profile: profile || null }),
   });
+  if (r.status === 429) throw new Error('scan_limit_reached');
   if (!r.ok) throw new Error('plate_analysis_failed');
   return r.json();
 }

@@ -22,6 +22,8 @@ const ALL_FIELDS = [...MACRO_FIELDS,
   { key: 'water_ml', unit: 'ml', color: '#06B6D4' },
 ];
 
+const EMPTY_ENTRY = { name: '', grams: '', calories: '', protein: '', fat: '', carbs: '', meal: 'lunch' };
+
 function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   const pct = goal > 0 ? Math.min(1, consumed / goal) : 0;
   const over = goal > 0 && consumed > goal;
@@ -41,12 +43,16 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
 
 export default function NutritionDashboardScreen({ navigation }) {
   const { language } = useApp();
-  const { goals, todayLog, todayTotals, deleteConsumption, refresh, addWeight, weightHistory } = useNutrition();
+  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, refresh, addWeight, weightHistory } = useNutrition();
   const insets = useSafeAreaInsets();
   const [weightModal, setWeightModal] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [loggingWater, setLoggingWater] = useState(false);
+  const [addModal, setAddModal] = useState(false);
+  const [addEntry, setAddEntry] = useState(EMPTY_ENTRY);
+  const [savingEntry, setSavingEntry] = useState(false);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -64,11 +70,49 @@ export default function NutritionDashboardScreen({ navigation }) {
     setWeightModal(false);
   }
 
-  function confirmDelete(id, name) {
-    Alert.alert(t(language, 'nutrition.delete_entry'), name, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: t(language, 'nutrition.delete_entry'), style: 'destructive', onPress: () => deleteConsumption(id) },
-    ]);
+  async function logWater(ml) {
+    if (loggingWater) return;
+    setLoggingWater(true);
+    try {
+      await logConsumption({ product_name: 'Water', source: 'manual', water_ml: ml, meal_type: null });
+    } catch {}
+    setLoggingWater(false);
+  }
+
+  function handleDelete(id, name) {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete "${name}"?`)) deleteConsumption(id);
+    } else {
+      Alert.alert(t(language, 'nutrition.delete_entry'), name, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: t(language, 'nutrition.delete_entry'), style: 'destructive', onPress: () => deleteConsumption(id) },
+      ]);
+    }
+  }
+
+  function openAddModal() {
+    setAddEntry(EMPTY_ENTRY);
+    setAddModal(true);
+  }
+
+  async function handleSaveEntry() {
+    const name = addEntry.name.trim();
+    if (!name) return;
+    setSavingEntry(true);
+    try {
+      await logConsumption({
+        product_name: name,
+        source: 'manual',
+        grams: addEntry.grams ? parseFloat(addEntry.grams) : null,
+        meal_type: addEntry.meal || null,
+        calories_kcal: addEntry.calories ? parseFloat(addEntry.calories) : null,
+        protein_g: addEntry.protein ? parseFloat(addEntry.protein) : null,
+        fat_g: addEntry.fat ? parseFloat(addEntry.fat) : null,
+        carbs_g: addEntry.carbs ? parseFloat(addEntry.carbs) : null,
+      });
+      setAddModal(false);
+    } catch {}
+    setSavingEntry(false);
   }
 
   const displayFields = expanded ? ALL_FIELDS : MACRO_FIELDS;
@@ -115,6 +159,20 @@ export default function NutritionDashboardScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        <View style={s.waterCard}>
+          <View style={s.waterTop}>
+            <Text style={s.waterLabel}>💧 {t(language, 'nutrition.water')}</Text>
+            <Text style={s.waterValue}>{Math.round(todayTotals.water_ml || 0)} <Text style={s.waterUnit}>ml</Text></Text>
+          </View>
+          <View style={s.waterBtns}>
+            {[150, 250, 330, 500].map(ml => (
+              <TouchableOpacity key={ml} style={s.waterBtn} onPress={() => logWater(ml)} disabled={loggingWater} activeOpacity={0.75}>
+                <Text style={s.waterBtnText}>+{ml}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {MEALS.map(meal => byMeal[meal].length > 0 && (
           <View key={meal} style={s.mealSection}>
             <Text style={s.mealTitle}>{t(language, `nutrition.${meal}`)}</Text>
@@ -128,7 +186,7 @@ export default function NutritionDashboardScreen({ navigation }) {
                     {e.grams ? `  ·  ${e.grams}g` : ''}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => confirmDelete(e.id, e.product_name || '')} style={s.deleteBtn}>
+                <TouchableOpacity onPress={() => handleDelete(e.id, e.product_name || '')} style={s.deleteBtn}>
                   <Text style={s.deleteText}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -143,12 +201,17 @@ export default function NutritionDashboardScreen({ navigation }) {
           </View>
         )}
 
+        <TouchableOpacity style={s.addFoodBtn} onPress={openAddModal}>
+          <Text style={s.addFoodBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={s.goalsBtn} onPress={() => navigation.navigate('BodyProfile')}>
           <Text style={s.goalsBtnText}>⚙️ {t(language, 'nutrition.goals_title')}</Text>
         </TouchableOpacity>
 
       </ScrollView>
 
+      {/* Weight modal */}
       <Modal visible={weightModal} transparent animationType="slide">
         <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalCard}>
@@ -169,6 +232,73 @@ export default function NutritionDashboardScreen({ navigation }) {
               <Text style={s.saveBtnText}>{savingWeight ? '…' : t(language, 'nutrition.weight_log_btn')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setWeightModal(false)} style={s.cancelBtn}>
+              <Text style={s.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Add food modal */}
+      <Modal visible={addModal} transparent animationType="slide">
+        <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>{t(language, 'nutrition.add_food')}</Text>
+
+            <TextInput
+              style={s.fieldInput}
+              value={addEntry.name}
+              onChangeText={v => setAddEntry(p => ({ ...p, name: v }))}
+              placeholder={t(language, 'nutrition.food_name_placeholder')}
+              placeholderTextColor="#94a3b8"
+            />
+
+            <View style={s.mealPicker}>
+              {MEALS.map(m => (
+                <TouchableOpacity key={m} style={[s.mealChip, addEntry.meal === m && s.mealChipActive]}
+                  onPress={() => setAddEntry(p => ({ ...p, meal: m }))}>
+                  <Text style={[s.mealChipText, addEntry.meal === m && s.mealChipTextActive]}>
+                    {t(language, `nutrition.${m}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={s.numRow}>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>Grams</Text>
+                <TextInput style={s.numInput} value={addEntry.grams} onChangeText={v => setAddEntry(p => ({ ...p, grams: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>kcal</Text>
+                <TextInput style={s.numInput} value={addEntry.calories} onChangeText={v => setAddEntry(p => ({ ...p, calories: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+            </View>
+
+            <View style={s.numRow}>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>Protein g</Text>
+                <TextInput style={s.numInput} value={addEntry.protein} onChangeText={v => setAddEntry(p => ({ ...p, protein: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>Fat g</Text>
+                <TextInput style={s.numInput} value={addEntry.fat} onChangeText={v => setAddEntry(p => ({ ...p, fat: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>Carbs g</Text>
+                <TextInput style={s.numInput} value={addEntry.carbs} onChangeText={v => setAddEntry(p => ({ ...p, carbs: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+            </View>
+
+            <TouchableOpacity onPress={handleSaveEntry} disabled={savingEntry || !addEntry.name.trim()}
+              style={[s.saveBtn, (savingEntry || !addEntry.name.trim()) && { opacity: 0.5 }]}>
+              <Text style={s.saveBtnText}>{savingEntry ? '…' : t(language, 'nutrition.save')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAddModal(false)} style={s.cancelBtn}>
               <Text style={s.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -200,24 +330,44 @@ const s = StyleSheet.create({
   weightValue: { fontSize: 22, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
   weightAddBtn: { backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   weightAddText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  waterCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
+  waterTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  waterLabel: { fontSize: 14, fontWeight: '700', color: Colors.navy || '#0B1E3F' },
+  waterValue: { fontSize: 20, fontWeight: '800', color: '#06B6D4' },
+  waterUnit: { fontSize: 13, fontWeight: '400', color: '#94a3b8' },
+  waterBtns: { flexDirection: 'row', gap: 8 },
+  waterBtn: { flex: 1, backgroundColor: '#EFF6FF', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  waterBtnText: { fontSize: 13, fontWeight: '700', color: '#2563EB' },
   mealSection: { gap: 6 },
   mealTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 },
   entryRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E5E7EB' },
   entryName: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
   entryMacros: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  deleteBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  deleteText: { fontSize: 14, color: '#94a3b8' },
+  deleteBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  deleteText: { fontSize: 16, color: '#94a3b8' },
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#64748b', marginBottom: 6 },
   emptySub: { fontSize: 13, color: '#94a3b8', textAlign: 'center' },
+  addFoodBtn: { backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  addFoodBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   goalsBtn: { alignItems: 'center', paddingVertical: 8 },
   goalsBtnText: { fontSize: 13, color: Colors.navy || '#0B1E3F', textDecorationLine: 'underline' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 14 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center' },
+  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12 },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center', marginBottom: 4 },
   weightInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   weightInput: { flex: 1, borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 22, fontWeight: '700', textAlign: 'center', color: Colors.navy || '#0B1E3F' },
   weightUnit: { fontSize: 16, fontWeight: '700', color: '#64748b' },
+  fieldInput: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 12, fontSize: 16, color: Colors.navy || '#0B1E3F' },
+  mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  mealChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#F8FAFC' },
+  mealChipActive: { backgroundColor: Colors.navy || '#0B1E3F', borderColor: Colors.navy || '#0B1E3F' },
+  mealChipText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  mealChipTextActive: { color: '#fff' },
+  numRow: { flexDirection: 'row', gap: 8 },
+  numField: { flex: 1, gap: 4 },
+  numLabel: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 },
+  numInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 10, fontSize: 15, fontWeight: '600', textAlign: 'center', color: Colors.navy || '#0B1E3F' },
   saveBtn: { backgroundColor: Colors.navy || '#0B1E3F', padding: 14, borderRadius: 12, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   cancelBtn: { alignItems: 'center', paddingVertical: 8 },

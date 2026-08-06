@@ -190,8 +190,12 @@ export default function PlateAnalysisScreen({ navigation }) {
       if (!data.items || data.items.length === 0) {
         Alert.alert('', t(language, 'nutrition.plate_no_food'));
       }
-    } catch {
-      Alert.alert('Erro', 'Análise falhou. Tenta com outra foto.');
+    } catch (e) {
+      if (e?.message === 'scan_limit_reached') {
+        Alert.alert(t(language, 'limits.monthly_reached', { limit: '' }).trim(), t(language, 'limits.change_subscription'));
+      } else {
+        Alert.alert('Erro', 'Análise falhou. Tenta com outra foto.');
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -396,7 +400,7 @@ export default function PlateAnalysisScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View>
               <Text style={s.modalLabel}>{t(language, 'nutrition.plate_item_name')}</Text>
               <TextInput
                 style={s.modalInput}
@@ -459,7 +463,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                   <Text style={s.modalDeleteBtnText}>{t(language, 'nutrition.plate_delete_item')}</Text>
                 </TouchableOpacity>
               )}
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
