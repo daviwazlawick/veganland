@@ -1,9 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
+import { useAuth } from '../context/AuthContext';
+import { apiSearchFood } from '../services/apiService';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
@@ -43,6 +45,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
 
 export default function NutritionDashboardScreen({ navigation }) {
   const { language } = useApp();
+  const { token } = useAuth();
   const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, refresh, addWeight, weightHistory } = useNutrition();
   const insets = useSafeAreaInsets();
   const [weightModal, setWeightModal] = useState(false);
@@ -53,6 +56,8 @@ export default function NutritionDashboardScreen({ navigation }) {
   const [addModal, setAddModal] = useState(false);
   const [addEntry, setAddEntry] = useState(EMPTY_ENTRY);
   const [savingEntry, setSavingEntry] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const searchTimer = useRef(null);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -92,7 +97,33 @@ export default function NutritionDashboardScreen({ navigation }) {
 
   function openAddModal() {
     setAddEntry(EMPTY_ENTRY);
+    setSuggestions([]);
     setAddModal(true);
+  }
+
+  function handleNameChange(text) {
+    setAddEntry(p => ({ ...p, name: text }));
+    clearTimeout(searchTimer.current);
+    if (text.trim().length < 2) { setSuggestions([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const results = await apiSearchFood(token, text.trim());
+        setSuggestions(results || []);
+      } catch { setSuggestions([]); }
+    }, 350);
+  }
+
+  function pickSuggestion(item) {
+    setAddEntry({
+      name:     item.product_name,
+      grams:    item.grams     ? String(Math.round(item.grams))         : '',
+      calories: item.calories_kcal ? String(Math.round(item.calories_kcal)) : '',
+      protein:  item.protein_g ? String(Math.round(item.protein_g))     : '',
+      fat:      item.fat_g     ? String(Math.round(item.fat_g))         : '',
+      carbs:    item.carbs_g   ? String(Math.round(item.carbs_g))       : '',
+      meal:     addEntry.meal,
+    });
+    setSuggestions([]);
   }
 
   async function handleSaveEntry() {
@@ -247,10 +278,25 @@ export default function NutritionDashboardScreen({ navigation }) {
             <TextInput
               style={s.fieldInput}
               value={addEntry.name}
-              onChangeText={v => setAddEntry(p => ({ ...p, name: v }))}
+              onChangeText={handleNameChange}
               placeholder={t(language, 'nutrition.food_name_placeholder')}
               placeholderTextColor="#94a3b8"
+              autoFocus
             />
+            {suggestions.length > 0 && (
+              <View style={s.suggestBox}>
+                {suggestions.map((item, i) => (
+                  <TouchableOpacity key={i} style={s.suggestRow} onPress={() => pickSuggestion(item)}>
+                    <Text style={s.suggestName} numberOfLines={1}>{item.product_name}</Text>
+                    <Text style={s.suggestMacros}>
+                      {item.calories_kcal ? `${Math.round(item.calories_kcal)} kcal` : ''}
+                      {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
+                      {item.grams ? `  ·  ${Math.round(item.grams)}g` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <View style={s.mealPicker}>
               {MEALS.map(m => (
@@ -359,6 +405,10 @@ const s = StyleSheet.create({
   weightInput: { flex: 1, borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 22, fontWeight: '700', textAlign: 'center', color: Colors.navy || '#0B1E3F' },
   weightUnit: { fontSize: 16, fontWeight: '700', color: '#64748b' },
   fieldInput: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 12, fontSize: 16, color: Colors.navy || '#0B1E3F' },
+  suggestBox: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden', marginTop: -4 },
+  suggestRow: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  suggestName: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
+  suggestMacros: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
   mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   mealChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#F8FAFC' },
   mealChipActive: { backgroundColor: Colors.navy || '#0B1E3F', borderColor: Colors.navy || '#0B1E3F' },

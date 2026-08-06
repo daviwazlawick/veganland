@@ -1500,3 +1500,63 @@ export async function getWeightHistory(userId, limit = 90) {
   const res = await db.query(`select weight_kg, recorded_at from weight_log where user_id=$1 order by recorded_at desc limit $2`, [userId, limit]);
   return res.rows;
 }
+
+export async function searchFoodProducts(query, userId) {
+  const db = await getPool();
+  if (!db || !query) return [];
+  const q = `%${query.trim()}%`;
+  // 1. User's own history first (most relevant, grams as logged)
+  // 2. Global aggregated from all users (crowdsourced avg macros)
+  const res = await db.query(`
+    with user_hist as (
+      select
+        product_name,
+        round(avg(calories_kcal)::numeric, 1) as calories_kcal,
+        round(avg(protein_g)::numeric,  1) as protein_g,
+        round(avg(fat_g)::numeric,      1) as fat_g,
+        round(avg(carbs_g)::numeric,    1) as carbs_g,
+        round(avg(fiber_g)::numeric,    1) as fiber_g,
+        round(avg(sugar_g)::numeric,    1) as sugar_g,
+        round(avg(salt_g)::numeric,     2) as salt_g,
+        round(avg(grams)::numeric,      0) as grams,
+        count(*) as freq,
+        1 as priority
+      from consumption_log
+      where user_id = $2
+        and product_name ilike $1
+        and product_name != 'Water'
+        and calories_kcal is not null
+      group by product_name
+    ),
+    global_hist as (
+      select
+        product_name,
+        round(avg(calories_kcal)::numeric, 1) as calories_kcal,
+        round(avg(protein_g)::numeric,  1) as protein_g,
+        round(avg(fat_g)::numeric,      1) as fat_g,
+        round(avg(carbs_g)::numeric,    1) as carbs_g,
+        round(avg(fiber_g)::numeric,    1) as fiber_g,
+        round(avg(sugar_g)::numeric,    1) as sugar_g,
+        round(avg(salt_g)::numeric,     2) as salt_g,
+        round(avg(grams)::numeric,      0) as grams,
+        count(*) as freq,
+        2 as priority
+      from consumption_log
+      where product_name ilike $1
+        and product_name != 'Water'
+        and calories_kcal is not null
+      group by product_name
+    ),
+    combined as (
+      select * from user_hist
+      union all
+      select * from global_hist where product_name not in (select product_name from user_hist)
+    )
+    select product_name, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, grams
+    from combined
+    order by priority asc, freq desc
+    limit 10`,
+    [q, userId]
+  );
+  return res.rows;
+}
