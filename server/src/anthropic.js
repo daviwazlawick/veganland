@@ -934,3 +934,57 @@ export function buildMissingIngredientsResult(product, language) {
     normalized_ingredients: [],
   };
 }
+
+export async function analyzePlate(imageBase64, language = 'en') {
+  const lang = responseLanguage(language);
+  const prompt = `You are a nutrition expert analyzing a photo of a meal or food plate.
+
+Identify every distinct food item visible. For each item, estimate:
+- A clear name in ${lang}
+- Portion size in grams (realistic estimate based on visual proportions)
+- Nutritional values per the estimated portion
+
+Return ONLY valid JSON in this exact format:
+{
+  "items": [
+    {
+      "name": "food name in ${lang}",
+      "grams": 150,
+      "calories_kcal": 200,
+      "protein_g": 10.5,
+      "fat_g": 5.2,
+      "carbs_g": 20.0,
+      "fiber_g": 2.1
+    }
+  ]
+}
+
+Rules:
+- Be conservative with portion estimates (typical serving sizes)
+- Round values to 1 decimal place
+- If you cannot identify food (blurry, not food, etc.) return {"items": []}
+- Include ALL visible food items including sauces, sides, drinks
+- Do not include plate, cutlery or non-food items`;
+
+  const content = [
+    { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
+    { type: 'text', text: prompt },
+  ];
+
+  const text = await callClaude(content, 1200, MODEL_ANALYSIS);
+  try {
+    const parsed = extractJson(text);
+    const items = Array.isArray(parsed.items) ? parsed.items : [];
+    const total = items.reduce((acc, item) => ({
+      calories_kcal: acc.calories_kcal + (Number(item.calories_kcal) || 0),
+      protein_g:     acc.protein_g     + (Number(item.protein_g)     || 0),
+      fat_g:         acc.fat_g         + (Number(item.fat_g)         || 0),
+      carbs_g:       acc.carbs_g       + (Number(item.carbs_g)       || 0),
+      fiber_g:       acc.fiber_g       + (Number(item.fiber_g)       || 0),
+    }), { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 });
+    Object.keys(total).forEach(k => { total[k] = Math.round(total[k] * 10) / 10; });
+    return { items, total };
+  } catch {
+    return { items: [], total: { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 } };
+  }
+}

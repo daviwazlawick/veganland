@@ -138,18 +138,18 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
-          <View style={styles.scanBtnCameraCircle}>
-            <PremiumIcon name="scan" size={41} color={Colors.navy} />
-          </View>
-          <View style={styles.scanBtnText}>
-            <Text style={styles.scanBtnTitle}>{t(language, 'home.scan_button')}</Text>
-            <Text style={styles.scanBtnSub}>{t(language, 'home.scan_subtitle')}</Text>
-          </View>
-          <View style={styles.scanBtnArrow}>
-            <Text style={styles.scanBtnArrowText}>›</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.scanBtnHalf} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
+            <Text style={styles.actionIcon}>📷</Text>
+            <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
+            <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.scanBtnHalf, styles.plateBtn]} onPress={() => navigation.navigate('PlateAnalysis')} activeOpacity={0.85}>
+            <Text style={styles.actionIcon}>🍽️</Text>
+            <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_photo_btn')}</Text>
+            <Text style={styles.actionSub}>{t(language, 'nutrition.plate_photo_sub')}</Text>
+          </TouchableOpacity>
+        </View>
 
         {scanHistory.length > 0 && (
           <View style={styles.historySection}>
@@ -279,38 +279,23 @@ const styles = StyleSheet.create({
   },
   allergyChipText: { fontSize: 12, color: Colors.primaryDark, fontWeight: '700' },
   noAllergies: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
-  scanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+  actionRow: { flexDirection: 'row', gap: 12 },
+  scanBtnHalf: {
+    flex: 1, alignItems: 'center', gap: 6,
     backgroundColor: Colors.navy,
-    borderRadius: 24,
-    padding: 18,
-    borderBottomWidth: 5,
-    borderBottomColor: Colors.primaryDark,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.30,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 10,
+    borderRadius: 20, padding: 18,
+    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
+    shadowColor: Colors.primary, shadowOpacity: 0.25, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
-  scanBtnCameraCircle: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
+  plateBtn: {
+    backgroundColor: '#14532D',
+    borderBottomColor: '#166534',
+    shadowColor: '#22C55E',
   },
-  scanBtnText: { flex: 1 },
-  scanBtnTitle: {
-    fontSize: 23, fontWeight: '800', color: Colors.white,
-    fontFamily: BrandFonts.heading || undefined,
-  },
-  scanBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 3 },
-  scanBtnArrow: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  scanBtnArrowText: { color: Colors.navy, fontSize: 22, fontWeight: '900', marginTop: -2 },
+  actionIcon: { fontSize: 32 },
+  actionTitle: { fontSize: 15, fontWeight: '800', color: Colors.white, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
+  actionSub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
   historySection: { gap: 10 },
   historyHeading: {
     fontSize: 17, fontWeight: '700', color: Colors.text,

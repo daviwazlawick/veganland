@@ -1,6 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
+import { analyzePlate } from './anthropic.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
@@ -1558,6 +1559,17 @@ const server = http.createServer(async (req, res) => {
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const rows = await getWeightHistory(claims.userId);
       sendJson(res, 200, rows, origin);
+      return;
+    }
+
+    // POST /analyze-plate — Claude vision plate nutrition estimate
+    if (req.method === 'POST' && req.url === '/analyze-plate') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { image, language } = await readJsonBody(req);
+      if (!image) { sendJson(res, 400, { error: 'image required' }, origin); return; }
+      const result = await analyzePlate(image, language || 'en');
+      sendJson(res, 200, result, origin);
       return;
     }
 
