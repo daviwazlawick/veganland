@@ -136,7 +136,7 @@ export default function ProfileScreen({ navigation }) {
         <TouchableOpacity
           style={s.card}
           activeOpacity={0.9}
-          onPress={() => navigation.navigate(goals?.calories_kcal ? 'NutritionDashboard' : 'BodyProfile')}
+          onPress={() => navigation.navigate(goals?.calories_kcal ? 'NutritionDashboard' : 'EditPersonal')}
         >
           {goals?.calories_kcal ? (
             <>
@@ -167,7 +167,7 @@ export default function ProfileScreen({ navigation }) {
                   );
                 })}
               </View>
-              <Row icon="⚙️" label={t(language, 'nutrition.goals_title')} onPress={() => navigation.navigate('BodyProfile')} chevron />
+              <Row icon="⚙️" label={t(language, 'nutrition.goals_title')} onPress={() => navigation.navigate('NutritionGoals')} chevron />
             </>
           ) : (
             <View style={s.nutritionSetup}>

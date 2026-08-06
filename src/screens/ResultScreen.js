@@ -202,6 +202,9 @@ export default function ResultScreen({ navigation, route }) {
   if (kosherResult) {
     for (const f of kosherResult.flagged) kosherFlagMap.set(f.ingredient, f);
   }
+  const FOOD_PRODUCT_TYPES = new Set(['fresh_produce', 'processed_food']);
+  const isFood = !result.product_type || FOOD_PRODUCT_TYPES.has(result.product_type);
+
   const effectiveStatus = halalResult
     ? HALAL_TO_STATUS[halalResult.status]
     : kosherResult
@@ -606,10 +609,12 @@ export default function ResultScreen({ navigation, route }) {
       {!isOnboarding && (
         <View style={styles.footer}>
           <View style={styles.consumeRow}>
-            <TouchableOpacity style={styles.consumeBtn} onPress={() => setConsumeModal(true)} activeOpacity={0.85}>
-              <Text style={styles.consumeBtnText}>{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.scanAgainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
+            {isFood && (
+              <TouchableOpacity style={styles.consumeBtn} onPress={() => setConsumeModal(true)} activeOpacity={0.85}>
+                <Text style={styles.consumeBtnText}>{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={[styles.scanAgainBtn, !isFood && { flex: 1 }]} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
               <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
             </TouchableOpacity>
           </View>

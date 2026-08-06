@@ -46,6 +46,28 @@ export default function PlateAnalysisScreen({ navigation }) {
     }
   }
 
+  function pickImageWeb(useCamera) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (useCamera) input.capture = 'environment';
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target.result;
+        setImage(dataUrl);
+        setResult(null);
+        setLogged(false);
+        const base64 = dataUrl.split(',')[1];
+        await analyzeImage(base64);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
   async function analyzeImage(base64) {
     setAnalyzing(true);
     try {
@@ -106,10 +128,16 @@ export default function PlateAnalysisScreen({ navigation }) {
             <Text style={s.pickSub}>{t(language, 'nutrition.plate_subtitle')}</Text>
             <View style={s.pickBtns}>
               {Platform.OS === 'web' ? (
-                <TouchableOpacity style={[s.pickBtn, { flex: 1 }]} onPress={() => pickImage(false)}>
-                  <Text style={s.pickBtnIcon}>🖼️</Text>
-                  <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity style={s.pickBtn} onPress={() => pickImageWeb(true)}>
+                    <Text style={s.pickBtnIcon}>📷</Text>
+                    <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImageWeb(false)}>
+                    <Text style={s.pickBtnIcon}>🖼️</Text>
+                    <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
+                  </TouchableOpacity>
+                </>
               ) : (
                 <>
                   <TouchableOpacity style={s.pickBtn} onPress={() => pickImage(true)}>
