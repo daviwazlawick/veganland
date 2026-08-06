@@ -105,14 +105,23 @@ export default function PlateAnalysisScreen({ navigation }) {
             <Text style={s.pickTitle}>{t(language, 'nutrition.plate_title')}</Text>
             <Text style={s.pickSub}>{t(language, 'nutrition.plate_subtitle')}</Text>
             <View style={s.pickBtns}>
-              <TouchableOpacity style={s.pickBtn} onPress={() => pickImage(true)}>
-                <Text style={s.pickBtnIcon}>📷</Text>
-                <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImage(false)}>
-                <Text style={s.pickBtnIcon}>🖼️</Text>
-                <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
-              </TouchableOpacity>
+              {Platform.OS === 'web' ? (
+                <TouchableOpacity style={[s.pickBtn, { flex: 1 }]} onPress={() => pickImage(false)}>
+                  <Text style={s.pickBtnIcon}>🖼️</Text>
+                  <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <TouchableOpacity style={s.pickBtn} onPress={() => pickImage(true)}>
+                    <Text style={s.pickBtnIcon}>📷</Text>
+                    <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImage(false)}>
+                    <Text style={s.pickBtnIcon}>🖼️</Text>
+                    <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         ) : (
