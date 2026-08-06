@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
   ActivityIndicator, Image, Platform, Modal, TextInput,
-  KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard,
+  KeyboardAvoidingView, Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -46,7 +46,7 @@ function calcTotal(items) {
 }
 
 export default function PlateAnalysisScreen({ navigation }) {
-  const { language, profile } = useApp();
+  const { language, profile, setMonthlyScanCount } = useApp();
   const { token } = useAuth();
   const { logConsumption } = useNutrition();
   const insets = useSafeAreaInsets();
@@ -214,6 +214,7 @@ export default function PlateAnalysisScreen({ navigation }) {
     try {
       const data = await apiAnalyzePlate(token, base64, language, profile);
       setResult(data);
+      setMonthlyScanCount(c => c + 1);
       if (!data.items || data.items.length === 0) {
         Alert.alert('', t(language, 'nutrition.plate_no_food'));
       }
@@ -414,9 +415,7 @@ export default function PlateAnalysisScreen({ navigation }) {
       {/* ── Edit / Add Item Modal ── */}
       <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
         <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={{ flex: 1 }} />
-          </TouchableWithoutFeedback>
+          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditModal(false); }} />
           <View style={s.modalCard}>
             <View style={s.modalHeaderRow}>
               <Text style={s.modalTitle}>
@@ -559,7 +558,8 @@ const s = StyleSheet.create({
   logBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 
   // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modalCard: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, paddingBottom: 32, maxHeight: '85%',

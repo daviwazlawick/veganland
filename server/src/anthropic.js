@@ -1015,8 +1015,19 @@ Rules:
 - Do not include plate, cutlery, or non-food items
 - Be accurate and honest about diet compatibility — do not guess when in doubt, use CAUTION`;
 
+  // Detect actual image type from base64 magic bytes to avoid Anthropic rejection
+  function detectMediaType(b64) {
+    const head = b64.slice(0, 12);
+    if (head.startsWith('/9j/'))    return 'image/jpeg';
+    if (head.startsWith('iVBORw')) return 'image/png';
+    if (head.startsWith('UklGR'))  return 'image/webp';
+    if (head.startsWith('R0lGOD')) return 'image/gif';
+    return 'image/jpeg';
+  }
+  const mediaType = detectMediaType(imageBase64);
+
   const content = [
-    { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
+    { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
     { type: 'text', text: prompt },
   ];
 

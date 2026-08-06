@@ -37,7 +37,7 @@ const STATUS_CONFIG = {
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 
 export default function HomeScreen({ navigation }) {
-  const { language, profile, scanHistory } = useApp();
+  const { language, profile, scanHistory, monthlyScanCount } = useApp();
   const { stats: referralStats } = useReferral();
   const { goals, todayTotals, logConsumption } = useNutrition();
   const { token } = useAuth();
@@ -70,7 +70,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
         </View>
         <View style={styles.scanCountBadge}>
-          <Text style={styles.scanCountNum}>{scanHistory.length}</Text>
+          <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
           <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
         </View>
       </View>
