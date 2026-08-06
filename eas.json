@@ -4,6 +4,20 @@
     "appVersionSource": "local"
   },
   "build": {
+    "dev-veganland-ios": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "BRAND": "veganland",
+        "EXPO_PUBLIC_BRAND": "veganland",
+        "EXPO_PUBLIC_API_URL": "https://veganland.app",
+        "EXPO_PUBLIC_APP_API_KEY": "79se0AyWPbh963SvguuDFi10JsT0Mr9U",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "test_KvEHZeYRSGjmfSlXOXTqCEssMxK"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
     "novaqi-android": {
       "channel": "production",
       "env": {
