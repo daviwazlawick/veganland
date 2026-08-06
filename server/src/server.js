@@ -1104,14 +1104,15 @@ const server = http.createServer(async (req, res) => {
 
     // POST /auth/forgot-password
     if (req.method === 'POST' && req.url === '/auth/forgot-password') {
-      const { email } = await readJsonBody(req);
+      const { email, brand } = await readJsonBody(req);
       // Always return 200 to not reveal if email exists
       if (email && emailsEnabled()) {
         const user = await findUserByEmail(email);
         if (user) {
           const resetToken = crypto.randomBytes(32).toString('hex');
           await createPasswordResetToken(user.id, resetToken);
-          sendPasswordResetEmail(user.email, resetToken, req.headers['host']).catch(console.error);
+          const brandHint = brand === 'novaqi' ? 'novaqi.app' : req.headers['host'];
+          sendPasswordResetEmail(user.email, resetToken, brandHint).catch(console.error);
         }
       }
       sendJson(res, 200, { ok: true }, origin);

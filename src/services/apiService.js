@@ -164,10 +164,11 @@ export async function apiAcceptDisclaimer(token, disclaimerVersion) {
 }
 
 export async function apiForgotPassword(email) {
+  const brand = process.env.EXPO_PUBLIC_BRAND || 'veganland';
   const response = await fetch(`${baseUrl()}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, brand }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Request failed');
