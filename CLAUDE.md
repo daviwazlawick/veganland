@@ -826,3 +826,183 @@ Alterações significativas:
 6. **Data Safety / Nutrition Labels:** NÃO precisam actualização (não coletamos dados novos; `sub` é anónimo)
 
 ---
+
+## Sessão 2026-08-06 — Módulo de Nutrição (web-only, OTA-safe)
+
+Tudo o que foi implementado nesta sessão. Nenhuma mudança requer build nativo.
+
+### Módulo de Nutrição — visão geral
+
+Contextos e hooks de nutrição:
+- `src/context/NutritionContext.js` — `goals`, `bodyProfile`, `todayLog`, `todayTotals`, `weightHistory`, `logConsumption()`, `deleteConsumption()`, `addWeight()`, `refresh()`
+- BD: `consumption_log`, `user_nutrition_goals`, `body_profiles`, `weight_log`
+
+---
+
+### 1) Fix `consumed_at` NOT NULL
+
+`addConsumptionEntry` em `db.js` passava `consumed_at: null` explicitamente no INSERT, quebrando a constraint `NOT NULL DEFAULT now()`. Fix: remover coluna do INSERT e deixar o default da BD actuar.
+
+---
+
+### 2) "I Will Eat It" só para alimentos (não suplementos)
+
+**`ResultScreen.js`** — lógica de detecção de tipo:
+- `product_type` adicionado a `fullResult` em `analyze.js` (antes estava ausente → sempre `undefined`)
+- `productTypeFromCategories(categoriesTags)` em `analyze.js` detecta suplementos via `categories_tags` do OFF (termos: supplement, vitamin, mineral, multivitamin, probiotic, protein powder, nutraceutical, herbal)
+- Client-side: `isFood = !isSupplementByCategory && (!result.product_type || FOOD_PRODUCT_TYPES.has(result.product_type))`
+- Botão "I Will Eat It" só aparece quando `isFood === true`
+
+---
+
+### 3) Merge BodyProfile + EditPersonal
+
+`EditPersonalScreen.js` foi reescrito para incluir todos os campos de perfil corporal (sexo, data de nascimento, altura, peso, actividade, objectivo). Antes era um ecrã separado (`BodyProfileScreen`). `ProfileScreen` navega para `EditPersonal` em vez de `BodyProfile` para tudo o que seja informação pessoal.
+
+---
+
+### 4) Análise de prato com câmera web
+
+`PlateAnalysisScreen.js` — câmera web via:
+```js
+const input = document.createElement('input');
+input.type = 'file';
+input.accept = 'image/*';
+input.capture = 'environment';
+input.click();
+```
+`launchCameraAsync` do Expo no web abre galeria (file picker) — para câmera real no mobile browser é necessário o `capture='environment'` no input nativo.
+
+---
+
+### 5) Análise de prato com avaliação dietética
+
+`anthropic.js` — `analyzePlate(imageBase64, language, profile)` envia o perfil dietético do utilizador (diet + alergias) no prompt e devolve:
+- `diet_verdict: { status: 'SAFE'|'CAUTION'|'NOT_SAFE', concerns, explanation }`
+- Por item: `item_status`, `item_concern`
+
+`server.js` `/analyze-plate` extrai o perfil do body ou do utilizador na BD.
+
+`PlateAnalysisScreen.js` mostra banner colorido SAFE/CAUTION/NOT_SAFE com dot de estado por item.
+
+---
+
+### 6) Itens editáveis na análise de prato
+
+`PlateAnalysisScreen.js` — funcionalidades:
+- Tap num item → modal de edição (nome, grams, kcal, proteína, gordura, carbs, fibra)
+- Adicionar item novo (botão "+")
+- Autocompletar nome: `FOOD_SUGGESTIONS[language]` com lista por idioma (6 idiomas)
+- Editar nome manualmente limpa `item_status`/`item_concern` → forçar re-avaliação
+- Qualquer edição/remoção limpa `diet_verdict` (banner some até re-análise)
+- Modal usa `<View>` NOT `<ScrollView>` — ScrollView com `keyboardShouldPersistTaps` dentro de Modal bloqueia TouchableOpacity no web
+
+---
+
+### 7) Água rápida no NutritionDashboard + HomeScreen
+
+**NutritionDashboard:** card com +150/250/330/500ml  
+**HomeScreen:** card water com +250/+500ml + total ml de hoje  
+Ambos chamam `logConsumption({ product_name: 'Water', source: 'manual', water_ml: ml, meal_type: null })`
+
+---
+
+### 8) Fix delete no NutritionDashboard (web)
+
+`Alert.alert` com botões customizados não funciona no web (usa `window.confirm` internamente, que não suporta múltiplos botões).
+
+Fix em `NutritionDashboardScreen.js`:
+```js
+function handleDelete(id, name) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`Delete "${name}"?`)) deleteConsumption(id);
+  } else {
+    Alert.alert(...);
+  }
+}
+```
+
+---
+
+### 9) Entrada manual de alimentos no NutritionDashboard
+
+Modal com campos: nome, selector de refeição (chips breakfast/lunch/dinner/snack), grams, kcal, proteína, gordura, carbs. Chama `logConsumption` directamente — **sem usar créditos de scan**.
+
+---
+
+### 10) Botão Add Food na HomeScreen
+
+`HomeScreen.js` — botão "✏️ Add food" navega para `NutritionDashboard` com parâmetro `{ openAddFood: true }`. `NutritionDashboardScreen` detecta o parâmetro em `useFocusEffect` e abre o modal automaticamente.
+
+---
+
+### 11) Análise de prato conta como scan do plano
+
+`server.js` `/analyze-plate` — chama `checkAndIncrementScanCounter(claims.userId)` antes de correr a análise. Devolve 429 se o utilizador atingiu o limite mensal. `apiService.js` lança `Error('scan_limit_reached')` em 429. `PlateAnalysisScreen` mostra a mensagem de limite localizada.
+
+---
+
+### 12) Busca de alimentos com autocomplete
+
+**Endpoint:** `GET /nutrition/search?q=...`  
+**3 sources em paralelo:**
+1. `consumption_log` do próprio utilizador (histórico pessoal, prioridade máxima)
+2. `consumption_log` global agregado (média de macros de todos os utilizadores)
+3. `products` JOIN `scan_events` — produtos OFF já scaneados, nutrição extraída do JSON: `result->'productInfo'->'offMeta'->'nutrition_100g'`
+4. OFF live API fallback (`searchOffProducts()` em `openFoodFacts.js`) com timeout 4s — cobre produtos nunca scaneados na plataforma
+
+**Client:** debounce 350ms, mín 2 chars, sugestões mostradas abaixo do campo de nome. Tap numa sugestão preenche grams/kcal/proteína/gordura/carbs automaticamente.
+
+Campos de nutrição no JSON do OFF (`nutrition_100g`): `energy_kcal`, `proteins`, `carbohydrates`, `fat`, `fiber`, `sugars`, `salt` — todos per 100g.
+
+---
+
+### 13) Pratos recentes na HomeScreen
+
+**Endpoint:** `GET /nutrition/plates` — retorna até 10 entradas de `consumption_log` com `source='plate_photo'`, deduplicadas por `(product_name, consumed_at::date)`, ordenadas por data desc.
+
+`HomeScreen` busca ao montar (quando autenticado) e mostra secção "🍽️ Pratos recentes" abaixo de "Recent scans".
+
+---
+
+### nginx — novas rotas a adicionar
+
+As seguintes rotas do servidor foram adicionadas mas podem não estar no nginx:
+```
+/nutrition/.+
+/analyze-plate
+```
+Verificar em `/etc/nginx/sites-available/` e adicionar se necessário.
+
+---
+
+### BD — tabelas novas desta sessão
+
+**`consumption_log`**
+- `user_id`, `product_name`, `source` (`'scan'`|`'manual'`|`'plate_photo'`), `grams`, `meal_type`, `calories_kcal`, `protein_g`, `fat_g`, `carbs_g`, `fiber_g`, `sugar_g`, `salt_g`, `water_ml`, `notes`, `consumed_at timestamptz NOT NULL DEFAULT now()`
+
+**`weight_log`**
+- `user_id`, `weight_kg`, `recorded_at`
+
+**`user_nutrition_goals`**
+- `user_id`, `calories_kcal`, `protein_g`, `fat_g`, `carbs_g`, `fiber_g`, `sugar_g`, `salt_g`, `water_ml`, `is_custom`
+
+**`body_profiles`**
+- `user_id`, `sex`, `birth_date`, `height_cm`, `weight_kg`, `activity_level`, `goal`
+
+---
+
+### Ficheiros novos desta sessão
+
+```
+src/screens/
+  NutritionDashboardScreen.js  — dashboard diário com macros, água, peso, refeições, add food
+  NutritionGoalsScreen.js      — configuração de metas (calories, protein, etc.)
+  NutritionReportScreen.js     — relatório por período
+  PlateAnalysisScreen.js       — foto de prato → análise IA → editar itens → log
+  BodyProfileScreen.js         — dados corporais (integrado em EditPersonalScreen)
+src/context/
+  NutritionContext.js          — goals, todayLog, todayTotals, logConsumption, etc.
+```
+
+---
