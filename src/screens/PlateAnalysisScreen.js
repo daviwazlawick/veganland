@@ -107,8 +107,9 @@ export default function PlateAnalysisScreen({ navigation }) {
       Alert.alert('', 'O nome do alimento é obrigatório.');
       return;
     }
+    const prev = editIndex !== null ? editableItems[editIndex] : {};
+    const nameChanged = editDraft.name.trim() !== (prev.name || '');
     const item = {
-      ...(editIndex !== null ? editableItems[editIndex] : {}),
       name:          editDraft.name.trim(),
       grams:         parseFloat(editDraft.grams)         || 0,
       calories_kcal: parseFloat(editDraft.calories_kcal) || 0,
@@ -116,18 +117,24 @@ export default function PlateAnalysisScreen({ navigation }) {
       fat_g:         parseFloat(editDraft.fat_g)         || 0,
       carbs_g:       parseFloat(editDraft.carbs_g)       || 0,
       fiber_g:       parseFloat(editDraft.fiber_g)       || 0,
+      // clear diet classification when name changes — it belongs to the old food
+      item_status:   nameChanged ? null : (prev.item_status || null),
+      item_concern:  nameChanged ? null : (prev.item_concern || null),
     };
-    setEditableItems(prev => {
-      const next = [...prev];
+    setEditableItems(curr => {
+      const next = [...curr];
       if (editIndex === null) return [...next, item];
       next[editIndex] = item;
       return next;
     });
+    // any manual edit invalidates the overall plate verdict
+    setResult(r => r ? { ...r, diet_verdict: null } : r);
     setEditModal(false);
   }
 
   function deleteItem(index) {
     setEditableItems(prev => prev.filter((_, i) => i !== index));
+    setResult(r => r ? { ...r, diet_verdict: null } : r);
     setEditModal(false);
   }
 
