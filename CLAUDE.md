@@ -965,6 +965,26 @@ Campos de nutrição no JSON do OFF (`nutrition_100g`): `energy_kcal`, `proteins
 
 ---
 
+### 14) Fixes PlateAnalysis modal delete + webp + scan count (2026-08-06 tarde)
+
+**Delete não funcionava:** `TouchableWithoutFeedback > View (flex:1)` sobrepõe o modal card no web via CSS stacking context — swallows all pointer events including the header delete icon. Fix: substituir por `TouchableOpacity` com `StyleSheet.absoluteFillObject` como backdrop. O modal card fica sempre clicável pois é sibling no DOM, não filho do backdrop.
+
+**WebP rejeitado pela Anthropic:** câmera web devolve imagens webp mas o código enviava sempre `media_type: 'image/jpeg'`. Anthropic rejeita com `"image appears to be a image/webp image"`. Fix: detetar tipo real pelos magic bytes do base64:
+- `/9j/` → `image/jpeg`
+- `iVBORw` → `image/png`
+- `UklGR` → `image/webp`
+- `R0lGOD` → `image/gif`
+
+**Scan count badge no home:** mostrava `scanHistory.length` (só barcode scans de `scan_events`). Plate analyses não entram em `scan_events`, então o badge não subia. Fix:
+- `AppContext` carrega `usage.count` de `GET /user/me` no login → `monthlyScanCount`
+- `addScanToHistory` incrementa `monthlyScanCount` (barcode scans)
+- `PlateAnalysisScreen` incrementa `monthlyScanCount` após análise bem-sucedida
+- Home badge mostra `monthlyScanCount || scanHistory.length`
+
+**Recalcular macros ao mudar gramas:** ao abrir o modal de edição, guarda rácios per-gram. Ao alterar o campo grams, kcal/prot/fat/carbs/fiber recalculam proporcionalmente.
+
+---
+
 ### nginx — novas rotas a adicionar
 
 As seguintes rotas do servidor foram adicionadas mas podem não estar no nginx:
