@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 70">
   <circle cx="35" cy="35" r="21" stroke="#2FC472" stroke-width="6" fill="none"></circle>
   <path d="M48 48 C58 53 65 62 67 70" stroke="#F4B53F" stroke-width="6" fill="none" stroke-linecap="round"></path>
-  <text x="78" y="46" font-family="Syne, sans-serif" font-weight="800" font-size="38" letter-spacing="-1.5" fill="#FFFFFF">Nova<tspan fill="#2FC472">QI</tspan></text>
+  <text x="78" y="46" font-family="Manrope, sans-serif" font-weight="800" font-size="38" letter-spacing="-1.5" fill="#FFFFFF">Nova<tspan fill="#2FC472">QI</tspan></text>
 </svg>

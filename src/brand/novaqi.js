@@ -266,8 +266,8 @@ export default {
   domain: 'novaqi.app',
   basePath: '/novaqi',
   fonts: {
-    heading: 'Syne_800ExtraBold',
-    headingMed: 'Syne_700Bold',
+    heading: 'Manrope_800ExtraBold',
+    headingMed: 'Manrope_700Bold',
     body: 'PlusJakartaSans_500Medium',
     bodyBold: 'PlusJakartaSans_700Bold',
     mono: 'SpaceMono_400Regular',

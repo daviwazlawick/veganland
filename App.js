@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { Syne_700Bold, Syne_800ExtraBold } from '@expo-google-fonts/syne';
+import { Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
 import { PlusJakartaSans_500Medium, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -22,7 +22,7 @@ initPurchases();
 initAnalytics();
 
 const BRAND_FONTS = Brand.fonts
-  ? { Syne_700Bold, Syne_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, SpaceMono_400Regular, SpaceMono_700Bold }
+  ? { Manrope_700Bold, Manrope_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, SpaceMono_400Regular, SpaceMono_700Bold }
   : {};
 
 function AppContent() {

@@ -31,9 +31,9 @@
     "build:novaqi:deploy": "npm run build:novaqi && mkdir -p /var/www/novaqi && cp -r dist/* /var/www/novaqi/ && echo '✓ NovaQI deploy concluído'"
   },
   "dependencies": {
+    "@expo-google-fonts/manrope": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo-google-fonts/space-mono": "^0.4.2",
-    "@expo-google-fonts/syne": "^0.4.2",
     "@expo/metro-runtime": "~6.1.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-google-signin/google-signin": "^16.1.2",

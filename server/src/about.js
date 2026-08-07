@@ -12,7 +12,7 @@ const NOVAQI_TARGET_ICON = (size) => `<svg xmlns="http://www.w3.org/2000/svg" vi
   <path d="M37.2 39.6 C44.4 43.2 49.2 49.2 50.4 54" stroke="#F4B53F" stroke-width="5.4" fill="none" stroke-linecap="round"/>
 </svg>`;
 
-const NOVAQI_LOGO_HEADER = `<span style="display:flex;align-items:center;gap:10px">${NOVAQI_TARGET_ICON(32)}<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-1px;line-height:1;color:#fff">Nova<span style="color:#2FC472">QI</span></span></span>`;
+const NOVAQI_LOGO_HEADER = `<span style="display:flex;align-items:center;gap:10px">${NOVAQI_TARGET_ICON(32)}<span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:22px;letter-spacing:-1px;line-height:1;color:#fff">Nova<span style="color:#2FC472">QI</span></span></span>`;
 
 const NOVAQI_HERO_LOGO = null;
 
@@ -137,7 +137,7 @@ export function htmlAboutPage(host, lang) {
 <meta property="og:url" content="${b.appUrl}/about">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&display=swap" rel="stylesheet">
 <script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');fbq('track','ViewContent',{content_name:'${b.name}',content_category:'App'});</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
