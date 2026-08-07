@@ -2,7 +2,7 @@ import { tr, LANGS, LANG_NAMES } from './web_i18n.js';
 
 const BRANDS = {
   veganland: { name: 'VeganLand', primary: '#7CB518', dark: '#1C2B22', light: '#F0F7E6', appUrl: 'https://veganland.app', privacyUrl: 'https://veganland.app/legal/privacy', contactEmail: 'contact@veganland.app' },
-  novaqi:    { name: 'NovaQI',    primary: '#E8A020', dark: '#1E1B4B', light: '#F0F0FA', appUrl: 'https://novaqi.app',    privacyUrl: 'https://novaqi.app/legal/privacy',    contactEmail: 'contact@novaqi.app' },
+  novaqi:    { name: 'NovaQI',    primary: '#16A75A', dark: '#0E1B14', light: '#F6F3EB', appUrl: 'https://novaqi.app',    privacyUrl: 'https://novaqi.app/legal/privacy',    contactEmail: 'contact@novaqi.app' },
 };
 
 function getBrand(host) {

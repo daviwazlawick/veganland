@@ -14,8 +14,8 @@ function getConfig(brand) {
       from: process.env.NOVAQI_SMTP_FROM || 'NovaQI <contact@novaqi.app>',
       appUrl: 'https://novaqi.app',
       name: 'NovaQI',
-      color: '#1E1B4B',
-      emoji: '🎯',
+      color: '#0E1B14',
+      emoji: '🔍',
       user: process.env.NOVAQI_SMTP_USER,
       pass: process.env.NOVAQI_SMTP_PASS,
     };

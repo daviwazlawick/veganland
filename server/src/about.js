@@ -1,27 +1,18 @@
 import { tr, LANGS, LANG_NAMES } from './web_i18n.js';
 
-// Inline SVG assets from assets/novaqi/
+// Inline SVG assets — Icon C (scan ring merging into a leaf tail), matches assets/novaqi/*.svg
 const NOVAQI_TARGET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <circle cx="50" cy="50" r="30" stroke="#E8A020" stroke-width="3.5" fill="none"/>
-  <circle cx="50" cy="50" r="13" stroke="#E8A020" stroke-width="3.5" fill="none"/>
-  <circle cx="50" cy="50" r="5" fill="#E8A020"/>
-  <line x1="50" y1="8" x2="50" y2="22" stroke="#E8A020" stroke-width="3.5" stroke-linecap="round"/>
-  <line x1="50" y1="78" x2="50" y2="92" stroke="#E8A020" stroke-width="3.5" stroke-linecap="round"/>
-  <line x1="8" y1="50" x2="22" y2="50" stroke="#E8A020" stroke-width="3.5" stroke-linecap="round"/>
-  <line x1="78" y1="50" x2="92" y2="50" stroke="#E8A020" stroke-width="3.5" stroke-linecap="round"/>
+  <rect width="100" height="100" rx="24" fill="#0E1B14"/>
+  <circle cx="46" cy="46" r="30" stroke="#16A75A" stroke-width="9" fill="none"/>
+  <path d="M62 66 C74 72 82 82 84 90" stroke="#E8991C" stroke-width="9" fill="none" stroke-linecap="round"/>
 </svg>`;
 
 const NOVAQI_TARGET_ICON = (size) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="${size}" height="${size}">
-  <circle cx="30" cy="30" r="18" stroke="#E8A020" stroke-width="3" fill="none"/>
-  <circle cx="30" cy="30" r="8" stroke="#E8A020" stroke-width="3" fill="none"/>
-  <circle cx="30" cy="30" r="4" fill="#E8A020"/>
-  <line x1="30" y1="4" x2="30" y2="14" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
-  <line x1="30" y1="46" x2="30" y2="56" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
-  <line x1="4" y1="30" x2="14" y2="30" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
-  <line x1="46" y1="30" x2="56" y2="30" stroke="#E8A020" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="27.6" cy="27.6" r="18" stroke="#2FC472" stroke-width="5.4" fill="none"/>
+  <path d="M37.2 39.6 C44.4 43.2 49.2 49.2 50.4 54" stroke="#F4B53F" stroke-width="5.4" fill="none" stroke-linecap="round"/>
 </svg>`;
 
-const NOVAQI_LOGO_HEADER = `<span style="display:flex;align-items:center;gap:10px">${NOVAQI_TARGET_ICON(32)}<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-1px;line-height:1;color:#fff">Nova<span style="color:#E8A020">QI</span></span></span>`;
+const NOVAQI_LOGO_HEADER = `<span style="display:flex;align-items:center;gap:10px">${NOVAQI_TARGET_ICON(32)}<span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-1px;line-height:1;color:#fff">Nova<span style="color:#2FC472">QI</span></span></span>`;
 
 const NOVAQI_HERO_LOGO = null;
 
@@ -39,7 +30,7 @@ const BRANDS = {
     ],
   },
   novaqi: {
-    name: 'NovaQI', primary: '#E8A020', dark: '#1E1B4B', light: '#F0F0FA', accent: '#F5A623',
+    name: 'NovaQI', primary: '#16A75A', dark: '#0E1B14', light: '#F6F3EB', accent: '#E8991C',
     appUrl: 'https://novaqi.app',
     privacyUrl: 'https://novaqi.app/legal/privacy', termsUrl: 'https://novaqi.app/legal/terms', supportUrl: 'https://novaqi.app/support',
     iosUrl: 'https://apps.apple.com/us/app/novaqi-scan/id6775790620', androidUrl: 'https://play.google.com/store/apps/details?id=app.novaqi',

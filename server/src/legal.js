@@ -14,8 +14,8 @@ const BRANDS = {
   },
   novaqi: {
     name:         'NovaQI',
-    primaryColor: '#E8A020',
-    dark:         '#1E1B4B',
+    primaryColor: '#16A75A',
+    dark:         '#0E1B14',
     appUrl:       'https://novaqi.app',
     ownerName:    process.env.LEGAL_OWNER_NAME    || 'Davi Augusto Wazlawick',
     ownerAddress: process.env.LEGAL_OWNER_ADDRESS || '4 Frankfurter Allee, 10247 Berlin, Germany',

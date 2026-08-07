@@ -515,8 +515,8 @@ function htmlAdminUserPage(data, token) {
 const STORE_LINKS = {
   'novaqi.app': {
     name: 'NovaQI',
-    color: '#0B1E3F',
-    accent: '#FFCB3B',
+    color: '#0E1B14',
+    accent: '#E8991C',
     emoji: '🌱',
     iosUrl: 'https://apps.apple.com/us/app/novaqi-scan/id6775790620',
     androidUrl: 'https://play.google.com/store/apps/details?id=app.novaqi',
@@ -782,15 +782,15 @@ function htmlBrandMigrationLanding(code = null) {
   *{box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,${novaqi.color} 0%,#1a3a6e 100%);color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
   .card{background:#fff;border-radius:24px;padding:32px 24px;max-width:440px;width:100%;color:${novaqi.color};text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
-  .badge{display:inline-block;background:#FFCB3B;color:${novaqi.color};padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px}
+  .badge{display:inline-block;background:#E8991C;color:#fff;padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px}
   .arrow{font-size:28px;margin:8px 0;color:#94a3b8}
   .old-name{font-size:20px;color:#94a3b8;text-decoration:line-through;font-weight:600}
   .new-name{font-size:38px;font-weight:900;color:${novaqi.color};letter-spacing:-1px;line-height:1;margin-top:4px}
-  .new-name b{color:#FFCB3B;background:${novaqi.color};padding:0 6px;border-radius:6px}
+  .new-name b{color:#2FC472;background:${novaqi.color};padding:0 6px;border-radius:6px}
   p{color:#475569;margin:14px 0 0;line-height:1.5}
-  .code-box{background:#F4F6FA;border:2px dashed ${novaqi.color};border-radius:12px;padding:16px;margin:20px 0 4px;font-size:28px;font-weight:800;letter-spacing:4px;font-family:'Courier New',monospace}
+  .code-box{background:#F6F3EB;border:2px dashed ${novaqi.color};border-radius:12px;padding:16px;margin:20px 0 4px;font-size:28px;font-weight:800;letter-spacing:4px;font-family:'Courier New',monospace}
   .btn{display:block;width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:700;cursor:pointer;margin:10px 0;text-decoration:none;text-align:center}
-  .btn-primary{background:#FFCB3B;color:${novaqi.color}}
+  .btn-primary{background:#16A75A;color:#fff}
   .btn-secondary{background:${novaqi.color};color:#fff}
   .small{font-size:13px;color:#6b7280;margin-top:18px;line-height:1.5}
 </style>
@@ -834,21 +834,21 @@ function htmlReferralLanding(code, valid, host, brandOverride = null) {
     : '';
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0B1E3F">
+<meta name="theme-color" content="#0E1B14">
 <title>NovaQI — Convite</title>
 <style>
   *{box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,#0B1E3F 0%,#1a3a6e 100%);color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-  .card{background:#fff;border-radius:24px;padding:32px 24px;max-width:420px;width:100%;color:#0B1E3F;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
-  .badge{display:inline-block;background:#FFCB3B;color:#0B1E3F;padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(180deg,#0E1B14 0%,#143524 100%);color:#fff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:24px;padding:32px 24px;max-width:420px;width:100%;color:#0E1B14;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+  .badge{display:inline-block;background:#E8991C;color:#0E1B14;padding:6px 14px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px}
   h1{font-size:24px;margin:0 0 8px;line-height:1.3}
   .gift{font-size:48px;margin:8px 0}
-  .code-box{background:#F4F6FA;border:2px dashed #0B1E3F;border-radius:12px;padding:16px;margin:20px 0;font-size:28px;font-weight:800;letter-spacing:4px;font-family:'Courier New',monospace}
+  .code-box{background:#F6F3EB;border:2px dashed #0E1B14;border-radius:12px;padding:16px;margin:20px 0;font-size:28px;font-weight:800;letter-spacing:4px;font-family:'Courier New',monospace}
   .btn{display:block;width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:700;cursor:pointer;margin:10px 0;text-decoration:none;text-align:center}
-  .btn-primary{background:#FFCB3B;color:#0B1E3F}
-  .btn-secondary{background:#0B1E3F;color:#fff}
+  .btn-primary{background:#16A75A;color:#fff}
+  .btn-secondary{background:#0E1B14;color:#fff}
   .small{font-size:13px;color:#6b7280;margin-top:20px;line-height:1.5}
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0B1E3F;color:#fff;padding:12px 20px;border-radius:24px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0E1B14;color:#fff;padding:12px 20px;border-radius:24px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
   .toast.show{opacity:1}
 </style>
 <script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','868003866387139');fbq('track','PageView');fbq('track','Lead',{content_name:'referral_landing'});</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=868003866387139&ev=PageView&noscript=1"/></noscript>
