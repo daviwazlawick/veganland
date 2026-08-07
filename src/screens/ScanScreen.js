@@ -10,9 +10,11 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { analyzeProductWithApi, analyzeBarcodeWithApi, hasApiConfig } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const VALID_STATUSES = new Set(['SAFE', 'CAUTION', 'NOT_SAFE']);
 
@@ -259,7 +261,7 @@ export default function ScanScreen({ navigation, route }) {
           <PremiumIcon name="scan" size={54} />
         </View>
         <Text style={styles.permissionText}>{t(language, 'scan.camera_permission')}</Text>
-        <TouchableOpacity style={styles.allowButton} onPress={requestPermission} activeOpacity={0.9}>
+        <TouchableOpacity style={[styles.allowButton, !isNovaQI && styles.allowButtonSkeuo]} onPress={requestPermission} activeOpacity={0.9}>
           <Text style={styles.allowButtonText}>{t(language, 'scan.allow')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.galleryOnlyButton} onPress={handleGallery}>
@@ -423,7 +425,7 @@ export default function ScanScreen({ navigation, route }) {
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{t(language, 'scan.no_ingredients_prompt')}</Text>
             <TouchableOpacity
-              style={styles.errorBtn}
+              style={[styles.errorBtn, !isNovaQI && styles.errorBtnSkeuo]}
               onPress={() => { setNoIngredientsPrompt(false); setScanStep('ingredients'); }}
               activeOpacity={0.85}
             >
@@ -452,7 +454,7 @@ export default function ScanScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={styles.errorBtn}
+              style={[styles.errorBtn, !isNovaQI && styles.errorBtnSkeuo]}
               onPress={() => { setScanError(null); setIsLimitError(false); resetBarcodeScanner(); }}
               activeOpacity={0.85}
             >
@@ -657,10 +659,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 32,
     paddingVertical: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: Colors.primaryDark,
   },
-  errorBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  errorBtnSkeuo: { borderBottomWidth: 3, borderBottomColor: Colors.primaryDark },
+  errorBtnText: { color: Colors.white, fontSize: 15, fontWeight: '800' },
   permissionContainer: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -689,12 +690,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 40,
     paddingVertical: 16,
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.primaryDark,
     alignItems: 'center',
     width: '100%',
   },
-  allowButtonText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  allowButtonSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
+  allowButtonText: { color: Colors.white, fontSize: 17, fontWeight: '800' },
   galleryOnlyButton: { padding: 12 },
   galleryOnlyText: { color: Colors.accent, fontSize: 15, fontWeight: '700' },
 });

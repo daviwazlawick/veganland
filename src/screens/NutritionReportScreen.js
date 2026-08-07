@@ -5,7 +5,9 @@ import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const PERIODS = ['today', 'week', 'month'];
 
@@ -78,13 +80,13 @@ export default function NutritionReportScreen({ navigation }) {
 
         <View style={s.periodRow}>
           {PERIODS.map(p => (
-            <TouchableOpacity key={p} onPress={() => setPeriod(p)} style={[s.periodBtn, period === p && s.periodBtnActive]}>
+            <TouchableOpacity key={p} onPress={() => setPeriod(p)} style={[s.periodBtn, isNovaQI && s.periodBtnPaper, period === p && s.periodBtnActive]}>
               <Text style={[s.periodText, period === p && s.periodTextActive]}>{t(language, `nutrition.period_${p}`)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {loading && <ActivityIndicator color={Colors.navy || '#0B1E3F'} style={{ marginTop: 40 }} />}
+        {loading && <ActivityIndicator color={Colors.navy} style={{ marginTop: 40 }} />}
 
         {!loading && loaded && rows.length === 0 && (
           <View style={s.emptyCard}>
@@ -157,21 +159,22 @@ export default function NutritionReportScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6FA' },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.headerBg },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 28, color: Colors.headerText, marginTop: -2 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.headerText, fontFamily: BrandFonts?.heading },
   content: { padding: 16, gap: 14 },
   periodRow: { flexDirection: 'row', gap: 8 },
-  periodBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
-  periodBtnActive: { backgroundColor: Colors.navy || '#0B1E3F', borderColor: Colors.navy || '#0B1E3F' },
+  periodBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center' },
+  periodBtnPaper: { backgroundColor: Colors.backgroundSecondary, borderColor: Colors.backgroundSecondary },
+  periodBtnActive: { backgroundColor: Colors.navy, borderColor: Colors.navy },
   periodText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
   periodTextActive: { color: '#fff' },
-  emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
-  emptyText: { fontSize: 14, color: '#94a3b8', textAlign: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  emptyCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
+  card: { backgroundColor: Colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border, gap: 10 },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
   chartArea: { flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 4 },
   barCol: { flex: 1, alignItems: 'center', gap: 4 },
   barTrack: { flex: 1, width: '100%', backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden', position: 'relative', justifyContent: 'flex-end' },
@@ -182,11 +185,11 @@ const s = StyleSheet.create({
   statRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#e2e8f0' },
   statLabel: { flex: 1, fontSize: 13, color: '#475569', fontWeight: '600' },
-  statValue: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  statValue: { fontSize: 14, fontWeight: '800', color: Colors.navy, fontFamily: BrandFonts.mono || undefined },
   statUnit: { fontSize: 11, fontWeight: '400', color: '#94a3b8' },
   miniBar: { width: 50, height: 5, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
   miniFill: { height: 5, borderRadius: 3 },
   dayRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  dayLabel: { fontSize: 13, color: '#475569' },
-  dayKcal: { fontSize: 13, fontWeight: '700', color: Colors.navy || '#0B1E3F' },
+  dayLabel: { fontSize: 13, color: '#475569', fontFamily: BrandFonts.mono || undefined },
+  dayKcal: { fontSize: 13, fontWeight: '700', color: Colors.navy, fontFamily: BrandFonts.mono || undefined },
 });

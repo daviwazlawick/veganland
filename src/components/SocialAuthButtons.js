@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   appleBtn: { height: 50, width: '100%' },
   googleBtn: {
     height: 50, borderRadius: 14, backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#dadce0',
+    borderWidth: 1, borderColor: Colors.border,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   btnDisabled: { opacity: 0.6 },

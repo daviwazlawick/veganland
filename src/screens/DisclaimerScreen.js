@@ -7,8 +7,10 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { apiAcceptDisclaimer } from '../services/apiService';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const DISCLAIMER_VERSION = '1.0';
 
@@ -57,18 +59,22 @@ export default function DisclaimerScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.checkRow}
+          style={[styles.checkRow, isNovaQI && styles.checkRowNovaqi]}
           onPress={() => setChecked(v => !v)}
           activeOpacity={0.7}
         >
-          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+          <View style={[
+            styles.checkbox,
+            isNovaQI && styles.checkboxNovaqi,
+            checked && (isNovaQI ? styles.checkboxCheckedNovaqi : styles.checkboxChecked),
+          ]}>
             {checked && <Text style={styles.checkmark}>✓</Text>}
           </View>
           <Text style={styles.checkLabel}>{t(language, 'disclaimer.checkbox')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.acceptBtn, !checked && styles.acceptBtnDisabled]}
+          style={[styles.acceptBtn, !isNovaQI && styles.acceptBtnSkeuo, !checked && styles.acceptBtnDisabled]}
           onPress={checked ? handleAccept : undefined}
           activeOpacity={checked ? 0.85 : 1}
         >
@@ -148,6 +154,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  checkRowNovaqi: {
+    backgroundColor: Colors.cautionLight,
+    borderWidth: 1.5,
+    borderColor: Colors.caution,
+  },
   checkbox: {
     width: 24,
     height: 24,
@@ -163,7 +174,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  checkmark: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  checkboxNovaqi: { borderColor: Colors.caution },
+  checkboxCheckedNovaqi: { backgroundColor: Colors.caution, borderColor: Colors.caution },
+  checkmark: { color: Colors.white, fontSize: 14, fontWeight: '800' },
   checkLabel: {
     flex: 1,
     fontSize: 13,
@@ -177,14 +190,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.primaryDark,
   },
+  acceptBtnSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
   acceptBtnDisabled: {
     opacity: 0.4,
   },
   acceptBtnText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 17,
     fontWeight: '800',
     fontFamily: BrandFonts.heading || undefined,

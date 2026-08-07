@@ -18,6 +18,8 @@ import { useReferral } from '../context/ReferralContext';
 import { HIDE_REFERRAL } from '../constants/features';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 
+const isNovaQI = Brand.id === 'novaqi';
+
 const DISCLAIMER_VERSION = '1.0';
 
 const DISCLAIMER_BLOCKS = [
@@ -201,7 +203,7 @@ export default function RegisterScreen({ navigation }) {
           )}
 
           <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
+            style={[styles.btn, !isNovaQI && styles.btnSkeuo, loading && styles.btnDisabled]}
             onPress={handleRegister}
             activeOpacity={0.9}
             disabled={loading}
@@ -324,7 +326,7 @@ export default function RegisterScreen({ navigation }) {
             )}
 
             <TouchableOpacity
-              style={[styles.btn, loading && styles.btnDisabled]}
+              style={[styles.btn, !isNovaQI && styles.btnSkeuo, loading && styles.btnDisabled]}
               onPress={handleNext}
               activeOpacity={0.9}
               disabled={loading}
@@ -401,13 +403,13 @@ const styles = StyleSheet.create({
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 16, paddingVertical: 18, alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
     shadowColor: Colors.primary,
     shadowOpacity: 0.28,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
+  btnSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
   btnDisabled: { opacity: 0.4 },
   btnText: {
     color: Colors.white, fontSize: 17, fontWeight: '900',
@@ -426,15 +428,15 @@ const styles = StyleSheet.create({
   termsText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 20, fontWeight: '500' },
   termsLink: { color: Colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
   errorBanner: {
-    backgroundColor: '#FDECEA',
+    backgroundColor: Colors.dangerLight,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F5C6C2',
+    borderColor: Colors.danger + '55',
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   errorBannerText: {
-    color: '#C0392B',
+    color: Colors.dangerDark,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
@@ -452,7 +454,7 @@ const styles = StyleSheet.create({
   disclaimerTopWrap: { alignItems: 'center', gap: 10, paddingVertical: 8 },
   disclaimerIconCircle: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: '#FFF3CD',
+    backgroundColor: Colors.cautionLight,
     alignItems: 'center', justifyContent: 'center',
   },
   disclaimerTopIcon: { fontSize: 32 },
@@ -479,21 +481,21 @@ const styles = StyleSheet.create({
   },
   checkRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: '#FFF8E7',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 16, padding: 16,
-    borderWidth: 1.5, borderColor: '#F5A623',
+    borderWidth: 1.5, borderColor: Colors.caution,
   },
   checkboxLarge: {
     width: 26, height: 26, borderRadius: 7,
-    borderWidth: 2, borderColor: '#F5A623',
-    backgroundColor: '#fff',
+    borderWidth: 2, borderColor: Colors.caution,
+    backgroundColor: Colors.white,
     alignItems: 'center', justifyContent: 'center',
     marginTop: 1, flexShrink: 0,
   },
-  checkboxLargeChecked: { backgroundColor: '#F5A623', borderColor: '#F5A623' },
-  checkmarkLarge: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  checkboxLargeChecked: { backgroundColor: Colors.caution, borderColor: Colors.caution },
+  checkmarkLarge: { color: Colors.white, fontSize: 15, fontWeight: '900' },
   checkRowLabel: {
-    flex: 1, fontSize: 13, color: '#5C3D00',
+    flex: 1, fontSize: 13, color: Colors.cautionDark,
     lineHeight: 20, fontWeight: '600',
   },
   logoCircle: {

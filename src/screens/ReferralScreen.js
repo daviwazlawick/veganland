@@ -149,7 +149,7 @@ export default function ReferralScreen({ navigation }) {
               value={codeInput}
               onChangeText={text => setCodeInput(text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
               placeholder="ABCD23"
-              placeholderTextColor={Colors.headerMuted}
+              placeholderTextColor={Colors.textMuted}
               autoCapitalize="characters"
               maxLength={6}
               style={styles.enterCodeInput}
@@ -165,7 +165,7 @@ export default function ReferralScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background || '#F4F6FA' },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 16, paddingVertical: 14,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -177,73 +177,73 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 14 },
 
   heroCard: {
-    backgroundColor: Colors.navy || '#0B1E3F',
+    backgroundColor: Colors.navy,
     borderRadius: 24, padding: 24, alignItems: 'center',
   },
   heroEmoji: { fontSize: 44, marginBottom: 6 },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 6 },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: Colors.white, textAlign: 'center', marginBottom: 6 },
   heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 20 },
 
   codeCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 20, padding: 18,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: Colors.border,
   },
-  codeLabel: { fontSize: 12, color: Colors.headerMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
-  codeText: { fontSize: 36, fontWeight: '800', color: Colors.navy || '#0B1E3F', letterSpacing: 6, textAlign: 'center', fontFamily: 'Courier' },
+  codeLabel: { fontSize: 12, color: Colors.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
+  codeText: { fontSize: 36, fontWeight: '800', color: Colors.navy, letterSpacing: 6, textAlign: 'center', fontFamily: BrandFonts.mono || 'Courier' },
   codeBtnRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   codeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  codeBtnSecondary: { backgroundColor: Colors.primaryBg || '#EEF4FF', borderWidth: 1, borderColor: Colors.primaryLight || '#cbd5e1' },
-  codeBtnSecondaryText: { color: Colors.navy || '#0B1E3F', fontWeight: '700' },
-  codeBtnPrimary: { backgroundColor: Colors.navy || '#0B1E3F' },
-  codeBtnPrimaryText: { color: '#fff', fontWeight: '700' },
+  codeBtnSecondary: { backgroundColor: Colors.primaryBg, borderWidth: 1, borderColor: Colors.primaryLight },
+  codeBtnSecondaryText: { color: Colors.navy, fontWeight: '700' },
+  codeBtnPrimary: { backgroundColor: Colors.navy },
+  codeBtnPrimaryText: { color: Colors.white, fontWeight: '700' },
 
   progressCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 20, padding: 18,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: Colors.border,
   },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  progressLabel: { fontSize: 14, color: Colors.navy || '#0B1E3F', fontWeight: '600' },
-  progressBadge: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
-  progressBar: { height: 10, backgroundColor: '#E5E7EB', borderRadius: 5, marginTop: 10, overflow: 'hidden' },
-  progressFill: { height: 10, backgroundColor: '#FFCB3B', borderRadius: 5 },
-  pendingNote: { fontSize: 13, color: Colors.headerMuted, marginTop: 10 },
+  progressLabel: { fontSize: 14, color: Colors.navy, fontWeight: '600' },
+  progressBadge: { fontSize: 14, fontWeight: '800', color: Colors.navy, fontFamily: BrandFonts.mono || undefined },
+  progressBar: { height: 10, backgroundColor: Colors.border, borderRadius: 5, marginTop: 10, overflow: 'hidden' },
+  progressFill: { height: 10, backgroundColor: Colors.primary, borderRadius: 5 },
+  pendingNote: { fontSize: 13, color: Colors.textMuted, marginTop: 10 },
 
   promoCard: {
-    backgroundColor: '#FFF8E1',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: '#FFCB3B',
+    borderWidth: 1, borderColor: Colors.caution,
   },
   promoEmoji: { fontSize: 30 },
-  promoTitle: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
-  promoSub: { fontSize: 12, color: Colors.headerMuted, marginTop: 2 },
+  promoTitle: { fontSize: 14, fontWeight: '800', color: Colors.navy },
+  promoSub: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
 
-  rewardedTotal: { fontSize: 13, color: Colors.headerMuted, textAlign: 'center' },
+  rewardedTotal: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
 
   howCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 20, padding: 18,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: Colors.border,
   },
-  howTitle: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F', marginBottom: 10 },
-  howStep: { fontSize: 13, color: '#4b5563', lineHeight: 22 },
+  howTitle: { fontSize: 14, fontWeight: '800', color: Colors.navy, marginBottom: 10 },
+  howStep: { fontSize: 13, color: Colors.textLight, lineHeight: 22 },
 
   haveCodeLink: { alignItems: 'center', paddingVertical: 10 },
-  haveCodeText: { color: Colors.navy || '#0B1E3F', textDecorationLine: 'underline', fontSize: 14 },
+  haveCodeText: { color: Colors.navy, textDecorationLine: 'underline', fontSize: 14 },
 
   enterCodeCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 20, padding: 18,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    borderWidth: 1, borderColor: Colors.border,
   },
-  enterCodeLabel: { fontSize: 13, color: Colors.headerMuted, marginBottom: 8 },
+  enterCodeLabel: { fontSize: 13, color: Colors.textMuted, marginBottom: 8 },
   enterCodeInput: {
-    borderWidth: 2, borderColor: '#cbd5e1', borderRadius: 12,
+    borderWidth: 2, borderColor: Colors.border, borderRadius: 12,
     padding: 14, fontSize: 22, letterSpacing: 4, textAlign: 'center',
-    fontFamily: 'Courier', color: Colors.navy || '#0B1E3F',
+    fontFamily: BrandFonts.mono || 'Courier', color: Colors.navy,
   },
-  applyBtn: { backgroundColor: Colors.navy || '#0B1E3F', padding: 14, borderRadius: 12, marginTop: 12, alignItems: 'center' },
-  applyBtnText: { color: '#fff', fontWeight: '800' },
+  applyBtn: { backgroundColor: Colors.navy, padding: 14, borderRadius: 12, marginTop: 12, alignItems: 'center' },
+  applyBtnText: { color: Colors.white, fontWeight: '800' },
 });

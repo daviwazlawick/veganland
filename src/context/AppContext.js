@@ -49,6 +49,7 @@ export function AppProvider({ children }) {
   const [disclaimerAccepted, setDisclaimerAcceptedState] = useState(false);
   const [appSurveyDone, setAppSurveyDoneState] = useState(false);
   const [monthlyScanCount, setMonthlyScanCount] = useState(0);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     loadAll();
@@ -66,8 +67,9 @@ export function AppProvider({ children }) {
 
   async function loadServerProfile() {
     try {
-      const { user, usage } = await apiGetMe(token);
+      const { user, usage, streak: streakValue } = await apiGetMe(token);
       if (usage?.count != null) setMonthlyScanCount(usage.count + (usage.bonus_remaining != null ? 0 : 0));
+      if (streakValue != null) setStreak(streakValue);
       if (user?.diet_id) {
         const localRaw = await AsyncStorage.getItem(STORAGE_KEYS.profile);
         const local = localRaw ? JSON.parse(localRaw) : {};
@@ -242,6 +244,7 @@ export function AppProvider({ children }) {
         addScanToHistory,
         monthlyScanCount,
         setMonthlyScanCount,
+        streak,
         isLoaded,
         isProfileLoaded,
         disclaimerAccepted,

@@ -1305,6 +1305,47 @@ export async function getScanUsage(userId) {
   return { count: Number(usageRes.rows[0]?.count || 0), limit, resets_at, bonus_remaining, bonus_expires_at };
 }
 
+// Consecutive days (up to today) with at least one scan or logged meal.
+// Counts as "current" if the most recent activity was today or yesterday
+// (so the streak doesn't reset to 0 before the user opens the app today).
+export async function getUserStreak(userId) {
+  const db = await getPool();
+  if (!db) return 0;
+
+  const res = await db.query(
+    `select day::date as day from (
+       select date_trunc('day', created_at) as day from scan_events where user_id = $1
+       union
+       select date_trunc('day', consumed_at) as day from consumption_log where user_id = $1
+     ) days
+     order by day desc
+     limit 400`,
+    [userId]
+  );
+  if (res.rows.length === 0) return 0;
+
+  const toDayStr = (d) => new Date(d).toISOString().slice(0, 10);
+  const days = res.rows.map(r => toDayStr(r.day));
+
+  const now = new Date();
+  const todayStr = toDayStr(now);
+  const yesterdayStr = toDayStr(new Date(now.getTime() - 86400000));
+  if (days[0] !== todayStr && days[0] !== yesterdayStr) return 0;
+
+  let streak = 1;
+  let cursor = new Date(`${days[0]}T00:00:00Z`);
+  for (let i = 1; i < days.length; i++) {
+    const expectedStr = toDayStr(new Date(cursor.getTime() - 86400000));
+    if (days[i] === expectedStr) {
+      streak++;
+      cursor = new Date(`${expectedStr}T00:00:00Z`);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 export async function insertScanFeedback({ scanId, userId, rating, comment, isOnboarding }) {
   const db = await getPool();
   if (!db) return null;

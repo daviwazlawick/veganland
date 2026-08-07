@@ -34,8 +34,10 @@ function Row({ icon, label, value, onPress, danger, chevron = true }) {
   );
 }
 
+const isNovaQI = Brand.id === 'novaqi';
+
 export default function ProfileScreen({ navigation }) {
-  const { language, setLanguage, profile } = useApp();
+  const { language, setLanguage, profile, monthlyScanCount, scanHistory, streak } = useApp();
   const { user, token, logout } = useAuth();
   const { stats: referralStats } = useReferral();
   const { goals, todayTotals, bodyProfile } = useNutrition();
@@ -70,8 +72,21 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <View style={s.header}>
+      <View style={[s.header, isNovaQI && s.headerNovaqi]}>
         <Text style={s.headerTitle}>{t(language, 'profile.title')}</Text>
+        {isNovaQI && (
+          <View style={s.headerStatsRow}>
+            <View style={s.headerStat}>
+              <Text style={s.headerStatNumAmber}>{streak || 0}</Text>
+              <Text style={s.headerStatLabel}>{t(language, 'home.streak_label')}</Text>
+            </View>
+            <View style={s.headerStatDivider} />
+            <View style={s.headerStat}>
+              <Text style={s.headerStatNum}>{monthlyScanCount || scanHistory.length}</Text>
+              <Text style={s.headerStatLabel}>{t(language, 'home.scans_label')}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 110 }]}>
@@ -319,9 +334,16 @@ function PersonalHero({ profile, user, language, navigation }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F7' },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: Colors.headerBg },
+  headerNovaqi: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingBottom: 20 },
   headerTitle: { fontSize: 34, fontWeight: '800', color: Colors.headerText, fontFamily: BrandFonts.heading || undefined },
+  headerStatsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 20 },
+  headerStat: { alignItems: 'flex-start' },
+  headerStatDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.2)' },
+  headerStatNum: { fontSize: 20, fontWeight: '800', color: Colors.white, fontFamily: BrandFonts.mono || undefined },
+  headerStatNumAmber: { fontSize: 20, fontWeight: '800', color: Colors.accent, fontFamily: BrandFonts.mono || undefined },
+  headerStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   scroll: { paddingHorizontal: 16, paddingTop: 16, gap: 0 },
 
   sectionLabel: {
@@ -364,13 +386,13 @@ const s = StyleSheet.create({
   // Referral
   referralCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FFFBEB', borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: '#FDE68A', marginTop: 12,
+    backgroundColor: Colors.cautionLight, borderRadius: 18, padding: 14,
+    borderWidth: 1, borderColor: Colors.caution, marginTop: 12,
   },
   referralEmoji: { fontSize: 24 },
-  referralTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
-  referralSub: { fontSize: 12, color: '#B45309', marginTop: 1 },
-  referralChev: { fontSize: 22, color: '#B45309', fontWeight: '700' },
+  referralTitle: { fontSize: 14, fontWeight: '800', color: Colors.cautionDark },
+  referralSub: { fontSize: 12, color: Colors.caution, marginTop: 1 },
+  referralChev: { fontSize: 22, color: Colors.caution, fontWeight: '700' },
 
   // Rows
   row: {

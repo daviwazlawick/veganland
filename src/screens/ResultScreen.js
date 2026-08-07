@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useReferral } from '../context/ReferralContext';
 import { useNutrition } from '../context/NutritionContext';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
@@ -15,6 +15,8 @@ import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
 import AppSurveyModal from '../components/ui/AppSurveyModal';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const STATUS_CONFIG = {
   SAFE: {
@@ -285,7 +287,18 @@ export default function ResultScreen({ navigation, route }) {
         </View>
 
         {result.imageUri && (
-          <Image source={{ uri: result.imageUri }} style={styles.productImage} resizeMode="cover" />
+          <View style={[styles.productImageWrap, isNovaQI && styles.productImageWrapNovaqi]}>
+            <Image source={{ uri: result.imageUri }} style={styles.productImage} resizeMode="cover" />
+            {isNovaQI && (
+              <>
+                <View style={styles.productImageScrim} />
+                <View style={[styles.productImageBadge, { backgroundColor: cfg.bannerBg }]}>
+                  <PremiumIcon name={cfg.icon} size={18} color={Colors.white} />
+                </View>
+                <Text style={styles.productImageScrimText}>{bannerTitleText}</Text>
+              </>
+            )}
+          </View>
         )}
 
         <View style={[styles.analysisCard, { borderColor: cfg.cardBorder, backgroundColor: cfg.cardBg }]}>
@@ -614,12 +627,20 @@ export default function ResultScreen({ navigation, route }) {
         <View style={styles.footer}>
           <View style={styles.consumeRow}>
             {isFood && (
-              <TouchableOpacity style={styles.consumeBtn} onPress={() => setConsumeModal(true)} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[styles.consumeBtn, isNovaQI && styles.consumeBtnNovaqi]}
+                onPress={() => setConsumeModal(true)}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.consumeBtnText}>{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={[styles.scanAgainBtn, !isFood && { flex: 1 }]} onPress={() => navigation.navigate('Scan')} activeOpacity={0.9}>
-              <Text style={styles.scanAgainText}>{t(language, 'result.scan_again')}</Text>
+            <TouchableOpacity
+              style={[styles.scanAgainBtn, isNovaQI && styles.scanAgainBtnOutline, !isFood && { flex: 1 }]}
+              onPress={() => navigation.navigate('Scan')}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.scanAgainText, isNovaQI && styles.scanAgainTextOutline]}>{t(language, 'result.scan_again')}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
@@ -830,7 +851,28 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%', height: 200,
     backgroundColor: Colors.border,
-    marginTop: 20,
+  },
+  productImageWrap: { marginTop: 20 },
+  productImageWrapNovaqi: {
+    borderRadius: 20, overflow: 'hidden',
+    shadowColor: Colors.navy, shadowOpacity: 0.12, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 4,
+  },
+  productImageScrim: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: 64,
+    backgroundColor: 'rgba(6,17,12,0.55)',
+  },
+  productImageBadge: {
+    position: 'absolute', bottom: 12, right: 12,
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.white,
+  },
+  productImageScrimText: {
+    position: 'absolute', left: 14, bottom: 18,
+    color: Colors.white, fontSize: 15, fontWeight: '800',
+    fontFamily: BrandFonts.heading || undefined,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   analysisCard: {
     margin: 16,
@@ -920,7 +962,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   nutritionLabel: { fontSize: 12, color: Colors.textLight, fontWeight: '600' },
-  nutritionValue: { fontSize: 13, color: Colors.text, fontWeight: '800' },
+  nutritionValue: { fontSize: 13, color: Colors.text, fontWeight: '800', fontFamily: BrandFonts.mono || undefined },
   metaChipSection: { gap: 6 },
   metaChipLabel: { fontSize: 11, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3, textTransform: 'uppercase' },
   metaChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -931,11 +973,11 @@ const styles = StyleSheet.create({
   },
   metaChipText: { fontSize: 12, color: Colors.textLight, fontWeight: '700' },
   labelChip: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: Colors.safeLight,
     borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4,
-    borderWidth: 1, borderColor: '#16A34A40',
+    borderWidth: 1, borderColor: Colors.safe + '40',
   },
-  labelChipText: { fontSize: 12, color: '#166534', fontWeight: '800' },
+  labelChipText: { fontSize: 12, color: Colors.safeDark, fontWeight: '800' },
   ingredientsCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: Colors.card,
@@ -959,38 +1001,38 @@ const styles = StyleSheet.create({
   ingredientsEmpty: { fontSize: 14, color: Colors.textLight, fontStyle: 'italic' },
   allergensCard: {
     marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#FFF8ED',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 28, padding: 20,
-    borderWidth: 1, borderColor: '#F59E0B40',
+    borderWidth: 1, borderColor: Colors.caution + '40',
     gap: 14,
   },
   allergensTitle: { fontSize: 16, fontWeight: '900', color: Colors.text },
   allergensWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   allergenChip: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: '#F59E0B60',
+    borderWidth: 1, borderColor: Colors.caution + '60',
   },
-  allergenText: { fontSize: 13, color: '#92400E', fontWeight: '800' },
+  allergenText: { fontSize: 13, color: Colors.cautionDark, fontWeight: '800' },
   allergensNone: { fontSize: 14, color: Colors.textLight, fontStyle: 'italic' },
   tracesCard: {
     marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 28, padding: 20,
-    borderWidth: 1, borderColor: '#F59E0B60',
+    borderWidth: 1, borderColor: Colors.caution + '60',
     gap: 14,
   },
   tracesHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   tracesIcon: { fontSize: 20, lineHeight: 24 },
-  tracesTitle: { fontSize: 15, fontWeight: '900', color: '#92400E' },
-  tracesSubtitle: { fontSize: 13, color: '#B45309', fontWeight: '500', marginTop: 2 },
+  tracesTitle: { fontSize: 15, fontWeight: '900', color: Colors.cautionDark },
+  tracesSubtitle: { fontSize: 13, color: Colors.caution, fontWeight: '500', marginTop: 2 },
   tracesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   traceChip: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: '#F59E0B80',
+    borderWidth: 1, borderColor: Colors.caution + '80',
   },
-  traceText: { fontSize: 13, color: '#92400E', fontWeight: '700' },
+  traceText: { fontSize: 13, color: Colors.cautionDark, fontWeight: '700' },
   concernsCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: Colors.card,
@@ -1030,7 +1072,7 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
-    backgroundColor: 'rgba(250,248,244,0.94)',
+    backgroundColor: Colors.footerScrim || 'rgba(250,248,244,0.94)',
     borderTopWidth: 0,
   },
   scanAgainBtn: {
@@ -1043,15 +1085,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
+  scanAgainBtnOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5, borderColor: Colors.text,
+    shadowOpacity: 0,
+  },
   scanAgainText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  scanAgainTextOutline: { color: Colors.text },
   wrongProductBtn: { alignItems: 'center', paddingTop: 14 },
   wrongProductText: { color: Colors.textLight, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
   consumeRow: { flexDirection: 'row', gap: 10 },
-  consumeBtn: { flex: 1, backgroundColor: '#10B981', borderRadius: 18, paddingVertical: 18, alignItems: 'center' },
-  consumeBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  consumeBtn: { flex: 1, backgroundColor: Colors.safe, borderRadius: 18, paddingVertical: 18, alignItems: 'center' },
+  consumeBtnNovaqi: { backgroundColor: Colors.primary },
+  consumeBtnText: { color: Colors.white, fontSize: 15, fontWeight: '900' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  consumeModalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 36, gap: 10 },
-  consumeModalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center', marginBottom: 2 },
+  consumeModalCard: { backgroundColor: Colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 36, gap: 10 },
+  consumeModalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy, textAlign: 'center', marginBottom: 2 },
   consumeProductName: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 6 },
   consumeFieldLabel: { fontSize: 12, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6 },
   mealRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },

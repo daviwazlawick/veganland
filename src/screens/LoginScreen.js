@@ -8,10 +8,12 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { apiResendConfirmationByEmail } from '../services/apiService';
 import SocialAuthButtons from '../components/SocialAuthButtons';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -134,7 +136,7 @@ export default function LoginScreen({ navigation }) {
             )}
 
             <TouchableOpacity
-              style={[styles.btn, loading && styles.btnDisabled]}
+              style={[styles.btn, !isNovaQI && styles.btnSkeuo, loading && styles.btnDisabled]}
               onPress={handleLogin}
               activeOpacity={0.9}
               disabled={loading}
@@ -216,25 +218,25 @@ const styles = StyleSheet.create({
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 16, paddingVertical: 18, alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
     shadowColor: Colors.primary,
     shadowOpacity: 0.28,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
+  btnSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
   btnDisabled: { opacity: 0.6 },
   btnText: {
     color: Colors.white, fontSize: 17, fontWeight: '900',
     fontFamily: BrandFonts.heading || undefined,
   },
   confirmationBox: {
-    backgroundColor: '#FEF9C3',
-    borderRadius: 12, borderWidth: 1, borderColor: '#FDE047',
+    backgroundColor: Colors.cautionLight,
+    borderRadius: 12, borderWidth: 1, borderColor: Colors.caution + '55',
     paddingHorizontal: 12, paddingVertical: 10,
     gap: 8, alignItems: 'center',
   },
-  confirmationText: { color: '#854D0E', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  confirmationText: { color: Colors.cautionDark, fontSize: 13, fontWeight: '700', textAlign: 'center' },
   resendBtn: { paddingVertical: 4 },
   resendText: { color: Colors.primary, fontSize: 13, fontWeight: '800' },
   forgotBtn: { alignItems: 'center', paddingVertical: 4 },

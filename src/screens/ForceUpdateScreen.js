@@ -2,10 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { BrandName, BrandLogo } from '../components/ui';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 export default function ForceUpdateScreen({ storeUrl }) {
   const { language } = useApp();
@@ -22,7 +24,7 @@ export default function ForceUpdateScreen({ storeUrl }) {
 
           {storeUrl && (
             <TouchableOpacity
-              style={styles.btn}
+              style={[styles.btn, !isNovaQI && styles.btnSkeuo]}
               onPress={() => Linking.openURL(storeUrl)}
               activeOpacity={0.9}
             >
@@ -41,7 +43,7 @@ const styles = StyleSheet.create({
   appName: { fontSize: 36, fontWeight: '800', fontFamily: BrandFonts.heading || undefined, letterSpacing: -1 },
   card: {
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: Colors.glass,
     borderRadius: 28, padding: 26, gap: 16,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)',
     shadowColor: Colors.navy, shadowOpacity: 0.08, shadowRadius: 24,
@@ -52,7 +54,7 @@ const styles = StyleSheet.create({
   btn: {
     backgroundColor: Colors.primary,
     borderRadius: 16, paddingVertical: 18, alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
   },
+  btnSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
   btnText: { color: Colors.white, fontSize: 17, fontWeight: '900', fontFamily: BrandFonts.heading || undefined },
 });

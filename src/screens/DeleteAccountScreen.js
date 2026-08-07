@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32, gap: 10,
-    backgroundColor: 'rgba(250,248,244,0.96)',
+    backgroundColor: Colors.footerScrim || 'rgba(250,248,244,0.96)',
   },
   deleteBtn: {
     backgroundColor: Colors.danger,

@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import Brand from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import {
   isPurchasesAvailable,
   fetchCurrentOffering,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   planPriceWrap: { alignItems: 'flex-end' },
-  planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text },
+  planPrice: { fontSize: 20, fontWeight: '900', color: Colors.text, fontFamily: BrandFonts.mono || undefined },
   planPriceSelected: { color: Colors.primaryDark },
   planPerMonth: { fontSize: 11, color: Colors.textLight, fontWeight: '600' },
   radio: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
-    backgroundColor: 'rgba(250,248,244,0.94)',
+    backgroundColor: Colors.footerScrim || 'rgba(250,248,244,0.94)',
   },
   btn: {
     backgroundColor: Colors.primaryDark,

@@ -7,8 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import Brand, { BrandFonts } from '../brand';
 import { apiForgotPassword } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const { language } = useApp();
@@ -69,7 +72,7 @@ export default function ForgotPasswordScreen({ navigation }) {
               <Text style={styles.successText}>
                 {t(language, 'auth.forgot_password_success')}
               </Text>
-              <TouchableOpacity style={styles.btn} onPress={() => navigation.goBack()}>
+              <TouchableOpacity style={[styles.btn, !isNovaQI && styles.btnSkeuo]} onPress={() => navigation.goBack()}>
                 <Text style={styles.btnText}>
                   {t(language, 'auth.back_to_login')}
                 </Text>
@@ -93,7 +96,7 @@ export default function ForgotPasswordScreen({ navigation }) {
               </View>
 
               <TouchableOpacity
-                style={[styles.btn, loading && styles.btnDisabled]}
+                style={[styles.btn, !isNovaQI && styles.btnSkeuo, loading && styles.btnDisabled]}
                 onPress={handleSubmit}
                 activeOpacity={0.9}
                 disabled={loading}
@@ -122,7 +125,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: Colors.primary + '40',
   },
-  title: { fontSize: 30, fontWeight: '700', color: Colors.text, textAlign: 'center', fontFamily: 'serif' },
+  title: { fontSize: 30, fontWeight: '700', color: Colors.text, textAlign: 'center', fontFamily: BrandFonts.heading || 'serif' },
   subtitle: { fontSize: 14, color: Colors.textMuted, fontWeight: '500', textAlign: 'center', lineHeight: 20 },
   card: {
     backgroundColor: Colors.card,
@@ -151,9 +154,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 18,
     alignItems: 'center',
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.primaryDark,
   },
+  btnSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
   successTitle: { fontSize: 22, fontWeight: '900', color: Colors.text, textAlign: 'center' },

@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { PremiumIcon, BrandName } from '../components/ui';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 export default function WelcomeScreen({ navigation }) {
   const { language, setLanguage } = useApp();
@@ -22,8 +24,12 @@ export default function WelcomeScreen({ navigation }) {
           <Text style={styles.langText}>{currentLanguage.flag}</Text>
         </TouchableOpacity>
 
-        <View style={[styles.botanicalOrb, styles.orbA]} />
-        <View style={[styles.botanicalOrb, styles.orbB]} />
+        {!isNovaQI && (
+          <>
+            <View style={[styles.botanicalOrb, styles.orbA]} />
+            <View style={[styles.botanicalOrb, styles.orbB]} />
+          </>
+        )}
 
         <View style={styles.logoWrap}>
           <View style={styles.logoCircle}>
@@ -58,7 +64,7 @@ export default function WelcomeScreen({ navigation }) {
         </View>
 
         <View style={styles.buttons}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.9}>
+          <TouchableOpacity style={[styles.primaryBtn, !isNovaQI && styles.primaryBtnSkeuo]} onPress={() => navigation.navigate('Register')} activeOpacity={0.9}>
             <Text style={styles.primaryBtnText}>{t(language, 'welcome.start')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ghostBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
@@ -144,13 +150,13 @@ const styles = StyleSheet.create({
   primaryBtn: {
     backgroundColor: Colors.primary, borderRadius: 16,
     paddingVertical: 18, alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
     shadowColor: Colors.primary,
     shadowOpacity: 0.30,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
+  primaryBtnSkeuo: { borderBottomWidth: 4, borderBottomColor: Colors.primaryDark },
   primaryBtnText: {
     color: Colors.white, fontSize: 18, fontWeight: '900', letterSpacing: 0.2,
     fontFamily: BrandFonts.heading || undefined,

@@ -11,9 +11,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { PremiumIcon } from '../components/ui';
 import { apiAnalyzePlate } from '../services/apiService';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -285,7 +287,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImageWeb(false)}>
                     <Text style={s.pickBtnIcon}>🖼️</Text>
-                    <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
+                    <Text style={[s.pickBtnText, isNovaQI && s.pickBtnTextSecondary]}>{t(language, 'nutrition.plate_pick_library')}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -296,7 +298,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImage(false)}>
                     <Text style={s.pickBtnIcon}>🖼️</Text>
-                    <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_pick_library')}</Text>
+                    <Text style={[s.pickBtnText, isNovaQI && s.pickBtnTextSecondary]}>{t(language, 'nutrition.plate_pick_library')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -313,7 +315,7 @@ export default function PlateAnalysisScreen({ navigation }) {
 
             {analyzing && (
               <View style={s.analyzingCard}>
-                <ActivityIndicator color={Colors.navy || '#0B1E3F'} size="large" />
+                <ActivityIndicator color={Colors.navy} size="large" />
                 <Text style={s.analyzingText}>{t(language, 'nutrition.plate_analyzing')}</Text>
               </View>
             )}
@@ -508,13 +510,14 @@ const s = StyleSheet.create({
 
   pickCard: { backgroundColor: '#fff', borderRadius: 20, padding: 32, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#E5E7EB' },
   pickEmoji: { fontSize: 52 },
-  pickTitle: { fontSize: 18, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center' },
+  pickTitle: { fontSize: 18, fontWeight: '800', color: Colors.navy, textAlign: 'center' },
   pickSub: { fontSize: 13, color: '#94a3b8', textAlign: 'center', lineHeight: 18 },
   pickBtns: { flexDirection: 'row', gap: 12, marginTop: 8, width: '100%' },
-  pickBtn: { flex: 1, backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 14, padding: 16, alignItems: 'center', gap: 6 },
-  pickBtnSecondary: { backgroundColor: '#F1F5F9' },
+  pickBtn: { flex: 1, backgroundColor: isNovaQI ? Colors.primary : Colors.navy, borderRadius: 14, padding: 16, alignItems: 'center', gap: 6 },
+  pickBtnSecondary: { backgroundColor: isNovaQI ? Colors.backgroundSecondary : '#F1F5F9' },
   pickBtnIcon: { fontSize: 24 },
-  pickBtnText: { fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  pickBtnText: { fontSize: 13, fontWeight: '700', color: Colors.white, textAlign: 'center' },
+  pickBtnTextSecondary: { color: isNovaQI ? Colors.text : Colors.white },
 
   imageCard: { borderRadius: 16, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB' },
   previewImage: { width: '100%', height: 240 },
@@ -535,7 +538,7 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
   itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 8 },
   itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  itemName: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
+  itemName: { fontSize: 14, fontWeight: '600', color: Colors.navy },
   itemStatusDot: { width: 8, height: 8, borderRadius: 4 },
   itemMacros: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   itemConcern: { fontSize: 11, fontWeight: '600', marginTop: 3, fontStyle: 'italic' },
@@ -543,19 +546,19 @@ const s = StyleSheet.create({
 
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8 },
   totalLabel: { fontSize: 13, fontWeight: '700', color: '#475569' },
-  totalValue: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  totalValue: { fontSize: 14, fontWeight: '800', color: Colors.navy },
 
-  addItemBtn: { marginTop: 2, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.navy || '#0B1E3F', borderStyle: 'dashed', alignItems: 'center' },
-  addItemBtnText: { fontSize: 13, fontWeight: '700', color: Colors.navy || '#0B1E3F' },
+  addItemBtn: { marginTop: 2, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
+  addItemBtnText: { fontSize: 13, fontWeight: '700', color: Colors.navy },
 
   mealRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   mealBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0' },
-  mealBtnActive: { backgroundColor: Colors.navy || '#0B1E3F', borderColor: Colors.navy || '#0B1E3F' },
+  mealBtnActive: { backgroundColor: Colors.navy, borderColor: Colors.navy },
   mealBtnText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
-  mealBtnTextActive: { color: '#fff' },
+  mealBtnTextActive: { color: Colors.white },
 
-  logBtn: { backgroundColor: '#22C55E', padding: 16, borderRadius: 14, alignItems: 'center' },
-  logBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  logBtn: { backgroundColor: isNovaQI ? Colors.primary : Colors.safe, padding: 16, borderRadius: 14, alignItems: 'center' },
+  logBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
@@ -567,7 +570,7 @@ const s = StyleSheet.create({
     elevation: 12,
   },
   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy },
   modalHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   modalDeleteIcon: { padding: 2 },
   modalDeleteIconText: { fontSize: 20 },
@@ -576,7 +579,7 @@ const s = StyleSheet.create({
   modalInput: {
     borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11,
-    fontSize: 15, fontWeight: '600', color: Colors.navy || '#0B1E3F',
+    fontSize: 15, fontWeight: '600', color: Colors.navy,
   },
   modalRow2: { flexDirection: 'row', gap: 10 },
   modalRow3: { flexDirection: 'row', gap: 8 },
@@ -586,9 +589,9 @@ const s = StyleSheet.create({
   },
   suggestItem: { paddingVertical: 11, paddingHorizontal: 14 },
   suggestItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  suggestText: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
+  suggestText: { fontSize: 14, fontWeight: '600', color: Colors.navy },
 
-  modalSaveBtn: { backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20 },
+  modalSaveBtn: { backgroundColor: Colors.navy, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20 },
   modalSaveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   modalDeleteBtn: { borderRadius: 14, padding: 14, alignItems: 'center', marginTop: 8 },
   modalDeleteBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },

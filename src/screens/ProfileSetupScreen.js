@@ -5,11 +5,14 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
+import Brand, { BrandFonts } from '../brand';
 import { HIDE_FREE_OPTION } from '../constants/features';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { HALAL_STRICTNESS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { PremiumIcon } from '../components/ui';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 12) / 2;
@@ -130,11 +133,11 @@ export default function ProfileSetupScreen({ navigation }) {
         )}
         <View style={styles.stepTrack}>
           <StepPill number={1} label={t(language, 'profile_setup.diet_step')} active={true} />
-          <View style={[styles.connector, step >= 2 && styles.connectorActive]} />
+          <View style={[styles.connector, step >= 2 && (isNovaQI ? styles.connectorActiveNovaqi : styles.connectorActive)]} />
           <StepPill number={2} label={t(language, 'profile_setup.allergies_step')} active={step >= 2} />
           {!isFirstTime && (
             <>
-              <View style={[styles.connector, step >= 3 && styles.connectorActive]} />
+              <View style={[styles.connector, step >= 3 && (isNovaQI ? styles.connectorActiveNovaqi : styles.connectorActive)]} />
               <StepPill number={3} label={t(language, 'profile_setup.plan_step')} active={step >= 3} />
             </>
           )}
@@ -218,16 +221,16 @@ export default function ProfileSetupScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={allergy.id}
-                    style={[styles.allergyCard, sel && styles.allergyCardSelected]}
+                    style={[styles.allergyCard, sel && (isNovaQI ? styles.allergyCardSelectedNovaqi : styles.allergyCardSelected)]}
                     onPress={() => toggleAllergy(allergy.id)}
                     activeOpacity={0.85}
                   >
                     <PremiumIcon name={allergy.icon} size={34} />
-                    <Text style={[styles.allergyLabel, sel && styles.allergyLabelSel]}>
+                    <Text style={[styles.allergyLabel, sel && (isNovaQI ? styles.allergyLabelSelNovaqi : styles.allergyLabelSel)]}>
                       {allergy.label[language] || allergy.label.en}
                     </Text>
                     {sel && (
-                      <View style={styles.allergyCheck}>
+                      <View style={[styles.allergyCheck, isNovaQI && styles.allergyCheckNovaqi]}>
                         <Text style={styles.allergyCheckText}>✓</Text>
                       </View>
                     )}
@@ -360,7 +363,7 @@ export default function ProfileSetupScreen({ navigation }) {
 
 function StepPill({ number, label, active }) {
   return (
-    <View style={[styles.stepPill, active ? styles.stepPillActive : styles.stepPillInactive]}>
+    <View style={[styles.stepPill, active && (isNovaQI ? styles.stepPillActiveNovaqi : styles.stepPillActive), !active && styles.stepPillInactive]}>
       <View style={[styles.stepNum, active ? styles.stepNumActive : styles.stepNumInactive]}>
         <Text style={[styles.stepNumText, !active && styles.stepNumTextInactive]}>{number}</Text>
       </View>
@@ -389,6 +392,7 @@ const styles = StyleSheet.create({
     borderRadius: 24, paddingHorizontal: 10, paddingVertical: 7,
   },
   stepPillActive: { backgroundColor: Colors.accent },
+  stepPillActiveNovaqi: { backgroundColor: Colors.navy },
   stepPillInactive: { backgroundColor: Colors.border },
   stepNum: {
     width: 20, height: 20, borderRadius: 10,
@@ -402,8 +406,9 @@ const styles = StyleSheet.create({
   stepLabelInactive: { color: Colors.textMuted },
   connector: { width: 18, height: 3, borderRadius: 2, backgroundColor: Colors.border },
   connectorActive: { backgroundColor: Colors.accent },
+  connectorActiveNovaqi: { backgroundColor: Colors.navy },
   content: { padding: 20, paddingBottom: 130, alignItems: 'center' },
-  sectionTitle: { fontSize: 30, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 6, fontFamily: 'serif' },
+  sectionTitle: { fontSize: 30, fontWeight: '700', color: Colors.text, textAlign: 'center', marginBottom: 6, fontFamily: BrandFonts.heading || 'serif' },
   sectionSub: { fontSize: 14, color: Colors.textLight, fontWeight: '500', textAlign: 'center', marginBottom: 24 },
   dietGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
@@ -482,8 +487,14 @@ const styles = StyleSheet.create({
   allergyCardSelected: {
     borderColor: Colors.accent, backgroundColor: Colors.accentLight,
   },
+  allergyCardSelectedNovaqi: {
+    borderColor: Colors.text, backgroundColor: Colors.card, borderWidth: 1.5,
+    shadowColor: Colors.navy, shadowOpacity: 0.12, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
   allergyLabel: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'center' },
   allergyLabelSel: { color: Colors.accentDark },
+  allergyLabelSelNovaqi: { color: Colors.text },
   allergyCheck: {
     position: 'absolute', top: -8, right: -8,
     width: 22, height: 22, borderRadius: 11,
@@ -491,6 +502,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: Colors.card,
   },
+  allergyCheckNovaqi: { backgroundColor: Colors.primary },
   allergyCheckText: { color: Colors.white, fontSize: 11, fontWeight: '900' },
   planList: { width: '100%', gap: 14 },
   planCard: {

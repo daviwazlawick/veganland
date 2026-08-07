@@ -8,7 +8,9 @@ import { useAuth } from '../context/AuthContext';
 import { apiSearchFood } from '../services/apiService';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
 const MACRO_FIELDS = [
@@ -25,6 +27,65 @@ const ALL_FIELDS = [...MACRO_FIELDS,
 ];
 
 const EMPTY_ENTRY = { name: '', grams: '', calories: '', protein: '', fat: '', carbs: '', meal: 'lunch' };
+
+const FOREST_BARS = [
+  { key: 'protein_g', color: '#2FC472' },
+  { key: 'carbs_g', color: '#F4B53F' },
+  { key: 'fat_g', color: '#64748B' },
+];
+
+function ForestBar({ fieldKey, color, consumed, goal, language }) {
+  const pct = goal > 0 ? Math.min(1, consumed / goal) : 0;
+  const labelKey = fieldKey.replace('_kcal', '').replace('_g', '').replace('_ml', '');
+  return (
+    <View style={forest.barWrap}>
+      <Text style={forest.barEyebrow}>
+        {t(language, `nutrition.${labelKey}`)} · {Math.round(consumed || 0)}/{Math.round(goal || 0)}
+      </Text>
+      <View style={forest.barTrack}>
+        <View style={[forest.barFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+}
+
+function ForestSummaryCard({ todayTotals, goals, language }) {
+  const consumed = todayTotals.calories_kcal || 0;
+  const goal = goals?.calories_kcal || 0;
+  const remaining = Math.max(goal - consumed, 0);
+  return (
+    <View style={forest.card}>
+      <View style={forest.row}>
+        <View style={forest.col}>
+          <Text style={forest.bigNum}>{Math.round(consumed)}</Text>
+          <Text style={forest.colLabel}>{t(language, 'nutrition.calories')}</Text>
+        </View>
+        <View style={forest.divider} />
+        <View style={forest.col}>
+          <Text style={[forest.bigNum, forest.bigNumGreen]}>{Math.round(remaining)}</Text>
+          <Text style={forest.colLabel}>{t(language, 'nutrition.remaining')}</Text>
+        </View>
+        <View style={forest.divider} />
+        <View style={forest.col}>
+          <Text style={forest.bigNum}>{Math.round(goal)}</Text>
+          <Text style={forest.colLabel}>{t(language, 'nutrition.daily_goal')}</Text>
+        </View>
+      </View>
+      <View style={forest.bars}>
+        {FOREST_BARS.map(f => (
+          <ForestBar
+            key={f.key}
+            fieldKey={f.key}
+            color={f.color}
+            consumed={todayTotals[f.key] || 0}
+            goal={goals?.[f.key] || 0}
+            language={language}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   const pct = goal > 0 ? Math.min(1, consumed / goal) : 0;
@@ -176,6 +237,12 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             <Text style={s.setupBody}>{t(language, 'nutrition.setup_prompt_body')}</Text>
             <Text style={s.setupCta}>{t(language, 'nutrition.setup_prompt_cta')} →</Text>
           </TouchableOpacity>
+        ) : isNovaQI ? (
+          <ForestSummaryCard
+            todayTotals={todayTotals}
+            goals={goals}
+            language={language}
+          />
         ) : (
           <View style={s.card}>
             {displayFields.map(f => (
@@ -363,7 +430,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6FA' },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.headerBg },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 28, color: Colors.headerText, marginTop: -2 },
@@ -372,7 +439,7 @@ const s = StyleSheet.create({
   reportBtnText: { fontSize: 22 },
   content: { padding: 16, gap: 14 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
-  setupCard: { backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 20, padding: 22 },
+  setupCard: { backgroundColor: Colors.navy, borderRadius: 20, padding: 22 },
   setupTitle: { fontSize: 17, fontWeight: '800', color: '#fff', marginBottom: 6 },
   setupBody: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 14, lineHeight: 18 },
   setupCta: { fontSize: 14, fontWeight: '700', color: '#FFCB3B' },
@@ -381,12 +448,12 @@ const s = StyleSheet.create({
   weightRow: { flexDirection: 'row', gap: 12 },
   weightCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' },
   weightLabel: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
-  weightValue: { fontSize: 22, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
-  weightAddBtn: { backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  weightValue: { fontSize: 22, fontWeight: '800', color: Colors.navy },
+  weightAddBtn: { backgroundColor: Colors.navy, borderRadius: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   weightAddText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   waterCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
   waterTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  waterLabel: { fontSize: 14, fontWeight: '700', color: Colors.navy || '#0B1E3F' },
+  waterLabel: { fontSize: 14, fontWeight: '700', color: Colors.navy },
   waterValue: { fontSize: 20, fontWeight: '800', color: '#06B6D4' },
   waterUnit: { fontSize: 13, fontWeight: '400', color: '#94a3b8' },
   waterBtns: { flexDirection: 'row', gap: 8 },
@@ -395,38 +462,38 @@ const s = StyleSheet.create({
   mealSection: { gap: 6 },
   mealTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 },
   entryRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  entryName: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
+  entryName: { fontSize: 14, fontWeight: '600', color: Colors.navy },
   entryMacros: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   deleteBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   deleteText: { fontSize: 16, color: '#94a3b8' },
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#64748b', marginBottom: 6 },
   emptySub: { fontSize: 13, color: '#94a3b8', textAlign: 'center' },
-  addFoodBtn: { backgroundColor: Colors.navy || '#0B1E3F', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  addFoodBtn: { backgroundColor: Colors.navy, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   addFoodBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   goalsBtn: { alignItems: 'center', paddingVertical: 8 },
-  goalsBtnText: { fontSize: 13, color: Colors.navy || '#0B1E3F', textDecorationLine: 'underline' },
+  goalsBtnText: { fontSize: 13, color: Colors.navy, textDecorationLine: 'underline' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center', marginBottom: 4 },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy, textAlign: 'center', marginBottom: 4 },
   weightInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  weightInput: { flex: 1, borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 22, fontWeight: '700', textAlign: 'center', color: Colors.navy || '#0B1E3F' },
+  weightInput: { flex: 1, borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 22, fontWeight: '700', textAlign: 'center', color: Colors.navy },
   weightUnit: { fontSize: 16, fontWeight: '700', color: '#64748b' },
-  fieldInput: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 12, fontSize: 16, color: Colors.navy || '#0B1E3F' },
+  fieldInput: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 12, fontSize: 16, color: Colors.navy },
   suggestBox: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden', marginTop: -4 },
   suggestRow: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  suggestName: { fontSize: 14, fontWeight: '600', color: Colors.navy || '#0B1E3F' },
+  suggestName: { fontSize: 14, fontWeight: '600', color: Colors.navy },
   suggestMacros: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
   mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   mealChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#F8FAFC' },
-  mealChipActive: { backgroundColor: Colors.navy || '#0B1E3F', borderColor: Colors.navy || '#0B1E3F' },
+  mealChipActive: { backgroundColor: Colors.navy, borderColor: Colors.navy },
   mealChipText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
   mealChipTextActive: { color: '#fff' },
   numRow: { flexDirection: 'row', gap: 8 },
   numField: { flex: 1, gap: 4 },
   numLabel: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 },
-  numInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 10, fontSize: 15, fontWeight: '600', textAlign: 'center', color: Colors.navy || '#0B1E3F' },
-  saveBtn: { backgroundColor: Colors.navy || '#0B1E3F', padding: 14, borderRadius: 12, alignItems: 'center' },
+  numInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 10, fontSize: 15, fontWeight: '600', textAlign: 'center', color: Colors.navy },
+  saveBtn: { backgroundColor: Colors.navy, padding: 14, borderRadius: 12, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   cancelBtn: { alignItems: 'center', paddingVertical: 8 },
   cancelText: { color: '#94a3b8', fontSize: 14 },
@@ -436,10 +503,36 @@ const bar = StyleSheet.create({
   wrap: { gap: 4 },
   row: { flexDirection: 'row', alignItems: 'baseline' },
   label: { flex: 1, fontSize: 13, fontWeight: '600', color: '#475569' },
-  value: { fontSize: 14, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
+  value: { fontSize: 14, fontWeight: '800', color: Colors.navy },
   over: { color: '#EF4444' },
   unit: { fontSize: 11, fontWeight: '400', color: '#94a3b8' },
   goal: { fontSize: 12, color: '#94a3b8' },
   track: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3 },
+});
+
+const forest = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.navy,
+    borderRadius: 26,
+    padding: 20,
+    gap: 18,
+  },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  col: { flex: 1, alignItems: 'center', gap: 4 },
+  divider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.18)' },
+  bigNum: {
+    fontSize: 22, fontWeight: '800', color: Colors.white,
+    fontFamily: BrandFonts.mono || undefined,
+  },
+  bigNumGreen: { color: '#2FC472' },
+  colLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '600' },
+  bars: { gap: 12 },
+  barWrap: { gap: 6 },
+  barEyebrow: {
+    fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '700',
+    fontFamily: BrandFonts.mono || undefined,
+  },
+  barTrack: { height: 5, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: 5, borderRadius: 3 },
 });

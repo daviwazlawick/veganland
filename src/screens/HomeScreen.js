@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts } from '../brand';
+import Brand, { BrandFonts } from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { PremiumIcon, BrandName } from '../components/ui';
@@ -35,9 +36,32 @@ const STATUS_CONFIG = {
 };
 
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
+const isNovaQI = Brand.id === 'novaqi';
+
+function CalorieRing({ pct, size = 76, strokeWidth = 8, centerText }) {
+  const clamped = Math.min(1, Math.max(0, pct || 0));
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - clamped);
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={Colors.backgroundSecondary} strokeWidth={strokeWidth} fill="none" />
+        <Circle
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke={Colors.primary} strokeWidth={strokeWidth} fill="none"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+        />
+      </Svg>
+      <Text style={{ fontFamily: BrandFonts.mono || undefined, fontWeight: '800', fontSize: 15, color: Colors.text }}>{centerText}</Text>
+    </View>
+  );
+}
 
 export default function HomeScreen({ navigation }) {
-  const { language, profile, scanHistory, monthlyScanCount } = useApp();
+  const { language, profile, scanHistory, monthlyScanCount, streak } = useApp();
   const { stats: referralStats } = useReferral();
   const { goals, todayTotals, logConsumption } = useNutrition();
   const { token } = useAuth();
@@ -60,7 +84,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+      <View style={[styles.header, isNovaQI && styles.headerNovaqi]}>
         <View>
           <BrandName
             style={styles.headerTitle}
@@ -69,38 +93,73 @@ export default function HomeScreen({ navigation }) {
           />
           <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
         </View>
-        <View style={styles.scanCountBadge}>
-          <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
-          <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
-        </View>
+        {isNovaQI ? (
+          <View style={styles.streakBadge}>
+            <Text style={styles.streakNum}>{streak || 0}</Text>
+            <Text style={styles.streakLabel}>{t(language, 'home.streak_label')}</Text>
+          </View>
+        ) : (
+          <View style={styles.scanCountBadge}>
+            <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
+            <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {goals?.calories_kcal > 0 && (
-          <TouchableOpacity style={homeNutritionStyles.widget} onPress={() => navigation.navigate('NutritionDashboard')} activeOpacity={0.88}>
+          <TouchableOpacity
+            style={[homeNutritionStyles.widget, isNovaQI && homeNutritionStyles.widgetNovaqi]}
+            onPress={() => navigation.navigate('NutritionDashboard')}
+            activeOpacity={0.88}
+          >
             <View style={homeNutritionStyles.row}>
               <Text style={homeNutritionStyles.title}>{t(language, 'nutrition.home_widget_title')}</Text>
               <Text style={homeNutritionStyles.cta}>{t(language, 'nutrition.home_widget_cta')} ›</Text>
             </View>
-            <View style={homeNutritionStyles.bars}>
-              {[
-                { key: 'calories_kcal', color: '#FFCB3B', label: 'kcal' },
-                { key: 'protein_g',     color: '#3B82F6', label: 'prot' },
-                { key: 'carbs_g',       color: '#8B5CF6', label: 'carbs' },
-                { key: 'fat_g',         color: '#F97316', label: 'fat' },
-              ].map(f => {
-                const pct = goals[f.key] > 0 ? Math.min(1, (todayTotals[f.key] || 0) / goals[f.key]) : 0;
-                return (
-                  <View key={f.key} style={homeNutritionStyles.barWrap}>
-                    <View style={homeNutritionStyles.barTrack}>
-                      <View style={[homeNutritionStyles.barFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
-                    </View>
-                    <Text style={homeNutritionStyles.barLabel}>{Math.round(todayTotals[f.key] || 0)} <Text style={{ color: '#94a3b8' }}>{f.label}</Text></Text>
+            {isNovaQI ? (
+              <View style={homeNutritionStyles.ringRow}>
+                <CalorieRing
+                  pct={goals.calories_kcal > 0 ? (todayTotals.calories_kcal || 0) / goals.calories_kcal : 0}
+                  centerText={String(Math.round(todayTotals.calories_kcal || 0))}
+                />
+                <View style={homeNutritionStyles.ringSide}>
+                  <Text style={homeNutritionStyles.remainingNum}>
+                    {Math.round(Math.max((goals.calories_kcal || 0) - (todayTotals.calories_kcal || 0), 0))}
+                    <Text style={homeNutritionStyles.remainingUnit}> kcal</Text>
+                  </Text>
+                  <Text style={homeNutritionStyles.remainingLabel}>{t(language, 'nutrition.remaining')}</Text>
+                  <View style={homeNutritionStyles.proteinBarTrack}>
+                    <View style={[homeNutritionStyles.proteinBarFill, {
+                      width: `${(goals.protein_g > 0 ? Math.min(1, (todayTotals.protein_g || 0) / goals.protein_g) : 0) * 100}%`,
+                    }]} />
                   </View>
-                );
-              })}
-            </View>
+                  <Text style={homeNutritionStyles.proteinLabel}>
+                    {Math.round(todayTotals.protein_g || 0)}/{Math.round(goals.protein_g || 0)}g {t(language, 'nutrition.protein')}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={homeNutritionStyles.bars}>
+                {[
+                  { key: 'calories_kcal', color: '#FFCB3B', label: 'kcal' },
+                  { key: 'protein_g',     color: '#3B82F6', label: 'prot' },
+                  { key: 'carbs_g',       color: '#8B5CF6', label: 'carbs' },
+                  { key: 'fat_g',         color: '#F97316', label: 'fat' },
+                ].map(f => {
+                  const pct = goals[f.key] > 0 ? Math.min(1, (todayTotals[f.key] || 0) / goals[f.key]) : 0;
+                  return (
+                    <View key={f.key} style={homeNutritionStyles.barWrap}>
+                      <View style={homeNutritionStyles.barTrack}>
+                        <View style={[homeNutritionStyles.barFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
+                      </View>
+                      <Text style={homeNutritionStyles.barLabel}>{Math.round(todayTotals[f.key] || 0)} <Text style={{ color: Colors.textMuted }}>{f.label}</Text></Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </TouchableOpacity>
         )}
 
@@ -121,15 +180,23 @@ export default function HomeScreen({ navigation }) {
         )}
 
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.scanBtnHalf} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[styles.scanBtnHalf, isNovaQI && styles.scanBtnNovaqi]}
+            onPress={() => navigation.navigate('Scan')}
+            activeOpacity={0.85}
+          >
             <Text style={styles.actionIcon}>📷</Text>
             <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
             <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.scanBtnHalf, styles.plateBtn]} onPress={() => navigation.navigate('PlateAnalysis')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[styles.scanBtnHalf, isNovaQI ? styles.plateBtnNovaqi : styles.plateBtn]}
+            onPress={() => navigation.navigate('PlateAnalysis')}
+            activeOpacity={0.85}
+          >
             <Text style={styles.actionIcon}>🍽️</Text>
-            <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_photo_btn')}</Text>
-            <Text style={styles.actionSub}>{t(language, 'nutrition.plate_photo_sub')}</Text>
+            <Text style={[styles.actionTitle, isNovaQI && styles.actionTitleOutline]}>{t(language, 'nutrition.plate_photo_btn')}</Text>
+            <Text style={[styles.actionSub, isNovaQI && styles.actionSubOutline]}>{t(language, 'nutrition.plate_photo_sub')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -199,8 +266,8 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.historySection}>
             <Text style={styles.historyHeading}>🍽️ {t(language, 'nutrition.recent_plates')}</Text>
             {recentPlates.slice(0, 5).map((entry, i) => (
-              <View key={i} style={[styles.historyItem, { borderLeftColor: '#22C55E' }]}>
-                <View style={[styles.historyIconWrap, { backgroundColor: '#F0FDF4' }]}>
+              <View key={i} style={[styles.historyItem, { borderLeftColor: Colors.safe }]}>
+                <View style={[styles.historyIconWrap, { backgroundColor: Colors.safeLight }]}>
                   <Text style={{ fontSize: 22 }}>🍽️</Text>
                 </View>
                 <View style={styles.historyContent}>
@@ -245,6 +312,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     backgroundColor: Colors.headerBg,
   },
+  headerNovaqi: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',
@@ -263,6 +331,15 @@ const styles = StyleSheet.create({
   },
   scanCountNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
   scanCountLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -2 },
+  streakBadge: {
+    backgroundColor: Colors.accent,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  streakNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
+  streakLabel: { fontSize: 10, fontWeight: '700', color: Colors.white, marginTop: -2 },
   scroll: { padding: 20, gap: 18, paddingBottom: 130 },
   actionRow: { flexDirection: 'row', gap: 12 },
   scanBtnHalf: {
@@ -276,24 +353,37 @@ const styles = StyleSheet.create({
   plateBtn: {
     backgroundColor: '#14532D',
     borderBottomColor: '#166534',
-    shadowColor: '#22C55E',
+    shadowColor: Colors.safe,
+  },
+  scanBtnNovaqi: {
+    backgroundColor: Colors.primary,
+    borderBottomWidth: 0,
+    shadowColor: Colors.primary,
+  },
+  plateBtnNovaqi: {
+    backgroundColor: Colors.card,
+    borderWidth: 1.5, borderColor: Colors.text,
+    borderBottomWidth: 0,
+    shadowOpacity: 0.05, shadowColor: Colors.navy,
   },
   actionIcon: { fontSize: 32 },
   actionTitle: { fontSize: 15, fontWeight: '800', color: Colors.white, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
   actionSub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
+  actionTitleOutline: { color: Colors.text },
+  actionSubOutline: { color: Colors.textLight },
   quickRow: { flexDirection: 'row', gap: 12 },
   quickBtn: {
     flex: 1, alignItems: 'center', gap: 6,
     backgroundColor: Colors.card,
     borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12,
-    borderWidth: 1.5, borderColor: '#E5E7EB',
+    borderWidth: 1.5, borderColor: Colors.border,
     shadowColor: Colors.navy, shadowOpacity: 0.05, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   addFoodBtn: {},
   waterQuickBtn: {},
   quickIcon: { fontSize: 24 },
-  quickTitle: { fontSize: 13, fontWeight: '800', color: Colors.navy || '#0B1E3F', textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
+  quickTitle: { fontSize: 13, fontWeight: '800', color: Colors.navy, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
   waterTodayText: { fontSize: 16, fontWeight: '800', color: '#06B6D4' },
   waterQuickBtns: { flexDirection: 'row', gap: 6, marginTop: 2 },
   waterMlBtn: { backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#BFDBFE' },
@@ -333,25 +423,38 @@ const styles = StyleSheet.create({
 
 const homeReferralStyles = StyleSheet.create({
   hero: {
-    backgroundColor: '#FFF8E1',
+    backgroundColor: Colors.cautionLight,
     borderRadius: 20, padding: 16,
-    borderWidth: 1, borderColor: '#FFCB3B',
+    borderWidth: 1, borderColor: Colors.caution,
     marginBottom: 16,
   },
   heroLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   heroEmoji: { fontSize: 32 },
-  heroTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F', lineHeight: 20 },
-  heroCta: { fontSize: 13, color: Colors.navy || '#0B1E3F', fontWeight: '700', marginTop: 4 },
+  heroTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy, lineHeight: 20 },
+  heroCta: { fontSize: 13, color: Colors.navy, fontWeight: '700', marginTop: 4 },
 });
 
 const homeNutritionStyles = StyleSheet.create({
-  widget: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  widget: { backgroundColor: Colors.card, borderRadius: 16, padding: 14, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
+  widgetNovaqi: {
+    marginTop: -32, borderRadius: 20,
+    shadowColor: Colors.navy, shadowOpacity: 0.08, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 6,
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  title: { fontSize: 13, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
-  cta: { fontSize: 12, color: Colors.navy || '#0B1E3F', fontWeight: '600' },
+  title: { fontSize: 13, fontWeight: '800', color: Colors.navy },
+  cta: { fontSize: 12, color: Colors.navy, fontWeight: '600' },
   bars: { gap: 6 },
   barWrap: { gap: 3 },
-  barTrack: { height: 5, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+  barTrack: { height: 5, backgroundColor: Colors.backgroundSecondary, borderRadius: 3, overflow: 'hidden' },
   barFill: { height: 5, borderRadius: 3 },
-  barLabel: { fontSize: 11, fontWeight: '700', color: Colors.navy || '#0B1E3F' },
+  barLabel: { fontSize: 11, fontWeight: '700', color: Colors.navy },
+  ringRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  ringSide: { flex: 1, gap: 4 },
+  remainingNum: { fontSize: 20, fontWeight: '800', color: Colors.navy, fontFamily: BrandFonts.mono || undefined },
+  remainingUnit: { fontSize: 12, fontWeight: '600', color: Colors.textMuted },
+  remainingLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: '600', marginBottom: 4 },
+  proteinBarTrack: { height: 6, backgroundColor: Colors.backgroundSecondary, borderRadius: 3, overflow: 'hidden' },
+  proteinBarFill: { height: 6, borderRadius: 3, backgroundColor: '#3B82F6' },
+  proteinLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, marginTop: 4 },
 });

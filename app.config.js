@@ -82,7 +82,7 @@ export default {
     splash: {
       image: `${assets}/splash-icon.png`,
       resizeMode: 'contain',
-      backgroundColor: isNovaQI ? '#1E1B4B' : '#2E7D52',
+      backgroundColor: isNovaQI ? '#0E1B14' : '#2E7D52',
     },
     ios: {
       supportsTablet: false,
@@ -106,7 +106,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: `${assets}/adaptive-icon.png`,
-        backgroundColor: isNovaQI ? '#1E1B4B' : '#2E7D52',
+        backgroundColor: isNovaQI ? '#0E1B14' : '#2E7D52',
       },
       package: isNovaQI ? 'app.novaqi' : 'app.veganland',
       // AD_ID required by Google Play for apps targeting Android 13+ that
@@ -139,7 +139,7 @@ export default {
         'expo-notifications',
         {
           icon: isNovaQI ? './assets/novaqi/notification-icon.png' : './assets/veganland/notification-icon.png',
-          color: isNovaQI ? '#0B1E3F' : '#7CB518',
+          color: isNovaQI ? '#0E1B14' : '#7CB518',
         },
       ],
       // @react-native-firebase was removed for v1.0.11 — incompatible with
