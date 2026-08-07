@@ -85,13 +85,20 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, isNovaQI && styles.headerNovaqi]}>
-        <View>
-          <BrandName
-            style={styles.headerTitle}
-            prefixColor={Colors.headerText}
-            suffixColor={Colors.primary}
-          />
-          <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
+        <View style={isNovaQI && styles.headerTitleRow}>
+          {isNovaQI && (
+            <View style={styles.headerIconWrap}>
+              <PremiumIcon name="scan" size={22} color={Colors.white} />
+            </View>
+          )}
+          <View>
+            <BrandName
+              style={styles.headerTitle}
+              prefixColor={Colors.headerText}
+              suffixColor={Colors.primary}
+            />
+            <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
+          </View>
         </View>
         {isNovaQI ? (
           <View style={styles.streakBadge}>
@@ -313,6 +320,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.headerBg,
   },
   headerNovaqi: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIconWrap: {
+    width: 34, height: 34, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',
