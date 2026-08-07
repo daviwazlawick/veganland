@@ -1026,3 +1026,63 @@ src/context/
 ```
 
 ---
+
+## Sessão 2026-08-07 — Rebrand NovaQI "Icon C" (web-only, OTA e build nativo intocados)
+
+Rebrand visual completo do NovaQI a partir de um design handoff (HTML de referência + README). **Só aplicado ao NovaQI** — todas as mudanças de layout (não só cor) ficam atrás de `Brand.id === 'novaqi'` nos ficheiros partilhados; `src/brand/veganland.js` e o layout do VeganLand ficam intocados.
+
+### 1) Paleta — `src/brand/novaqi.js`
+
+Verde vira a cor de ação primária (era âmbar), âmbar vira accent/secundário:
+
+```js
+primary: '#16A75A', primaryDark: '#0A6334', primaryLight: '#E2F7EA', primaryBg: '#F6F3EB',
+accent: '#E8991C', accentDark: '#A6610B', accentLight: '#FBEFCF',
+forest/darkSurface/navy: '#0E1B14', navyDeep: '#06110C', navyMid: '#143524',
+background: '#F6F3EB', backgroundSecondary: '#ECE7DA',
+text: '#121814', textLight: '#5A6A63', textMuted: '#7C8B84', border: '#E2DBC9',
+safe: '#128A4B', caution: '#C8790F', danger: '#D6453B',
+footerScrim: 'rgba(246,243,235,0.94)', // token novo, footer fixo sobre scroll
+```
+
+### 2) Ícone "Icon C" — anel + rabo de folha
+
+Concept: anel (lente de scan / "Q" de QI) com um rabo em forma de folha (nutrição), dois tons — anel verde, rabo âmbar. Geometria fonte (viewBox 100×100): `circle cx=46 cy=46 r=30 stroke-width=9` + `path M62 66 C74 72 82 82 84 90 stroke-width=9 round-cap`. Par "bright" para fundos escuros: ring `#2FC472`, tail `#F4B53F`. Par "deep" pra fundos claros: `#16A75A`/`#E8991C`.
+
+- **`src/components/ui/NovaQILogo.js`** — reescrito de View-based target/radar pra View-based Icon C (2 barras rotacionadas aproximando a bezier do rabo, sem depender de SVG lib — este componente entra por OTA). `color` prop controla o anel (default `Colors.primary`), rabo fixo em `Colors.accent`.
+- **`assets/novaqi/*.svg`** — todos os 7 ficheiros de logo/ícone vêm agora directo dos SVGs entregues pelo designer (2ª ronda do handoff, `logo-assets/`), não são mais recriados à mão:
+  - `novaqi-icon.svg` — square icon fonte (forest bg + par bright), usado por `BrandLogo.js` e como fonte pra regenerar os PNGs
+  - `novaqi-favicon.svg` — versão simplificada (só anel, sem rabo — ilegível abaixo de ~32px)
+  - `novaqi-logo-light.svg` / `novaqi-logo-dark.svg` — lockup ícone+wordmark (viewBox 320×70, ring r=21 stroke=6)
+  - `novaqi-logo-mono.svg` — **mudou de forma**: antes era wordmark completo mono, agora é só o ícone (ring+tail) numa cor só (`#121814`) — reflecte o novo handoff
+  - `novaqi-icon-mark-transparent.svg` — novo ficheiro, ring+tail sem fundo, pra contextos que já têm o próprio fundo. **Não está integrado em nenhum componente ainda** (`BrandLogo.js` continua a usar `novaqi-icon.svg`, o quadrado com fundo) — decisão consciente de não mudar o comportamento visual do `BrandLogo` sem pedido explícito.
+- **PNGs** (`icon.png`, `adaptive-icon.png`, `icon-512.png`, `splash-icon.png`, `favicon.png`, `notification-icon.png`) regenerados a partir dos SVGs do designer via **Chrome headless** (`--headless --screenshot=... --window-size=W,H file://...svg`), não Pillow — dá anti-aliasing e round-caps correctos do motor de render real, sem os artefactos em dente-de-serra que apareceram numa tentativa anterior com `PIL.ImageDraw.line`.
+  - **Armadilha:** Chrome headless devolve PNG **em branco** (totalmente transparente) em `--window-size` pequeno (testado: falha em 48×48 e 96×96, funciona normal a partir de ~512×512). Workaround: renderizar sempre grande (800×800) e reduzir com `PIL.Image.resize(..., LANCZOS)` pros tamanhos pequenos (favicon 48×48, notification-icon 96×96).
+  - `icon.png`/`adaptive-icon.png`/`splash-icon.png` são idênticos (cópia directa), `icon-512.png` é o mesmo mark a 512px.
+
+### 3) Streak real (pedido a meio da sessão, sem dado fabricado)
+
+- **`server/src/db.js`** — `getUserStreak(userId)`: dias consecutivos com pelo menos um `scan_events` ou `consumption_log` pro user, terminando hoje ou ontem (senão devolve 0).
+- **`GET /auth/me`** devolve agora `{ user, usage, streak }`.
+- **`AppContext.js`** expõe `streak`; consumido no badge âmbar do header do `HomeScreen` e na stats row do `ProfileScreen` (streak + scans, 2 stats, sem "treinos" — esse 3º stat nunca existiu no código, só no handoff).
+
+### 4) Anel de calorias — `react-native-svg`
+
+`HomeScreen.js` — componente `CalorieRing` (`Svg`/`Circle` com `strokeDasharray`/`strokeDashoffset`), substitui as 4 barras flat antigas do widget de nutrição. Isto **é** um módulo nativo novo (`react-native-svg` adicionado ao `package.json`) — só entra em produção no próximo `eas build`, não por OTA.
+
+### 5) Páginas server-rendered (fora do sistema `Colors.X`)
+
+O rebrand do app React Native não propaga pra HTML gerado no servidor — são ficheiros separados com cores hardcoded. Corrigidos nesta sessão:
+- **`about.js`** — `NOVAQI_TARGET_SVG`/`NOVAQI_TARGET_ICON` (ícone alvo/radar antigo) trocados pelo Icon C, `BRANDS.novaqi` paleta actualizada
+- **`support.js`, `legal.js`** — `BRANDS.novaqi.primaryColor`/`.dark` actualizados
+- **`email.js`** — cor do e-mail transacional NovaQI + emoji (`🎯` → `🔍`, o alvo já não faz sentido)
+- **`server.js`** — `STORE_LINKS['novaqi.app']` (usado por `/get` e a landing de migração VeganLand→NovaQI), mais literais hardcoded em `htmlReferralLanding`/`htmlBrandMigrationLanding` que não passavam por `STORE_LINKS`
+- **Painel admin deixado como está** (interno, atrás de login — não é superfície de marca pública)
+
+### 6) Decisão de deploy: só web, OTA e build nativo ficam pra depois
+
+Todo o trabalho desta sessão saiu só via `npm run build:novaqi:deploy` (web export pra `/var/www/novaqi`) + `pm2 restart veganland-api` no servidor `veganland` (SSH configurado em `~/.ssh/config`). **Nenhum `eas update` foi corrido** — o app nativo instalado (iOS/Android) continua na versão anterior até decisão explícita de fazer OTA ou novo build. Isto foi pedido explicitamente pelo utilizador: "deixamos os updates de iOS e Android app pra depois e vamos fazer as trocas todas apenas no web".
+
+**Sem branch** — todo o trabalho desta sessão foi commitado directo em `main` (ver memória `feedback_no_branches.md` — o utilizador nunca quer branches neste repo, mesmo pra mudanças grandes).
+
+---
