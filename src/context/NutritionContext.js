@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext';
 import {
   apiGetBodyProfile, apiSaveBodyProfile,
   apiGetNutritionGoals, apiSaveNutritionGoals,
-  apiLogConsumption, apiDeleteConsumption,
+  apiLogConsumption, apiUpdateConsumption, apiDeleteConsumption,
   apiGetDayLog, apiGetNutritionReport,
   apiLogWeight, apiGetWeightHistory,
 } from '../services/apiService';
@@ -61,6 +61,14 @@ export function NutritionProvider({ children }) {
     return res;
   }, [token]);
 
+  const updateConsumption = useCallback(async (id, entry) => {
+    if (!token) return null;
+    const res = await apiUpdateConsumption(token, id, entry);
+    const log = await apiGetDayLog(token, todayStr());
+    setTodayLog(Array.isArray(log) ? log : []);
+    return res;
+  }, [token]);
+
   const deleteConsumption = useCallback(async (id) => {
     if (!token) return;
     await apiDeleteConsumption(token, id);
@@ -94,7 +102,7 @@ export function NutritionProvider({ children }) {
     <NutritionContext.Provider value={{
       bodyProfile, goals, todayLog, todayTotals, weightHistory, loaded,
       refresh, saveBodyProfile, saveGoals,
-      logConsumption, deleteConsumption, getReport, addWeight,
+      logConsumption, updateConsumption, deleteConsumption, getReport, addWeight,
     }}>
       {children}
     </NutritionContext.Provider>

@@ -198,6 +198,7 @@ export async function searchOffProducts(query, limit = 10) {
           salt_g:        n.salt_100g          != null ? Math.round(n.salt_100g * 100) / 100        : null,
           grams: 100,
           source: 'off_live',
+          code: p.code || null,
         };
       })
       .filter(p => p.calories_kcal != null);

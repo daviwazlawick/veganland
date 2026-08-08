@@ -1,9 +1,9 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { analyzePlate } from './anthropic.js';
+import { analyzePlate, expandSearchQuery } from './anthropic.js';
 import { searchOffProducts } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -36,12 +36,33 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
 }
 
+// Merges several food-search result lists (DB-sourced + OFF-live-sourced,
+// possibly from more than one query variant), de-duping by product name and,
+// for OFF results that carry a barcode, by that barcode too — so translated
+// re-queries don't produce visible duplicates of the same real product.
+function mergeSearchResults(lists) {
+  const seenNames = new Set();
+  const seenCodes = new Set();
+  const merged = [];
+  for (const list of lists) {
+    for (const r of list || []) {
+      const nameKey = String(r.product_name || '').trim().toLowerCase();
+      if (!nameKey || seenNames.has(nameKey)) continue;
+      if (r.code && seenCodes.has(r.code)) continue;
+      seenNames.add(nameKey);
+      if (r.code) seenCodes.add(r.code);
+      merged.push(r);
+    }
+  }
+  return merged;
+}
+
 function corsHeaders(origin) {
   const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://veganland.app';
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   };
 }
 
@@ -1509,25 +1530,41 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // GET /nutrition/search?q=... — food product autocomplete (DB + OFF live)
+    // GET /nutrition/search?q=...&lang=pt — food product autocomplete (DB + OFF live)
+    // If the plain-text search comes back sparse, falls back to an AI query
+    // expansion (translated terms + a generic category) and re-searches —
+    // this is what lets "leite condensado" find a product only stored as
+    // "condensed milk" (and vice-versa). The fallback only fires when needed,
+    // so a normal in-language search stays fast and free.
     if (req.method === 'GET' && req.url.startsWith('/nutrition/search')) {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const u = new URL(req.url, 'http://x');
       const q = (u.searchParams.get('q') || '').trim();
+      const lang = (u.searchParams.get('lang') || 'en').trim();
       if (q.length < 2) { sendJson(res, 200, [], origin); return; }
-      // Run DB search and OFF live search in parallel
+
       const [dbResults, offResults] = await Promise.all([
         searchFoodProducts(q, claims.userId),
         searchOffProducts(q, 10),
       ]);
-      // Merge: DB results first (have logged context), then OFF results not already in DB list
-      const dbNames = new Set(dbResults.map(r => r.product_name.toLowerCase()));
-      const merged = [
-        ...dbResults,
-        ...offResults.filter(r => !dbNames.has(r.product_name.toLowerCase())),
-      ].slice(0, 20);
-      sendJson(res, 200, merged, origin);
+      let merged = mergeSearchResults([dbResults, offResults]);
+
+      const SPARSE_THRESHOLD = 5;
+      if (merged.length < SPARSE_THRESHOLD) {
+        const expansion = await expandSearchQuery(q, lang);
+        const extraTerms = (expansion.terms || []).filter(t => t.toLowerCase() !== q.toLowerCase());
+        const offQuery = expansion.category || extraTerms[0];
+        if (extraTerms.length > 0 || offQuery) {
+          const [dbResults2, offResults2] = await Promise.all([
+            extraTerms.length > 0 ? searchFoodProducts(q, claims.userId, extraTerms) : Promise.resolve([]),
+            offQuery ? searchOffProducts(offQuery, 10) : Promise.resolve([]),
+          ]);
+          merged = mergeSearchResults([merged, dbResults2, offResults2]);
+        }
+      }
+
+      sendJson(res, 200, merged.slice(0, 20), origin);
       return;
     }
 
@@ -1538,6 +1575,18 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const id = await addConsumptionEntry(claims.userId, body);
       sendJson(res, 200, { ok: true, id }, origin);
+      return;
+    }
+
+    // PATCH /nutrition/log/:id — edit an already-logged entry (grams, macros, meal, etc.)
+    if (req.method === 'PATCH' && req.url.startsWith('/nutrition/log/')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const entryId = parseInt(req.url.split('/nutrition/log/')[1]);
+      if (!entryId) { sendJson(res, 400, { error: 'Invalid id' }, origin); return; }
+      const body = await readJsonBody(req);
+      const id = await updateConsumptionEntry(claims.userId, entryId, body);
+      sendJson(res, id ? 200 : 404, { ok: !!id, id }, origin);
       return;
     }
 

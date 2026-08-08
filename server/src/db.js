@@ -1480,6 +1480,24 @@ export async function addConsumptionEntry(userId, entry) {
   return res.rows[0]?.id;
 }
 
+export async function updateConsumptionEntry(userId, entryId, entry) {
+  const db = await getPool();
+  if (!db) return null;
+  const { product_name, grams, meal_type, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, notes } = entry;
+  const res = await db.query(`
+    update consumption_log set
+      product_name = coalesce($3, product_name),
+      grams = $4, meal_type = $5, calories_kcal = $6, protein_g = $7, fat_g = $8,
+      carbs_g = $9, fiber_g = $10, sugar_g = $11, salt_g = $12, water_ml = $13, notes = $14
+    where id = $1 and user_id = $2
+    returning id`,
+    [entryId, userId, product_name || null, grams || null, meal_type || null,
+     calories_kcal || null, protein_g || null, fat_g || null, carbs_g || null,
+     fiber_g || null, sugar_g || null, salt_g || null, water_ml || null, notes || null]
+  );
+  return res.rows[0]?.id || null;
+}
+
 export async function deleteConsumptionEntry(userId, entryId) {
   const db = await getPool();
   if (!db) return false;
@@ -1558,10 +1576,18 @@ export async function getWeightHistory(userId, limit = 90) {
   return res.rows;
 }
 
-export async function searchFoodProducts(query, userId) {
+// `extraTerms` (optional) lets callers pass AI-translated variants of the
+// query (see expandSearchQuery in anthropic.js) so a product stored in one
+// language can be found by a query typed in another. Every term is matched
+// with unaccent() so accents don't block a match either way.
+export async function searchFoodProducts(query, userId, extraTerms = []) {
   const db = await getPool();
   if (!db || !query) return [];
-  const q = `%${query.trim()}%`;
+  const terms = [query, ...extraTerms]
+    .map(t => String(t || '').trim())
+    .filter(Boolean);
+  if (terms.length === 0) return [];
+  const patterns = [...new Set(terms.map(t => `%${t}%`))];
   const res = await db.query(`
     with
     -- 1. User's own consumption history (highest priority, exact macros as logged)
@@ -1580,7 +1606,7 @@ export async function searchFoodProducts(query, userId) {
         1 as priority
       from consumption_log
       where user_id = $2
-        and product_name ilike $1
+        and unaccent(product_name) ilike ANY (select unaccent(p) from unnest($1::text[]) as p)
         and product_name != 'Water'
         and calories_kcal is not null
       group by product_name
@@ -1600,16 +1626,20 @@ export async function searchFoodProducts(query, userId) {
         count(*) as freq,
         2 as priority
       from consumption_log
-      where product_name ilike $1
+      where unaccent(product_name) ilike ANY (select unaccent(p) from unnest($1::text[]) as p)
         and product_name != 'Water'
         and calories_kcal is not null
       group by product_name
     ),
-    -- 3. Products table + scan_events nutrition JSON (OFF database)
-    -- nutrition_100g lives at result->'productInfo'->'offMeta'->'nutrition_100g'
+    -- 3. Products table + scan_events nutrition JSON (OFF database).
+    -- Prefer, per product, the most recent scan that actually HAS nutrition
+    -- data (fall back to an older scan, or to no macros at all) instead of
+    -- excluding the product outright just because its latest scan lacks it —
+    -- a product name match should still surface so the user can fill macros
+    -- in manually rather than the search silently pretending it doesn't exist.
     scanned_products as (
       select distinct on (p.id)
-        coalesce(p.brand || ' ' || p.product_name, p.product_name) as product_name,
+        nullif(trim(coalesce(p.brand, '') || ' ' || coalesce(p.product_name, '')), '') as product_name,
         round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal')::numeric, 1) as calories_kcal,
         round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'proteins')::numeric, 1)    as protein_g,
         round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'fat')::numeric, 1)         as fat_g,
@@ -1622,9 +1652,11 @@ export async function searchFoodProducts(query, userId) {
         3 as priority
       from products p
       join scan_events se on se.product_id = p.id
-      where (p.product_name ilike $1 or p.brand ilike $1)
-        and se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal' is not null
-      order by p.id, se.created_at desc
+      where (unaccent(p.product_name) ilike ANY (select unaccent(pt) from unnest($1::text[]) as pt)
+             or unaccent(p.brand) ilike ANY (select unaccent(pt) from unnest($1::text[]) as pt))
+      order by p.id,
+        (se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal' is not null) desc,
+        se.created_at desc
     ),
     combined as (
       select * from user_hist
@@ -1633,15 +1665,15 @@ export async function searchFoodProducts(query, userId) {
         where product_name not in (select product_name from user_hist)
       union all
       select * from scanned_products
-        where product_name not in (select product_name from user_hist)
+        where product_name is not null
+          and product_name not in (select product_name from user_hist)
           and product_name not in (select product_name from global_hist)
     )
     select product_name, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, grams
     from combined
-    where calories_kcal is not null
-    order by priority asc, freq desc
+    order by priority asc, (calories_kcal is not null) desc, freq desc
     limit 15`,
-    [q, userId]
+    [patterns, userId]
   );
   return res.rows;
 }

@@ -26,7 +26,10 @@ const ALL_FIELDS = [...MACRO_FIELDS,
   { key: 'water_ml', unit: 'ml', color: '#06B6D4' },
 ];
 
-const EMPTY_ENTRY = { name: '', grams: '', calories: '', protein: '', fat: '', carbs: '', meal: 'lunch' };
+const EMPTY_ENTRY = {
+  name: '', grams: '', calories: '', protein: '', fat: '', carbs: '',
+  sugar: '', fiber: '', salt: '', meal: 'lunch',
+};
 
 const FOREST_BARS = [
   { key: 'protein_g', color: '#2FC472' },
@@ -107,7 +110,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
 export default function NutritionDashboardScreen({ navigation, route }) {
   const { language } = useApp();
   const { token } = useAuth();
-  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, refresh, addWeight, weightHistory } = useNutrition();
+  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, updateConsumption, refresh, addWeight, weightHistory } = useNutrition();
   const insets = useSafeAreaInsets();
   const [weightModal, setWeightModal] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -116,6 +119,8 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   const [loggingWater, setLoggingWater] = useState(false);
   const [addModal, setAddModal] = useState(false);
   const [addEntry, setAddEntry] = useState(EMPTY_ENTRY);
+  const [editingId, setEditingId] = useState(null);
+  const [perGram, setPerGram] = useState(null);
   const [savingEntry, setSavingEntry] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const searchTimer = useRef(null);
@@ -153,19 +158,64 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     setLoggingWater(false);
   }
 
-  function handleDelete(id, name) {
+  function showError(message) {
     if (Platform.OS === 'web') {
-      if (window.confirm(`Delete "${name}"?`)) deleteConsumption(id);
+      window.alert(message);
+    } else {
+      Alert.alert('', message);
+    }
+  }
+
+  function handleDelete(id, name) {
+    const doDelete = async () => {
+      try {
+        await deleteConsumption(id);
+      } catch (e) {
+        showError(e.message || t(language, 'nutrition.delete_failed'));
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete "${name}"?`)) doDelete();
     } else {
       Alert.alert(t(language, 'nutrition.delete_entry'), name, [
         { text: 'Cancel', style: 'cancel' },
-        { text: t(language, 'nutrition.delete_entry'), style: 'destructive', onPress: () => deleteConsumption(id) },
+        { text: t(language, 'nutrition.delete_entry'), style: 'destructive', onPress: doDelete },
       ]);
     }
   }
 
   function openAddModal() {
     setAddEntry(EMPTY_ENTRY);
+    setEditingId(null);
+    setPerGram(null);
+    setSuggestions([]);
+    setAddModal(true);
+  }
+
+  function openEditModal(entry) {
+    const g = parseFloat(entry.grams) || 0;
+    setAddEntry({
+      name:     String(entry.product_name || ''),
+      grams:    entry.grams         != null ? String(entry.grams)         : '',
+      calories: entry.calories_kcal != null ? String(entry.calories_kcal) : '',
+      protein:  entry.protein_g     != null ? String(entry.protein_g)     : '',
+      fat:      entry.fat_g         != null ? String(entry.fat_g)         : '',
+      carbs:    entry.carbs_g       != null ? String(entry.carbs_g)       : '',
+      sugar:    entry.sugar_g       != null ? String(entry.sugar_g)       : '',
+      fiber:    entry.fiber_g       != null ? String(entry.fiber_g)       : '',
+      salt:     entry.salt_g        != null ? String(entry.salt_g)        : '',
+      meal:     entry.meal_type || 'lunch',
+    });
+    setPerGram(g > 0 ? {
+      calories: (parseFloat(entry.calories_kcal) || 0) / g,
+      protein:  (parseFloat(entry.protein_g)     || 0) / g,
+      fat:      (parseFloat(entry.fat_g)         || 0) / g,
+      carbs:    (parseFloat(entry.carbs_g)       || 0) / g,
+      sugar:    (parseFloat(entry.sugar_g)       || 0) / g,
+      fiber:    (parseFloat(entry.fiber_g)       || 0) / g,
+      salt:     (parseFloat(entry.salt_g)        || 0) / g,
+    } : null);
+    setEditingId(entry.id);
     setSuggestions([]);
     setAddModal(true);
   }
@@ -176,13 +226,37 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     if (text.trim().length < 2) { setSuggestions([]); return; }
     searchTimer.current = setTimeout(async () => {
       try {
-        const results = await apiSearchFood(token, text.trim());
+        const results = await apiSearchFood(token, text.trim(), language);
         setSuggestions(results || []);
       } catch { setSuggestions([]); }
     }, 350);
   }
 
+  // Rescales every macro field proportionally to the new gram amount,
+  // using the per-gram ratios captured when a suggestion was picked or an
+  // existing entry was opened for editing. Manually-typed macro values
+  // (not driven by a grams change) are left as the user entered them.
+  function handleGramsChange(text) {
+    const newG = parseFloat(text.replace(',', '.'));
+    if (perGram && !isNaN(newG) && newG > 0) {
+      setAddEntry(p => ({
+        ...p,
+        grams:    text,
+        calories: String(Math.round(perGram.calories * newG * 10) / 10),
+        protein:  String(Math.round(perGram.protein  * newG * 10) / 10),
+        fat:      String(Math.round(perGram.fat       * newG * 10) / 10),
+        carbs:    String(Math.round(perGram.carbs     * newG * 10) / 10),
+        sugar:    String(Math.round(perGram.sugar     * newG * 10) / 10),
+        fiber:    String(Math.round(perGram.fiber     * newG * 10) / 10),
+        salt:     String(Math.round(perGram.salt      * newG * 100) / 100),
+      }));
+    } else {
+      setAddEntry(p => ({ ...p, grams: text }));
+    }
+  }
+
   function pickSuggestion(item) {
+    const g = parseFloat(item.grams) || 0;
     setAddEntry({
       name:     item.product_name,
       grams:    item.grams     ? String(Math.round(item.grams))         : '',
@@ -190,8 +264,22 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       protein:  item.protein_g ? String(Math.round(item.protein_g))     : '',
       fat:      item.fat_g     ? String(Math.round(item.fat_g))         : '',
       carbs:    item.carbs_g   ? String(Math.round(item.carbs_g))       : '',
+      sugar:    item.sugar_g   ? String(Math.round(item.sugar_g))       : '',
+      fiber:    item.fiber_g   ? String(Math.round(item.fiber_g))       : '',
+      salt:     item.salt_g    ? String(Math.round(item.salt_g * 100) / 100) : '',
       meal:     addEntry.meal,
     });
+    // So that editing Grams right after picking a suggestion rescales
+    // everything correctly instead of leaving stale absolute values.
+    setPerGram(g > 0 ? {
+      calories: (parseFloat(item.calories_kcal) || 0) / g,
+      protein:  (parseFloat(item.protein_g)     || 0) / g,
+      fat:      (parseFloat(item.fat_g)         || 0) / g,
+      carbs:    (parseFloat(item.carbs_g)       || 0) / g,
+      sugar:    (parseFloat(item.sugar_g)       || 0) / g,
+      fiber:    (parseFloat(item.fiber_g)       || 0) / g,
+      salt:     (parseFloat(item.salt_g)        || 0) / g,
+    } : null);
     setSuggestions([]);
   }
 
@@ -199,19 +287,29 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     const name = addEntry.name.trim();
     if (!name) return;
     setSavingEntry(true);
+    const payload = {
+      product_name: name,
+      source: 'manual',
+      grams: addEntry.grams ? parseFloat(addEntry.grams) : null,
+      meal_type: addEntry.meal || null,
+      calories_kcal: addEntry.calories ? parseFloat(addEntry.calories) : null,
+      protein_g: addEntry.protein ? parseFloat(addEntry.protein) : null,
+      fat_g: addEntry.fat ? parseFloat(addEntry.fat) : null,
+      carbs_g: addEntry.carbs ? parseFloat(addEntry.carbs) : null,
+      sugar_g: addEntry.sugar ? parseFloat(addEntry.sugar) : null,
+      fiber_g: addEntry.fiber ? parseFloat(addEntry.fiber) : null,
+      salt_g: addEntry.salt ? parseFloat(addEntry.salt) : null,
+    };
     try {
-      await logConsumption({
-        product_name: name,
-        source: 'manual',
-        grams: addEntry.grams ? parseFloat(addEntry.grams) : null,
-        meal_type: addEntry.meal || null,
-        calories_kcal: addEntry.calories ? parseFloat(addEntry.calories) : null,
-        protein_g: addEntry.protein ? parseFloat(addEntry.protein) : null,
-        fat_g: addEntry.fat ? parseFloat(addEntry.fat) : null,
-        carbs_g: addEntry.carbs ? parseFloat(addEntry.carbs) : null,
-      });
+      if (editingId) {
+        await updateConsumption(editingId, payload);
+      } else {
+        await logConsumption(payload);
+      }
       setAddModal(false);
-    } catch {}
+    } catch (e) {
+      showError(e.message || t(language, 'nutrition.save_failed'));
+    }
     setSavingEntry(false);
   }
 
@@ -283,7 +381,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
           <View key={meal} style={s.mealSection}>
             <Text style={s.mealTitle}>{t(language, `nutrition.${meal}`)}</Text>
             {byMeal[meal].map(e => (
-              <View key={e.id} style={s.entryRow}>
+              <TouchableOpacity key={e.id} style={s.entryRow} onPress={() => openEditModal(e)} activeOpacity={0.7}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.entryName}>{e.product_name || '—'}</Text>
                   <Text style={s.entryMacros}>
@@ -295,7 +393,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                 <TouchableOpacity onPress={() => handleDelete(e.id, e.product_name || '')} style={s.deleteBtn}>
                   <Text style={s.deleteText}>✕</Text>
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         ))}
@@ -348,7 +446,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       <Modal visible={addModal} transparent animationType="slide">
         <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>{t(language, 'nutrition.add_food')}</Text>
+            <Text style={s.modalTitle}>{t(language, editingId ? 'nutrition.edit_food' : 'nutrition.add_food')}</Text>
 
             <TextInput
               style={s.fieldInput}
@@ -387,7 +485,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             <View style={s.numRow}>
               <View style={s.numField}>
                 <Text style={s.numLabel}>Grams</Text>
-                <TextInput style={s.numInput} value={addEntry.grams} onChangeText={v => setAddEntry(p => ({ ...p, grams: v }))}
+                <TextInput style={s.numInput} value={addEntry.grams} onChangeText={handleGramsChange}
                   placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
               </View>
               <View style={s.numField}>
@@ -411,6 +509,24 @@ export default function NutritionDashboardScreen({ navigation, route }) {
               <View style={s.numField}>
                 <Text style={s.numLabel}>Carbs g</Text>
                 <TextInput style={s.numInput} value={addEntry.carbs} onChangeText={v => setAddEntry(p => ({ ...p, carbs: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+            </View>
+
+            <View style={s.numRow}>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>{t(language, 'nutrition.sugar')} g</Text>
+                <TextInput style={s.numInput} value={addEntry.sugar} onChangeText={v => setAddEntry(p => ({ ...p, sugar: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>{t(language, 'nutrition.fiber')} g</Text>
+                <TextInput style={s.numInput} value={addEntry.fiber} onChangeText={v => setAddEntry(p => ({ ...p, fiber: v }))}
+                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+              </View>
+              <View style={s.numField}>
+                <Text style={s.numLabel}>{t(language, 'nutrition.salt')} g</Text>
+                <TextInput style={s.numInput} value={addEntry.salt} onChangeText={v => setAddEntry(p => ({ ...p, salt: v }))}
                   placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
               </View>
             </View>

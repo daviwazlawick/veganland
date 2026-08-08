@@ -272,7 +272,9 @@ export async function apiGetBodyProfile(token) {
 
 export async function apiSaveBodyProfile(token, data) {
   const r = await fetch(`${baseUrl()}/nutrition/profile`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(data) });
-  return r.json().catch(() => ({}));
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Failed to save body profile');
+  return body;
 }
 
 export async function apiGetNutritionGoals(token) {
@@ -282,17 +284,30 @@ export async function apiGetNutritionGoals(token) {
 
 export async function apiSaveNutritionGoals(token, goals) {
   const r = await fetch(`${baseUrl()}/nutrition/goals`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(goals) });
-  return r.json().catch(() => ({}));
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Failed to save goals');
+  return body;
 }
 
 export async function apiLogConsumption(token, entry) {
   const r = await fetch(`${baseUrl()}/nutrition/log`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(entry) });
-  return r.json().catch(() => ({}));
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Failed to log entry');
+  return body;
+}
+
+export async function apiUpdateConsumption(token, id, entry) {
+  const r = await fetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'PATCH', headers: appHeaders(token), body: JSON.stringify(entry) });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Failed to update entry');
+  return body;
 }
 
 export async function apiDeleteConsumption(token, id) {
   const r = await fetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'DELETE', headers: appHeaders(token) });
-  return r.json().catch(() => ({}));
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Failed to delete entry');
+  return body;
 }
 
 export async function apiGetDayLog(token, date) {
@@ -307,7 +322,9 @@ export async function apiGetNutritionReport(token, from, to) {
 
 export async function apiLogWeight(token, weight_kg) {
   const r = await fetch(`${baseUrl()}/nutrition/weight`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify({ weight_kg }) });
-  return r.json().catch(() => ({}));
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Failed to log weight');
+  return body;
 }
 
 export async function apiGetWeightHistory(token) {
@@ -321,8 +338,8 @@ export async function apiGetRecentPlates(token) {
   return r.json();
 }
 
-export async function apiSearchFood(token, query) {
-  const r = await fetch(`${baseUrl()}/nutrition/search?q=${encodeURIComponent(query)}`, {
+export async function apiSearchFood(token, query, language = 'en') {
+  const r = await fetch(`${baseUrl()}/nutrition/search?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(language)}`, {
     headers: appHeaders(token),
   });
   if (!r.ok) return [];

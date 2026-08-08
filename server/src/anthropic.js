@@ -9,6 +9,31 @@ export function hasAnthropicApiKey() {
   return ANTHROPIC_API_KEY.trim().length > 0;
 }
 
+// Fallback for the food search when the plain-text DB/OFF search comes back
+// sparse: translate the query into the app's other languages + a generic
+// English category phrase, so "leite condensado" can also match a product
+// stored only as "condensed milk", and vice-versa. Cheap/fast model, only
+// called on the sparse-results path (see GET /nutrition/search) — never on
+// every keystroke.
+export async function expandSearchQuery(query, language) {
+  if (!hasAnthropicApiKey() || !query) return { terms: [], category: '' };
+  const prompt = `A user is searching a food product database. Their search term: "${query}" (typed in ${responseLanguage(language)}).
+
+This term may be a brand name, a generic food name, or a partial word. Respond with ONLY a JSON object, no other text, no markdown:
+{"terms": ["the term translated/normalized into up to 6 of: Portuguese, English, German, French, Italian, Spanish — short, 1-4 words each, skip languages where the translation would be identical to another already listed"], "category": "a short generic English phrase for this kind of food/product, e.g. \\"condensed milk\\" or \\"oat flour\\" — empty string if the term is a specific brand name with no clear generic category"}`;
+
+  try {
+    const text = await callClaude(prompt, 300, MODEL_INSPECTION);
+    const data = extractJson(text);
+    return {
+      terms: Array.isArray(data.terms) ? data.terms.map(t => String(t || '').trim()).filter(Boolean).slice(0, 6) : [],
+      category: typeof data.category === 'string' ? data.category.trim() : '',
+    };
+  } catch {
+    return { terms: [], category: '' };
+  }
+}
+
 function extractJson(text) {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Invalid response format');
@@ -995,7 +1020,9 @@ Return ONLY valid JSON:
       "protein_g": 10.5,
       "fat_g": 5.2,
       "carbs_g": 20.0,
-      "fiber_g": 2.1${diet !== 'none' ? `,
+      "fiber_g": 2.1,
+      "sugar_g": 3.0,
+      "salt_g": 0.5${diet !== 'none' ? `,
       "item_status": "SAFE",
       "item_concern": null` : ''}
     }

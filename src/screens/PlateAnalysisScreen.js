@@ -35,7 +35,7 @@ const STATUS_CONFIG = {
   NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger',  labelKey: 'result.not_safe' },
 };
 
-const EMPTY_ITEM = () => ({ name: '', grams: '', calories_kcal: '', protein_g: '', fat_g: '', carbs_g: '', fiber_g: '' });
+const EMPTY_ITEM = () => ({ name: '', grams: '', calories_kcal: '', protein_g: '', fat_g: '', carbs_g: '', fiber_g: '', sugar_g: '', salt_g: '' });
 
 function calcTotal(items) {
   return items.reduce((acc, item) => ({
@@ -44,7 +44,9 @@ function calcTotal(items) {
     fat_g:         acc.fat_g         + (parseFloat(item.fat_g)         || 0),
     carbs_g:       acc.carbs_g       + (parseFloat(item.carbs_g)       || 0),
     fiber_g:       acc.fiber_g       + (parseFloat(item.fiber_g)       || 0),
-  }), { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 });
+    sugar_g:       acc.sugar_g       + (parseFloat(item.sugar_g)       || 0),
+    salt_g:        acc.salt_g        + (parseFloat(item.salt_g)        || 0),
+  }), { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0, sugar_g: 0, salt_g: 0 });
 }
 
 export default function PlateAnalysisScreen({ navigation }) {
@@ -101,6 +103,8 @@ export default function PlateAnalysisScreen({ navigation }) {
         fat_g:         item.fat_g         != null ? String(item.fat_g)         : '',
         carbs_g:       item.carbs_g       != null ? String(item.carbs_g)       : '',
         fiber_g:       item.fiber_g       != null ? String(item.fiber_g)       : '',
+        sugar_g:       item.sugar_g       != null ? String(item.sugar_g)       : '',
+        salt_g:        item.salt_g        != null ? String(item.salt_g)        : '',
       });
       setPerGram(g > 0 ? {
         calories_kcal: (parseFloat(item.calories_kcal) || 0) / g,
@@ -108,6 +112,8 @@ export default function PlateAnalysisScreen({ navigation }) {
         fat_g:         (parseFloat(item.fat_g)         || 0) / g,
         carbs_g:       (parseFloat(item.carbs_g)       || 0) / g,
         fiber_g:       (parseFloat(item.fiber_g)       || 0) / g,
+        sugar_g:       (parseFloat(item.sugar_g)       || 0) / g,
+        salt_g:        (parseFloat(item.salt_g)        || 0) / g,
       } : null);
     }
     setEditIndex(index);
@@ -125,6 +131,8 @@ export default function PlateAnalysisScreen({ navigation }) {
         fat_g:         String(Math.round(perGram.fat_g         * newG * 10) / 10),
         carbs_g:       String(Math.round(perGram.carbs_g       * newG * 10) / 10),
         fiber_g:       String(Math.round(perGram.fiber_g       * newG * 10) / 10),
+        sugar_g:       String(Math.round(perGram.sugar_g       * newG * 10) / 10),
+        salt_g:        String(Math.round(perGram.salt_g        * newG * 100) / 100),
       }));
     } else {
       setEditDraft(d => ({ ...d, grams: text }));
@@ -146,6 +154,8 @@ export default function PlateAnalysisScreen({ navigation }) {
       fat_g:         parseFloat(editDraft.fat_g)         || 0,
       carbs_g:       parseFloat(editDraft.carbs_g)       || 0,
       fiber_g:       parseFloat(editDraft.fiber_g)       || 0,
+      sugar_g:       parseFloat(editDraft.sugar_g)       || 0,
+      salt_g:        parseFloat(editDraft.salt_g)        || 0,
       // clear diet classification when name changes — it belongs to the old food
       item_status:   nameChanged ? null : (prev.item_status || null),
       item_concern:  nameChanged ? null : (prev.item_concern || null),
@@ -246,6 +256,8 @@ export default function PlateAnalysisScreen({ navigation }) {
           fat_g:         item.fat_g         || null,
           carbs_g:       item.carbs_g       || null,
           fiber_g:       item.fiber_g       || null,
+          sugar_g:       item.sugar_g       || null,
+          salt_g:        item.salt_g        || null,
         });
       }
       setLogged(true);
@@ -486,6 +498,21 @@ export default function PlateAnalysisScreen({ navigation }) {
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalLabel}>Fat (g)</Text>
                   <TextInput style={s.modalInput} value={editDraft.fat_g} onChangeText={v => setEditDraft(d => ({ ...d, fat_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                </View>
+              </View>
+
+              <View style={s.modalRow3}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalLabel}>{t(language, 'nutrition.fiber')} (g)</Text>
+                  <TextInput style={s.modalInput} value={editDraft.fiber_g} onChangeText={v => setEditDraft(d => ({ ...d, fiber_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalLabel}>{t(language, 'nutrition.sugar')} (g)</Text>
+                  <TextInput style={s.modalInput} value={editDraft.sugar_g} onChangeText={v => setEditDraft(d => ({ ...d, sugar_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalLabel}>{t(language, 'nutrition.salt')} (g)</Text>
+                  <TextInput style={s.modalInput} value={editDraft.salt_g} onChangeText={v => setEditDraft(d => ({ ...d, salt_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
                 </View>
               </View>
 
