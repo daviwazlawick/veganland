@@ -101,9 +101,16 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
         {isNovaQI ? (
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakNum}>{streak || 0}</Text>
-            <Text style={styles.streakLabel}>{t(language, 'home.streak_label')}</Text>
+          <View style={styles.splitBadge}>
+            <View style={styles.splitBadgeCol}>
+              <Text style={styles.splitBadgeNum}>🔥{streak || 0}</Text>
+              <Text style={styles.splitBadgeLabel}>{t(language, 'home.streak_label')}</Text>
+            </View>
+            <View style={styles.splitBadgeDivider} />
+            <View style={styles.splitBadgeCol}>
+              <Text style={styles.splitBadgeNum}>{monthlyScanCount || scanHistory.length}</Text>
+              <Text style={styles.splitBadgeLabel}>{t(language, 'home.scans_label')}</Text>
+            </View>
           </View>
         ) : (
           <View style={styles.scanCountBadge}>
@@ -344,15 +351,26 @@ const styles = StyleSheet.create({
   },
   scanCountNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
   scanCountLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -2 },
-  streakBadge: {
-    backgroundColor: Colors.accent,
+  splitBadge: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: 18,
-    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    overflow: 'hidden',
+  },
+  splitBadgeCol: {
+    paddingHorizontal: 12,
     paddingVertical: 8,
     alignItems: 'center',
   },
-  streakNum: { fontSize: 22, fontWeight: '800', color: Colors.white },
-  streakLabel: { fontSize: 10, fontWeight: '700', color: Colors.white, marginTop: -2 },
+  splitBadgeDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginVertical: 6,
+  },
+  splitBadgeNum: { fontSize: 18, fontWeight: '800', color: Colors.white },
+  splitBadgeLabel: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -1 },
   scroll: { padding: 20, gap: 18, paddingBottom: 130 },
   actionRow: { flexDirection: 'row', gap: 12 },
   scanBtnHalf: {
