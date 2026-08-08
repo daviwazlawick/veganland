@@ -1086,3 +1086,24 @@ Todo o trabalho desta sessão saiu só via `npm run build:novaqi:deploy` (web ex
 **Sem branch** — todo o trabalho desta sessão foi commitado directo em `main` (ver memória `feedback_no_branches.md` — o utilizador nunca quer branches neste repo, mesmo pra mudanças grandes).
 
 ---
+
+## Sessão 2026-08-08 — Fixes nutrição + nginx + expand ForestSummaryCard
+
+### 1) nginx novaqi.app — rotas em falta
+
+`/etc/nginx/sites-available/novaqi.app` não tinha as rotas `analyze-plate` e `nutrition/.+` (adicionadas no módulo de nutrição mas nunca inseridas no nginx). Corrigido com `sed` + `nginx -t && systemctl reload nginx`. O veganland.app foi intencionalmente deixado sem estas rotas — o módulo de nutrição é só para NovaQI.
+
+### 2) Migração 030 já aplicada
+
+`030_search_extensions.sql` (unaccent + pg_trgm + índices GIN) foi aplicada às 11h15 antes do commit de hoje — sem acção necessária.
+
+### 3) Fix expand no ForestSummaryCard (NovaQI)
+
+`ForestSummaryCard` só mostrava protein/carbs/fat. O botão `▼ More` existia apenas no card genérico, que não é renderizado no NovaQI (branch `isNovaQI`). Fix:
+- `FOREST_BARS_EXTRA` adicionado: `fiber_g`, `sugar_g`, `salt_g`
+- `ForestSummaryCard` recebe `expanded` + `onToggleExpand` como props
+- Quando `expanded`, renderiza `FOREST_BARS_EXTRA` abaixo das 3 barras principais
+- Botão `▼ More / ▲ Less` dentro do card (reutiliza `s.expandBtn`/`s.expandBtnText`)
+- Parent passa `expanded` state e `() => setExpanded(!expanded)` (estado já existia, só faltava ligar)
+
+Commit `9bafd82`, deployado em `novaqi.app` via `npm run build:novaqi:deploy`.
