@@ -1555,12 +1555,13 @@ const server = http.createServer(async (req, res) => {
         const expansion = await expandSearchQuery(q, lang);
         const extraTerms = (expansion.terms || []).filter(t => t.toLowerCase() !== q.toLowerCase());
         const offQuery = expansion.category || extraTerms[0];
-        if (extraTerms.length > 0 || offQuery) {
-          const [dbResults2, offResults2] = await Promise.all([
-            extraTerms.length > 0 ? searchFoodProducts(q, claims.userId, extraTerms) : Promise.resolve([]),
-            offQuery ? searchOffProducts(offQuery, 10) : Promise.resolve([]),
-          ]);
-          merged = mergeSearchResults([merged, dbResults2, offResults2]);
+        if (offQuery) {
+          // Only re-query OFF with the translated/category term — do NOT
+          // re-search the DB with English translations because broad ILIKE
+          // patterns (e.g. %beans%) return unrelated products (jelly beans,
+          // coffee beans, etc.) and drown out the actual results.
+          const offResults2 = await searchOffProducts(offQuery, 10);
+          merged = mergeSearchResults([merged, offResults2]);
         }
       }
 

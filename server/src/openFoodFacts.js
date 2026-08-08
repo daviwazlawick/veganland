@@ -201,7 +201,6 @@ export async function searchOffProducts(query, limit = 10) {
           code: p.code || null,
         };
       })
-      .filter(p => p.calories_kcal != null);
   } catch {
     return [];
   }
