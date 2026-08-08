@@ -1107,3 +1107,31 @@ Todo o trabalho desta sessão saiu só via `npm run build:novaqi:deploy` (web ex
 - Parent passa `expanded` state e `() => setExpanded(!expanded)` (estado já existia, só faltava ligar)
 
 Commit `9bafd82`, deployado em `novaqi.app` via `npm run build:novaqi:deploy`.
+
+### 4) Fix busca de alimentos — filtro kcal removido + expansão AI não re-pesquisa BD
+
+Dois bugs causavam resultados sem sentido (ex: buscar "feijao" devolvia "jelly beans"):
+
+**Bug 1 — `searchOffProducts` filtrava `.filter(p => p.calories_kcal != null)`:** a OFF retorna feijão correctamente mas produtos sem macros preenchidas eram eliminados silenciosamente, deixando <5 resultados e disparando a expansão AI.
+- Fix: filtro removido de `server/src/openFoodFacts.js`. Produtos sem macros aparecem na lista; o utilizador preenche à mão se quiser.
+
+**Bug 2 — expansão AI re-pesquisava a BD com termos em inglês (`%beans%`):** quando a expansão gerava ["beans", "black beans", ...], a BD era re-pesquisada com esses padrões → batia em "jelly beans", "coffee beans", "vanilla beans", etc.
+- Fix: na expansão, só a OFF live API é re-consultada com o termo traduzido/categoria; a BD nunca volta a ser pesquisada com os termos em inglês (`server/src/server.js`).
+
+Commit `ba4bf52`.
+
+### 5) Fix ProfileScreen — usage count desactualizado após scans
+
+`ProfileScreen` é uma tab permanente (fica mounted). `useEffect([token])` só corria uma vez no mount — o utilizador fazia scans, voltava à tab Profile e via a contagem antiga.
+- Fix: `useEffect([token])` → `useFocusEffect(useCallback(..., [token]))`. O `apiGetMe` é re-feito sempre que a tab ganha foco.
+- Commit incluído em `b662a95`.
+
+### 6) Badge top-right HomeScreen (NovaQI) — streak + scans
+
+O badge mostrava só o streak ("Days"). Substituído por badge dividido com dois valores:
+- Esquerda: 🔥{streak} days
+- Direita: {monthlyScanCount || scanHistory.length} scans
+- Estilos: `splitBadge`, `splitBadgeCol`, `splitBadgeDivider`, `splitBadgeNum`, `splitBadgeLabel` em `HomeScreen.js`
+- O badge do VeganLand (que já mostrava só scans) mantém-se igual.
+
+Commit `b662a95`, deployado em `novaqi.app`.
