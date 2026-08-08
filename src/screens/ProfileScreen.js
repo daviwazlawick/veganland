@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -45,13 +46,13 @@ export default function ProfileScreen({ navigation }) {
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!token) return;
     apiGetMe(token).then(data => {
       setUsage(data.usage);
       if (data.user?.user_type) setUserType(data.user.user_type);
     }).catch(() => {});
-  }, [token]);
+  }, [token]));
 
   const diet = profile ? DIETS.find(d => d.id === profile.dietId) : null;
   const allergies = profile
