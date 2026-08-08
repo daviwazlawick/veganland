@@ -36,6 +36,11 @@ const FOREST_BARS = [
   { key: 'carbs_g', color: '#F4B53F' },
   { key: 'fat_g', color: '#64748B' },
 ];
+const FOREST_BARS_EXTRA = [
+  { key: 'fiber_g',  color: '#10B981' },
+  { key: 'sugar_g',  color: '#EC4899' },
+  { key: 'salt_g',   color: '#6B7280' },
+];
 
 function ForestBar({ fieldKey, color, consumed, goal, language }) {
   const pct = goal > 0 ? Math.min(1, consumed / goal) : 0;
@@ -52,7 +57,7 @@ function ForestBar({ fieldKey, color, consumed, goal, language }) {
   );
 }
 
-function ForestSummaryCard({ todayTotals, goals, language }) {
+function ForestSummaryCard({ todayTotals, goals, language, expanded, onToggleExpand }) {
   const consumed = todayTotals.calories_kcal || 0;
   const goal = goals?.calories_kcal || 0;
   const remaining = Math.max(goal - consumed, 0);
@@ -85,7 +90,20 @@ function ForestSummaryCard({ todayTotals, goals, language }) {
             language={language}
           />
         ))}
+        {expanded && FOREST_BARS_EXTRA.map(f => (
+          <ForestBar
+            key={f.key}
+            fieldKey={f.key}
+            color={f.color}
+            consumed={todayTotals[f.key] || 0}
+            goal={goals?.[f.key] || 0}
+            language={language}
+          />
+        ))}
       </View>
+      <TouchableOpacity onPress={onToggleExpand} style={s.expandBtn}>
+        <Text style={s.expandBtnText}>{expanded ? '▲ Less' : '▼ More'}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -340,6 +358,8 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             todayTotals={todayTotals}
             goals={goals}
             language={language}
+            expanded={expanded}
+            onToggleExpand={() => setExpanded(!expanded)}
           />
         ) : (
           <View style={s.card}>
