@@ -1188,7 +1188,11 @@ Selector de unidade (g/ml/unit) adicionado e depois removido a pedido — manté
 - VeganLand mantém `BrandName` em texto (sem SVG de logo completo disponível).
 - Estilos removidos: `headerTitleRow`, `headerIconWrap`. Adicionado: `headerLogo: { height: 36, width: 166 }`.
 
-Deploy desta sessão: `npx expo export --platform web` + `cp dist/* /var/www/novaqi/` + `pm2 restart veganland-api`.
+Deploy NovaQI web (comando completo obrigatório com env vars):
+```
+EXPO_PUBLIC_BRAND=novaqi BRAND=novaqi EXPO_PUBLIC_API_URL=https://novaqi.app EXPO_PUBLIC_APP_API_KEY=79se0AyWPbh963SvguuDFi10JsT0Mr9U npx expo export --platform web && cp -r dist/* /var/www/novaqi/
+```
+**IMPORTANTE:** sem `EXPO_PUBLIC_BRAND=novaqi` o bundle compila como VeganLand — logo, anel de nutrição e layouts NovaQI ficam invisíveis.
 
 ---
 
@@ -1242,3 +1246,26 @@ Tabela `water_notification_log (user_id, slot, local_date, sent_at, water_ml_at_
 ### Quem recebe
 
 Utilizadores com `push_tokens.timezone IS NOT NULL` (requer app nativo com token Expo) **E** `user_nutrition_goals.water_ml IS NOT NULL AND > 0` (nutrition goals configurados). Activo por defeito — opt-out via revogação de permissões no OS.
+
+---
+
+## Sessão 2026-08-11 (noite) — Fix deploy web NovaQI + OTA nativo
+
+### Bug: web compilado sem brand env var
+
+O bundle web estava a ser compilado sem `EXPO_PUBLIC_BRAND=novaqi`, o que fazia a app correr como VeganLand na web:
+- Header mostrava `BrandName` (texto) em vez do logo SVG
+- Nutrition widget mostrava barras (layout VeganLand) em vez do anel circular (layout NovaQI)
+
+**Fix:** rebuild com env vars correctos — ver secção "Deploy NovaQI web" acima.
+
+### OTA nativo (expo-updates)
+
+Todas as alterações desta sessão são JS puro — nenhuma requer novo build nativo. Para actualizar utilizadores Android/iOS:
+- O projecto usa `expo-updates` com `runtimeVersion: { policy: 'appVersion' }` e `channel: production`
+- Correr `eas update --channel production` a partir do Mac com os env vars do perfil `novaqi-ios`
+- Utilizadores recebem a actualização automaticamente no próximo arranque (cold start), com janela de 8s no splash
+
+### Timezone automático (concluído)
+
+`AppContext.js` chama `apiSyncPushTimezone(token)` em cada login — timezone do dispositivo fica sempre actualizado no `push_tokens.timezone` sem re-registo do token.
