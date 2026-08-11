@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { SvgXml } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
@@ -37,6 +38,12 @@ const STATUS_CONFIG = {
 
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 const isNovaQI = Brand.id === 'novaqi';
+
+const NOVAQI_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 70">
+  <circle cx="35" cy="35" r="21" stroke="#2FC472" stroke-width="6" fill="none"/>
+  <path d="M48 48 C58 53 65 62 67 70" stroke="#F4B53F" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <text x="78" y="46" font-family="Manrope, sans-serif" font-weight="800" font-size="38" letter-spacing="-1.5" fill="#FFFFFF">Nova<tspan fill="#2FC472">QI</tspan></text>
+</svg>`;
 
 function CalorieRing({ pct, size = 76, strokeWidth = 8, centerText }) {
   const clamped = Math.min(1, Math.max(0, pct || 0));
@@ -87,11 +94,7 @@ export default function HomeScreen({ navigation }) {
       <View style={[styles.header, isNovaQI && styles.headerNovaqi]}>
         <View>
           {isNovaQI ? (
-            <Image
-              source={require('../../assets/novaqi/novaqi-logo-dark.svg')}
-              style={styles.headerLogo}
-              resizeMode="contain"
-            />
+            <SvgXml xml={NOVAQI_LOGO_SVG} width={166} height={36} />
           ) : (
             <BrandName
               style={styles.headerTitle}
@@ -328,7 +331,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.headerBg,
   },
   headerNovaqi: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  headerLogo: { height: 36, width: 166 },
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',
