@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
-import { apiGetHistory, apiGetMe, apiUpdateProfile } from '../services/apiService';
+import { apiGetHistory, apiGetMe, apiUpdateProfile, apiSyncPushTimezone } from '../services/apiService';
 import { requestTrackingPermission, logScan, initAnalytics } from '../services/analyticsService';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
@@ -60,6 +60,7 @@ export function AppProvider({ children }) {
       setIsProfileLoaded(false);
       loadServerHistory();
       loadServerProfile();
+      apiSyncPushTimezone(token).catch(() => {});
     } else {
       setIsProfileLoaded(true);
     }

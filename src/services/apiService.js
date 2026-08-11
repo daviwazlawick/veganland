@@ -133,6 +133,18 @@ export async function apiRegisterPush(token, { token: pushToken, platform, local
   return response.ok;
 }
 
+export async function apiSyncPushTimezone(token) {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!timezone) return;
+    await fetch(`${baseUrl()}/push/timezone`, {
+      method: 'PATCH',
+      headers: appHeaders(token),
+      body: JSON.stringify({ timezone }),
+    });
+  } catch {}
+}
+
 export async function apiUnregisterPush(pushToken) {
   const response = await fetch(`${baseUrl()}/push/unregister`, {
     method: 'POST',

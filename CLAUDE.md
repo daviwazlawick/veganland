@@ -1233,6 +1233,7 @@ Templates em 6 línguas: `pt`, `en`, `de`, `fr`, `it`, `es`. Usa o `locale` guar
 - DB: `ALTER TABLE push_tokens ADD COLUMN timezone TEXT` (migration 031)
 - App `usePushNotifications.js`: envia `Intl.DateTimeFormat().resolvedOptions().timeZone` no registo do token
 - `apiRegisterPush` + `apiService.js` + endpoint `/push/register` + `upsertPushToken` actualizados para aceitar e guardar `timezone`
+- **Sync automático:** `PATCH /push/timezone` actualiza o timezone sem re-registo do token. `AppContext.js` chama `apiSyncPushTimezone(token)` sempre que o token muda (login).
 
 ### Anti-spam
 

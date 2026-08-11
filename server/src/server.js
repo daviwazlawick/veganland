@@ -1393,6 +1393,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // PATCH /push/timezone — update timezone on all tokens for this user (called at login/launch)
+    if (req.method === 'PATCH' && req.url === '/push/timezone') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { timezone } = await readJsonBody(req);
+      if (timezone && typeof timezone === 'string') {
+        const db = await import('./db.js').then(m => m.getPool());
+        if (db) await db.query('UPDATE push_tokens SET timezone = $1 WHERE user_id = $2', [timezone, claims.userId]);
+      }
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
     // POST /push/unregister — drop a token (on logout)
     if (req.method === 'POST' && req.url === '/push/unregister') {
       const { token: pushToken } = await readJsonBody(req);
