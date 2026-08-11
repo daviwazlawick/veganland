@@ -22,6 +22,7 @@ export default function usePushNotifications(navigationRef) {
         token: pushToken,
         platform: Platform.OS,
         locale: language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       if (ok) registered.current = true;
     })();
@@ -32,14 +33,13 @@ export default function usePushNotifications(navigationRef) {
     const sub = addNotificationResponseListener(response => {
       const data = response?.notification?.request?.content?.data || {};
       const route = data.route;
+      const params = data.params;
       const broadcastId = data.broadcast_id;
-      // Fire-and-forget click report. Requires an auth token — anonymous
-      // taps aren't attributable (rare — push is sent to authed devices).
       if (broadcastId && token) {
         apiReportPushClick(token, broadcastId).catch(() => {});
       }
       if (route && navigationRef?.current?.isReady?.()) {
-        try { navigationRef.current.navigate(route); } catch {}
+        try { navigationRef.current.navigate(route, params || undefined); } catch {}
       }
     });
     return () => sub.remove();

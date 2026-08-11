@@ -899,19 +899,20 @@ export async function checkAndIncrementScanCounter(userId) {
   }
 }
 
-export async function upsertPushToken({ userId, token, platform, locale }) {
+export async function upsertPushToken({ userId, token, platform, locale, timezone }) {
   const db = await getPool();
   if (!db || !token || !platform) return null;
   const res = await db.query(
-    `insert into push_tokens (user_id, token, platform, locale)
-     values ($1, $2, $3, $4)
+    `insert into push_tokens (user_id, token, platform, locale, timezone)
+     values ($1, $2, $3, $4, $5)
      on conflict (token) do update set
-       user_id = excluded.user_id,
-       platform = excluded.platform,
-       locale = coalesce(excluded.locale, push_tokens.locale),
+       user_id   = excluded.user_id,
+       platform  = excluded.platform,
+       locale    = coalesce(excluded.locale,   push_tokens.locale),
+       timezone  = coalesce(excluded.timezone, push_tokens.timezone),
        last_seen_at = now()
      returning id`,
-    [userId || null, token, platform, locale || null]
+    [userId || null, token, platform, locale || null, timezone || null]
   );
   return res.rows[0]?.id || null;
 }

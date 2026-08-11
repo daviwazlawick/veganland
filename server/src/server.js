@@ -2,6 +2,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData } from './anthropic.js';
+import { runNotifications } from './water-notif.js';
 import { searchOffProducts } from './openFoodFacts.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
@@ -1290,11 +1291,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/push/register') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const { token: pushToken, platform, locale } = await readJsonBody(req);
+      const { token: pushToken, platform, locale, timezone } = await readJsonBody(req);
       if (!pushToken || typeof pushToken !== 'string') {
         sendJson(res, 400, { error: 'token required' }, origin); return;
       }
-      await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale });
+      await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale, timezone });
       sendJson(res, 200, { ok: true }, origin);
       return;
     }
@@ -2081,3 +2082,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`VeganLand API listening on port ${PORT}`);
 });
+
+// Nutrition reminders: water (9h, 13h, 17h) + food log (8:30, 11:50, 19:00) — local time per user.
+// Runs every 30 minutes; ±20-min window per slot prevents duplicate sends (logged in water_notification_log).
+const NOTIF_INTERVAL_MS = 30 * 60 * 1000;
+setTimeout(() => runNotifications().catch(e => console.warn('[notif]', e.message)), 2 * 60 * 1000);
+setInterval(() => runNotifications().catch(e => console.warn('[notif]', e.message)), NOTIF_INTERVAL_MS);

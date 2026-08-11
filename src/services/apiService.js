@@ -124,11 +124,11 @@ export async function apiAdminHandoff(token) {
   return data.url;
 }
 
-export async function apiRegisterPush(token, { token: pushToken, platform, locale }) {
+export async function apiRegisterPush(token, { token: pushToken, platform, locale, timezone }) {
   const response = await fetch(`${baseUrl()}/push/register`, {
     method: 'POST',
     headers: appHeaders(token),
-    body: JSON.stringify({ token: pushToken, platform, locale }),
+    body: JSON.stringify({ token: pushToken, platform, locale, timezone }),
   });
   return response.ok;
 }

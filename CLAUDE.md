@@ -1189,3 +1189,55 @@ Selector de unidade (g/ml/unit) adicionado e depois removido a pedido — manté
 - Estilos removidos: `headerTitleRow`, `headerIconWrap`. Adicionado: `headerLogo: { height: 36, width: 166 }`.
 
 Deploy desta sessão: `npx expo export --platform web` + `cp dist/* /var/www/novaqi/` + `pm2 restart veganland-api`.
+
+---
+
+## Sessão 2026-08-11 (tarde) — Push notifications automáticas de hidratação + diário alimentar
+
+### Arquitectura
+
+Worker `server/src/water-notif.js` com função `runNotifications()` chamada em `server.js` a cada 30 minutos (`setInterval 30×60×1000`). Primeiro disparo 2 minutos após o arranque do servidor.
+
+### Slots de notificação (hora local do utilizador)
+
+| Slot             | Hora local | Tipo  |
+|------------------|-----------|-------|
+| `water_morning`  | 09:00     | água  |
+| `water_midday`   | 13:00     | água  |
+| `water_afternoon`| 17:00     | água  |
+| `food_morning`   | 08:30     | diário|
+| `food_midday`    | 11:50     | diário|
+| `food_evening`   | 19:00     | diário|
+
+Janela de disparo: ±20 minutos do alvo (para tolerar cadência de 30 min). Usa `Intl.DateTimeFormat` em Node.js para calcular hora local por timezone de cada utilizador.
+
+### Lógica por tipo
+
+**Água:** personaliza a mensagem com `waterToday` vs `waterGoal`. Salta se meta já atingida. Mensagem contextual (0ml vs parcial vs quase lá).
+
+**Diário alimentar:** convida a registar o consumo da refeição correspondente. Sempre envia (não verifica o que já foi registado — MVP).
+
+### Deep-link nas notificações
+
+- Água → `{ route: 'NutritionDashboard' }` — abre o dashboard
+- Diário → `{ route: 'NutritionDashboard', params: { openAddFood: true } }` — abre o dashboard com o modal Add Food já aberto
+
+`usePushNotifications.js` actualizado para passar `params` ao `navigate()`.
+
+### Idiomas
+
+Templates em 6 línguas: `pt`, `en`, `de`, `fr`, `it`, `es`. Usa o `locale` guardado no `push_tokens`.
+
+### Timezone por utilizador
+
+- DB: `ALTER TABLE push_tokens ADD COLUMN timezone TEXT` (migration 031)
+- App `usePushNotifications.js`: envia `Intl.DateTimeFormat().resolvedOptions().timeZone` no registo do token
+- `apiRegisterPush` + `apiService.js` + endpoint `/push/register` + `upsertPushToken` actualizados para aceitar e guardar `timezone`
+
+### Anti-spam
+
+Tabela `water_notification_log (user_id, slot, local_date, sent_at, water_ml_at_send)` criada em migration 031. Antes de enviar, verifica se `user_id:slot:local_date` já existe. Usa `ON CONFLICT DO NOTHING` no insert pós-envio.
+
+### Quem recebe
+
+Utilizadores com `push_tokens.timezone IS NOT NULL` (requer app nativo com token Expo) **E** `user_nutrition_goals.water_ml IS NOT NULL AND > 0` (nutrition goals configurados). Activo por defeito — opt-out via revogação de permissões no OS.
