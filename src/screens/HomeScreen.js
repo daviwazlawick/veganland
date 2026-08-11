@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
@@ -38,38 +37,27 @@ const STATUS_CONFIG = {
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 const isNovaQI = Brand.id === 'novaqi';
 
-function NovaQILogo({ width = 166, height = 36 }) {
+function NovaQILogo({ height = 36 }) {
+  const r = height * 0.5;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', height, width }}>
-      <Svg width={height} height={height} viewBox="0 0 70 70">
-        <Circle cx="35" cy="35" r="21" stroke="#2FC472" strokeWidth="6" fill="none" />
-        <Path d="M48 48 C58 53 65 62 67 70" stroke="#F4B53F" strokeWidth="6" fill="none" strokeLinecap="round" />
-      </Svg>
-      <Text style={{ fontFamily: BrandFonts.bold || undefined, fontWeight: '800', fontSize: 22, color: '#FFFFFF', letterSpacing: -0.5, marginLeft: 6 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', height }}>
+      <View style={{ width: height, height, borderRadius: r, borderWidth: height * 0.085, borderColor: '#2FC472', marginRight: 6 }} />
+      <Text style={{ fontFamily: BrandFonts.bold || undefined, fontWeight: '800', fontSize: height * 0.6, color: '#FFFFFF', letterSpacing: -0.5 }}>
         Nova<Text style={{ color: '#2FC472' }}>QI</Text>
       </Text>
     </View>
   );
 }
 
-function CalorieRing({ pct, size = 76, strokeWidth = 8, centerText }) {
+function CalorieRing({ pct, size = 76, centerText }) {
   const clamped = Math.min(1, Math.max(0, pct || 0));
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - clamped);
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={Colors.backgroundSecondary} strokeWidth={strokeWidth} fill="none" />
-        <Circle
-          cx={size / 2} cy={size / 2} r={radius}
-          stroke={Colors.primary} strokeWidth={strokeWidth} fill="none"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-        />
-      </Svg>
+    <View style={{ width: size, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
       <Text style={{ fontFamily: BrandFonts.mono || undefined, fontWeight: '800', fontSize: 15, color: Colors.text }}>{centerText}</Text>
+      <Text style={{ fontSize: 9, color: Colors.textMuted }}>kcal</Text>
+      <View style={{ width: size, height: 6, borderRadius: 3, backgroundColor: Colors.backgroundSecondary }}>
+        <View style={{ width: `${clamped * 100}%`, height: 6, borderRadius: 3, backgroundColor: Colors.primary }} />
+      </View>
     </View>
   );
 }
