@@ -34,6 +34,43 @@ This term may be a brand name, a generic food name, or a partial word. Respond w
   }
 }
 
+// Last-resort nutritional lookup: when a food is not found in any DB or OFF,
+// Claude returns approximate per-100g values from training knowledge.
+// Only fires for generic foods — branded products get null (unreliable data).
+export async function fetchNutritionalData(query, language) {
+  if (!hasAnthropicApiKey() || !query) return null;
+  const lang = responseLanguage(language);
+  const prompt = `A user is searching for the nutritional content of: "${query}" (searched in ${lang}).
+
+Return ONLY a valid JSON object with nutritional values per 100g, or the literal text null if you don't have reliable data. No markdown, no other text:
+{"product_name":"name in ${lang}","calories_kcal":number,"protein_g":number,"fat_g":number,"carbs_g":number,"fiber_g":number_or_null,"sugar_g":number_or_null,"salt_g":number_or_null}
+
+Use typical average values for generic foods (banana, chicken breast, white rice, etc.). For specific brand products return: null`;
+
+  try {
+    const text = await callClaude(prompt, 150, MODEL_INSPECTION);
+    const trimmed = text.trim();
+    if (trimmed === 'null' || trimmed === '') return null;
+    const data = extractJson(text);
+    if (!data || !Number.isFinite(Number(data.calories_kcal))) return null;
+    const n = v => Number.isFinite(Number(v)) ? Number(v) : null;
+    return {
+      product_name: String(data.product_name || query).trim(),
+      calories_kcal: Math.round(n(data.calories_kcal) * 10) / 10,
+      protein_g: n(data.protein_g) != null ? Math.round(n(data.protein_g) * 10) / 10 : null,
+      fat_g:     n(data.fat_g)     != null ? Math.round(n(data.fat_g)     * 10) / 10 : null,
+      carbs_g:   n(data.carbs_g)   != null ? Math.round(n(data.carbs_g)   * 10) / 10 : null,
+      fiber_g:   n(data.fiber_g)   != null ? Math.round(n(data.fiber_g)   * 10) / 10 : null,
+      sugar_g:   n(data.sugar_g)   != null ? Math.round(n(data.sugar_g)   * 10) / 10 : null,
+      salt_g:    n(data.salt_g)    != null ? Math.round(n(data.salt_g)    * 100) / 100 : null,
+      grams: 100,
+      source: 'ai',
+    };
+  } catch {
+    return null;
+  }
+}
+
 function extractJson(text) {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Invalid response format');

@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
@@ -141,6 +141,8 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   const [perGram, setPerGram] = useState(null);
   const [savingEntry, setSavingEntry] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [gramsError, setGramsError] = useState(false);
   const searchTimer = useRef(null);
 
   useFocusEffect(useCallback(() => {
@@ -148,6 +150,10 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     if (route?.params?.openAddFood) {
       setAddEntry(EMPTY_ENTRY);
       setSuggestions([]);
+      setSearching(false);
+      setGramsError(false);
+      setEditingId(null);
+      setPerGram(null);
       setAddModal(true);
       navigation.setParams({ openAddFood: false });
     }
@@ -207,22 +213,24 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     setEditingId(null);
     setPerGram(null);
     setSuggestions([]);
+    setSearching(false);
+    setGramsError(false);
     setAddModal(true);
   }
 
   function openEditModal(entry) {
     const g = parseFloat(entry.grams) || 0;
     setAddEntry({
-      name:     String(entry.product_name || ''),
-      grams:    entry.grams         != null ? String(entry.grams)         : '',
-      calories: entry.calories_kcal != null ? String(entry.calories_kcal) : '',
-      protein:  entry.protein_g     != null ? String(entry.protein_g)     : '',
-      fat:      entry.fat_g         != null ? String(entry.fat_g)         : '',
-      carbs:    entry.carbs_g       != null ? String(entry.carbs_g)       : '',
-      sugar:    entry.sugar_g       != null ? String(entry.sugar_g)       : '',
-      fiber:    entry.fiber_g       != null ? String(entry.fiber_g)       : '',
-      salt:     entry.salt_g        != null ? String(entry.salt_g)        : '',
-      meal:     entry.meal_type || 'lunch',
+      name:         String(entry.product_name || ''),
+      grams:        entry.grams         != null ? String(entry.grams)         : '',
+      calories:     entry.calories_kcal != null ? String(entry.calories_kcal) : '',
+      protein:      entry.protein_g     != null ? String(entry.protein_g)     : '',
+      fat:          entry.fat_g         != null ? String(entry.fat_g)         : '',
+      carbs:        entry.carbs_g       != null ? String(entry.carbs_g)       : '',
+      sugar:        entry.sugar_g       != null ? String(entry.sugar_g)       : '',
+      fiber:        entry.fiber_g       != null ? String(entry.fiber_g)       : '',
+      salt:         entry.salt_g        != null ? String(entry.salt_g)        : '',
+      meal:         entry.meal_type || 'lunch',
     });
     setPerGram(g > 0 ? {
       calories: (parseFloat(entry.calories_kcal) || 0) / g,
@@ -235,18 +243,22 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     } : null);
     setEditingId(entry.id);
     setSuggestions([]);
+    setSearching(false);
+    setGramsError(false);
     setAddModal(true);
   }
 
   function handleNameChange(text) {
     setAddEntry(p => ({ ...p, name: text }));
     clearTimeout(searchTimer.current);
-    if (text.trim().length < 2) { setSuggestions([]); return; }
+    if (text.trim().length < 2) { setSuggestions([]); setSearching(false); return; }
+    setSearching(true);
     searchTimer.current = setTimeout(async () => {
       try {
         const results = await apiSearchFood(token, text.trim(), language);
         setSuggestions(results || []);
       } catch { setSuggestions([]); }
+      finally { setSearching(false); }
     }, 350);
   }
 
@@ -255,6 +267,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   // existing entry was opened for editing. Manually-typed macro values
   // (not driven by a grams change) are left as the user entered them.
   function handleGramsChange(text) {
+    setGramsError(false);
     const newG = parseFloat(text.replace(',', '.'));
     if (perGram && !isNaN(newG) && newG > 0) {
       setAddEntry(p => ({
@@ -274,21 +287,19 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   }
 
   function pickSuggestion(item) {
-    const g = parseFloat(item.grams) || 0;
-    setAddEntry({
+    const g = parseFloat(item.grams) || 100;
+    setAddEntry(p => ({
+      ...p,
       name:     item.product_name,
-      grams:    item.grams     ? String(Math.round(item.grams))         : '',
+      grams:    String(Math.round(g)),
       calories: item.calories_kcal ? String(Math.round(item.calories_kcal)) : '',
-      protein:  item.protein_g ? String(Math.round(item.protein_g))     : '',
-      fat:      item.fat_g     ? String(Math.round(item.fat_g))         : '',
-      carbs:    item.carbs_g   ? String(Math.round(item.carbs_g))       : '',
-      sugar:    item.sugar_g   ? String(Math.round(item.sugar_g))       : '',
-      fiber:    item.fiber_g   ? String(Math.round(item.fiber_g))       : '',
-      salt:     item.salt_g    ? String(Math.round(item.salt_g * 100) / 100) : '',
-      meal:     addEntry.meal,
-    });
-    // So that editing Grams right after picking a suggestion rescales
-    // everything correctly instead of leaving stale absolute values.
+      protein:  item.protein_g     ? String(Math.round(item.protein_g))     : '',
+      fat:      item.fat_g         ? String(Math.round(item.fat_g))         : '',
+      carbs:    item.carbs_g       ? String(Math.round(item.carbs_g))       : '',
+      sugar:    item.sugar_g       ? String(Math.round(item.sugar_g))       : '',
+      fiber:    item.fiber_g       ? String(Math.round(item.fiber_g))       : '',
+      salt:     item.salt_g        ? String(Math.round(item.salt_g * 100) / 100) : '',
+    }));
     setPerGram(g > 0 ? {
       calories: (parseFloat(item.calories_kcal) || 0) / g,
       protein:  (parseFloat(item.protein_g)     || 0) / g,
@@ -299,16 +310,24 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       salt:     (parseFloat(item.salt_g)        || 0) / g,
     } : null);
     setSuggestions([]);
+    setSearching(false);
+    setGramsError(false);
   }
 
   async function handleSaveEntry() {
     const name = addEntry.name.trim();
     if (!name) return;
+    const gramsVal = parseFloat(String(addEntry.grams).replace(',', '.'));
+    if (!addEntry.grams.trim() || isNaN(gramsVal) || gramsVal <= 0) {
+      setGramsError(true);
+      return;
+    }
+    setGramsError(false);
     setSavingEntry(true);
     const payload = {
       product_name: name,
       source: 'manual',
-      grams: addEntry.grams ? parseFloat(addEntry.grams) : null,
+      grams: gramsVal,
       meal_type: addEntry.meal || null,
       calories_kcal: addEntry.calories ? parseFloat(addEntry.calories) : null,
       protein_g: addEntry.protein ? parseFloat(addEntry.protein) : null,
@@ -463,8 +482,9 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       </Modal>
 
       {/* Add food modal */}
-      <Modal visible={addModal} transparent animationType="slide">
+      <Modal visible={addModal} transparent animationType="slide" onRequestClose={() => setAddModal(false)}>
         <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setAddModal(false); }} />
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>{t(language, editingId ? 'nutrition.edit_food' : 'nutrition.add_food')}</Text>
 
@@ -476,11 +496,26 @@ export default function NutritionDashboardScreen({ navigation, route }) {
               placeholderTextColor="#94a3b8"
               autoFocus
             />
-            {suggestions.length > 0 && (
-              <View style={s.suggestBox}>
+
+            {/* Suggestions list — scrollable, positioned directly below search field */}
+            {(searching || suggestions.length > 0) && (
+              <ScrollView
+                style={s.suggestBox}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {searching && (
+                  <View style={s.suggestLoading}>
+                    <Text style={s.suggestLoadingText}>🔍 {t(language, 'nutrition.searching') || 'Searching…'}</Text>
+                  </View>
+                )}
                 {suggestions.map((item, i) => (
-                  <TouchableOpacity key={i} style={s.suggestRow} onPress={() => pickSuggestion(item)}>
-                    <Text style={s.suggestName} numberOfLines={1}>{item.product_name}</Text>
+                  <TouchableOpacity key={i} style={s.suggestRow} onPress={() => pickSuggestion(item)} activeOpacity={0.7}>
+                    <View style={s.suggestRowTop}>
+                      <Text style={s.suggestName} numberOfLines={1}>{item.product_name}</Text>
+                      {(item.source === 'ai' || item.source === 'ai_enriched') && <Text style={s.suggestAiBadge}>AI</Text>}
+                    </View>
                     <Text style={s.suggestMacros}>
                       {item.calories_kcal ? `${Math.round(item.calories_kcal)} kcal` : ''}
                       {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
@@ -488,76 +523,87 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             )}
 
-            <View style={s.mealPicker}>
-              {MEALS.map(m => (
-                <TouchableOpacity key={m} style={[s.mealChip, addEntry.meal === m && s.mealChipActive]}
-                  onPress={() => setAddEntry(p => ({ ...p, meal: m }))}>
-                  <Text style={[s.mealChipText, addEntry.meal === m && s.mealChipTextActive]}>
-                    {t(language, `nutrition.${m}`)}
-                  </Text>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+              <View style={{ gap: 12 }}>
+                <View style={s.mealPicker}>
+                  {MEALS.map(m => (
+                    <TouchableOpacity key={m} style={[s.mealChip, addEntry.meal === m && s.mealChipActive]}
+                      onPress={() => setAddEntry(p => ({ ...p, meal: m }))}>
+                      <Text style={[s.mealChipText, addEntry.meal === m && s.mealChipTextActive]}>
+                        {t(language, `nutrition.${m}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={s.numRow}>
+                  <View style={s.numField}>
+                    <Text style={[s.numLabel, gramsError && s.numLabelError]}>Grams *</Text>
+                    <TextInput
+                      style={[s.numInput, gramsError && s.numInputError]}
+                      value={addEntry.grams}
+                      onChangeText={handleGramsChange}
+                      placeholder="—"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="decimal-pad"
+                    />
+                    {gramsError && <Text style={s.numFieldError}>{t(language, 'nutrition.grams_required') || 'Required'}</Text>}
+                  </View>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>kcal</Text>
+                    <TextInput style={s.numInput} value={addEntry.calories} onChangeText={v => setAddEntry(p => ({ ...p, calories: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                </View>
+
+                <View style={s.numRow}>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>Protein g</Text>
+                    <TextInput style={s.numInput} value={addEntry.protein} onChangeText={v => setAddEntry(p => ({ ...p, protein: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>Fat g</Text>
+                    <TextInput style={s.numInput} value={addEntry.fat} onChangeText={v => setAddEntry(p => ({ ...p, fat: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>Carbs g</Text>
+                    <TextInput style={s.numInput} value={addEntry.carbs} onChangeText={v => setAddEntry(p => ({ ...p, carbs: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                </View>
+
+                <View style={s.numRow}>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>{t(language, 'nutrition.sugar')} g</Text>
+                    <TextInput style={s.numInput} value={addEntry.sugar} onChangeText={v => setAddEntry(p => ({ ...p, sugar: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>{t(language, 'nutrition.fiber')} g</Text>
+                    <TextInput style={s.numInput} value={addEntry.fiber} onChangeText={v => setAddEntry(p => ({ ...p, fiber: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={s.numField}>
+                    <Text style={s.numLabel}>{t(language, 'nutrition.salt')} g</Text>
+                    <TextInput style={s.numInput} value={addEntry.salt} onChangeText={v => setAddEntry(p => ({ ...p, salt: v }))}
+                      placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                </View>
+
+                <TouchableOpacity onPress={handleSaveEntry} disabled={savingEntry || !addEntry.name.trim()}
+                  style={[s.saveBtn, (savingEntry || !addEntry.name.trim()) && { opacity: 0.5 }]}>
+                  <Text style={s.saveBtnText}>{savingEntry ? '…' : t(language, 'nutrition.save')}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={s.numRow}>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>Grams</Text>
-                <TextInput style={s.numInput} value={addEntry.grams} onChangeText={handleGramsChange}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                <TouchableOpacity onPress={() => { Keyboard.dismiss(); setAddModal(false); }} style={s.cancelBtn}>
+                  <Text style={s.cancelText}>Cancel</Text>
+                </TouchableOpacity>
               </View>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>kcal</Text>
-                <TextInput style={s.numInput} value={addEntry.calories} onChangeText={v => setAddEntry(p => ({ ...p, calories: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-            </View>
-
-            <View style={s.numRow}>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>Protein g</Text>
-                <TextInput style={s.numInput} value={addEntry.protein} onChangeText={v => setAddEntry(p => ({ ...p, protein: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>Fat g</Text>
-                <TextInput style={s.numInput} value={addEntry.fat} onChangeText={v => setAddEntry(p => ({ ...p, fat: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>Carbs g</Text>
-                <TextInput style={s.numInput} value={addEntry.carbs} onChangeText={v => setAddEntry(p => ({ ...p, carbs: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-            </View>
-
-            <View style={s.numRow}>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>{t(language, 'nutrition.sugar')} g</Text>
-                <TextInput style={s.numInput} value={addEntry.sugar} onChangeText={v => setAddEntry(p => ({ ...p, sugar: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>{t(language, 'nutrition.fiber')} g</Text>
-                <TextInput style={s.numInput} value={addEntry.fiber} onChangeText={v => setAddEntry(p => ({ ...p, fiber: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-              <View style={s.numField}>
-                <Text style={s.numLabel}>{t(language, 'nutrition.salt')} g</Text>
-                <TextInput style={s.numInput} value={addEntry.salt} onChangeText={v => setAddEntry(p => ({ ...p, salt: v }))}
-                  placeholder="—" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-              </View>
-            </View>
-
-            <TouchableOpacity onPress={handleSaveEntry} disabled={savingEntry || !addEntry.name.trim()}
-              style={[s.saveBtn, (savingEntry || !addEntry.name.trim()) && { opacity: 0.5 }]}>
-              <Text style={s.saveBtnText}>{savingEntry ? '…' : t(language, 'nutrition.save')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setAddModal(false)} style={s.cancelBtn}>
-              <Text style={s.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -610,16 +656,23 @@ const s = StyleSheet.create({
   goalsBtn: { alignItems: 'center', paddingVertical: 8 },
   goalsBtnText: { fontSize: 13, color: Colors.navy, textDecorationLine: 'underline' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12 },
+  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12, maxHeight: '90%' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy, textAlign: 'center', marginBottom: 4 },
   weightInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   weightInput: { flex: 1, borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 22, fontWeight: '700', textAlign: 'center', color: Colors.navy },
   weightUnit: { fontSize: 16, fontWeight: '700', color: '#64748b' },
   fieldInput: { borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, padding: 12, fontSize: 16, color: Colors.navy },
-  suggestBox: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden', marginTop: -4 },
-  suggestRow: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  suggestName: { fontSize: 14, fontWeight: '600', color: Colors.navy },
-  suggestMacros: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
+  suggestBox: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, backgroundColor: '#FAFBFF', maxHeight: 220 },
+  suggestLoading: { paddingHorizontal: 14, paddingVertical: 12 },
+  suggestLoadingText: { fontSize: 13, color: '#94a3b8', fontStyle: 'italic' },
+  suggestRow: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', minHeight: 52, justifyContent: 'center' },
+  suggestRowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  suggestName: { fontSize: 14, fontWeight: '600', color: Colors.navy, flex: 1 },
+  suggestAiBadge: { fontSize: 10, fontWeight: '800', color: '#7C3AED', backgroundColor: '#EDE9FE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
+  suggestMacros: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  numLabelError: { color: '#EF4444' },
+  numInputError: { borderColor: '#EF4444', borderWidth: 2 },
+  numFieldError: { fontSize: 10, color: '#EF4444', marginTop: 2 },
   mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   mealChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#F8FAFC' },
   mealChipActive: { backgroundColor: Colors.navy, borderColor: Colors.navy },

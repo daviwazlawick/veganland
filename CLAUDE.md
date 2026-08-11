@@ -1134,4 +1134,58 @@ O badge mostrava só o streak ("Days"). Substituído por badge dividido com dois
 - Estilos: `splitBadge`, `splitBadgeCol`, `splitBadgeDivider`, `splitBadgeNum`, `splitBadgeLabel` em `HomeScreen.js`
 - O badge do VeganLand (que já mostrava só scans) mantém-se igual.
 
-Commit `b662a95`, deployado em `novaqi.app`.
+---
+
+## Sessão 2026-08-11 — Melhoria da busca de alimentos (Add Food modal)
+
+### 1) Fallback AI para alimentos não encontrados em nenhum DB
+
+Quando a busca de alimentos retorna <2 resultados mesmo após expansão AI + OFF live:
+- `anthropic.js`: nova função `fetchNutritionalData(query, language)` — pede ao Claude valores nutricionais por 100g para alimentos genéricos (banana, frango, arroz, etc.). Para produtos de marca específica retorna `null` (dados insuficientes).
+- `server.js`: após o fallback `expandSearchQuery`, se `merged.length < 2`, chama `fetchNutritionalData` como último recurso. Resultado marcado com `source: 'ai'`.
+- Resultados AI aparecem com badge "AI" roxo na lista de sugestões.
+
+### 2) Melhorias UX do modal Add Food (NutritionDashboardScreen.js)
+
+**Grams obrigatório:**
+- `handleSaveEntry` valida `grams > 0` antes de guardar. Se vazio, activa `gramsError` state.
+- Label do campo mostra "Grams *". Quando `gramsError`, label fica vermelho + borda do input vermelha + "Required" abaixo.
+- `gramsError` limpa-se quando o utilizador começa a digitar no campo.
+
+**Lista de resultados melhorada:**
+- `suggestBox` passou de `View` para `ScrollView` com `maxHeight: 220` e `keyboardShouldPersistTaps="handled"` — lista scrollável, fácil de seleccionar.
+- Cada linha tem `minHeight: 52` para ser fácil de tocar.
+- Estado `searching` (bool): indica ao utilizador que a pesquisa está em curso ("🔍 Searching…").
+- `handleNameChange` activa `searching=true` antes do debounce e desactiva no `finally`.
+- Badge "AI" (fundo roxo claro) nas sugestões vindas do fallback Claude.
+
+**Backdrop e fechamento do modal:**
+- `TouchableOpacity absoluteFillObject` como backdrop (padrão já usado em PlateAnalysisScreen).
+- `onRequestClose` no Modal para fechar com botão back no Android.
+- Botão Cancel também faz `Keyboard.dismiss()`.
+- `modalCard` com `maxHeight: '90%'` para não ultrapassar o ecrã.
+
+**Conteúdo do modal em ScrollView:**
+- Os campos de meal picker, grams e macros ficam num `ScrollView` com `keyboardShouldPersistTaps="handled"` — garante que tocar nos campos não fecha o teclado.
+
+### 3) Enriquecimento AI para resultados sem dados nutricionais
+
+Quando um produto é encontrado pelo nome mas não tem macros (ex: "batata frita" na tabela OFF sem `nutrition_100g`):
+- `server.js` `/nutrition/search`: após fundir todos os resultados, filtra itens com `calories_kcal == null` (até 3), chama `fetchNutritionalData` em paralelo para cada um.
+- Se Claude retorna dados, preenche `calories_kcal`, `protein_g`, `fat_g`, `carbs_g`, `fiber_g`, `sugar_g`, `salt_g` no resultado. `source` fica `'ai_enriched'`.
+- Badge "AI" roxo também aparece em `source === 'ai_enriched'` (além de `source === 'ai'`).
+- Claude retorna `null` para marcas específicas sem dados fiáveis — item fica sem macros, utilizador preenche à mão.
+
+### 4) Apenas gramas (selector ml/unit removido)
+
+Selector de unidade (g/ml/unit) adicionado e depois removido a pedido — mantém-se só gramas para simplicidade. `EMPTY_ENTRY` e `handleSaveEntry` voltaram à forma original com campo `grams` único.
+
+### 5) HomeScreen — logo completo no header (NovaQI)
+
+- Antes: ícone pequeño scan + `BrandName` em texto ("Nova" branco + "QI" verde) — dois elementos separados.
+- Depois: `<Image source={require('../../assets/novaqi/novaqi-logo-dark.svg')} style={{ height: 36, width: 166 }} resizeMode="contain" />` — SVG com círculo + wordmark tudo numa peça.
+- O SVG `novaqi-logo-dark.svg` tem fundo transparente, texto branco e verde, optimizado para o header escuro (`#0E1B14`).
+- VeganLand mantém `BrandName` em texto (sem SVG de logo completo disponível).
+- Estilos removidos: `headerTitleRow`, `headerIconWrap`. Adicionado: `headerLogo: { height: 36, width: 166 }`.
+
+Deploy desta sessão: `npx expo export --platform web` + `cp dist/* /var/www/novaqi/` + `pm2 restart veganland-api`.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -85,20 +85,21 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, isNovaQI && styles.headerNovaqi]}>
-        <View style={isNovaQI && styles.headerTitleRow}>
-          {isNovaQI && (
-            <View style={styles.headerIconWrap}>
-              <PremiumIcon name="scan" size={22} color={Colors.white} />
-            </View>
-          )}
-          <View>
+        <View>
+          {isNovaQI ? (
+            <Image
+              source={require('../../assets/novaqi/novaqi-logo-dark.svg')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+          ) : (
             <BrandName
               style={styles.headerTitle}
               prefixColor={Colors.headerText}
               suffixColor={Colors.primary}
             />
-            <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
-          </View>
+          )}
+          <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
         </View>
         {isNovaQI ? (
           <View style={styles.splitBadge}>
@@ -327,12 +328,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.headerBg,
   },
   headerNovaqi: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerIconWrap: {
-    width: 34, height: 34, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  headerLogo: { height: 36, width: 166 },
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',

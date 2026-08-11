@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { analyzePlate, expandSearchQuery } from './anthropic.js';
+import { analyzePlate, expandSearchQuery, fetchNutritionalData } from './anthropic.js';
 import { searchOffProducts } from './openFoodFacts.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
@@ -1563,6 +1563,44 @@ const server = http.createServer(async (req, res) => {
           const offResults2 = await searchOffProducts(offQuery, 10);
           merged = mergeSearchResults([merged, offResults2]);
         }
+        // Final fallback: ask Claude for approximate nutritional data from its
+        // training knowledge. Only fires for truly missing foods; branded
+        // products return null from Claude so they don't pollute results.
+        if (merged.length < 2) {
+          try {
+            const aiResult = await fetchNutritionalData(q, lang);
+            if (aiResult) merged = mergeSearchResults([merged, [aiResult]]);
+          } catch {}
+        }
+      }
+
+      // Enrich results that were found by name but have no nutritional data.
+      // Runs in parallel for up to 3 items — Claude fills in per-100g values
+      // from training knowledge for generic foods; returns null for brands.
+      const toEnrich = merged
+        .map((r, i) => ({ r, i }))
+        .filter(({ r }) => r.calories_kcal == null)
+        .slice(0, 3);
+      if (toEnrich.length > 0) {
+        const enriched = await Promise.all(
+          toEnrich.map(({ r }) => fetchNutritionalData(r.product_name, lang).catch(() => null))
+        );
+        toEnrich.forEach(({ i }, j) => {
+          const ai = enriched[j];
+          if (ai) {
+            merged[i] = {
+              ...merged[i],
+              calories_kcal: ai.calories_kcal,
+              protein_g:     ai.protein_g,
+              fat_g:         ai.fat_g,
+              carbs_g:       ai.carbs_g,
+              fiber_g:       ai.fiber_g,
+              sugar_g:       ai.sugar_g,
+              salt_g:        ai.salt_g,
+              source:        'ai_enriched',
+            };
+          }
+        });
       }
 
       sendJson(res, 200, merged.slice(0, 20), origin);
