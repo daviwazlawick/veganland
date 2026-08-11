@@ -1269,3 +1269,55 @@ Todas as alterações desta sessão são JS puro — nenhuma requer novo build n
 ### Timezone automático (concluído)
 
 `AppContext.js` chama `apiSyncPushTimezone(token)` em cada login — timezone do dispositivo fica sempre actualizado no `push_tokens.timezone` sem re-registo do token.
+
+---
+
+## Sessão 2026-08-11 (noite 2) — Logo + anel SVG + broadcast update
+
+### Problema: react-native-svg não está no build nativo actual
+
+`react-native-svg` (`^15.11.2`) foi adicionado ao projecto depois do último build nativo submetido às stores. OTA não consegue adicionar módulos nativos → `Svg`, `Circle`, `Path` mostram "unimplemented component" em iOS e Android.
+
+**Impacto:**
+- Logo NovaQI (ícone círculo + handle amarelo) não renderiza
+- `CalorieRing` (anel de nutrição) não renderiza
+
+**Fix temporário (OTA, sem novo build):**
+- `NovaQILogo`: usa `View` com `borderRadius` (círculo verde) + `Text` "Nova**QI**" — sem SVG
+- `CalorieRing`: substituído por barra de progresso horizontal + valor kcal — sem SVG
+
+**Fix definitivo:** no próximo build nativo, `react-native-svg` ficará linked e podemos restaurar o `CalorieRing` com o anel SVG real e o logo com o handle amarelo.
+
+### Logo SVG — história das tentativas
+
+1. `<Image source={require('.svg')}>` → não funciona em native (Image não suporta SVG)
+2. `<SvgXml xml={...}>` com `<text>/<tspan>` → "unimplemented component" (react-native-svg não suporta elementos SVG text via SvgXml)
+3. `Svg + Circle + Path` → "unimplemented component" (módulo nativo não está no build)
+4. ✅ `View borderRadius + Text` → funciona em tudo, sem dependências nativas
+
+### Próximo build nativo — o que restaurar
+
+Quando fizer novo build (necessário de qualquer forma para outras features):
+- `HomeScreen.js` `NovaQILogo`: restaurar `Svg + Circle + Path` com o handle amarelo
+- `HomeScreen.js` `CalorieRing`: restaurar o anel SVG com `strokeDasharray`/`strokeDashoffset`
+- Remover imports desnecessários adicionados durante debugging (`SvgXml`, etc.)
+
+### Broadcast multilíngue — anúncio do update
+
+Script `server/src/scripts/broadcast-update.mjs` envia notificação em 6 línguas a todos os tokens activos. Resultado: **68 entregues**, 49 erros (tokens inválidos/desinstalados — normal).
+
+Mensagens enviadas:
+- 🇵🇹 pt: "Actualizámos o NovaQI para ser ainda mais útil. O registo de nutrição chegou!"
+- 🇬🇧 en: "We just updated NovaQI to be even more useful for you. A nutrition track is in place!"
+- 🇩🇪 de: "Wir haben NovaQI aktualisiert — die Ernährungsverfolgung ist jetzt da!"
+- 🇫🇷 fr: "Nous venons de mettre à jour NovaQI. Le suivi nutritionnel est là!"
+- 🇮🇹 it: "Abbiamo aggiornato NovaQI. Il monitoraggio nutrizionale è disponibile!"
+- 🇪🇸 es: "¡Acabamos de actualizar NovaQI. El seguimiento nutricional ya está disponible!"
+
+Deep-link: `{ route: 'Home' }` — abre a home da app.
+
+### Pendente para próxima sessão
+
+- Novo build nativo (iOS via Transporter + Android via Play Console) para incluir `react-native-svg`
+- Após o build: restaurar `CalorieRing` SVG e logo com handle amarelo via OTA
+- Comando deploy web (sempre com env vars): ver secção "Deploy NovaQI web" acima
