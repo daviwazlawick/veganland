@@ -1321,3 +1321,33 @@ Deep-link: `{ route: 'Home' }` — abre a home da app.
 - Novo build nativo (iOS via Transporter + Android via Play Console) para incluir `react-native-svg`
 - Após o build: restaurar `CalorieRing` SVG e logo com handle amarelo via OTA
 - Comando deploy web (sempre com env vars): ver secção "Deploy NovaQI web" acima
+
+---
+
+## Sessão 2026-08-12 — Fix busca de alimentos genéricos (amendoim, azeitona, etc.)
+
+### Problema
+
+Alimentos genéricos simples (amendoim, azeitona, arroz, etc.) não apareciam nos resultados de busca. O fallback Claude (`fetchNutritionalData`) só disparava quando `merged.length < 2`, mas OFF retornava 2+ produtos de marca (ex: manteiga de amendoim, azeite) que satisfaziam o threshold — sem nunca adicionar uma entrada genérica "Amendoim" ou "Azeitona".
+
+### Fix — `server/src/server.js` (endpoint `/nutrition/search`)
+
+**Antes:** `fetchNutritionalData` corria só quando `merged.length < 2` (após expansão).
+
+**Depois:** corre **em paralelo** com `expandSearchQuery` sempre que resultados < 5, sem latência extra:
+
+```js
+const [expansion, aiResult] = await Promise.all([
+  expandSearchQuery(q, lang),
+  fetchNutritionalData(q, lang).catch(() => null),
+]);
+// ... second OFF search with expansion ...
+// Prepend generic AI result so plain foods appear before branded variants
+if (aiResult) merged = mergeSearchResults([[aiResult], merged]);
+```
+
+Claude retorna `null` para produtos de marca, por isso não polui os resultados. O resultado genérico é colocado **no início** da lista para o utilizador encontrar facilmente o alimento simples (ex: "Amendoim | 567 kcal").
+
+**Resultado testado:**
+- "amendoim" → primeiro resultado: `Amendoim | 567 kcal | src=ai` ✅
+- "azeitona" → primeiro resultado: `azeitona | 145 kcal | src=ai` ✅
