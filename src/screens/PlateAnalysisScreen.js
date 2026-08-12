@@ -72,7 +72,7 @@ export default function PlateAnalysisScreen({ navigation }) {
 
   useEffect(() => {
     if (result?.items) setEditableItems(result.items.map(i => ({ ...i })));
-  }, [result]);
+  }, [result?.items]);
 
   function updateNameAndSuggest(text) {
     setEditDraft(d => ({ ...d, name: text }));
