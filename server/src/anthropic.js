@@ -1072,6 +1072,7 @@ Return ONLY valid JSON:
 }
 
 Rules:
+- Always identify the ACTUAL food visible in the image — never rename or substitute it for a diet-compatible alternative (e.g. if you see scrambled eggs, call it "scrambled eggs" even if the diet is vegan; mark it NOT_SAFE instead)
 - Conservative portion estimates (typical serving sizes)
 - Round values to 1 decimal place
 - If you cannot identify food return {"items": []}
