@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
@@ -69,6 +69,7 @@ export default function HomeScreen({ navigation }) {
   const { token } = useAuth();
   const [loggingWater, setLoggingWater] = useState(false);
   const [recentPlates, setRecentPlates] = useState([]);
+  const [badgeTooltip, setBadgeTooltip] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -100,22 +101,26 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.headerSub}>{t(language, 'home.header_question')}</Text>
         </View>
         {isNovaQI ? (
-          <View style={styles.splitBadge}>
-            <View style={styles.splitBadgeCol}>
-              <Text style={styles.splitBadgeNum}>🔥{streak || 0}</Text>
-              <Text style={styles.splitBadgeLabel}>{t(language, 'home.streak_label')}</Text>
+          <TouchableOpacity onPress={() => setBadgeTooltip(true)} activeOpacity={0.75}>
+            <View style={styles.splitBadge}>
+              <View style={styles.splitBadgeCol}>
+                <Text style={styles.splitBadgeNum}>🔥{streak || 0}</Text>
+                <Text style={styles.splitBadgeLabel}>{t(language, 'home.streak_label')}</Text>
+              </View>
+              <View style={styles.splitBadgeDivider} />
+              <View style={styles.splitBadgeCol}>
+                <Text style={styles.splitBadgeNum}>{monthlyScanCount || scanHistory.length}</Text>
+                <Text style={styles.splitBadgeLabel}>{t(language, 'home.scans_label')}</Text>
+              </View>
             </View>
-            <View style={styles.splitBadgeDivider} />
-            <View style={styles.splitBadgeCol}>
-              <Text style={styles.splitBadgeNum}>{monthlyScanCount || scanHistory.length}</Text>
-              <Text style={styles.splitBadgeLabel}>{t(language, 'home.scans_label')}</Text>
-            </View>
-          </View>
+          </TouchableOpacity>
         ) : (
-          <View style={styles.scanCountBadge}>
-            <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
-            <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
-          </View>
+          <TouchableOpacity onPress={() => setBadgeTooltip(true)} activeOpacity={0.75}>
+            <View style={styles.scanCountBadge}>
+              <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
+              <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
+            </View>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -311,6 +316,34 @@ export default function HomeScreen({ navigation }) {
         )}
 
       </ScrollView>
+
+      <Modal visible={badgeTooltip} transparent animationType="fade" onRequestClose={() => setBadgeTooltip(false)}>
+        <Pressable style={styles.tooltipBackdrop} onPress={() => setBadgeTooltip(false)}>
+          <View style={styles.tooltipCard} onStartShouldSetResponder={() => true}>
+            <View style={styles.tooltipArrow} />
+            {isNovaQI && (
+              <>
+                <View style={styles.tooltipRow}>
+                  <Text style={styles.tooltipEmoji}>🔥</Text>
+                  <View style={styles.tooltipTexts}>
+                    <Text style={styles.tooltipNum}>{streak || 0}</Text>
+                    <Text style={styles.tooltipDesc}>{t(language, 'home.badge_streak_desc')}</Text>
+                  </View>
+                </View>
+                <View style={styles.tooltipSep} />
+              </>
+            )}
+            <View style={styles.tooltipRow}>
+              <Text style={styles.tooltipEmoji}>📊</Text>
+              <View style={styles.tooltipTexts}>
+                <Text style={styles.tooltipNum}>{monthlyScanCount || scanHistory.length}</Text>
+                <Text style={styles.tooltipDesc}>{t(language, 'home.badge_scans_desc')}</Text>
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -443,6 +476,40 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
   emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
+  tooltipBackdrop: { flex: 1 },
+  tooltipCard: {
+    position: 'absolute',
+    top: 86,
+    right: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 16,
+    minWidth: 220,
+    shadowColor: '#000',
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    top: -7,
+    right: 22,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderBottomWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: Colors.card,
+  },
+  tooltipRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tooltipEmoji: { fontSize: 26 },
+  tooltipTexts: { flex: 1 },
+  tooltipNum: { fontSize: 22, fontWeight: '800', color: Colors.text },
+  tooltipDesc: { fontSize: 12, fontWeight: '500', color: Colors.textMuted, marginTop: 1 },
+  tooltipSep: { height: 1, backgroundColor: Colors.backgroundSecondary, marginVertical: 12 },
 });
 
 const homeReferralStyles = StyleSheet.create({

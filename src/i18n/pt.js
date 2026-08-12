@@ -148,6 +148,8 @@ export default {
     header_question: 'O que vamos escanear hoje?',
     scans_label: 'scans',
     streak_label: 'dias',
+    badge_streak_desc: 'Dias seguidos a usar a app',
+    badge_scans_desc: 'Análises feitas este mês',
     setup_profile: 'Configure seu perfil',
     no_allergies_configured: 'Sem sensibilidades configuradas',
     empty_title: 'Nenhuma análise ainda!',

@@ -148,6 +148,8 @@ export default {
     header_question: 'Was scannen wir heute?',
     scans_label: 'Scans',
     streak_label: 'Tage',
+    badge_streak_desc: 'Aufeinanderfolgende Nutzungstage',
+    badge_scans_desc: 'Analysen diesen Monat',
     setup_profile: 'Profil einrichten',
     no_allergies_configured: 'Keine Empfindlichkeiten konfiguriert',
     empty_title: 'Noch keine Analyse!',
