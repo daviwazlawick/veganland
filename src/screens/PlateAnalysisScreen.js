@@ -427,100 +427,101 @@ export default function PlateAnalysisScreen({ navigation }) {
       </ScrollView>
 
       {/* ── Edit / Add Item Modal ── */}
-      <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
-        <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditModal(false); }} />
-          <View style={s.modalCard}>
-            <View style={s.modalHeaderRow}>
-              <Text style={s.modalTitle}>
-                {editIndex === null ? t(language, 'nutrition.plate_add_item') : t(language, 'nutrition.plate_edit_item')}
-              </Text>
-              <View style={s.modalHeaderActions}>
-                {editIndex !== null && (
-                  <TouchableOpacity onPress={() => deleteItem(editIndex)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.modalDeleteIcon}>
-                    <Text style={s.modalDeleteIconText}>🗑️</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={() => setEditModal(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                  <Text style={s.modalClose}>×</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View>
-              <Text style={s.modalLabel}>{t(language, 'nutrition.plate_item_name')}</Text>
-              <TextInput
-                style={s.modalInput}
-                value={editDraft.name}
-                onChangeText={updateNameAndSuggest}
-                placeholder={t(language, 'nutrition.plate_item_name_placeholder')}
-                placeholderTextColor="#94a3b8"
-                autoFocus
-                returnKeyType="next"
-                autoComplete="off"
-                autoCorrect={false}
-              />
-              {suggestions.length > 0 && (
-                <View style={s.suggestList}>
-                  {suggestions.map((food, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={[s.suggestItem, i < suggestions.length - 1 && s.suggestItemBorder]}
-                      onPress={() => pickSuggestion(food)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={s.suggestText}>{food}</Text>
+      <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setEditModal(false); }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditModal(false); }}>
+            <TouchableOpacity style={s.modalCard} activeOpacity={1} onPress={() => {}}>
+              <View style={s.modalHeaderRow}>
+                <Text style={s.modalTitle}>
+                  {editIndex === null ? t(language, 'nutrition.plate_add_item') : t(language, 'nutrition.plate_edit_item')}
+                </Text>
+                <View style={s.modalHeaderActions}>
+                  {editIndex !== null && (
+                    <TouchableOpacity onPress={() => deleteItem(editIndex)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.modalDeleteIcon}>
+                      <Text style={s.modalDeleteIconText}>🗑️</Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <View style={s.modalRow2}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>{t(language, 'nutrition.body_weight')} (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.grams} onChangeText={handleGramsChange} placeholder="100" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>Kcal</Text>
-                  <TextInput style={s.modalInput} value={editDraft.calories_kcal} onChangeText={v => setEditDraft(d => ({ ...d, calories_kcal: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  )}
+                  <TouchableOpacity onPress={() => { Keyboard.dismiss(); setEditModal(false); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                    <Text style={s.modalClose}>×</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              <View style={s.modalRow3}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>Prot (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.protein_g} onChangeText={v => setEditDraft(d => ({ ...d, protein_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>Carbs (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.carbs_g} onChangeText={v => setEditDraft(d => ({ ...d, carbs_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>Fat (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.fat_g} onChangeText={v => setEditDraft(d => ({ ...d, fat_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-                </View>
-              </View>
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={s.modalLabel}>{t(language, 'nutrition.plate_item_name')}</Text>
+                <TextInput
+                  style={s.modalInput}
+                  value={editDraft.name}
+                  onChangeText={updateNameAndSuggest}
+                  placeholder={t(language, 'nutrition.plate_item_name_placeholder')}
+                  placeholderTextColor="#94a3b8"
+                  autoFocus
+                  returnKeyType="next"
+                  autoComplete="off"
+                  autoCorrect={false}
+                />
+                {suggestions.length > 0 && (
+                  <View style={s.suggestList}>
+                    {suggestions.map((food, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[s.suggestItem, i < suggestions.length - 1 && s.suggestItemBorder]}
+                        onPress={() => pickSuggestion(food)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={s.suggestText}>{food}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
 
-              <View style={s.modalRow3}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>{t(language, 'nutrition.fiber')} (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.fiber_g} onChangeText={v => setEditDraft(d => ({ ...d, fiber_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                <View style={s.modalRow2}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>{t(language, 'nutrition.body_weight')} (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.grams} onChangeText={handleGramsChange} placeholder="100" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>Kcal</Text>
+                    <TextInput style={s.modalInput} value={editDraft.calories_kcal} onChangeText={v => setEditDraft(d => ({ ...d, calories_kcal: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>{t(language, 'nutrition.sugar')} (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.sugar_g} onChangeText={v => setEditDraft(d => ({ ...d, sugar_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalLabel}>{t(language, 'nutrition.salt')} (g)</Text>
-                  <TextInput style={s.modalInput} value={editDraft.salt_g} onChangeText={v => setEditDraft(d => ({ ...d, salt_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
-                </View>
-              </View>
 
-              <TouchableOpacity style={s.modalSaveBtn} onPress={saveEdit} activeOpacity={0.85}>
-                <Text style={s.modalSaveBtnText}>{t(language, 'personal.save')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+                <View style={s.modalRow3}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>Prot (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.protein_g} onChangeText={v => setEditDraft(d => ({ ...d, protein_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>Carbs (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.carbs_g} onChangeText={v => setEditDraft(d => ({ ...d, carbs_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>Fat (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.fat_g} onChangeText={v => setEditDraft(d => ({ ...d, fat_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                </View>
+
+                <View style={s.modalRow3}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>{t(language, 'nutrition.fiber')} (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.fiber_g} onChangeText={v => setEditDraft(d => ({ ...d, fiber_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>{t(language, 'nutrition.sugar')} (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.sugar_g} onChangeText={v => setEditDraft(d => ({ ...d, sugar_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalLabel}>{t(language, 'nutrition.salt')} (g)</Text>
+                    <TextInput style={s.modalInput} value={editDraft.salt_g} onChangeText={v => setEditDraft(d => ({ ...d, salt_g: v }))} placeholder="0" placeholderTextColor="#94a3b8" keyboardType="decimal-pad" />
+                  </View>
+                </View>
+
+                <TouchableOpacity style={s.modalSaveBtn} onPress={saveEdit} activeOpacity={0.85}>
+                  <Text style={s.modalSaveBtnText}>{t(language, 'personal.save')}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
@@ -589,10 +590,9 @@ const s = StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modalCard: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 32, maxHeight: '85%',
+    padding: 20, paddingBottom: 32, maxHeight: '88%',
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: -4 },
     elevation: 12,
   },
