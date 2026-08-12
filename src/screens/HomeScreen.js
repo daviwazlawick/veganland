@@ -115,12 +115,10 @@ export default function HomeScreen({ navigation }) {
             </View>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={() => setBadgeTooltip(true)} activeOpacity={0.75}>
-            <View style={styles.scanCountBadge}>
-              <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
-              <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.scanCountBadge}>
+            <Text style={styles.scanCountNum}>{monthlyScanCount || scanHistory.length}</Text>
+            <Text style={styles.scanCountLabel}>{t(language, 'home.scans_label')}</Text>
+          </View>
         )}
       </View>
 
