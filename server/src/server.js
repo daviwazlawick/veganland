@@ -1566,7 +1566,11 @@ const server = http.createServer(async (req, res) => {
 
       const SPARSE_THRESHOLD = 5;
       if (merged.length < SPARSE_THRESHOLD) {
-        const expansion = await expandSearchQuery(q, lang);
+        // Run query expansion and generic AI lookup in parallel — no extra latency
+        const [expansion, aiResult] = await Promise.all([
+          expandSearchQuery(q, lang),
+          fetchNutritionalData(q, lang).catch(() => null),
+        ]);
         const extraTerms = (expansion.terms || []).filter(t => t.toLowerCase() !== q.toLowerCase());
         const offQuery = expansion.category || extraTerms[0];
         if (offQuery) {
@@ -1577,15 +1581,9 @@ const server = http.createServer(async (req, res) => {
           const offResults2 = await searchOffProducts(offQuery, 10);
           merged = mergeSearchResults([merged, offResults2]);
         }
-        // Final fallback: ask Claude for approximate nutritional data from its
-        // training knowledge. Only fires for truly missing foods; branded
-        // products return null from Claude so they don't pollute results.
-        if (merged.length < 2) {
-          try {
-            const aiResult = await fetchNutritionalData(q, lang);
-            if (aiResult) merged = mergeSearchResults([merged, [aiResult]]);
-          } catch {}
-        }
+        // Prepend generic AI result so plain foods appear before branded variants.
+        // Claude returns null for branded products so this won't pollute results.
+        if (aiResult) merged = mergeSearchResults([[aiResult], merged]);
       }
 
       // Enrich results that were found by name but have no nutritional data.
