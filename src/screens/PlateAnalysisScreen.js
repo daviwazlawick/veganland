@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
   ActivityIndicator, Image, Platform, Modal, TextInput,
-  KeyboardAvoidingView, Keyboard,
+  KeyboardAvoidingView, Keyboard, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -428,9 +428,10 @@ export default function PlateAnalysisScreen({ navigation }) {
 
       {/* ── Edit / Add Item Modal ── */}
       <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setEditModal(false); }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditModal(false); }}>
-            <TouchableOpacity style={s.modalCard} activeOpacity={1} onPress={() => {}}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => { Keyboard.dismiss(); setEditModal(false); }} />
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={s.modalCard}>
               <View style={s.modalHeaderRow}>
                 <Text style={s.modalTitle}>
                   {editIndex === null ? t(language, 'nutrition.plate_add_item') : t(language, 'nutrition.plate_edit_item')}
@@ -520,9 +521,9 @@ export default function PlateAnalysisScreen({ navigation }) {
                   <Text style={s.modalSaveBtnText}>{t(language, 'personal.save')}</Text>
                 </TouchableOpacity>
               </ScrollView>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -589,7 +590,6 @@ const s = StyleSheet.create({
   logBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
 
   // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   modalCard: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, paddingBottom: 32, maxHeight: '88%',
