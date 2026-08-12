@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
   ActivityIndicator, Image, Platform, Modal, TextInput,
@@ -13,7 +13,7 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { PremiumIcon } from '../components/ui';
-import { apiAnalyzePlate } from '../services/apiService';
+import { apiAnalyzePlate, apiSearchFood } from '../services/apiService';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -68,7 +68,9 @@ export default function PlateAnalysisScreen({ navigation }) {
   const [editIndex, setEditIndex] = useState(null); // null = new item
   const [editDraft, setEditDraft] = useState(EMPTY_ITEM());
   const [suggestions, setSuggestions] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [perGram, setPerGram] = useState(null); // per-gram ratios for proportional recalc
+  const searchTimer = useRef(null);
 
   useEffect(() => {
     if (result?.items) setEditableItems(result.items.map(i => ({ ...i })));
@@ -76,19 +78,47 @@ export default function PlateAnalysisScreen({ navigation }) {
 
   function updateNameAndSuggest(text) {
     setEditDraft(d => ({ ...d, name: text }));
-    if (text.length < 2) { setSuggestions([]); return; }
+    if (text.length < 2) { setSuggestions([]); setSearchResults([]); return; }
+    // Local static suggestions (instant)
     const pool = FOOD_SUGGESTIONS[language] || FOOD_SUGGESTIONS.en;
     const lower = text.toLowerCase();
-    setSuggestions(pool.filter(f => f.toLowerCase().includes(lower)).slice(0, 5));
+    setSuggestions(pool.filter(f => f.toLowerCase().includes(lower)).slice(0, 3));
+    // Debounced API search (350ms)
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const results = await apiSearchFood(token, text, language);
+        setSearchResults(results.slice(0, 6));
+      } catch {}
+    }, 350);
   }
 
-  function pickSuggestion(food) {
-    setEditDraft(d => ({ ...d, name: food }));
+  function pickSuggestion(food, apiResult = null) {
+    if (apiResult) {
+      const g = parseFloat(editDraft.grams) || 100;
+      const ratio = g / 100;
+      const n = v => v != null ? Math.round(Number(v) * ratio * 10) / 10 : '';
+      setEditDraft(d => ({
+        ...d,
+        name: apiResult.product_name,
+        calories_kcal: n(apiResult.calories_kcal),
+        protein_g:     n(apiResult.protein_g),
+        fat_g:         n(apiResult.fat_g),
+        carbs_g:       n(apiResult.carbs_g),
+        fiber_g:       n(apiResult.fiber_g),
+        sugar_g:       n(apiResult.sugar_g),
+        salt_g:        n(apiResult.salt_g),
+      }));
+    } else {
+      setEditDraft(d => ({ ...d, name: food }));
+    }
     setSuggestions([]);
+    setSearchResults([]);
   }
 
   function openEdit(index) {
     setSuggestions([]);
+    setSearchResults([]);
     if (index === null) {
       setEditDraft(EMPTY_ITEM());
       setPerGram(null);
@@ -460,16 +490,29 @@ export default function PlateAnalysisScreen({ navigation }) {
                   autoComplete="off"
                   autoCorrect={false}
                 />
-                {suggestions.length > 0 && (
+                {(suggestions.length > 0 || searchResults.length > 0) && (
                   <View style={s.suggestList}>
                     {suggestions.map((food, i) => (
                       <TouchableOpacity
-                        key={i}
-                        style={[s.suggestItem, i < suggestions.length - 1 && s.suggestItemBorder]}
+                        key={`local-${i}`}
+                        style={[s.suggestItem, s.suggestItemBorder]}
                         onPress={() => pickSuggestion(food)}
                         activeOpacity={0.7}
                       >
                         <Text style={s.suggestText}>{food}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    {searchResults.map((r, i) => (
+                      <TouchableOpacity
+                        key={`api-${i}`}
+                        style={[s.suggestItem, i < searchResults.length - 1 && s.suggestItemBorder]}
+                        onPress={() => pickSuggestion(r.product_name, r)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={s.suggestText}>{r.product_name}</Text>
+                        {r.calories_kcal != null && (
+                          <Text style={s.suggestKcal}>{Math.round(r.calories_kcal)} kcal/100g</Text>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -612,9 +655,10 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e2e8f0',
     borderRadius: 12, marginTop: 4, overflow: 'hidden',
   },
-  suggestItem: { paddingVertical: 11, paddingHorizontal: 14 },
+  suggestItem: { paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   suggestItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  suggestText: { fontSize: 14, fontWeight: '600', color: Colors.navy },
+  suggestText: { fontSize: 14, fontWeight: '600', color: Colors.navy, flex: 1 },
+  suggestKcal: { fontSize: 11, color: '#94a3b8', fontWeight: '500', marginLeft: 8 },
 
   modalSaveBtn: { backgroundColor: Colors.navy, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20 },
   modalSaveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
