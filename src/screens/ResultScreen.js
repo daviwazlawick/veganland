@@ -14,6 +14,7 @@ import { apiSubmitFeedback, apiSubmitAppSurvey } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
+import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 import AppSurveyModal from '../components/ui/AppSurveyModal';
 
 const isNovaQI = Brand.id === 'novaqi';
@@ -100,7 +101,7 @@ export default function ResultScreen({ navigation, route }) {
   const { language, scanHistory, profile, appSurveyDone, markAppSurveyDone } = useApp();
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
-  const { logConsumption } = useNutrition();
+  const { logConsumption, bodyProfile } = useNutrition();
   const isOnboarding = route?.params?.onboarding === true;
   const showReferralBanner = !HIDE_REFERRAL
     && !isOnboarding
@@ -366,6 +367,27 @@ export default function ResultScreen({ navigation, route }) {
                   </View>
                 </View>
               )}
+
+              {isNovaQI && nutrition?.energy_kcal > 0 && (() => {
+                const weight = bodyProfile?.weight_kg || 70;
+                const kcalPer100 = nutrition.energy_kcal;
+                const burnExercises = DEFAULT_BURN_EXERCISES
+                  .map(id => EXERCISES.find(e => e.id === id))
+                  .filter(Boolean);
+                return (
+                  <View style={styles.burnBox}>
+                    <Text style={styles.burnTitle}>{t(language, 'exercise.burn_equivalent')} 100g</Text>
+                    <View style={styles.burnRow}>
+                      {burnExercises.map(ex => (
+                        <View key={ex.id} style={styles.burnItem}>
+                          <Text style={styles.burnMins}>{minutesToBurn(kcalPer100, ex.met, weight)}'</Text>
+                          <Text style={styles.burnExName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
 
               {offMeta?.categories?.length > 0 && (
                 <View style={styles.metaChipSection}>
@@ -963,6 +985,17 @@ const styles = StyleSheet.create({
   },
   nutritionLabel: { fontSize: 12, color: Colors.textLight, fontWeight: '600' },
   nutritionValue: { fontSize: 13, color: Colors.text, fontWeight: '800', fontFamily: BrandFonts.mono || undefined },
+  burnBox: {
+    backgroundColor: 'rgba(194,84,10,0.08)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  burnTitle: { fontSize: 11, fontWeight: '800', color: '#C2540A', textTransform: 'uppercase', letterSpacing: 0.4 },
+  burnRow: { flexDirection: 'row', gap: 8 },
+  burnItem: { flex: 1, alignItems: 'center', gap: 2 },
+  burnMins: { fontSize: 20, fontWeight: '800', color: '#C2540A', fontFamily: BrandFonts.mono || undefined },
+  burnExName: { fontSize: 11, color: '#C2540A', fontWeight: '600', textAlign: 'center' },
   metaChipSection: { gap: 6 },
   metaChipLabel: { fontSize: 11, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3, textTransform: 'uppercase' },
   metaChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

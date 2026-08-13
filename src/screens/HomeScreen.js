@@ -65,7 +65,7 @@ function CalorieRing({ pct, size = 76, centerText }) {
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory, monthlyScanCount, streak } = useApp();
   const { stats: referralStats } = useReferral();
-  const { goals, todayTotals, logConsumption } = useNutrition();
+  const { goals, todayTotals, logConsumption, todayBurned } = useNutrition();
   const { token } = useAuth();
   const [loggingWater, setLoggingWater] = useState(false);
   const [recentPlates, setRecentPlates] = useState([]);
@@ -142,10 +142,17 @@ export default function HomeScreen({ navigation }) {
                 />
                 <View style={homeNutritionStyles.ringSide}>
                   <Text style={homeNutritionStyles.remainingNum}>
-                    {Math.round(Math.max((goals.calories_kcal || 0) - (todayTotals.calories_kcal || 0), 0))}
+                    {Math.round(Math.max((goals.calories_kcal || 0) - (todayTotals.calories_kcal || 0) + (todayBurned || 0), 0))}
                     <Text style={homeNutritionStyles.remainingUnit}> kcal</Text>
                   </Text>
-                  <Text style={homeNutritionStyles.remainingLabel}>{t(language, 'nutrition.remaining')}</Text>
+                  <Text style={homeNutritionStyles.remainingLabel}>
+                    {todayBurned > 0 ? (t(language, 'nutrition.net') || 'net') : t(language, 'nutrition.remaining')}
+                  </Text>
+                  {todayBurned > 0 && isNovaQI && (
+                    <Text style={homeNutritionStyles.burnedLabel}>
+                      🔥 {Math.round(todayBurned)} kcal {t(language, 'nutrition.burned') || 'burned'}
+                    </Text>
+                  )}
                   <View style={homeNutritionStyles.proteinBarTrack}>
                     <View style={[homeNutritionStyles.proteinBarFill, {
                       width: `${(goals.protein_g > 0 ? Math.min(1, (todayTotals.protein_g || 0) / goals.protein_g) : 0) * 100}%`,
@@ -201,7 +208,13 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate('Scan')}
             activeOpacity={0.85}
           >
-            <Text style={styles.actionIcon}>📷</Text>
+            {isNovaQI ? (
+              <View style={styles.actionIconBubble}>
+                <Text style={styles.actionIconGlyph}>◎</Text>
+              </View>
+            ) : (
+              <Text style={styles.actionIcon}>📷</Text>
+            )}
             <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
             <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
           </TouchableOpacity>
@@ -210,21 +223,30 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate('PlateAnalysis')}
             activeOpacity={0.85}
           >
-            <Text style={styles.actionIcon}>🍽️</Text>
-            <Text style={[styles.actionTitle, isNovaQI && styles.actionTitleOutline]}>{t(language, 'nutrition.plate_photo_btn')}</Text>
-            <Text style={[styles.actionSub, isNovaQI && styles.actionSubOutline]}>{t(language, 'nutrition.plate_photo_sub')}</Text>
+            {isNovaQI ? (
+              <View style={[styles.actionIconBubble, styles.actionIconBubbleDark]}>
+                <Text style={styles.actionIconGlyph}>⬡</Text>
+              </View>
+            ) : (
+              <Text style={styles.actionIcon}>🍽️</Text>
+            )}
+            <Text style={[styles.actionTitle, isNovaQI && styles.actionTitleWhite]}>{t(language, 'nutrition.plate_photo_btn')}</Text>
+            <Text style={[styles.actionSub, isNovaQI && styles.actionSubWhite]}>{t(language, 'nutrition.plate_photo_sub')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.quickRow}>
-          <TouchableOpacity style={[styles.quickBtn, styles.addFoodBtn]} onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })} activeOpacity={0.85}>
-            <Text style={styles.quickIcon}>✏️</Text>
-            <Text style={styles.quickTitle}>{t(language, 'nutrition.add_food')}</Text>
+          <TouchableOpacity style={styles.addFoodQuickBtn} onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })} activeOpacity={0.85}>
+            <View style={styles.addFoodIconWrap}>
+              <Text style={styles.addFoodIconGlyph}>+</Text>
+            </View>
+            <Text style={styles.addFoodQuickTitle}>{t(language, 'nutrition.add_food')}</Text>
           </TouchableOpacity>
-          <View style={[styles.quickBtn, styles.waterQuickBtn]}>
-            <Text style={styles.quickIcon}>💧</Text>
-            <Text style={styles.quickTitle}>{t(language, 'nutrition.water')}</Text>
-            <Text style={styles.waterTodayText}>{Math.round(todayTotals.water_ml || 0)} ml</Text>
+          <View style={styles.waterQuickCard}>
+            <View style={styles.waterCardTop}>
+              <Text style={styles.waterCardLabel}>{t(language, 'nutrition.water')}</Text>
+              <Text style={styles.waterTodayText}>{Math.round(todayTotals.water_ml || 0)} <Text style={styles.waterUnit}>ml</Text></Text>
+            </View>
             <View style={styles.waterQuickBtns}>
               {[250, 500].map(ml => (
                 <TouchableOpacity key={ml} style={styles.waterMlBtn} onPress={() => quickLogWater(ml)} disabled={loggingWater} activeOpacity={0.75}>
@@ -398,9 +420,9 @@ const styles = StyleSheet.create({
   scroll: { padding: 20, gap: 18, paddingBottom: 130 },
   actionRow: { flexDirection: 'row', gap: 12 },
   scanBtnHalf: {
-    flex: 1, alignItems: 'center', gap: 6,
+    flex: 1, alignItems: 'center', gap: 8,
     backgroundColor: Colors.navy,
-    borderRadius: 20, padding: 18,
+    borderRadius: 24, padding: 20,
     borderBottomWidth: 4, borderBottomColor: Colors.primaryDark,
     shadowColor: Colors.primary, shadowOpacity: 0.25, shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 }, elevation: 8,
@@ -414,35 +436,68 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderBottomWidth: 0,
     shadowColor: Colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   plateBtnNovaqi: {
-    backgroundColor: Colors.card,
-    borderWidth: 1.5, borderColor: Colors.text,
+    backgroundColor: Colors.navy,
     borderBottomWidth: 0,
-    shadowOpacity: 0.05, shadowColor: Colors.navy,
+    shadowColor: Colors.navy,
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
+  actionIconBubble: {
+    width: 48, height: 48, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
+  },
+  actionIconBubbleDark: {
+    backgroundColor: 'rgba(22,167,90,0.22)',
+  },
+  actionIconGlyph: { fontSize: 22, color: '#FFF', fontWeight: '700' },
   actionIcon: { fontSize: 32 },
   actionTitle: { fontSize: 15, fontWeight: '800', color: Colors.white, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
+  actionTitleWhite: { color: '#FFF' },
   actionSub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
-  actionTitleOutline: { color: Colors.text },
-  actionSubOutline: { color: Colors.textLight },
+  actionSubWhite: { color: 'rgba(255,255,255,0.55)' },
   quickRow: { flexDirection: 'row', gap: 12 },
-  quickBtn: {
-    flex: 1, alignItems: 'center', gap: 6,
-    backgroundColor: Colors.card,
-    borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12,
-    borderWidth: 1.5, borderColor: Colors.border,
-    shadowColor: Colors.navy, shadowOpacity: 0.05, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  addFoodQuickBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: 20, paddingVertical: 16, paddingHorizontal: 16,
+    shadowColor: Colors.primary, shadowOpacity: 0.28, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 }, elevation: 6,
   },
-  addFoodBtn: {},
-  waterQuickBtn: {},
-  quickIcon: { fontSize: 24 },
-  quickTitle: { fontSize: 13, fontWeight: '800', color: Colors.navy, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
-  waterTodayText: { fontSize: 16, fontWeight: '800', color: '#06B6D4' },
-  waterQuickBtns: { flexDirection: 'row', gap: 6, marginTop: 2 },
-  waterMlBtn: { backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#BFDBFE' },
-  waterMlText: { fontSize: 12, fontWeight: '700', color: '#2563EB' },
+  addFoodIconWrap: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  addFoodIconGlyph: { fontSize: 22, color: '#FFF', fontWeight: '300', lineHeight: 26 },
+  addFoodQuickTitle: { fontSize: 14, fontWeight: '800', color: '#FFF', fontFamily: BrandFonts.heading || undefined },
+  waterQuickCard: {
+    flex: 1.4,
+    backgroundColor: Colors.card,
+    borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16,
+    gap: 10,
+    shadowColor: Colors.navy, shadowOpacity: 0.07, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  waterCardTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  waterCardLabel: { fontSize: 12, fontWeight: '700', color: Colors.textMuted },
+  waterTodayText: { fontSize: 18, fontWeight: '800', color: '#0891B2' },
+  waterUnit: { fontSize: 12, fontWeight: '500', color: Colors.textMuted },
+  waterQuickBtns: { flexDirection: 'row', gap: 8 },
+  waterMlBtn: {
+    flex: 1, backgroundColor: '#E0F7FB', borderRadius: 10,
+    paddingVertical: 8, alignItems: 'center',
+  },
+  waterMlText: { fontSize: 13, fontWeight: '800', color: '#0891B2' },
   historySection: { gap: 10 },
   historyHeading: {
     fontSize: 17, fontWeight: '700', color: Colors.text,
@@ -546,4 +601,5 @@ const homeNutritionStyles = StyleSheet.create({
   proteinBarTrack: { height: 6, backgroundColor: Colors.backgroundSecondary, borderRadius: 3, overflow: 'hidden' },
   proteinBarFill: { height: 6, borderRadius: 3, backgroundColor: '#3B82F6' },
   proteinLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, marginTop: 4 },
+  burnedLabel: { fontSize: 11, fontWeight: '600', color: '#C2540A', marginTop: 2 },
 });

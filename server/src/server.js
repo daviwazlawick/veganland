@@ -1751,6 +1751,46 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // GET /exercise/today?date=YYYY-MM-DD
+    if (req.method === 'GET' && req.url.startsWith('/exercise/today')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const date = new URL(req.url, 'http://x').searchParams.get('date') || new Date().toISOString().slice(0, 10);
+      const rows = await pool.query(
+        'SELECT * FROM exercise_log WHERE user_id=$1 AND local_date=$2 ORDER BY logged_at ASC',
+        [claims.userId, date]
+      );
+      sendJson(res, 200, rows.rows, origin);
+      return;
+    }
+
+    // POST /exercise/log
+    if (req.method === 'POST' && req.url === '/exercise/log') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const { exercise_id, exercise_name, duration_min, calories_burned, local_date } = await readJsonBody(req);
+      if (!exercise_id || !duration_min || !calories_burned || !local_date) {
+        sendJson(res, 400, { error: 'exercise_id, duration_min, calories_burned, local_date required' }, origin); return;
+      }
+      const r = await pool.query(
+        'INSERT INTO exercise_log (user_id, exercise_id, exercise_name, duration_min, calories_burned, local_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+        [claims.userId, exercise_id, exercise_name, duration_min, calories_burned, local_date]
+      );
+      sendJson(res, 200, r.rows[0], origin);
+      return;
+    }
+
+    // DELETE /exercise/log/:id
+    if (req.method === 'DELETE' && req.url.startsWith('/exercise/log/')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const id = parseInt(req.url.split('/exercise/log/')[1]);
+      if (!id) { sendJson(res, 400, { error: 'invalid id' }, origin); return; }
+      await pool.query('DELETE FROM exercise_log WHERE id=$1 AND user_id=$2', [id, claims.userId]);
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
     // POST /analyze-plate — Claude vision plate nutrition estimate
     if (req.method === 'POST' && req.url === '/analyze-plate') {
       const claims = getAuthUser(req);

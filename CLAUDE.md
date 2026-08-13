@@ -1351,3 +1351,72 @@ Claude retorna `null` para produtos de marca, por isso não polui os resultados.
 **Resultado testado:**
 - "amendoim" → primeiro resultado: `Amendoim | 567 kcal | src=ai` ✅
 - "azeitona" → primeiro resultado: `azeitona | 145 kcal | src=ai` ✅
+
+---
+
+## Sessão 2026-08-13 — Fase 1 Exercícios (web-first, NovaQI only)
+
+### O que foi feito
+
+Feature completa de registo de exercícios físicos integrada com o tracking de calorias.
+
+### Base de dados
+
+- Tabela `exercise_log` criada: `id, user_id, exercise_id, exercise_name, duration_min, calories_burned, local_date, logged_at`
+- Índice em `(user_id, local_date)`
+
+### Ficheiros criados
+
+**`src/constants/exercises.js`**
+- 27 exercícios com valores MET (Ainsworth et al.), labels em 6 línguas, categorias
+- Helpers: `calsBurnedPerMin(met, weight_kg)`, `minutesToBurn(calories, met, weight_kg)`, `calsBurnedForDuration(met, weight_kg, duration_min)`
+- `DEFAULT_BURN_EXERCISES = ['running_slow', 'cycling_moderate', 'walking_brisk']`
+
+**`src/screens/ExerciseLogScreen.js`**
+- Lista de exercícios com tabs por categoria + favoritos (persistidos via AsyncStorage)
+- Estrela de favorito por exercício
+- Preview de kcal/30min por exercício (baseado no peso do perfil, default 70kg)
+- Modal para registar com duração e preview de kcal em tempo real
+- Lista de exercícios de hoje com botão de eliminar
+
+### Ficheiros modificados
+
+**`server/src/server.js`** — 3 endpoints novos:
+- `GET /exercise/today?date=YYYY-MM-DD`
+- `POST /exercise/log`
+- `DELETE /exercise/log/:id`
+
+**`src/services/apiService.js`** — `apiGetTodayExercise`, `apiLogExercise`, `apiDeleteExercise`
+
+**`src/context/NutritionContext.js`**
+- Estado `todayExercise`, `todayBurned` (soma de `calories_burned`)
+- `logExercise`, `deleteExercise` callbacks
+- `todayExercise` carregado em paralelo no `refresh()`
+- Expostos via context: `todayExercise`, `todayBurned`, `logExercise`, `deleteExercise`
+
+**`src/navigation/AppNavigator.js`** — `ExerciseLog` adicionado ao stack (em ambos os grupos)
+
+**`src/screens/NutritionDashboardScreen.js`**
+- Botão laranja "🏃 Registar exercício" → navega para `ExerciseLog` (só NovaQI)
+- `ForestSummaryCard` actualizado: quando `todayBurned > 0`, mostra consumed / burned (laranja) / net (verde) em vez de consumed / remaining / goal
+
+**`src/screens/HomeScreen.js`**
+- `todayBurned` consumido do NutritionContext
+- "Remaining" no widget muda para "net" quando há exercícios: `goal - consumed + burned`
+- Label muda para `nutrition.net`; mostra "🔥 X kcal burned" quando `todayBurned > 0`
+
+**`src/screens/ResultScreen.js`**
+- Importa `EXERCISES`, `minutesToBurn`, `getExerciseName`, `DEFAULT_BURN_EXERCISES`
+- `bodyProfile` do NutritionContext
+- Caixa "Burn equivalent" nos detalhes do produto (só NovaQI, só quando `energy_kcal` disponível)
+- Mostra running / cycling / walking com minutos para queimar 100g do produto
+
+**`src/i18n/pt.js, en.js, de.js, fr.js, it.js, es.js`**
+- Secção `exercise` com todas as strings
+- Secção `nutrition.burned` e `nutrition.net`
+
+### Fórmula MET usada
+```
+kcal/min = MET × weight_kg × 3.5 / 200
+minutes_to_burn = ceil(calories / kcal_per_min)
+```

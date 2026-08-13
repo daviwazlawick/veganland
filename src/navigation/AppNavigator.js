@@ -28,6 +28,7 @@ import NutritionGoalsScreen from '../screens/NutritionGoalsScreen';
 import NutritionDashboardScreen from '../screens/NutritionDashboardScreen';
 import NutritionReportScreen from '../screens/NutritionReportScreen';
 import PlateAnalysisScreen from '../screens/PlateAnalysisScreen';
+import ExerciseLogScreen from '../screens/ExerciseLogScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -181,6 +182,7 @@ export default function AppNavigator() {
             <Stack.Screen name="NutritionDashboard" component={NutritionDashboardScreen} />
             <Stack.Screen name="NutritionReport" component={NutritionReportScreen} />
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
+            <Stack.Screen name="ExerciseLog" component={ExerciseLogScreen} />
           </>
         ) : (
           <>
@@ -202,6 +204,7 @@ export default function AppNavigator() {
             <Stack.Screen name="NutritionDashboard" component={NutritionDashboardScreen} />
             <Stack.Screen name="NutritionReport" component={NutritionReportScreen} />
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
+            <Stack.Screen name="ExerciseLog" component={ExerciseLogScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -233,8 +233,8 @@ footer{background:#0a0a0f;padding:28px 24px;text-align:center}
     <div class="feat"><div class="feat-icon">📷</div><h3>${t('feat1_title')}</h3><p>${t('feat1_body')}</p></div>
     <div class="feat"><div class="feat-icon">🤖</div><h3>${t('feat2_title')}</h3><p>${t('feat2_body')}</p></div>
     <div class="feat"><div class="feat-icon">🎯</div><h3>${t('feat3_title')}</h3><p>${t('feat3_body')}</p></div>
-    <div class="feat"><div class="feat-icon">📋</div><h3>${t('feat4_title')}</h3><p>${t('feat4_body')}</p></div>
-    <div class="feat"><div class="feat-icon">🔍</div><h3>${t('feat5_title')}</h3><p>${t('feat5_body')}</p></div>
+    <div class="feat"><div class="feat-icon">🍽️</div><h3>${t('feat4_title')}</h3><p>${t('feat4_body')}</p></div>
+    <div class="feat"><div class="feat-icon">📊</div><h3>${t('feat5_title')}</h3><p>${t('feat5_body')}</p></div>
     <div class="feat"><div class="feat-icon">🌍</div><h3>${t('feat6_title')}</h3><p>${t('feat6_body')}</p></div>
   </div>
 </section>

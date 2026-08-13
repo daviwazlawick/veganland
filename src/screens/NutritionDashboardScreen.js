@@ -57,10 +57,11 @@ function ForestBar({ fieldKey, color, consumed, goal, language }) {
   );
 }
 
-function ForestSummaryCard({ todayTotals, goals, language, expanded, onToggleExpand }) {
+function ForestSummaryCard({ todayTotals, goals, language, expanded, onToggleExpand, todayBurned }) {
   const consumed = todayTotals.calories_kcal || 0;
+  const burned = todayBurned || 0;
   const goal = goals?.calories_kcal || 0;
-  const remaining = Math.max(goal - consumed, 0);
+  const net = Math.max(goal - consumed + burned, 0);
   return (
     <View style={forest.card}>
       <View style={forest.row}>
@@ -69,15 +70,31 @@ function ForestSummaryCard({ todayTotals, goals, language, expanded, onToggleExp
           <Text style={forest.colLabel}>{t(language, 'nutrition.calories')}</Text>
         </View>
         <View style={forest.divider} />
-        <View style={forest.col}>
-          <Text style={[forest.bigNum, forest.bigNumGreen]}>{Math.round(remaining)}</Text>
-          <Text style={forest.colLabel}>{t(language, 'nutrition.remaining')}</Text>
-        </View>
-        <View style={forest.divider} />
-        <View style={forest.col}>
-          <Text style={forest.bigNum}>{Math.round(goal)}</Text>
-          <Text style={forest.colLabel}>{t(language, 'nutrition.daily_goal')}</Text>
-        </View>
+        {burned > 0 ? (
+          <>
+            <View style={forest.col}>
+              <Text style={[forest.bigNum, { color: '#FF8C42' }]}>{Math.round(burned)}</Text>
+              <Text style={forest.colLabel}>{t(language, 'nutrition.burned') || 'burned'}</Text>
+            </View>
+            <View style={forest.divider} />
+            <View style={forest.col}>
+              <Text style={[forest.bigNum, forest.bigNumGreen]}>{Math.round(net)}</Text>
+              <Text style={forest.colLabel}>{t(language, 'nutrition.net') || 'net'}</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={forest.col}>
+              <Text style={[forest.bigNum, forest.bigNumGreen]}>{Math.round(net)}</Text>
+              <Text style={forest.colLabel}>{t(language, 'nutrition.remaining')}</Text>
+            </View>
+            <View style={forest.divider} />
+            <View style={forest.col}>
+              <Text style={forest.bigNum}>{Math.round(goal)}</Text>
+              <Text style={forest.colLabel}>{t(language, 'nutrition.daily_goal')}</Text>
+            </View>
+          </>
+        )}
       </View>
       <View style={forest.bars}>
         {FOREST_BARS.map(f => (
@@ -128,7 +145,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
 export default function NutritionDashboardScreen({ navigation, route }) {
   const { language } = useApp();
   const { token } = useAuth();
-  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, updateConsumption, refresh, addWeight, weightHistory } = useNutrition();
+  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, updateConsumption, refresh, addWeight, weightHistory, todayBurned } = useNutrition();
   const insets = useSafeAreaInsets();
   const [weightModal, setWeightModal] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -379,6 +396,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             language={language}
             expanded={expanded}
             onToggleExpand={() => setExpanded(!expanded)}
+            todayBurned={todayBurned}
           />
         ) : (
           <View style={s.card}>
@@ -447,6 +465,15 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         <TouchableOpacity style={s.addFoodBtn} onPress={openAddModal}>
           <Text style={s.addFoodBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
         </TouchableOpacity>
+
+        {isNovaQI && (
+          <TouchableOpacity style={s.exerciseBtn} onPress={() => navigation.navigate('ExerciseLog')}>
+            <Text style={s.exerciseBtnText}>🏃 {t(language, 'exercise.log_exercise')}</Text>
+            {todayBurned > 0 && (
+              <Text style={s.exerciseBtnSub}>{Math.round(todayBurned)} kcal {t(language, 'nutrition.burned') || 'burned'}</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={s.goalsBtn} onPress={() => navigation.navigate('BodyProfile')}>
           <Text style={s.goalsBtnText}>⚙️ {t(language, 'nutrition.goals_title')}</Text>
@@ -655,6 +682,9 @@ const s = StyleSheet.create({
   addFoodBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   goalsBtn: { alignItems: 'center', paddingVertical: 8 },
   goalsBtnText: { fontSize: 13, color: Colors.navy, textDecorationLine: 'underline' },
+  exerciseBtn: { backgroundColor: '#FFF3E8', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', borderWidth: 1, borderColor: '#FFD5A8' },
+  exerciseBtnText: { color: '#C2540A', fontWeight: '800', fontSize: 15 },
+  exerciseBtnSub: { fontSize: 12, color: '#C2540A', opacity: 0.7, marginTop: 2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12, maxHeight: '90%' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy, textAlign: 'center', marginBottom: 4 },

@@ -367,6 +367,35 @@ export async function apiSearchFood(token, query, language = 'en') {
   return r.json();
 }
 
+export async function apiGetTodayExercise(token, date) {
+  try {
+    const r = await fetch(`${baseUrl()}/exercise/today?date=${encodeURIComponent(date)}`, {
+      headers: appHeaders(token),
+    });
+    if (!r.ok) return [];
+    return await r.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function apiLogExercise(token, entry) {
+  const r = await fetch(`${baseUrl()}/exercise/log`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify(entry),
+  });
+  if (!r.ok) throw new Error('exercise_log_failed');
+  return r.json().catch(() => ({}));
+}
+
+export async function apiDeleteExercise(token, id) {
+  await fetch(`${baseUrl()}/exercise/log/${id}`, {
+    method: 'DELETE',
+    headers: appHeaders(token),
+  }).catch(() => {});
+}
+
 export async function apiAnalyzePlate(token, imageBase64, language, profile) {
   const r = await fetch(`${baseUrl()}/analyze-plate`, {
     method: 'POST',

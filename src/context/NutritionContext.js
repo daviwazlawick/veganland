@@ -6,6 +6,7 @@ import {
   apiLogConsumption, apiUpdateConsumption, apiDeleteConsumption,
   apiGetDayLog, apiGetNutritionReport,
   apiLogWeight, apiGetWeightHistory,
+  apiGetTodayExercise, apiLogExercise, apiDeleteExercise,
 } from '../services/apiService';
 
 const NutritionContext = createContext(null);
@@ -16,6 +17,7 @@ export function NutritionProvider({ children }) {
   const [goals, setGoals] = useState(null);
   const [todayLog, setTodayLog] = useState([]);
   const [weightHistory, setWeightHistory] = useState([]);
+  const [todayExercise, setTodayExercise] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
   const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -23,16 +25,19 @@ export function NutritionProvider({ children }) {
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
-      const [profile, g, log, wh] = await Promise.all([
-        apiGetBodyProfile(token),
-        apiGetNutritionGoals(token),
-        apiGetDayLog(token, todayStr()),
-        apiGetWeightHistory(token),
+      const [profile, g, log, wh, ex] = await Promise.all([
+        apiGetBodyProfile(token).catch(() => null),
+        apiGetNutritionGoals(token).catch(() => null),
+        apiGetDayLog(token, todayStr()).catch(() => null),
+        apiGetWeightHistory(token).catch(() => null),
+        apiGetTodayExercise(token, todayStr()),
       ]);
-      setBodyProfile(profile);
-      setGoals(g);
-      setTodayLog(Array.isArray(log) ? log : []);
-      setWeightHistory(Array.isArray(wh) ? wh : []);
+      // Only update state if call succeeded (not null/error object)
+      if (profile && !profile.error) setBodyProfile(profile);
+      if (g && !g.error && g.calories_kcal != null) setGoals(g);
+      if (Array.isArray(log)) setTodayLog(log);
+      if (Array.isArray(wh)) setWeightHistory(wh);
+      setTodayExercise(Array.isArray(ex) ? ex : []);
     } catch {}
     setLoaded(true);
   }, [token]);
@@ -87,6 +92,21 @@ export function NutritionProvider({ children }) {
     setWeightHistory(Array.isArray(wh) ? wh : []);
   }, [token]);
 
+  const logExercise = useCallback(async (entry) => {
+    if (!token) return null;
+    const res = await apiLogExercise(token, entry);
+    setTodayExercise(prev => [...prev, res]);
+    return res;
+  }, [token]);
+
+  const deleteExercise = useCallback(async (id) => {
+    if (!token) return;
+    await apiDeleteExercise(token, id);
+    setTodayExercise(prev => prev.filter(e => e.id !== id));
+  }, [token]);
+
+  const todayBurned = todayExercise.reduce((sum, e) => sum + (Number(e.calories_burned) || 0), 0);
+
   const todayTotals = todayLog.reduce((acc, e) => ({
     calories_kcal: acc.calories_kcal + (Number(e.calories_kcal) || 0),
     protein_g:     acc.protein_g     + (Number(e.protein_g)     || 0),
@@ -101,8 +121,10 @@ export function NutritionProvider({ children }) {
   return (
     <NutritionContext.Provider value={{
       bodyProfile, goals, todayLog, todayTotals, weightHistory, loaded,
+      todayExercise, todayBurned,
       refresh, saveBodyProfile, saveGoals,
       logConsumption, updateConsumption, deleteConsumption, getReport, addWeight,
+      logExercise, deleteExercise,
     }}>
       {children}
     </NutritionContext.Provider>
