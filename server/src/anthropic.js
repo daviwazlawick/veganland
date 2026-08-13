@@ -40,20 +40,31 @@ This term may be a brand name, a generic food name, or a partial word. Respond w
 export async function fetchNutritionalData(query, language) {
   if (!hasAnthropicApiKey() || !query) return null;
   const lang = responseLanguage(language);
-  const prompt = `A user is searching for the nutritional content of: "${query}" (searched in ${lang}).
+  const prompt = `A user is logging food: "${query}" (in ${lang}).
 
-Return ONLY a valid JSON object with nutritional values per 100g, or the literal text null if you don't have reliable data. No markdown, no other text:
-{"product_name":"name in ${lang}","calories_kcal":number,"protein_g":number,"fat_g":number,"carbs_g":number,"fiber_g":number_or_null,"sugar_g":number_or_null,"salt_g":number_or_null}
+Determine if the query describes a SPECIFIC PORTION/QUANTITY or just a plain food name:
+- SPECIFIC PORTION: contains a number or unit word (e.g. "2 fatias de pão", "1 banana", "1 copo de leite", "3 bolachas", "1 colher de sopa de azeite", "half an avocado")
+- PLAIN FOOD NAME: no quantity (e.g. "pão de forma", "frango grelhado", "arroz branco")
 
-Use typical average values for generic foods (banana, chicken breast, white rice, etc.). For specific brand products return: null`;
+Rules:
+- SPECIFIC PORTION → return nutritional values for THAT EXACT TOTAL AMOUNT. Set "grams" to the realistic weight of that portion.
+- PLAIN FOOD NAME → return per-100g values. Set "grams": 100.
+- For specific brand products: return null.
+- If you have no reliable nutritional data: return null.
+
+Typical portion weights: 1 slice bread/pão=30g, 1 slice cheese/queijo=25g, 1 slice ham/fiambre=20g, 1 egg/ovo=55g, 1 medium banana=120g, 1 apple/maçã=150g, 1 orange/laranja=130g, 1 cup/copo milk=240g, 1 tbsp/colher sopa oil=14g, 1 biscuit/bolacha=10g, 1 yogurt/iogurte=125g.
+
+Return ONLY valid JSON, no markdown:
+{"product_name":"name in ${lang}","grams":number,"calories_kcal":number,"protein_g":number,"fat_g":number,"carbs_g":number,"fiber_g":number_or_null,"sugar_g":number_or_null,"salt_g":number_or_null}`;
 
   try {
-    const text = await callClaude(prompt, 150, MODEL_INSPECTION);
+    const text = await callClaude(prompt, 180, MODEL_INSPECTION);
     const trimmed = text.trim();
     if (trimmed === 'null' || trimmed === '') return null;
     const data = extractJson(text);
     if (!data || !Number.isFinite(Number(data.calories_kcal))) return null;
     const n = v => Number.isFinite(Number(v)) ? Number(v) : null;
+    const grams = n(data.grams) || 100;
     return {
       product_name: String(data.product_name || query).trim(),
       calories_kcal: Math.round(n(data.calories_kcal) * 10) / 10,
@@ -63,7 +74,7 @@ Use typical average values for generic foods (banana, chicken breast, white rice
       fiber_g:   n(data.fiber_g)   != null ? Math.round(n(data.fiber_g)   * 10) / 10 : null,
       sugar_g:   n(data.sugar_g)   != null ? Math.round(n(data.sugar_g)   * 10) / 10 : null,
       salt_g:    n(data.salt_g)    != null ? Math.round(n(data.salt_g)    * 100) / 100 : null,
-      grams: 100,
+      grams,
       source: 'ai',
     };
   } catch {
@@ -1072,7 +1083,6 @@ Return ONLY valid JSON:
 }
 
 Rules:
-- Always identify the ACTUAL food visible in the image — never rename or substitute it for a diet-compatible alternative (e.g. if you see scrambled eggs, call it "scrambled eggs" even if the diet is vegan; mark it NOT_SAFE instead)
 - Conservative portion estimates (typical serving sizes)
 - Round values to 1 decimal place
 - If you cannot identify food return {"items": []}
