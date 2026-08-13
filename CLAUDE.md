@@ -1420,3 +1420,46 @@ Feature completa de registo de exercícios físicos integrada com o tracking de 
 kcal/min = MET × weight_kg × 3.5 / 200
 minutes_to_burn = ceil(calories / kcal_per_min)
 ```
+
+---
+
+## Sessão 2026-08-13 — Fase 2: UX Nutrição + Exercício
+
+### Botão de água (HomeScreen — NovaQI)
+- Toque abre um bottom-sheet modal com 5 opções pré-definidas: 150/250/350/500/750 ml + equivalente em copos
+- Campo de input personalizado para quantidades arbitrárias
+- Mostra total do dia em badge azul no topo do modal
+
+### ExerciseLogScreen — redesign
+- Exercícios registados hoje: substituídos chips horizontais por **cards verticais** com borda colorida por categoria, icon bubble, nome, duração e 🔥 kcal
+- Hero: strip de categorias abaixo do total queimado (ex: "🔴 Cardio 30′ · 🔵 Força 20′")
+- Estrutura: FlatList com `ListHeaderComponent` (hero + log + tabs) para scroll unificado
+- `CATEGORY_CONFIG` em exercises.js define cor, bg e label por categoria
+
+### NutritionDashboardScreen — hoje com exercícios inline
+- Exercícios do dia aparecem inline logo após o card de macros (só NovaQI)
+- Cada exercício: borda colorida por categoria + icon bubble + nome + duração + kcal + botão de apagar
+- Link "+" para navegar ao ExerciseLogScreen
+- Tabs Hoje/Semana/Mês **removidas** do Dashboard (são apenas para o Relatório)
+
+### NutritionReportScreen — novo formato dia-a-dia
+- Card de totais do período: kcal consumidas + queimadas (se houver) + litros de água
+- Gráfico de barras de calorias por dia (semana/mês)
+- Secções por dia: 🍴 kcal · 🔥 queimado · 💧 água · macros P/C/G · chips de exercícios coloridos
+- Tabs Hoje/Semana/Mês com mesmo estilo visual do Dashboard
+
+### HomeScreen — pill queimadas
+- Pill "🔥 X kcal" navega para `NutritionDashboard` (não ExerciseLog)
+
+### Smart portion sizing (server/src/anthropic.js)
+- `fetchNutritionalData` detecta se a query tem descritores de porção ("2 fatias de pão", "1 banana", "1 copo de leite")
+- Se houver quantidade: retorna macros para ESSA PORÇÃO EXACTA + `grams` realista (ex: 2 fatias pão → 60g)
+- Se for nome simples: mantém por-100g como antes
+- Referências de peso incluídas no prompt: fatia pão=30g, queijo=25g, ovo=55g, banana=120g, copo leite=240g, etc.
+
+### Novos endpoints servidor
+- `GET /exercise/history?from=YYYY-MM-DD&to=YYYY-MM-DD` — histórico de exercícios por período
+
+### i18n
+- Adicionado `exercise.period_today/week/month` em todas as 6 línguas
+- `nutrition.net` renomeado para `restante` em todas as 6 línguas

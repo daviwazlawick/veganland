@@ -7,11 +7,10 @@ import { useNutrition } from '../context/NutritionContext';
 import { useAuth } from '../context/AuthContext';
 import { apiSearchFood } from '../services/apiService';
 import { Ionicons } from '@expo/vector-icons';
-import { t, localeFor } from '../i18n';
+import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { EXERCISES, CATEGORY_CONFIG, getExerciseName } from '../constants/exercises';
-import { apiGetExerciseHistory } from '../services/apiService';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -154,10 +153,6 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   const [weightInput, setWeightInput] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [period, setPeriod] = useState('today');
-  const [periodReport, setPeriodReport] = useState([]);
-  const [periodExercise, setPeriodExercise] = useState([]);
-  const [loadingPeriod, setLoadingPeriod] = useState(false);
   const [loggingWater, setLoggingWater] = useState(false);
   const [addModal, setAddModal] = useState(false);
   const [addEntry, setAddEntry] = useState(EMPTY_ENTRY);
@@ -204,35 +199,6 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       await logConsumption({ product_name: 'Water', source: 'manual', water_ml: ml, meal_type: null });
     } catch {}
     setLoggingWater(false);
-  }
-
-  function getPeriodDates(p) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (p === 'today') return { from: today, to: today };
-    const from = new Date();
-    from.setDate(from.getDate() - (p === 'week' ? 6 : 29));
-    return { from: from.toISOString().slice(0, 10), to: today };
-  }
-
-  function formatDayHeader(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00');
-    return d.toLocaleDateString(localeFor(language), { weekday: 'short', day: 'numeric', month: 'short' });
-  }
-
-  async function handlePeriodChange(p) {
-    setPeriod(p);
-    if (p === 'today') return;
-    setLoadingPeriod(true);
-    try {
-      const { from, to } = getPeriodDates(p);
-      const [report, exHistory] = await Promise.all([
-        getReport(from, to).catch(() => ({ rows: [] })),
-        apiGetExerciseHistory(token, from, to).catch(() => []),
-      ]);
-      setPeriodReport(Array.isArray(report?.rows) ? report.rows : Array.isArray(report) ? report : []);
-      setPeriodExercise(Array.isArray(exHistory) ? exHistory : []);
-    } catch {}
-    setLoadingPeriod(false);
   }
 
   function showError(message) {
@@ -417,28 +383,10 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Period tabs */}
-      {isNovaQI && (
-        <View style={s.periodTabsWrap}>
-          {['today', 'week', 'month'].map(p => (
-            <TouchableOpacity
-              key={p}
-              style={[s.periodTab, period === p && s.periodTabActive]}
-              onPress={() => handlePeriodChange(p)}
-            >
-              <Text style={[s.periodTabTxt, period === p && s.periodTabTxtActive]}>
-                {t(language, `exercise.period_${p}`)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 24 }]}>
 
-        {/* ── TODAY view ── */}
-        {(!isNovaQI || period === 'today') && (
-          <>
+        <>
+
             {noGoals ? (
               <TouchableOpacity style={s.setupCard} onPress={() => navigation.navigate('BodyProfile')}>
                 <Text style={s.setupTitle}>{t(language, 'nutrition.setup_prompt_title')}</Text>
@@ -578,123 +526,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             <TouchableOpacity style={s.goalsBtn} onPress={() => navigation.navigate('BodyProfile')}>
               <Text style={s.goalsBtnText}>⚙️ {t(language, 'nutrition.goals_title')}</Text>
             </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── WEEK / MONTH view ── */}
-        {isNovaQI && period !== 'today' && (() => {
-          if (loadingPeriod) {
-            return <Text style={s.periodLoading}>…</Text>;
-          }
-          // Group nutrition by day
-          const nutritionByDate = periodReport.reduce((acc, row) => {
-            const day = row.day || row.local_date;
-            if (!acc[day]) acc[day] = { kcal: 0, protein: 0, fat: 0, carbs: 0, water: 0 };
-            acc[day].kcal    += Number(row.calories_kcal) || 0;
-            acc[day].protein += Number(row.protein_g) || 0;
-            acc[day].fat     += Number(row.fat_g) || 0;
-            acc[day].carbs   += Number(row.carbs_g) || 0;
-            acc[day].water   += Number(row.water_ml) || 0;
-            return acc;
-          }, {});
-          // Group exercises by day
-          const exerciseByDate = periodExercise.reduce((acc, e) => {
-            (acc[e.local_date] = acc[e.local_date] || []).push(e);
-            return acc;
-          }, {});
-          const allDates = [...new Set([...Object.keys(nutritionByDate), ...Object.keys(exerciseByDate)])].sort().reverse();
-          // Period totals
-          const totalKcal = Object.values(nutritionByDate).reduce((s, d) => s + d.kcal, 0);
-          const totalBurnedPeriod = periodExercise.reduce((s, e) => s + Number(e.calories_burned || 0), 0);
-          const totalWater = Object.values(nutritionByDate).reduce((s, d) => s + d.water, 0);
-
-          return (
-            <>
-              {/* Period summary */}
-              <View style={s.periodSummaryCard}>
-                <View style={s.periodSumRow}>
-                  <View style={s.periodSumCol}>
-                    <Text style={s.periodSumNum}>{Math.round(totalKcal)}</Text>
-                    <Text style={s.periodSumLabel}>kcal {t(language, 'nutrition.calories')}</Text>
-                  </View>
-                  <View style={s.periodSumDivider} />
-                  <View style={s.periodSumCol}>
-                    <Text style={[s.periodSumNum, { color: '#E8450A' }]}>{Math.round(totalBurnedPeriod)}</Text>
-                    <Text style={s.periodSumLabel}>kcal {t(language, 'nutrition.burned')}</Text>
-                  </View>
-                  <View style={s.periodSumDivider} />
-                  <View style={s.periodSumCol}>
-                    <Text style={[s.periodSumNum, { color: '#06B6D4' }]}>{Math.round(totalWater / 1000 * 10) / 10}L</Text>
-                    <Text style={s.periodSumLabel}>{t(language, 'nutrition.water')}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Day-by-day */}
-              {allDates.length === 0 && (
-                <View style={s.emptyCard}>
-                  <Text style={s.emptyText}>{t(language, 'nutrition.no_entries')}</Text>
-                </View>
-              )}
-              {allDates.map(date => {
-                const nut = nutritionByDate[date];
-                const exEntries = exerciseByDate[date] || [];
-                const dayBurned = exEntries.reduce((sum, e) => sum + Number(e.calories_burned || 0), 0);
-                return (
-                  <View key={date} style={s.daySection}>
-                    <Text style={s.dayHeader}>{formatDayHeader(date)}</Text>
-                    <View style={s.dayStatsRow}>
-                      {nut && nut.kcal > 0 && (
-                        <View style={s.dayStat}>
-                          <Text style={s.dayStatIcon}>🍴</Text>
-                          <Text style={s.dayStatTxt}>{Math.round(nut.kcal)} kcal</Text>
-                        </View>
-                      )}
-                      {dayBurned > 0 && (
-                        <View style={s.dayStat}>
-                          <Text style={s.dayStatIcon}>🔥</Text>
-                          <Text style={[s.dayStatTxt, { color: '#E8450A' }]}>{Math.round(dayBurned)} kcal</Text>
-                        </View>
-                      )}
-                      {nut && nut.water > 0 && (
-                        <View style={s.dayStat}>
-                          <Text style={s.dayStatIcon}>💧</Text>
-                          <Text style={[s.dayStatTxt, { color: '#06B6D4' }]}>{Math.round(nut.water)} ml</Text>
-                        </View>
-                      )}
-                    </View>
-                    {nut && (
-                      <View style={s.dayMacroRow}>
-                        {[
-                          { label: 'P', val: nut.protein, color: '#3B82F6' },
-                          { label: 'C', val: nut.carbs,   color: '#8B5CF6' },
-                          { label: 'G', val: nut.fat,     color: '#F97316' },
-                        ].map(m => (
-                          <Text key={m.label} style={[s.dayMacro, { color: m.color }]}>
-                            {m.label} {Math.round(m.val)}g
-                          </Text>
-                        ))}
-                      </View>
-                    )}
-                    {exEntries.length > 0 && (
-                      <View style={s.dayExRow}>
-                        {exEntries.map(e => {
-                          const ex = EXERCISES.find(x => x.id === e.exercise_id);
-                          const cfg = ex ? CATEGORY_CONFIG[ex.category] : null;
-                          return (
-                            <View key={e.id} style={[s.dayExChip, { backgroundColor: cfg?.bg || '#F5F5F5', borderColor: cfg?.color || '#DDD' }]}>
-                              <Text style={s.dayExChipTxt}>{ex?.icon || '🏃'} {e.exercise_name} {Math.round(e.duration_min)}′</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </>
-          );
-        })()}
+        </>
 
       </ScrollView>
 
