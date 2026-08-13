@@ -550,7 +550,7 @@ export default {
     plate_log_btn: 'Registar refeição',
     plate_logged: 'Registado!',
     burned: 'queimadas',
-    net: 'líquido',
+    net: 'restante',
   },
   exercise: {
     title: 'Exercícios',

@@ -550,7 +550,7 @@ export default {
     plate_log_btn: 'Registra pasto',
     plate_logged: 'Registrato!',
     burned: 'bruciate',
-    net: 'netto',
+    net: 'restante',
   },
   exercise: {
     title: 'Esercizi',

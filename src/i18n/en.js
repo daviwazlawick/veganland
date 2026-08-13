@@ -550,7 +550,7 @@ export default {
     plate_log_btn: 'Log meal',
     plate_logged: 'Logged!',
     burned: 'burned',
-    net: 'net',
+    net: 'remaining',
   },
   exercise: {
     title: 'Exercises',
