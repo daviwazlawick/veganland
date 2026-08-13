@@ -271,7 +271,7 @@ export default {
     plan_admin: 'Admin',
     plan_unlimited: 'Unbegrenzt',
     manage_subscription: 'Abonnement verwalten',
-    about_text: 'Analysiere Produkte mit KI und erfahre, ob sie zu deinem Ernährungsprofil passen.',
+    about_text: 'Zutatenscanner, Mahlzeitenanalyse und tägliches Nährwert-Tracking. KI powered by Claude — für alle, die wirklich wissen wollen, was sie essen.',
     terms: 'AGB',
     privacy: 'Datenschutz',
     imprint: 'Impressum',

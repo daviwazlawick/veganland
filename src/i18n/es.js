@@ -271,7 +271,7 @@ export default {
     plan_admin: 'Admin',
     plan_unlimited: 'Ilimitado',
     manage_subscription: 'Gestionar suscripción',
-    about_text: 'Analiza productos con IA y descubre si son seguros para tu perfil alimentario.',
+    about_text: 'Escáner de ingredientes, análisis de comidas y seguimiento nutricional diario. IA powered by Claude — para quienes quieren saber de verdad lo que comen.',
     terms: 'Términos y Condiciones',
     privacy: 'Política de Privacidad',
     imprint: 'Aviso Legal',

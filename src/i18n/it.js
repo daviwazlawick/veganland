@@ -271,7 +271,7 @@ export default {
     plan_admin: 'Admin',
     plan_unlimited: 'Illimitato',
     manage_subscription: "Gestisci abbonamento",
-    about_text: "Analizza prodotti con l’IA e scopri se sono adatti al tuo profilo alimentare.",
+    about_text: "Scanner di ingredienti, analisi dei pasti e tracking nutrizionale quotidiano. IA powered by Claude — per chi vuole davvero sapere cosa mangia.",
     terms: "Termini e Condizioni",
     privacy: "Informativa Privacy",
     imprint: "Note Legali",

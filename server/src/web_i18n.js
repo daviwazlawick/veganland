@@ -3,10 +3,10 @@ export const LANG_NAMES = { en: 'EN', pt: 'PT', de: 'DE', fr: 'FR', it: 'IT', es
 
 const T = {
   en: {
-    about_eyebrow:    'AI-powered ingredient scanner',
+    about_eyebrow:    'AI-powered food intelligence',
     about_h1_a:       "Know what's in your food.",
     about_h1_b:       'Instantly.',
-    about_hero_sub:   "Point your camera at any product label. NovaQI reads the ingredients and tells you instantly if they match your dietary preferences.",
+    about_hero_sub:   "Point your camera at any product label or meal. NovaQI reads ingredients instantly, analyses your plate's macros, and helps you track what you eat every day — all powered by Claude AI.",
     about_hero_note:  'Free to download · 15-day trial on paid plans · No credit card required to start',
     about_dl_apple:   'Download on the',
     about_dl_google:  'Get it on',
@@ -63,10 +63,10 @@ const T = {
   },
 
   pt: {
-    about_eyebrow:   'Scanner de ingredientes com IA',
+    about_eyebrow:   'Inteligência alimentar com IA',
     about_h1_a:      'Saiba o que tem na sua comida.',
     about_h1_b:      'Na hora.',
-    about_hero_sub:  'Aponte a câmara para qualquer rótulo. O NovaQI lê os ingredientes e diz-lhe instantaneamente se correspondem às suas preferências alimentares.',
+    about_hero_sub:  'Aponte a câmara para qualquer rótulo ou refeição. O NovaQI lê ingredientes instantaneamente, analisa os macros do seu prato e ajuda-o a fazer tracking diário — tudo powered by Claude AI.',
     about_hero_note: 'Grátis para descarregar · Trial de 15 dias nos planos pagos · Sem cartão para começar',
     about_dl_apple:  'Disponível na', about_dl_google: 'Disponível no',
     about_stats_cats: 'Categorias alimentares', about_stats_diets: 'Dietas suportadas',
@@ -108,10 +108,10 @@ const T = {
   },
 
   de: {
-    about_eyebrow:   'KI-gestützter Zutatenscanner',
+    about_eyebrow:   'KI-gestützte Lebensmittelintelligenz',
     about_h1_a:      'Wissen, was in Ihrem Essen steckt.',
     about_h1_b:      'Sofort.',
-    about_hero_sub:  'Richten Sie Ihre Kamera auf ein beliebiges Produktetikett. NovaQI liest die Zutaten und zeigt sofort, ob sie zu Ihren Ernährungsvorlieben passen.',
+    about_hero_sub:  'Kamera auf Produktetikett oder Mahlzeit richten. NovaQI liest Zutaten sofort, analysiert die Makros Ihres Tellers und hilft Ihnen beim täglichen Tracking — alles powered by Claude AI.',
     about_hero_note: 'Kostenlos herunterladen · 15 Tage Testzeitraum für bezahlte Pläne · Keine Kreditkarte nötig',
     about_dl_apple:  'Laden im', about_dl_google: 'Jetzt bei',
     about_stats_cats: 'Ernährungskategorien', about_stats_diets: 'Diäten', about_stats_langs: 'Sprachen', about_stats_ai: 'Powered by Claude',
@@ -150,10 +150,10 @@ const T = {
   },
 
   fr: {
-    about_eyebrow:   "Scanner d'ingrédients IA",
+    about_eyebrow:   "Intelligence alimentaire par IA",
     about_h1_a:      "Sachez ce qu'il y a dans votre nourriture.",
     about_h1_b:      'Instantanément.',
-    about_hero_sub:  "Pointez votre caméra sur n'importe quelle étiquette. NovaQI lit les ingrédients et vous indique instantanément s'ils correspondent à vos préférences alimentaires.",
+    about_hero_sub:  "Pointez votre caméra sur n'importe quelle étiquette ou repas. NovaQI lit les ingrédients instantanément, analyse les macros de votre assiette et vous aide à suivre ce que vous mangez — tout ça powered by Claude AI.",
     about_hero_note: "Téléchargement gratuit · Essai 15 jours sur les plans payants · Sans carte bancaire pour commencer",
     about_dl_apple: "Télécharger sur l'", about_dl_google: 'Disponible sur',
     about_stats_cats: "Catégories alimentaires", about_stats_diets: "Régimes supportés", about_stats_langs: "Langues", about_stats_ai: "Powered by Claude",
@@ -192,10 +192,10 @@ const T = {
   },
 
   it: {
-    about_eyebrow:   "Scanner ingredienti con IA",
+    about_eyebrow:   "Intelligenza alimentare con IA",
     about_h1_a:      "Sapere cosa c'è nel tuo cibo.",
     about_h1_b:      "Immediatamente.",
-    about_hero_sub:  "Punta la fotocamera su qualsiasi etichetta. NovaQI legge gli ingredienti e ti indica immediatamente se corrispondono alle tue preferenze alimentari.",
+    about_hero_sub:  "Punta la fotocamera su qualsiasi etichetta o pasto. NovaQI legge gli ingredienti istantaneamente, analizza i macros del tuo piatto e ti aiuta a tracciare quello che mangi ogni giorno — tutto powered by Claude AI.",
     about_hero_note: "Download gratuito · 15 giorni di prova sui piani a pagamento · Nessuna carta richiesta",
     about_dl_apple: "Scarica sull'", about_dl_google: "Disponibile su",
     about_stats_cats: "Categorie alimentari", about_stats_diets: "Diete supportate", about_stats_langs: "Lingue", about_stats_ai: "Powered by Claude",
@@ -234,10 +234,10 @@ const T = {
   },
 
   es: {
-    about_eyebrow:   "Escáner de ingredientes con IA",
+    about_eyebrow:   "Inteligencia alimentaria con IA",
     about_h1_a:      "Saber qué hay en tu comida.",
     about_h1_b:      "Al instante.",
-    about_hero_sub:  "Apunta tu cámara a cualquier etiqueta. NovaQI lee los ingredientes y te indica al instante si se ajustan a tus preferencias alimentarias.",
+    about_hero_sub:  "Apunta tu cámara a cualquier etiqueta o comida. NovaQI lee ingredientes al instante, analiza los macros de tu plato y te ayuda a hacer seguimiento diario — todo powered by Claude AI.",
     about_hero_note: "Descarga gratuita · Prueba de 15 días en planes de pago · Sin tarjeta para empezar",
     about_dl_apple: "Descargar en la", about_dl_google: "Disponible en",
     about_stats_cats: "Categorías alimentarias", about_stats_diets: "Dietas compatibles", about_stats_langs: "Idiomas", about_stats_ai: "Powered by Claude",

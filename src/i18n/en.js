@@ -271,7 +271,7 @@ export default {
     plan_admin: 'Admin',
     plan_unlimited: 'Unlimited',
     manage_subscription: 'Manage subscription',
-    about_text: "Analyze products with AI and know if they're safe for your dietary profile.",
+    about_text: 'Ingredient scanner, meal analysis and daily nutrition tracking. AI powered by Claude — for people who want to truly know what they eat.',
     terms: 'Terms & Conditions',
     privacy: 'Privacy Policy',
     imprint: 'Imprint',
