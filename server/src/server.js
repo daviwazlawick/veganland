@@ -1791,6 +1791,22 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // GET /exercise/history?from=YYYY-MM-DD&to=YYYY-MM-DD
+    if (req.method === 'GET' && req.url.startsWith('/exercise/history')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const u = new URL(req.url, 'http://x');
+      const from = u.searchParams.get('from');
+      const to = u.searchParams.get('to');
+      if (!from || !to) { sendJson(res, 400, { error: 'from and to required' }, origin); return; }
+      const { rows } = await pool.query(
+        'SELECT * FROM exercise_log WHERE user_id=$1 AND local_date BETWEEN $2 AND $3 ORDER BY local_date DESC, logged_at ASC',
+        [claims.userId, from, to]
+      );
+      sendJson(res, 200, rows, origin);
+      return;
+    }
+
     // POST /analyze-plate — Claude vision plate nutrition estimate
     if (req.method === 'POST' && req.url === '/analyze-plate') {
       const claims = getAuthUser(req);

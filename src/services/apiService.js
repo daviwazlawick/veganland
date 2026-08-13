@@ -396,6 +396,14 @@ export async function apiDeleteExercise(token, id) {
   }).catch(() => {});
 }
 
+export async function apiGetExerciseHistory(token, from, to) {
+  const r = await fetch(`${baseUrl()}/exercise/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+    headers: appHeaders(token),
+  });
+  if (!r.ok) return [];
+  return r.json();
+}
+
 export async function apiAnalyzePlate(token, imageBase64, language, profile) {
   const r = await fetch(`${baseUrl()}/analyze-plate`, {
     method: 'POST',

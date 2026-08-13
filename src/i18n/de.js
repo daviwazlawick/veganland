@@ -570,6 +570,9 @@ export default {
     favorites: 'Favoriten',
     all: 'Alle',
     minutes_short: 'Min',
+    period_today: 'Heute',
+    period_week: 'Woche',
+    period_month: 'Monat',
   },
   app_survey: {
     title: 'Hilf uns, sie perfekt für dich zu machen 🙏',

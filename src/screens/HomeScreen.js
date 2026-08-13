@@ -163,7 +163,7 @@ export default function HomeScreen({ navigation }) {
                   </Text>
                   {todayBurned > 0 && isNovaQI && (
                     <TouchableOpacity
-                      onPress={() => navigation.navigate('ExerciseLog')}
+                      onPress={() => navigation.navigate('NutritionDashboard')}
                       style={homeNutritionStyles.burnedPill}
                       activeOpacity={0.8}
                     >
