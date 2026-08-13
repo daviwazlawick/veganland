@@ -28,15 +28,14 @@ export function NutritionProvider({ children }) {
       const [profile, g, log, wh, ex] = await Promise.all([
         apiGetBodyProfile(token).catch(() => null),
         apiGetNutritionGoals(token).catch(() => null),
-        apiGetDayLog(token, todayStr()).catch(() => null),
-        apiGetWeightHistory(token).catch(() => null),
+        apiGetDayLog(token, todayStr()).catch(() => []),
+        apiGetWeightHistory(token).catch(() => []),
         apiGetTodayExercise(token, todayStr()),
       ]);
-      // Only update state if call succeeded (not null/error object)
-      if (profile && !profile.error) setBodyProfile(profile);
-      if (g && !g.error && g.calories_kcal != null) setGoals(g);
-      if (Array.isArray(log)) setTodayLog(log);
-      if (Array.isArray(wh)) setWeightHistory(wh);
+      if (profile != null) setBodyProfile(profile);
+      if (g != null) setGoals(g);
+      setTodayLog(Array.isArray(log) ? log : []);
+      setWeightHistory(Array.isArray(wh) ? wh : []);
       setTodayExercise(Array.isArray(ex) ? ex : []);
     } catch {}
     setLoaded(true);

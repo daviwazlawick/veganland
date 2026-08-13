@@ -384,6 +384,8 @@ function publicUser(user) {
     id: user.id,
     email: user.email,
     name: user.name || null,
+    bio: user.bio || null,
+    avatar_url: user.avatar_url || null,
     birth_date: user.birth_date || null,
     country: user.country || null,
     city: user.city || null,
@@ -695,7 +697,7 @@ export async function getUserById(id) {
   }
 
   const result = await db.query(
-    `select id, email, name, birth_date, country, city, diet_id, allergy_ids, halal_strictness, user_type, onboarding_scan_used, created_at, updated_at from users where id = $1`,
+    `select id, email, name, bio, avatar_url, birth_date, country, city, diet_id, allergy_ids, halal_strictness, user_type, onboarding_scan_used, created_at, updated_at from users where id = $1`,
     [id]
   );
   return result.rows[0] || null;
@@ -704,7 +706,7 @@ export async function getUserById(id) {
 export async function updateUserProfile(userId, data) {
   const db = await getPool();
 
-  const allowed = ['name', 'birth_date', 'country', 'city', 'address', 'phone', 'avatar_url', 'diet_id', 'allergy_ids', 'halal_strictness'];
+  const allowed = ['name', 'bio', 'avatar_url', 'birth_date', 'country', 'city', 'address', 'phone', 'diet_id', 'allergy_ids', 'halal_strictness'];
 
   if (!db) {
     const users = await readLocalUsers();

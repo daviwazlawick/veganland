@@ -380,6 +380,7 @@ export default function ResultScreen({ navigation, route }) {
                     <View style={styles.burnRow}>
                       {burnExercises.map(ex => (
                         <View key={ex.id} style={styles.burnItem}>
+                          <Text style={styles.burnItemIcon}>{ex.icon}</Text>
                           <Text style={styles.burnMins}>{minutesToBurn(kcalPer100, ex.met, weight)}'</Text>
                           <Text style={styles.burnExName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
                         </View>
@@ -986,16 +987,17 @@ const styles = StyleSheet.create({
   nutritionLabel: { fontSize: 12, color: Colors.textLight, fontWeight: '600' },
   nutritionValue: { fontSize: 13, color: Colors.text, fontWeight: '800', fontFamily: BrandFonts.mono || undefined },
   burnBox: {
-    backgroundColor: 'rgba(194,84,10,0.08)',
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
+    backgroundColor: '#0E1B14',
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
   },
-  burnTitle: { fontSize: 11, fontWeight: '800', color: '#C2540A', textTransform: 'uppercase', letterSpacing: 0.4 },
+  burnTitle: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 0.8 },
   burnRow: { flexDirection: 'row', gap: 8 },
-  burnItem: { flex: 1, alignItems: 'center', gap: 2 },
-  burnMins: { fontSize: 20, fontWeight: '800', color: '#C2540A', fontFamily: BrandFonts.mono || undefined },
-  burnExName: { fontSize: 11, color: '#C2540A', fontWeight: '600', textAlign: 'center' },
+  burnItem: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, paddingVertical: 10, gap: 3 },
+  burnItemIcon: { fontSize: 20 },
+  burnMins: { fontSize: 20, fontWeight: '800', color: '#FFF', fontFamily: BrandFonts.mono || undefined },
+  burnExName: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '600', textAlign: 'center' },
   metaChipSection: { gap: 6 },
   metaChipLabel: { fontSize: 11, fontWeight: '800', color: Colors.textLight, letterSpacing: 0.3, textTransform: 'uppercase' },
   metaChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

@@ -74,15 +74,17 @@ export function AppProvider({ children }) {
       if (user?.diet_id) {
         const localRaw = await AsyncStorage.getItem(STORAGE_KEYS.profile);
         const local = localRaw ? JSON.parse(localRaw) : {};
+        // Server is authoritative for name, bio, and avatar_url.
+        // Fall back to local for native file:// photos that were never uploaded.
+        const serverAvatar = user.avatar_url || null;
+        const localPhoto = local.photoUri || null;
+        const photoUri = serverAvatar || (localPhoto?.startsWith('file://') ? localPhoto : null);
         const serverProfile = {
-          name: local.name,
-          bio: local.bio,
-          photoUri: local.photoUri,
+          name: user.name || local.name || null,
+          bio: user.bio || local.bio || null,
+          photoUri,
           dietId: user.diet_id,
           allergyIds: user.allergy_ids || [],
-          // Legacy accounts (pre-2026-07) return no halal_strictness.
-          // Fall back to the local value so the pref survives a re-login,
-          // then to null so the client applies its own default (cautious).
           halalStrictness: user.halal_strictness ?? local.halalStrictness ?? null,
         };
         setProfileState(serverProfile);
@@ -170,10 +172,15 @@ export function AppProvider({ children }) {
     setProfileState(newProfile);
     await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(newProfile));
     if (token) {
-      const payload = { diet_id: newProfile.dietId, allergy_ids: newProfile.allergyIds };
-      // Only ship halal_strictness when the diet is halal — keeps the
-      // wire minimal for other diets and avoids overwriting the column
-      // to null when a halal user temporarily switches to another diet.
+      const payload = {
+        diet_id: newProfile.dietId,
+        allergy_ids: newProfile.allergyIds,
+        name: newProfile.name || null,
+        bio: newProfile.bio || null,
+        // Only store data: URIs in DB (base64 from ImagePicker).
+        // file:// paths are native-only and can't be persisted server-side.
+        avatar_url: newProfile.photoUri?.startsWith('data:') ? newProfile.photoUri : null,
+      };
       if (newProfile.dietId === 'halal' && newProfile.halalStrictness) {
         payload.halal_strictness = newProfile.halalStrictness;
       }

@@ -467,11 +467,21 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         </TouchableOpacity>
 
         {isNovaQI && (
-          <TouchableOpacity style={s.exerciseBtn} onPress={() => navigation.navigate('ExerciseLog')}>
-            <Text style={s.exerciseBtnText}>🏃 {t(language, 'exercise.log_exercise')}</Text>
-            {todayBurned > 0 && (
-              <Text style={s.exerciseBtnSub}>{Math.round(todayBurned)} kcal {t(language, 'nutrition.burned') || 'burned'}</Text>
-            )}
+          <TouchableOpacity style={s.exerciseBtn} onPress={() => navigation.navigate('ExerciseLog')} activeOpacity={0.85}>
+            <View style={s.exerciseBtnLeft}>
+              <View style={s.exerciseBtnIconWrap}>
+                <Text style={s.exerciseBtnIcon}>🏃</Text>
+              </View>
+              <View>
+                <Text style={s.exerciseBtnText}>{t(language, 'exercise.log_exercise')}</Text>
+                <Text style={s.exerciseBtnSub}>
+                  {todayBurned > 0
+                    ? `🔥 ${Math.round(todayBurned)} kcal ${t(language, 'nutrition.burned') || 'burned'}`
+                    : t(language, 'exercise.no_exercises_today')}
+                </Text>
+              </View>
+            </View>
+            <Text style={s.exerciseBtnArrow}>›</Text>
           </TouchableOpacity>
         )}
 
@@ -682,9 +692,29 @@ const s = StyleSheet.create({
   addFoodBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   goalsBtn: { alignItems: 'center', paddingVertical: 8 },
   goalsBtnText: { fontSize: 13, color: Colors.navy, textDecorationLine: 'underline' },
-  exerciseBtn: { backgroundColor: '#FFF3E8', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', borderWidth: 1, borderColor: '#FFD5A8' },
-  exerciseBtnText: { color: '#C2540A', fontWeight: '800', fontSize: 15 },
-  exerciseBtnSub: { fontSize: 12, color: '#C2540A', opacity: 0.7, marginTop: 2 },
+  exerciseBtn: {
+    backgroundColor: '#0E1B14',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  exerciseBtnLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  exerciseBtnIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exerciseBtnIcon: { fontSize: 22 },
+  exerciseBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  exerciseBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  exerciseBtnArrow: { fontSize: 24, color: 'rgba(255,255,255,0.4)', lineHeight: 28 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 12, maxHeight: '90%' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy, textAlign: 'center', marginBottom: 4 },

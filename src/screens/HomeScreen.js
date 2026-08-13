@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
 import { Colors } from '../constants/colors';
@@ -149,9 +150,15 @@ export default function HomeScreen({ navigation }) {
                     {todayBurned > 0 ? (t(language, 'nutrition.net') || 'net') : t(language, 'nutrition.remaining')}
                   </Text>
                   {todayBurned > 0 && isNovaQI && (
-                    <Text style={homeNutritionStyles.burnedLabel}>
-                      🔥 {Math.round(todayBurned)} kcal {t(language, 'nutrition.burned') || 'burned'}
-                    </Text>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('ExerciseLog')}
+                      style={homeNutritionStyles.burnedPill}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={homeNutritionStyles.burnedPillTxt}>
+                        🔥 {Math.round(todayBurned)} kcal
+                      </Text>
+                    </TouchableOpacity>
                   )}
                   <View style={homeNutritionStyles.proteinBarTrack}>
                     <View style={[homeNutritionStyles.proteinBarFill, {
@@ -202,60 +209,105 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.scanBtnHalf, isNovaQI && styles.scanBtnNovaqi]}
-            onPress={() => navigation.navigate('Scan')}
-            activeOpacity={0.85}
-          >
-            {isNovaQI ? (
-              <View style={styles.actionIconBubble}>
-                <Text style={styles.actionIconGlyph}>◎</Text>
-              </View>
-            ) : (
-              <Text style={styles.actionIcon}>📷</Text>
-            )}
-            <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
-            <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.scanBtnHalf, isNovaQI ? styles.plateBtnNovaqi : styles.plateBtn]}
-            onPress={() => navigation.navigate('PlateAnalysis')}
-            activeOpacity={0.85}
-          >
-            {isNovaQI ? (
-              <View style={[styles.actionIconBubble, styles.actionIconBubbleDark]}>
-                <Text style={styles.actionIconGlyph}>⬡</Text>
-              </View>
-            ) : (
-              <Text style={styles.actionIcon}>🍽️</Text>
-            )}
-            <Text style={[styles.actionTitle, isNovaQI && styles.actionTitleWhite]}>{t(language, 'nutrition.plate_photo_btn')}</Text>
-            <Text style={[styles.actionSub, isNovaQI && styles.actionSubWhite]}>{t(language, 'nutrition.plate_photo_sub')}</Text>
-          </TouchableOpacity>
-        </View>
+        {isNovaQI ? (
+          <>
+            {/* NovaQI: 2 main buttons */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.mainBtn} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
+                <View style={styles.mainIconBubble}>
+                  <Ionicons name="barcode-outline" size={30} color="#FFF" />
+                </View>
+                <Text style={styles.mainBtnTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
+                <Text style={styles.mainBtnSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.mainBtn, styles.mainBtnDark]} onPress={() => navigation.navigate('PlateAnalysis')} activeOpacity={0.85}>
+                <View style={[styles.mainIconBubble, styles.mainIconBubbleDark]}>
+                  <Ionicons name="camera-outline" size={30} color="#FFF" />
+                </View>
+                <Text style={styles.mainBtnTitle}>{t(language, 'nutrition.plate_photo_btn')}</Text>
+                <Text style={styles.mainBtnSub}>{t(language, 'nutrition.plate_photo_sub')}</Text>
+              </TouchableOpacity>
+            </View>
 
-        <View style={styles.quickRow}>
-          <TouchableOpacity style={styles.addFoodQuickBtn} onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })} activeOpacity={0.85}>
-            <View style={styles.addFoodIconWrap}>
-              <Text style={styles.addFoodIconGlyph}>+</Text>
+            {/* NovaQI: 3 quick action buttons */}
+            <View style={styles.quickGrid}>
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })}
+                activeOpacity={0.82}
+              >
+                <View style={[styles.quickIconBubble, { backgroundColor: Colors.primaryLight }]}>
+                  <Ionicons name="restaurant-outline" size={20} color={Colors.primary} />
+                </View>
+                <Text style={styles.quickCardLabel}>{t(language, 'nutrition.add_food')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => navigation.navigate('ExerciseLog')}
+                activeOpacity={0.82}
+              >
+                <View style={[styles.quickIconBubble, { backgroundColor: '#FFF0EB' }]}>
+                  <Ionicons name="fitness-outline" size={20} color="#E8450A" />
+                </View>
+                <Text style={styles.quickCardLabel}>{t(language, 'exercise.log_exercise')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickCard}
+                onPress={() => quickLogWater(250)}
+                disabled={loggingWater}
+                activeOpacity={0.82}
+              >
+                <View style={[styles.quickIconBubble, { backgroundColor: '#E0F7FB' }]}>
+                  <Ionicons name="water-outline" size={20} color="#0891B2" />
+                </View>
+                <Text style={[styles.quickCardLabel, { color: '#0891B2' }]}>
+                  {Math.round(todayTotals.water_ml || 0) > 0
+                    ? `${Math.round(todayTotals.water_ml || 0)} ml`
+                    : t(language, 'nutrition.water')}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.addFoodQuickTitle}>{t(language, 'nutrition.add_food')}</Text>
-          </TouchableOpacity>
-          <View style={styles.waterQuickCard}>
-            <View style={styles.waterCardTop}>
-              <Text style={styles.waterCardLabel}>{t(language, 'nutrition.water')}</Text>
-              <Text style={styles.waterTodayText}>{Math.round(todayTotals.water_ml || 0)} <Text style={styles.waterUnit}>ml</Text></Text>
+          </>
+        ) : (
+          <>
+            {/* VeganLand: original layout */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.scanBtnHalf} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
+                <Text style={styles.actionIcon}>📷</Text>
+                <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
+                <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.scanBtnHalf, styles.plateBtn]} onPress={() => navigation.navigate('PlateAnalysis')} activeOpacity={0.85}>
+                <Text style={styles.actionIcon}>🍽️</Text>
+                <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_photo_btn')}</Text>
+                <Text style={styles.actionSub}>{t(language, 'nutrition.plate_photo_sub')}</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.waterQuickBtns}>
-              {[250, 500].map(ml => (
-                <TouchableOpacity key={ml} style={styles.waterMlBtn} onPress={() => quickLogWater(ml)} disabled={loggingWater} activeOpacity={0.75}>
-                  <Text style={styles.waterMlText}>+{ml}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.quickRow}>
+              <TouchableOpacity style={styles.addFoodQuickBtn} onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })} activeOpacity={0.85}>
+                <View style={styles.addFoodIconWrap}>
+                  <Text style={styles.addFoodIconGlyph}>+</Text>
+                </View>
+                <Text style={styles.addFoodQuickTitle}>{t(language, 'nutrition.add_food')}</Text>
+              </TouchableOpacity>
+              <View style={styles.waterQuickCard}>
+                <View style={styles.waterCardTop}>
+                  <Text style={styles.waterCardLabel}>{t(language, 'nutrition.water')}</Text>
+                  <Text style={styles.waterTodayText}>{Math.round(todayTotals.water_ml || 0)} <Text style={styles.waterUnit}>ml</Text></Text>
+                </View>
+                <View style={styles.waterQuickBtns}>
+                  {[250, 500].map(ml => (
+                    <TouchableOpacity key={ml} style={styles.waterMlBtn} onPress={() => quickLogWater(ml)} disabled={loggingWater} activeOpacity={0.75}>
+                      <Text style={styles.waterMlText}>+{ml}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
+          </>
+        )}
 
         {scanHistory.length > 0 && (
           <View style={styles.historySection}>
@@ -419,6 +471,54 @@ const styles = StyleSheet.create({
   splitBadgeLabel: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.72)', marginTop: -1 },
   scroll: { padding: 20, gap: 18, paddingBottom: 130 },
   actionRow: { flexDirection: 'row', gap: 12 },
+
+  // NovaQI main buttons (top 2)
+  mainBtn: {
+    flex: 1, alignItems: 'center', gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 22, paddingVertical: 20, paddingHorizontal: 16,
+    shadowColor: Colors.primary, shadowOpacity: 0.32, shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 }, elevation: 10,
+  },
+  mainBtnDark: {
+    backgroundColor: Colors.navy,
+    shadowColor: Colors.navy,
+    shadowOpacity: 0.38,
+  },
+  mainIconBubble: {
+    width: 52, height: 52, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
+  },
+  mainIconBubbleDark: {
+    backgroundColor: 'rgba(22,167,90,0.20)',
+  },
+  mainBtnTitle: {
+    fontSize: 14, fontWeight: '800', color: '#FFF', textAlign: 'center',
+    fontFamily: BrandFonts.heading || undefined,
+  },
+  mainBtnSub: { fontSize: 11, color: 'rgba(255,255,255,0.58)', textAlign: 'center' },
+
+  // NovaQI 3 quick cards (bottom row)
+  quickGrid: { flexDirection: 'row', gap: 10 },
+  quickCard: {
+    flex: 1, alignItems: 'center', gap: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 18, paddingVertical: 14,
+    shadowColor: Colors.navy, shadowOpacity: 0.07, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  quickIconBubble: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  quickCardLabel: {
+    fontSize: 11, fontWeight: '700', color: Colors.text,
+    textAlign: 'center', paddingHorizontal: 4,
+  },
+
+  // VeganLand legacy button styles (kept unchanged)
   scanBtnHalf: {
     flex: 1, alignItems: 'center', gap: 8,
     backgroundColor: Colors.navy,
@@ -432,39 +532,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#166534',
     shadowColor: Colors.safe,
   },
-  scanBtnNovaqi: {
-    backgroundColor: Colors.primary,
-    borderBottomWidth: 0,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  plateBtnNovaqi: {
-    backgroundColor: Colors.navy,
-    borderBottomWidth: 0,
-    shadowColor: Colors.navy,
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  actionIconBubble: {
-    width: 48, height: 48, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 2,
-  },
-  actionIconBubbleDark: {
-    backgroundColor: 'rgba(22,167,90,0.22)',
-  },
-  actionIconGlyph: { fontSize: 22, color: '#FFF', fontWeight: '700' },
   actionIcon: { fontSize: 32 },
   actionTitle: { fontSize: 15, fontWeight: '800', color: Colors.white, textAlign: 'center', fontFamily: BrandFonts.heading || undefined },
-  actionTitleWhite: { color: '#FFF' },
   actionSub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
-  actionSubWhite: { color: 'rgba(255,255,255,0.55)' },
   quickRow: { flexDirection: 'row', gap: 12 },
   addFoodQuickBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -601,5 +671,13 @@ const homeNutritionStyles = StyleSheet.create({
   proteinBarTrack: { height: 6, backgroundColor: Colors.backgroundSecondary, borderRadius: 3, overflow: 'hidden' },
   proteinBarFill: { height: 6, borderRadius: 3, backgroundColor: '#3B82F6' },
   proteinLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, marginTop: 4 },
-  burnedLabel: { fontSize: 11, fontWeight: '600', color: '#C2540A', marginTop: 2 },
+  burnedPill: {
+    backgroundColor: '#FFF0EB',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  burnedPillTxt: { fontSize: 11, fontWeight: '700', color: '#E8450A' },
 });

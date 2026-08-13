@@ -121,6 +121,8 @@ export default {
     },
     web: {
       favicon: `${assets}/favicon.png`,
+      title: B,
+      name: B,
     },
     experiments: {
       baseUrl: '',
