@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, TextInput,
   Modal, Pressable, FlatList, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
@@ -22,18 +23,30 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function ActivityChip({ entry, onDelete, language }) {
+function ActivityCard({ entry, onDelete, language }) {
   const ex = EXERCISES.find(e => e.id === entry.exercise_id);
-  const icon = ex?.icon || '🏃';
+  const cfg = ex ? CATEGORY_CONFIG[ex.category] : null;
   return (
-    <View style={chip.wrap}>
-      <Text style={chip.icon}>{icon}</Text>
-      <View style={chip.info}>
-        <Text style={chip.name} numberOfLines={1}>{entry.exercise_name}</Text>
-        <Text style={chip.meta}>{Math.round(entry.duration_min)} {t(language, 'exercise.minutes_short')} · {Math.round(entry.calories_burned)} kcal</Text>
+    <View style={[actCard.wrap, { borderLeftColor: cfg?.color || Colors.primary }]}>
+      <View style={[actCard.iconBubble, { backgroundColor: cfg?.bg || '#F0F0F0' }]}>
+        <Text style={actCard.icon}>{ex?.icon || '🏃'}</Text>
       </View>
-      <TouchableOpacity onPress={onDelete} style={chip.del} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={chip.delTxt}>×</Text>
+      <View style={actCard.info}>
+        <Text style={actCard.name} numberOfLines={1}>{entry.exercise_name}</Text>
+        <Text style={actCard.meta}>
+          {Math.round(entry.duration_min)} {t(language, 'exercise.minutes_short')}
+          {'  ·  '}
+          <Text style={{ color: '#E8450A', fontWeight: '700' }}>
+            🔥 {Math.round(entry.calories_burned)} kcal
+          </Text>
+        </Text>
+      </View>
+      <TouchableOpacity
+        onPress={onDelete}
+        style={actCard.del}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons name="close" size={16} color="#CCC" />
       </TouchableOpacity>
     </View>
   );
@@ -102,6 +115,14 @@ export default function ExerciseLogScreen({ navigation }) {
     setLogModal(null);
   }, [logModal, effectiveDuration, weight, language, logExercise, pulse]);
 
+  // Category breakdown for hero strip
+  const catBreakdown = todayExercise.reduce((acc, e) => {
+    const ex = EXERCISES.find(x => x.id === e.exercise_id);
+    const cat = ex?.category || 'other';
+    acc[cat] = (acc[cat] || 0) + e.duration_min;
+    return acc;
+  }, {});
+
   const categories = [...new Set(EXERCISES.map(e => e.category))];
 
   const displayed = activeTab === 'all'
@@ -116,82 +137,98 @@ export default function ExerciseLogScreen({ navigation }) {
     ? calsBurnedForDuration(logModal.met, weight, effectiveDuration)
     : 0;
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      {/* Dark hero header */}
+  const ListHeader = (
+    <>
+      {/* Hero */}
       <View style={styles.hero}>
         <View style={styles.heroTopRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.backArrow}>‹</Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={26} color="#FFF" />
           </TouchableOpacity>
           <Text style={styles.heroTitle}>{t(language, 'exercise.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <Animated.View style={[styles.burnBubble, { transform: [{ scale: pulseAnim }] }]}>
+        <Animated.View style={[styles.burnBlock, { transform: [{ scale: pulseAnim }] }]}>
           <Text style={styles.burnNum}>{totalBurnedRounded}</Text>
-          <Text style={styles.burnUnit}>kcal {t(language, 'nutrition.burned') || 'burned'}</Text>
+          <Text style={styles.burnUnit}>kcal {t(language, 'nutrition.burned') || 'queimadas'}</Text>
         </Animated.View>
 
-        {todayExercise.length === 0 && (
+        {/* Category breakdown strip */}
+        {Object.keys(catBreakdown).length > 0 ? (
+          <View style={styles.catStrip}>
+            {Object.entries(catBreakdown).map(([cat, mins]) => {
+              const cfg = CATEGORY_CONFIG[cat];
+              return (
+                <View key={cat} style={styles.catPill}>
+                  <View style={[styles.catDot, { backgroundColor: cfg?.color || '#999' }]} />
+                  <Text style={styles.catPillTxt}>
+                    {t(language, EXERCISE_CATEGORY_KEYS[cat])} {Math.round(mins)}′
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
           <Text style={styles.heroHint}>{t(language, 'exercise.no_exercises_today')}</Text>
         )}
       </View>
 
-      {/* Today's activity chips */}
+      {/* Today's activity log — vertical cards */}
       {todayExercise.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsRow}
-          contentContainerStyle={styles.chipsContent}
-        >
+        <View style={styles.activitySection}>
+          <Text style={styles.activityHeading}>{t(language, 'exercise.today_burned')}</Text>
           {todayExercise.map(entry => (
-            <ActivityChip
+            <ActivityCard
               key={entry.id}
               entry={entry}
               language={language}
               onDelete={() => deleteExercise(entry.id)}
             />
           ))}
-        </ScrollView>
+        </View>
       )}
 
-      {/* Category tabs */}
-      <ScrollView
+      {/* Category filter tabs */}
+      <FlatList
         horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsRow}
-        contentContainerStyle={styles.tabsContent}
-      >
-        {[
+        data={[
           { id: 'all', label: t(language, 'exercise.all') },
           { id: 'favorites', label: '★ ' + t(language, 'exercise.favorites') },
           ...categories.map(c => ({ id: c, label: t(language, EXERCISE_CATEGORY_KEYS[c]) })),
-        ].map(tab => {
+        ]}
+        keyExtractor={item => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsContent}
+        style={styles.tabsRow}
+        renderItem={({ item: tab }) => {
           const isActive = activeTab === tab.id;
           const cfg = CATEGORY_CONFIG[tab.id];
           return (
             <TouchableOpacity
-              key={tab.id}
-              style={[
-                styles.tab,
-                isActive && { backgroundColor: cfg?.color || Colors.primary },
-              ]}
+              style={[styles.tab, isActive && { backgroundColor: cfg?.color || Colors.primary }]}
               onPress={() => setActiveTab(tab.id)}
             >
               <Text style={[styles.tabTxt, isActive && styles.tabTxtActive]}>{tab.label}</Text>
             </TouchableOpacity>
           );
-        })}
-      </ScrollView>
+        }}
+      />
+    </>
+  );
 
-      {/* Exercise list */}
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <FlatList
         data={displayed}
         keyExtractor={e => e.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={ListHeader}
         renderItem={({ item: ex }) => {
           const cfg = CATEGORY_CONFIG[ex.category];
           const kcal30 = calsBurnedForDuration(ex.met, weight, 30);
@@ -225,34 +262,31 @@ export default function ExerciseLogScreen({ navigation }) {
       <Modal visible={!!logModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <Pressable style={styles.modalBackdrop} onPress={() => setLogModal(null)}>
-            <Pressable style={styles.modalCard} onPress={e => e.stopPropagation()}>
+            <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
               {logModal && (
                 <>
-                  {/* Modal header strip */}
                   <View style={[styles.modalStrip, { backgroundColor: catCfg?.color || Colors.primary }]}>
                     <Text style={styles.modalIcon}>{logModal.icon}</Text>
                     <Text style={styles.modalExName}>{getExerciseName(logModal, language)}</Text>
                   </View>
 
-                  {/* Duration label */}
                   <Text style={styles.modalSectionLabel}>{t(language, 'exercise.duration_min')}</Text>
 
-                  {/* Preset chips */}
                   <View style={styles.presets}>
                     {DURATION_PRESETS.map(mins => (
                       <TouchableOpacity
                         key={mins}
                         style={[
                           styles.preset,
-                          !useCustom && duration === mins && { backgroundColor: catCfg?.color || Colors.primary, borderColor: catCfg?.color || Colors.primary },
+                          !useCustom && duration === mins && {
+                            backgroundColor: catCfg?.color || Colors.primary,
+                            borderColor: catCfg?.color || Colors.primary,
+                          },
                         ]}
                         onPress={() => { setDuration(mins); setUseCustom(false); }}
                       >
-                        <Text style={[
-                          styles.presetTxt,
-                          !useCustom && duration === mins && styles.presetTxtActive,
-                        ]}>
-                          {mins}'
+                        <Text style={[styles.presetTxt, !useCustom && duration === mins && styles.presetTxtActive]}>
+                          {mins}′
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -277,7 +311,6 @@ export default function ExerciseLogScreen({ navigation }) {
                     />
                   )}
 
-                  {/* Live kcal preview */}
                   <View style={[styles.kcalPreviewBox, { backgroundColor: catCfg?.bg || Colors.primaryBg }]}>
                     <Text style={[styles.kcalPreviewNum, { color: catCfg?.color || Colors.primary }]}>
                       {previewKcal}
@@ -294,7 +327,7 @@ export default function ExerciseLogScreen({ navigation }) {
                   </TouchableOpacity>
                 </>
               )}
-            </Pressable>
+            </View>
           </Pressable>
         </KeyboardAvoidingView>
       </Modal>
@@ -302,30 +335,37 @@ export default function ExerciseLogScreen({ navigation }) {
   );
 }
 
-const chip = StyleSheet.create({
+const actCard = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.07)',
+    borderRadius: 16,
+    marginBottom: 8,
+    paddingRight: 14,
+    paddingVertical: 12,
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
     elevation: 2,
-    maxWidth: 220,
+    overflow: 'hidden',
   },
-  icon: { fontSize: 18, marginRight: 8 },
+  iconBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+    marginRight: 12,
+  },
+  icon: { fontSize: 20 },
   info: { flex: 1 },
-  name: { fontSize: 13, fontWeight: '700', color: '#111' },
-  meta: { fontSize: 11, color: '#888', marginTop: 1 },
-  del: { marginLeft: 8, width: 20, alignItems: 'center' },
-  delTxt: { fontSize: 18, color: '#CCC', lineHeight: 20 },
+  name: { fontSize: 14, fontWeight: '700', color: '#111' },
+  meta: { fontSize: 12, color: '#888', marginTop: 3 },
+  del: { marginLeft: 8, padding: 4 },
 });
 
 const styles = StyleSheet.create({
@@ -334,7 +374,7 @@ const styles = StyleSheet.create({
   // Hero
   hero: {
     backgroundColor: Colors.navy || '#0E1B14',
-    paddingBottom: 20,
+    paddingBottom: 24,
     alignItems: 'center',
   },
   heroTopRow: {
@@ -346,7 +386,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40 },
-  backArrow: { fontSize: 28, color: '#FFF', lineHeight: 32 },
   heroTitle: {
     flex: 1,
     textAlign: 'center',
@@ -355,38 +394,60 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontFamily: BrandFonts.heading || undefined,
   },
-  burnBubble: {
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 4,
-  },
+  burnBlock: { alignItems: 'center', marginTop: 8, marginBottom: 6 },
   burnNum: {
-    fontSize: 52,
+    fontSize: 56,
     fontWeight: '800',
     color: '#FFF',
     fontFamily: BrandFonts.heading || undefined,
-    lineHeight: 58,
+    lineHeight: 62,
   },
   burnUnit: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.58)',
     fontWeight: '600',
     letterSpacing: 0.4,
     marginTop: 2,
   },
   heroHint: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 6,
+    color: 'rgba(255,255,255,0.38)',
+    marginTop: 8,
     fontStyle: 'italic',
   },
+  catStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 20,
+  },
+  catPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  catDot: { width: 7, height: 7, borderRadius: 4 },
+  catPillTxt: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.80)' },
 
-  // Activity chips row
-  chipsRow: { flexGrow: 0, backgroundColor: Colors.background || '#F6F3EB' },
-  chipsContent: { paddingHorizontal: 16, paddingVertical: 12 },
+  // Activity log
+  activitySection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
+  activityHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textMuted || '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
 
   // Category tabs
-  tabsRow: { flexGrow: 0 },
+  tabsRow: { flexGrow: 0, marginTop: 8 },
   tabsContent: { paddingHorizontal: 16, paddingBottom: 10, paddingTop: 4, gap: 8 },
   tab: {
     paddingHorizontal: 14,
@@ -474,11 +535,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  presets: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-  },
+  presets: { flexDirection: 'row', paddingHorizontal: 20, gap: 8 },
   preset: {
     flex: 1,
     paddingVertical: 10,
