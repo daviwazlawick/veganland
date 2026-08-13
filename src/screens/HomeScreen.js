@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -16,6 +16,14 @@ import { apiGetRecentPlates } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
+
+const WATER_PRESETS = [
+  { ml: 150,  cups: '¾' },
+  { ml: 250,  cups: '1' },
+  { ml: 350,  cups: '1½' },
+  { ml: 500,  cups: '2' },
+  { ml: 750,  cups: '3' },
+];
 
 const HALAL_TO_STATUS = {
   [HALAL_STATUS.HALAL]: 'SAFE',
@@ -69,6 +77,8 @@ export default function HomeScreen({ navigation }) {
   const { goals, todayTotals, logConsumption, todayBurned } = useNutrition();
   const { token } = useAuth();
   const [loggingWater, setLoggingWater] = useState(false);
+  const [showWaterModal, setShowWaterModal] = useState(false);
+  const [customWaterMl, setCustomWaterMl] = useState('');
   const [recentPlates, setRecentPlates] = useState([]);
   const [badgeTooltip, setBadgeTooltip] = useState(false);
 
@@ -79,6 +89,8 @@ export default function HomeScreen({ navigation }) {
 
   async function quickLogWater(ml) {
     if (loggingWater) return;
+    setShowWaterModal(false);
+    setCustomWaterMl('');
     setLoggingWater(true);
     try { await logConsumption({ product_name: 'Water', source: 'manual', water_ml: ml, meal_type: null }); } catch {}
     setLoggingWater(false);
@@ -255,8 +267,7 @@ export default function HomeScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.quickCard}
-                onPress={() => quickLogWater(250)}
-                disabled={loggingWater}
+                onPress={() => setShowWaterModal(true)}
                 activeOpacity={0.82}
               >
                 <View style={[styles.quickIconBubble, { backgroundColor: '#E0F7FB' }]}>
@@ -388,6 +399,58 @@ export default function HomeScreen({ navigation }) {
         )}
 
       </ScrollView>
+
+      {/* Water picker modal */}
+      <Modal visible={showWaterModal} transparent animationType="slide" onRequestClose={() => setShowWaterModal(false)}>
+        <Pressable style={waterStyles.backdrop} onPress={() => setShowWaterModal(false)}>
+          <View style={waterStyles.sheet} onStartShouldSetResponder={() => true}>
+            <View style={waterStyles.handle} />
+            <View style={waterStyles.titleRow}>
+              <Ionicons name="water" size={20} color="#0891B2" />
+              <Text style={waterStyles.title}>{t(language, 'nutrition.water')}</Text>
+              {Math.round(todayTotals.water_ml || 0) > 0 && (
+                <Text style={waterStyles.todayBadge}>{Math.round(todayTotals.water_ml)} ml hoje</Text>
+              )}
+            </View>
+            <View style={waterStyles.presetGrid}>
+              {WATER_PRESETS.map(p => (
+                <TouchableOpacity
+                  key={p.ml}
+                  style={waterStyles.presetChip}
+                  onPress={() => quickLogWater(p.ml)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="water" size={18} color="#0891B2" style={{ opacity: 0.7 + p.ml / 2500 }} />
+                  <Text style={waterStyles.presetMl}>{p.ml} ml</Text>
+                  <Text style={waterStyles.presetCups}>{p.cups} {p.cups === '1' ? 'copo' : 'copos'}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={waterStyles.customRow}>
+              <TextInput
+                style={waterStyles.customInput}
+                value={customWaterMl}
+                onChangeText={setCustomWaterMl}
+                placeholder="Outro (ml)"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="number-pad"
+                maxLength={5}
+              />
+              <TouchableOpacity
+                style={[waterStyles.customBtn, !customWaterMl && waterStyles.customBtnDisabled]}
+                onPress={() => {
+                  const ml = parseInt(customWaterMl, 10);
+                  if (ml > 0 && ml <= 5000) quickLogWater(ml);
+                }}
+                disabled={!customWaterMl}
+                activeOpacity={0.8}
+              >
+                <Text style={waterStyles.customBtnTxt}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
 
       <Modal visible={badgeTooltip} transparent animationType="fade" onRequestClose={() => setBadgeTooltip(false)}>
         <Pressable style={styles.tooltipBackdrop} onPress={() => setBadgeTooltip(false)}>
@@ -646,6 +709,81 @@ const homeReferralStyles = StyleSheet.create({
   heroEmoji: { fontSize: 32 },
   heroTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy, lineHeight: 20 },
   heroCta: { fontSize: 13, color: Colors.navy, fontWeight: '700', marginTop: 4 },
+});
+
+const waterStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    gap: 18,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    alignSelf: 'center', marginBottom: 4,
+  },
+  titleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  title: {
+    fontSize: 17, fontWeight: '800', color: '#0E1B14', flex: 1,
+  },
+  todayBadge: {
+    fontSize: 12, fontWeight: '700',
+    color: '#0891B2',
+    backgroundColor: '#E0F7FB',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20,
+  },
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  presetChip: {
+    width: '30%',
+    flexGrow: 1,
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FAFB',
+    borderRadius: 16,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+  },
+  presetMl: {
+    fontSize: 15, fontWeight: '800', color: '#0891B2',
+  },
+  presetCups: {
+    fontSize: 11, fontWeight: '600', color: '#64B5C8',
+  },
+  customRow: {
+    flexDirection: 'row', gap: 10, alignItems: 'center',
+  },
+  customInput: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 13,
+    fontSize: 16, fontWeight: '600', color: '#0E1B14',
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  customBtn: {
+    width: 50, height: 50, borderRadius: 14,
+    backgroundColor: '#0891B2',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  customBtnDisabled: { backgroundColor: '#BAE6FD' },
+  customBtnTxt: { fontSize: 26, fontWeight: '300', color: '#FFF', lineHeight: 30 },
 });
 
 const homeNutritionStyles = StyleSheet.create({
