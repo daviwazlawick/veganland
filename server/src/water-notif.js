@@ -248,6 +248,7 @@ export async function runNotifications() {
       sound: 'default',
       data: {
         route: 'NutritionDashboard',
+        slot: u.slot,
         // Food reminders open the Add Food modal directly
         params: u.slotType === 'food' ? { openAddFood: true } : undefined,
       },

@@ -591,7 +591,24 @@ const PUSH_DIET_OPTIONS = [
   { id: 'omnivore',     label: '🍽️ Onívoro' },
 ];
 
-function htmlAdminPushPage(token, lastResult = null, history = []) {
+async function getScheduledNotifStats() {
+  const db = await import('./db.js').then(m => m.getPool());
+  if (!db) return [];
+  const SLOTS = ['water_morning','water_afternoon','water_evening','food_morning','food_midday','food_evening'];
+  const { rows } = await db.query(`
+    SELECT s.slot,
+           count(DISTINCT l.id)::int  AS sent,
+           count(DISTINCT t.id)::int  AS taps
+    FROM   (SELECT unnest($1::text[]) AS slot) s
+    LEFT JOIN water_notification_log     l ON l.slot = s.slot
+    LEFT JOIN scheduled_notification_taps t ON t.slot = s.slot
+    GROUP BY s.slot
+    ORDER BY array_position($1::text[], s.slot)
+  `, [SLOTS]);
+  return rows;
+}
+
+function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStats = []) {
   const resultHtml = lastResult ? `<div class="result">${esc(lastResult)}</div>` : '';
   const historyRows = history.map(h => {
     const when = new Date(h.created_at).toLocaleString('pt-BR');
@@ -691,6 +708,28 @@ function htmlAdminPushPage(token, lastResult = null, history = []) {
       </tr></thead>
       <tbody>${historyRows || '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">Nenhum broadcast enviado ainda</td></tr>'}</tbody>
     </table>
+  </div>
+
+  <div class="card">
+    <h2>⏰ Notificações Automáticas (água + refeições)</h2>
+    <table>
+      <thead><tr>
+        <th>Slot</th><th>Tipo</th><th style="text-align:center">Enviadas</th><th style="text-align:center">👆 Cliques</th><th style="text-align:center">Taxa</th>
+      </tr></thead>
+      <tbody>${scheduledStats.length > 0 ? scheduledStats.map(s => {
+        const label = { water_morning:'Água — Manhã', water_afternoon:'Água — Tarde', water_evening:'Água — Noite', food_morning:'Refeição — Manhã', food_midday:'Refeição — Meio-dia', food_evening:'Refeição — Noite' }[s.slot] || s.slot;
+        const type = s.slot.startsWith('water') ? '💧' : '🍽️';
+        const rate = s.sent > 0 ? Math.round((s.taps / s.sent) * 100) : 0;
+        return `<tr>
+          <td><strong>${label}</strong></td>
+          <td style="text-align:center">${type}</td>
+          <td style="text-align:center">${s.sent}</td>
+          <td style="text-align:center;color:#2563eb;font-weight:700">${s.taps}</td>
+          <td style="text-align:center;font-size:12px;color:#64748b">${rate}%</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">Sem dados ainda</td></tr>'}</tbody>
+    </table>
+    <p style="font-size:11px;color:#94a3b8;margin-top:12px">Cliques registados quando o utilizador abre a app tocando na notificação.</p>
   </div>
 
   <p style="text-align:center;font-size:13px"><a href="/admin">← Voltar ao admin</a></p>
@@ -1393,6 +1432,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // POST /push/notification-tap — user tapped a scheduled notification (water/food reminder)
+    if (req.method === 'POST' && req.url === '/push/notification-tap') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      const slot = String(body.slot || '').trim();
+      const VALID_SLOTS = ['water_morning','water_afternoon','water_evening','food_morning','food_midday','food_evening'];
+      if (!VALID_SLOTS.includes(slot)) { sendJson(res, 400, { error: 'invalid slot' }, origin); return; }
+      const db = await import('./db.js').then(m => m.getPool());
+      await db.query('INSERT INTO scheduled_notification_taps (user_id, slot) VALUES ($1, $2)', [claims.userId, slot]).catch(() => {});
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
     // PATCH /push/timezone — update timezone on all tokens for this user (called at login/launch)
     if (req.method === 'PATCH' && req.url === '/push/timezone') {
       const claims = getAuthUser(req);
@@ -1422,9 +1475,12 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const token = new URL(req.url, 'http://x').searchParams.get('token');
-      const history = await listPushBroadcasts(30);
+      const [history, scheduledStats] = await Promise.all([
+        listPushBroadcasts(30),
+        getScheduledNotifStats(),
+      ]);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(token, null, history));
+      res.end(htmlAdminPushPage(token, null, history, scheduledStats));
       return;
     }
 

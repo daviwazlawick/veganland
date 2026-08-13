@@ -253,6 +253,15 @@ export async function apiReportPushClick(token, broadcastId) {
   return response.ok;
 }
 
+export async function apiReportNotificationTap(token, slot) {
+  const response = await fetch(`${baseUrl()}/push/notification-tap`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ slot }),
+  });
+  return response.ok;
+}
+
 export async function apiSubmitFeedback(token, { scanId, rating, comment }) {
   const response = await fetch(`${baseUrl()}/feedback`, {
     method: 'POST',

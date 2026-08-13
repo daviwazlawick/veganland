@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { registerForPushAsync, addNotificationResponseListener } from '../services/notificationsService';
-import { apiRegisterPush, apiReportPushClick } from '../services/apiService';
+import { apiRegisterPush, apiReportPushClick, apiReportNotificationTap } from '../services/apiService';
 
 // Registers the device for push once disclaimer is accepted and user is logged in.
 // Also wires the tap handler so a notification with `data.route` deep-links inside the app.
@@ -35,8 +35,11 @@ export default function usePushNotifications(navigationRef) {
       const route = data.route;
       const params = data.params;
       const broadcastId = data.broadcast_id;
+      const slot = data.slot;
       if (broadcastId && token) {
         apiReportPushClick(token, broadcastId).catch(() => {});
+      } else if (slot && token) {
+        apiReportNotificationTap(token, slot).catch(() => {});
       }
       if (route && navigationRef?.current?.isReady?.()) {
         try { navigationRef.current.navigate(route, params || undefined); } catch {}

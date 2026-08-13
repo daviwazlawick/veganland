@@ -1,6 +1,6 @@
 // One-shot broadcast: NovaQI update announcement, per-locale
 // Run: node server/src/scripts/broadcast-update.mjs
-import { getPool } from '../db.js';
+import { getPool, logPushBroadcast } from '../db.js';
 
 const MESSAGES = {
   pt: { title: '🚀 NovaQI actualizado!', body: 'Actualizámos o NovaQI para ser ainda mais útil. O registo de nutrição chegou! Aproveita!' },
@@ -32,6 +32,7 @@ async function main() {
     const { title, body } = MESSAGES[lang];
     console.log(`\n[${lang}] ${tokens.length} tokens — "${title}"`);
 
+    let langOk = 0, langErr = 0;
     for (let i = 0; i < tokens.length; i += CHUNK) {
       const chunk = tokens.slice(i, i + CHUNK);
       const messages = chunk.map(to => ({
@@ -48,9 +49,14 @@ async function main() {
       const tickets = Array.isArray(json.data) ? json.data : [];
       const ok = tickets.filter(t => t.status === 'ok').length;
       const err = tickets.filter(t => t.status !== 'ok').length;
+      langOk += ok; langErr += err;
       totalOk += ok; totalErr += err;
       console.log(`  chunk ${i / CHUNK + 1}: ✅ ${ok}  ❌ ${err}`);
     }
+    await logPushBroadcast({
+      title, body, locale: lang, userType: null, route: 'Home',
+      totalCount: tokens.length, okCount: langOk, errorCount: langErr, invalidCount: 0, diets: [],
+    }).catch(e => console.warn('logPushBroadcast failed:', e.message));
   }
 
   console.log(`\nDone. Total ✅ ${totalOk}  ❌ ${totalErr}`);
