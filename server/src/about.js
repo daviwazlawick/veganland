@@ -486,7 +486,7 @@ export function htmlAboutPage(host, lang) {
     `<span style="display:inline-flex;align-items:center;gap:8px;background:#fff;color:${b.dark};font-size:14px;font-weight:700;padding:10px 20px;border-radius:24px;border:1.5px solid ${b.primary}30;box-shadow:0 2px 8px rgba(0,0,0,.04)">${icon} ${name}</span>`
   ).join('');
 
-  const pills = ['pill_scan','pill_macro','pill_exercise','pill_plate','pill_halal','pill_water']
+  const pills = ['pill_scan','pill_macro','pill_exercise','pill_plate','pill_water']
     .map(k => `<span style="display:inline-block;background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);font-size:13px;font-weight:600;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.12)">${ll(k)}</span>`)
     .join('');
 
@@ -618,30 +618,6 @@ header{position:sticky;top:0;z-index:100;background:${b.dark};height:64px;displa
       [ll('s4_f1'), ll('s4_f2'), ll('s4_f3'), ll('s4_f4')])}</div>
   </div>
 
-</div>
-
-<!-- HALAL SPOTLIGHT -->
-<div style="background:${b.dark};padding:80px 24px;position:relative;overflow:hidden">
-  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 100% 50%,${b.primary}14 0%,transparent 60%)"></div>
-  <div class="w" style="position:relative;display:flex;gap:56px;align-items:center;flex-wrap:wrap">
-    <div style="flex:1;min-width:240px">
-      <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${b.accent};margin-bottom:12px">${ll('halal_label')}</div>
-      <h2 style="color:#fff;font-size:clamp(22px,3vw,32px);font-weight:900;letter-spacing:-0.6px;line-height:1.2;margin-bottom:14px">${ll('halal_title')}</h2>
-      <p style="color:rgba(255,255,255,.55);font-size:15px;line-height:1.7;margin-bottom:24px">${ll('halal_body')}</p>
-      <ul style="list-style:none;display:flex;flex-direction:column;gap:10px">
-        ${[ll('halal_f1'),ll('halal_f2'),ll('halal_f3'),ll('halal_f4')].map(f =>
-          `<li style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:rgba(255,255,255,.7)"><span style="color:${b.primary};flex-shrink:0;margin-top:2px">${SVG_CHECK}</span>${f}</li>`
-        ).join('')}
-      </ul>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <div style="background:${b.primary}18;border:1px solid ${b.primary}30;border-radius:28px;padding:40px;text-align:center">
-        <div style="font-size:80px;line-height:1;margin-bottom:12px">☪️</div>
-        <div style="font-size:22px;font-weight:900;color:${b.primary}">Halal ✓</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.4);margin-top:4px">Mashbooh · Not Halal</div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- HOW IT WORKS -->
