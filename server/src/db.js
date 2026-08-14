@@ -1579,6 +1579,31 @@ export async function getWeightHistory(userId, limit = 90) {
   return res.rows;
 }
 
+export async function logBodyMeasurements(userId, data) {
+  const db = await getPool();
+  if (!db) return null;
+  const fields = ['waist_cm','hips_cm','chest_cm','arm_cm','thigh_cm','neck_cm','body_fat_pct'];
+  const cols = fields.filter(f => data[f] != null);
+  if (cols.length === 0) return null;
+  const vals = cols.map(f => data[f]);
+  const placeholders = cols.map((_, i) => `$${i + 2}`).join(', ');
+  const res = await db.query(
+    `INSERT INTO body_measurements (user_id, ${cols.join(', ')}) VALUES ($1, ${placeholders}) RETURNING *`,
+    [userId, ...vals]
+  );
+  return res.rows[0];
+}
+
+export async function getBodyMeasurementsHistory(userId, limit = 30) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(
+    `SELECT * FROM body_measurements WHERE user_id=$1 ORDER BY recorded_at DESC LIMIT $2`,
+    [userId, limit]
+  );
+  return res.rows;
+}
+
 // `extraTerms` (optional) lets callers pass AI-translated variants of the
 // query (see expandSearchQuery in anthropic.js) so a product stored in one
 // language can be found by a query typed in another. Every term is matched

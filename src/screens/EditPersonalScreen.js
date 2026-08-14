@@ -1,34 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
-import { t } from '../i18n';
+import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
 
 const SEXES = ['male', 'female', 'other'];
 const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
 const GOALS = ['lose', 'maintain', 'gain'];
 
+const MEASURE_FIELDS = [
+  { key: 'waist_cm',     i18n: 'measurements.waist',    placeholder: '80' },
+  { key: 'hips_cm',      i18n: 'measurements.hips',     placeholder: '95' },
+  { key: 'chest_cm',     i18n: 'measurements.chest',    placeholder: '100' },
+  { key: 'arm_cm',       i18n: 'measurements.arm',      placeholder: '35' },
+  { key: 'thigh_cm',     i18n: 'measurements.thigh',    placeholder: '55' },
+  { key: 'neck_cm',      i18n: 'measurements.neck',     placeholder: '38' },
+  { key: 'body_fat_pct', i18n: 'measurements.body_fat', placeholder: '18' },
+];
+
+function formatDate(iso, language) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString(localeFor(language), { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function EditPersonalScreen({ navigation }) {
   const { language, profile, saveProfile } = useApp();
-  const { bodyProfile, saveBodyProfile } = useNutrition();
+  const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements } = useNutrition();
 
   const [name, setName] = useState(profile?.name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [photoUri, setPhotoUri] = useState(profile?.photoUri || null);
 
-  const [sex, setSex]           = useState(null);
+  const [sex, setSex]             = useState(null);
   const [birthDate, setBirthDate] = useState('');
-  const [height, setHeight]     = useState('');
-  const [weight, setWeight]     = useState('');
-  const [activity, setActivity] = useState('moderate');
-  const [goal, setGoal]         = useState('maintain');
+  const [height, setHeight]       = useState('');
+  const [weight, setWeight]       = useState('');
+  const [activity, setActivity]   = useState('moderate');
+  const [goal, setGoal]           = useState('maintain');
+
+  const [measures, setMeasures] = useState({});
+  const [showHistory, setShowHistory] = useState(false);
+
+  const latest = measurementsHistory[0] || null;
 
   useEffect(() => {
     if (bodyProfile) {
@@ -41,6 +62,16 @@ export default function EditPersonalScreen({ navigation }) {
     }
   }, [bodyProfile]);
 
+  useEffect(() => {
+    if (latest) {
+      const filled = {};
+      MEASURE_FIELDS.forEach(({ key }) => {
+        if (latest[key] != null) filled[key] = String(latest[key]);
+      });
+      setMeasures(filled);
+    }
+  }, [latest]);
+
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -51,8 +82,6 @@ export default function EditPersonalScreen({ navigation }) {
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      // Prefer base64 data URI (cross-device, storable in DB).
-      // Fall back to URI (native file://) if base64 is unavailable.
       if (asset.base64) {
         setPhotoUri(`data:image/jpeg;base64,${asset.base64}`);
       } else {
@@ -80,6 +109,14 @@ export default function EditPersonalScreen({ navigation }) {
         activity_level: activity,
         goal,
       });
+      // Log measurements only if at least one field has a value
+      const measureData = {};
+      let hasMeasure = false;
+      MEASURE_FIELDS.forEach(({ key }) => {
+        const v = parseFloat(measures[key]);
+        if (!isNaN(v) && v > 0) { measureData[key] = v; hasMeasure = true; }
+      });
+      if (hasMeasure) await logMeasurements(measureData);
       navigation.goBack();
     } catch {
       Alert.alert('', t(language, 'profile_setup.save_error'));
@@ -113,7 +150,7 @@ export default function EditPersonalScreen({ navigation }) {
               </View>
             )}
             <View style={styles.cameraBtn}>
-              <Ionicons name="camera" size={16} color={Colors.white} />
+              <Ionicons name="camera" size={16} color={Colors.white || '#fff'} />
             </View>
           </TouchableOpacity>
           <Text style={styles.tapHint}>{t(language, 'personal.tap_to_change')}</Text>
@@ -203,6 +240,68 @@ export default function EditPersonalScreen({ navigation }) {
             </View>
           </View>
 
+          {/* ── Body Measurements ── */}
+          <Text style={styles.sectionDivider}>{t(language, 'measurements.title')}</Text>
+
+          <View style={styles.measureSubtitleRow}>
+            <Text style={styles.measureSubtitle}>{t(language, 'measurements.subtitle')}</Text>
+            {latest && (
+              <Text style={styles.lastRecorded}>
+                {t(language, 'measurements.last_recorded')}: {formatDate(latest.recorded_at, language)}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.measureGrid}>
+            {MEASURE_FIELDS.map(({ key, i18n: i18nKey, placeholder }) => (
+              <View key={key} style={styles.measureField}>
+                <Text style={styles.measureLabel}>{t(language, i18nKey)}</Text>
+                <TextInput
+                  style={styles.measureInput}
+                  value={measures[key] || ''}
+                  onChangeText={v => setMeasures(prev => ({ ...prev, [key]: v }))}
+                  placeholder={placeholder}
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.measureHint}>{t(language, 'measurements.save_hint')}</Text>
+
+          {/* ── History ── */}
+          {measurementsHistory.length > 0 && (
+            <TouchableOpacity style={styles.historyToggle} onPress={() => setShowHistory(v => !v)} activeOpacity={0.7}>
+              <Ionicons name={showHistory ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.primary} />
+              <Text style={styles.historyToggleTxt}>{t(language, 'measurements.history')} ({measurementsHistory.length})</Text>
+            </TouchableOpacity>
+          )}
+
+          {showHistory && (
+            <View style={styles.historyCard}>
+              <Text style={styles.historyTitle}>{t(language, 'measurements.history_title')}</Text>
+              {measurementsHistory.map((entry, idx) => (
+                <View key={entry.id} style={[styles.historyRow, idx > 0 && styles.historyRowBorder]}>
+                  <Text style={styles.historyDate}>{formatDate(entry.recorded_at, language)}</Text>
+                  <View style={styles.historyValues}>
+                    {MEASURE_FIELDS.map(({ key, i18nKey: k }) => {
+                      const v = entry[key];
+                      if (v == null) return null;
+                      const label = key === 'body_fat_pct' ? '%' : 'cm';
+                      const shortKey = key.replace('_cm','').replace('_pct','').replace('body_fat','bf');
+                      return (
+                        <Text key={key} style={styles.historyVal}>
+                          {shortKey} {v}{label}
+                        </Text>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -236,13 +335,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 3, borderColor: Colors.primary + '40',
   },
-  avatarInitials: { fontSize: 36, fontWeight: '800', color: Colors.white, fontFamily: 'serif' },
+  avatarInitials: { fontSize: 36, fontWeight: '800', color: Colors.white || '#fff', fontFamily: 'serif' },
   cameraBtn: {
     position: 'absolute', bottom: 2, right: 2,
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.white,
+    borderWidth: 2, borderColor: Colors.white || '#fff',
   },
   tapHint: { fontSize: 12, color: Colors.textMuted, fontWeight: '600', marginTop: -8 },
   sectionDivider: {
@@ -272,7 +371,7 @@ const styles = StyleSheet.create({
   },
   optionSelected: { backgroundColor: Colors.navy, borderColor: Colors.navy },
   optionText: { fontSize: 13, fontWeight: '600', color: Colors.textMuted, textAlign: 'center' },
-  optionSelectedText: { color: Colors.white },
+  optionSelectedText: { color: Colors.white || '#fff' },
   listOption: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.backgroundSecondary,
@@ -281,6 +380,40 @@ const styles = StyleSheet.create({
   listOptionSelectedText: { color: Colors.navy, fontWeight: '700' },
   radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: Colors.border },
   radioSelected: { borderColor: Colors.navy, backgroundColor: Colors.navy },
+
+  // Measurements
+  measureSubtitleRow: { width: '100%', gap: 4 },
+  measureSubtitle: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  lastRecorded: { fontSize: 11, color: Colors.primary, fontWeight: '700' },
+  measureGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  measureField: { width: '47%', gap: 6 },
+  measureLabel: { fontSize: 11, fontWeight: '800', color: Colors.textLight, textTransform: 'uppercase', letterSpacing: 0.4 },
+  measureInput: {
+    backgroundColor: Colors.card,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 16, fontWeight: '700', color: Colors.text,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  measureHint: { width: '100%', fontSize: 12, color: Colors.textMuted, fontStyle: 'italic' },
+
+  // History
+  historyToggle: {
+    width: '100%', flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 10,
+  },
+  historyToggleTxt: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  historyCard: {
+    width: '100%', backgroundColor: Colors.card,
+    borderRadius: 16, padding: 16, gap: 0,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  historyTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12 },
+  historyRow: { paddingVertical: 10 },
+  historyRowBorder: { borderTopWidth: 1, borderTopColor: Colors.border },
+  historyDate: { fontSize: 12, fontWeight: '700', color: Colors.navy, marginBottom: 6 },
+  historyValues: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  historyVal: { fontSize: 12, color: Colors.text, fontWeight: '600', backgroundColor: Colors.backgroundSecondary, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 20, paddingBottom: 32,
@@ -295,5 +428,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  saveBtnText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  saveBtnText: { color: Colors.white || '#fff', fontSize: 17, fontWeight: '900' },
 });

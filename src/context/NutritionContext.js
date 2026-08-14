@@ -7,6 +7,7 @@ import {
   apiGetDayLog, apiGetNutritionReport,
   apiLogWeight, apiGetWeightHistory,
   apiGetTodayExercise, apiLogExercise, apiDeleteExercise,
+  apiLogMeasurements, apiGetMeasurements,
 } from '../services/apiService';
 
 const NutritionContext = createContext(null);
@@ -17,6 +18,7 @@ export function NutritionProvider({ children }) {
   const [goals, setGoals] = useState(null);
   const [todayLog, setTodayLog] = useState([]);
   const [weightHistory, setWeightHistory] = useState([]);
+  const [measurementsHistory, setMeasurementsHistory] = useState([]);
   const [todayExercise, setTodayExercise] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -25,17 +27,19 @@ export function NutritionProvider({ children }) {
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
-      const [profile, g, log, wh, ex] = await Promise.all([
+      const [profile, g, log, wh, mh, ex] = await Promise.all([
         apiGetBodyProfile(token).catch(() => null),
         apiGetNutritionGoals(token).catch(() => null),
         apiGetDayLog(token, todayStr()).catch(() => []),
         apiGetWeightHistory(token).catch(() => []),
+        apiGetMeasurements(token).catch(() => []),
         apiGetTodayExercise(token, todayStr()),
       ]);
       if (profile != null) setBodyProfile(profile);
       if (g != null) setGoals(g);
       setTodayLog(Array.isArray(log) ? log : []);
       setWeightHistory(Array.isArray(wh) ? wh : []);
+      setMeasurementsHistory(Array.isArray(mh) ? mh : []);
       setTodayExercise(Array.isArray(ex) ? ex : []);
     } catch {}
     setLoaded(true);
@@ -91,6 +95,13 @@ export function NutritionProvider({ children }) {
     setWeightHistory(Array.isArray(wh) ? wh : []);
   }, [token]);
 
+  const logMeasurements = useCallback(async (data) => {
+    if (!token) return;
+    await apiLogMeasurements(token, data);
+    const mh = await apiGetMeasurements(token);
+    setMeasurementsHistory(Array.isArray(mh) ? mh : []);
+  }, [token]);
+
   const logExercise = useCallback(async (entry) => {
     if (!token) return null;
     const res = await apiLogExercise(token, entry);
@@ -119,11 +130,11 @@ export function NutritionProvider({ children }) {
 
   return (
     <NutritionContext.Provider value={{
-      bodyProfile, goals, todayLog, todayTotals, weightHistory, loaded,
+      bodyProfile, goals, todayLog, todayTotals, weightHistory, measurementsHistory, loaded,
       todayExercise, todayBurned,
       refresh, saveBodyProfile, saveGoals,
       logConsumption, updateConsumption, deleteConsumption, getReport, addWeight,
-      logExercise, deleteExercise,
+      logExercise, deleteExercise, logMeasurements,
     }}>
       {children}
     </NutritionContext.Provider>

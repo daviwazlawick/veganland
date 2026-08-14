@@ -353,6 +353,16 @@ export async function apiGetWeightHistory(token) {
   return r.json().catch(() => []);
 }
 
+export async function apiLogMeasurements(token, data) {
+  const r = await fetch(`${baseUrl()}/nutrition/measurements`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(data) });
+  return r.json().catch(() => ({}));
+}
+
+export async function apiGetMeasurements(token) {
+  const r = await fetch(`${baseUrl()}/nutrition/measurements`, { headers: appHeaders(token) });
+  return r.json().catch(() => []);
+}
+
 export async function apiGetRecentPlates(token) {
   const r = await fetch(`${baseUrl()}/nutrition/plates`, { headers: appHeaders(token) });
   if (!r.ok) return [];
