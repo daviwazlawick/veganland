@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -20,7 +20,19 @@ const FIELDS = [
 
 export default function NutritionGoalsScreen({ navigation, route }) {
   const { language } = useApp();
-  const { goals, saveGoals } = useNutrition();
+  const { goals, saveGoals, bodyProfile } = useNutrition();
+
+  const bmrInfo = useMemo(() => {
+    if (!bodyProfile) return null;
+    const { sex, birth_date, height_cm, weight_kg, activity_level } = bodyProfile;
+    if (!weight_kg || !height_cm || !birth_date) return null;
+    const age = Math.max(10, Math.floor((Date.now() - new Date(birth_date)) / (365.25 * 24 * 3600 * 1000)));
+    const w = Number(weight_kg), h = Number(height_cm);
+    const bmr = Math.round(10 * w + 6.25 * h - 5 * age + (sex === 'male' ? 5 : -161));
+    const mult = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+    const tdee = Math.round(bmr * (mult[activity_level] || 1.375));
+    return { bmr, tdee };
+  }, [bodyProfile]);
   const insets = useSafeAreaInsets();
   const suggested = route.params?.suggested;
 
@@ -48,7 +60,7 @@ export default function NutritionGoalsScreen({ navigation, route }) {
   }
 
   function handleReset() {
-    navigation.navigate('BodyProfile');
+    navigation.navigate('EditPersonal');
   }
 
   const isCustom = goals?.is_custom;
@@ -70,6 +82,26 @@ export default function NutritionGoalsScreen({ navigation, route }) {
               {isCustom ? t(language, 'nutrition.goals_custom') : t(language, 'nutrition.goals_auto')}
             </Text>
           </View>
+
+          {bmrInfo && (
+            <View style={styles.bmrCard}>
+              <Text style={styles.bmrCardTitle}>{t(language, 'nutrition.bmr_title')}</Text>
+              <Text style={styles.bmrCardSub}>{t(language, 'nutrition.bmr_subtitle')}</Text>
+              <View style={styles.bmrRow}>
+                <View style={styles.bmrItem}>
+                  <Text style={styles.bmrValue}>{bmrInfo.bmr}</Text>
+                  <Text style={styles.bmrLabel}>{t(language, 'nutrition.bmr_label')}</Text>
+                  <Text style={styles.bmrUnit}>kcal/dia</Text>
+                </View>
+                <View style={styles.bmrDivider} />
+                <View style={styles.bmrItem}>
+                  <Text style={styles.bmrValue}>{bmrInfo.tdee}</Text>
+                  <Text style={styles.bmrLabel}>{t(language, 'nutrition.tdee_label')}</Text>
+                  <Text style={styles.bmrUnit}>kcal/dia</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           <View style={styles.card}>
             {FIELDS.map((f, i) => (
@@ -127,4 +159,16 @@ const styles = StyleSheet.create({
   saveBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
   resetBtn: { alignItems: 'center', paddingVertical: 10 },
   resetBtnText: { color: Colors.navy, textDecorationLine: 'underline', fontSize: 13 },
+  bmrCard: {
+    backgroundColor: Colors.forest || Colors.navy,
+    borderRadius: 16, padding: 18, gap: 12,
+  },
+  bmrCardTitle: { fontSize: 13, fontWeight: '800', color: Colors.primary, letterSpacing: 0.4 },
+  bmrCardSub: { fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 16, marginTop: -6 },
+  bmrRow: { flexDirection: 'row', alignItems: 'center' },
+  bmrItem: { flex: 1, alignItems: 'center', gap: 2 },
+  bmrDivider: { width: 1, height: 48, backgroundColor: 'rgba(255,255,255,0.1)' },
+  bmrValue: { fontSize: 28, fontWeight: '900', color: '#fff' },
+  bmrLabel: { fontSize: 11, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  bmrUnit: { fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: '600' },
 });

@@ -523,7 +523,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
               <Text style={s.addFoodBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.goalsBtn} onPress={() => navigation.navigate('BodyProfile')}>
+            <TouchableOpacity style={s.goalsBtn} onPress={() => navigation.navigate('NutritionGoals')}>
               <Text style={s.goalsBtnText}>⚙️ {t(language, 'nutrition.goals_title')}</Text>
             </TouchableOpacity>
         </>
