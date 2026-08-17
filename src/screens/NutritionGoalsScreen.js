@@ -1,14 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
-import { pickDocumentAsBase64 } from '../utils/fileUtils';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
-import { BrandFonts, Brand } from '../brand';
-import { apiParsePlan } from '../services/apiService';
+import { BrandFonts } from '../brand';
+import ImportPlanButton from '../components/ImportPlanButton';
 
 const FIELDS = [
   { key: 'bmr',          unit: 'kcal', label: 'nutrition.bmr_label' },
@@ -22,8 +20,6 @@ const FIELDS = [
   { key: 'salt_g',        unit: 'g',    label: 'nutrition.salt' },
   { key: 'water_ml',      unit: 'ml',   label: 'nutrition.water' },
 ];
-
-const isNovaQI = Brand.id === 'novaqi';
 
 export default function NutritionGoalsScreen({ navigation, route }) {
   const { language, token } = useApp();
@@ -46,8 +42,6 @@ export default function NutritionGoalsScreen({ navigation, route }) {
   const base = suggested || goals || {};
   const [values, setValues] = useState({});
   const [saving, setSaving] = useState(false);
-  const [showPickerModal, setShowPickerModal] = useState(false);
-  const [parsing, setParsing] = useState(false);
 
   useEffect(() => {
     const init = {};
@@ -69,54 +63,12 @@ export default function NutritionGoalsScreen({ navigation, route }) {
     setValues(prev => ({ ...prev, [key]: val.replace(',', '.') }));
   }
 
-  async function pickAndParse(source) {
-    setShowPickerModal(false);
-    let base64 = null;
-    let mediaType = null;
-    try {
-      if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return;
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
-        if (result.canceled || !result.assets?.[0]?.base64) return;
-        base64 = result.assets[0].base64;
-      } else if (source === 'gallery') {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) return;
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
-        if (result.canceled || !result.assets?.[0]?.base64) return;
-        base64 = result.assets[0].base64;
-      } else {
-        const picked = await pickDocumentAsBase64();
-        if (!picked) return;
-        base64 = picked.base64;
-        mediaType = picked.mediaType;
-      }
-    } catch {
-      Alert.alert('', t(language, 'nutrition.import_plan_error'));
-      return;
-    }
-    if (!base64) return;
-    setParsing(true);
-    try {
-      const extracted = await apiParsePlan(token, base64, language, mediaType);
-      const hasAny = extracted && Object.values(extracted).some(v => v !== null);
-      if (!hasAny) {
-        Alert.alert('', t(language, 'nutrition.import_plan_empty'));
-        return;
-      }
-      setValues(prev => {
-        const next = { ...prev };
-        FIELDS.forEach(f => {
-          if (extracted[f.key] != null) next[f.key] = String(extracted[f.key]);
-        });
-        return next;
-      });
-    } catch {
-      Alert.alert('', t(language, 'nutrition.import_plan_error'));
-    } finally {
-      setParsing(false);
-    }
+  function handleExtracted(extracted) {
+    setValues(prev => {
+      const next = { ...prev };
+      FIELDS.forEach(f => { if (extracted[f.key] != null) next[f.key] = String(extracted[f.key]); });
+      return next;
+    });
   }
 
   async function handleSave() {
@@ -173,12 +125,7 @@ export default function NutritionGoalsScreen({ navigation, route }) {
 
           <Text style={styles.note}>{t(language, 'nutrition.goals_note')}</Text>
 
-          {isNovaQI && (
-            <TouchableOpacity onPress={() => setShowPickerModal(true)} style={styles.importBtn}>
-              <Text style={styles.importBtnIcon}>📄</Text>
-              <Text style={styles.importBtnText}>{t(language, 'nutrition.import_plan_btn')}</Text>
-            </TouchableOpacity>
-          )}
+          <ImportPlanButton language={language} token={token} onExtracted={handleExtracted} />
 
           <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
             <Text style={styles.saveBtnText}>{saving ? '…' : t(language, 'nutrition.goals_save')}</Text>
@@ -190,33 +137,6 @@ export default function NutritionGoalsScreen({ navigation, route }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Camera/Gallery picker sheet */}
-      <Modal visible={showPickerModal} transparent animationType="slide" onRequestClose={() => setShowPickerModal(false)}>
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowPickerModal(false)} />
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerHandle} />
-          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('camera')}>
-            <Text style={styles.pickerOptionText}>📷  {t(language, 'nutrition.import_plan_camera')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('gallery')}>
-            <Text style={styles.pickerOptionText}>🖼️  {t(language, 'nutrition.import_plan_gallery')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('document')}>
-            <Text style={styles.pickerOptionText}>📄  {t(language, 'nutrition.import_plan_document')}</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-
-      {/* Parsing overlay */}
-      {parsing && (
-        <View style={styles.parsingOverlay}>
-          <View style={styles.parsingBox}>
-            <ActivityIndicator size="large" color={Colors.navy} />
-            <Text style={styles.parsingText}>{t(language, 'nutrition.import_plan_loading')}</Text>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -242,20 +162,7 @@ const styles = StyleSheet.create({
   saveBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
   resetBtn: { alignItems: 'center', paddingVertical: 10 },
   resetBtnText: { color: Colors.navy, textDecorationLine: 'underline', fontSize: 13 },
-  importBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: Colors.navy, borderRadius: 14, padding: 14, borderStyle: 'dashed' },
-  importBtnIcon: { fontSize: 18 },
-  importBtnText: { fontSize: 15, fontWeight: '700', color: Colors.navy },
-  pickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 8 },
-  pickerHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
-  pickerOption: { paddingVertical: 16, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#f8fafc' },
-  pickerOptionText: { fontSize: 16, fontWeight: '600', color: Colors.navy },
-  parsingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
-  parsingBox: { backgroundColor: '#fff', borderRadius: 20, padding: 32, alignItems: 'center', gap: 16, marginHorizontal: 40 },
-  parsingText: { fontSize: 14, fontWeight: '600', color: Colors.navy, textAlign: 'center' },
-  bmrCard: {
-    backgroundColor: Colors.forest || Colors.navy,
-    borderRadius: 16, padding: 18, gap: 12,
-  },
+  bmrCard: { backgroundColor: Colors.forest || Colors.navy, borderRadius: 16, padding: 18, gap: 12 },
   bmrCardTitle: { fontSize: 13, fontWeight: '800', color: Colors.primary, letterSpacing: 0.4 },
   bmrCardSub: { fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 16, marginTop: -6 },
   bmrRow: { flexDirection: 'row', alignItems: 'center' },
