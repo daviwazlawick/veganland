@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert,
+  TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
+import { Brand } from '../brand';
+import { apiParsePlan } from '../services/apiService';
+import { readUriAsBase64 } from '../utils/fileUtils';
+
+const isNovaQI = Brand.id === 'novaqi';
 
 const SEXES = ['male', 'female', 'other'];
 const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
@@ -32,7 +38,7 @@ function formatDate(iso, language) {
 }
 
 export default function EditPersonalScreen({ navigation }) {
-  const { language, profile, saveProfile } = useApp();
+  const { language, token, profile, saveProfile } = useApp();
   const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements, goals, saveGoals } = useNutrition();
 
   const [name, setName] = useState(profile?.name || '');
@@ -62,6 +68,8 @@ export default function EditPersonalScreen({ navigation }) {
     { key: 'tdee',          unit: 'kcal', i18n: 'nutrition.tdee_label' },
   ];
   const [goalValues, setGoalValues] = useState({});
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [parsing, setParsing] = useState(false);
 
   const bmrInfo = useMemo(() => {
     const w = parseFloat(weight);
@@ -120,6 +128,52 @@ export default function EditPersonalScreen({ navigation }) {
       } else {
         setPhotoUri(asset.uri);
       }
+    }
+  }
+
+  async function pickAndParse(source) {
+    setShowImportModal(false);
+    let base64 = null;
+    let mediaType = null;
+    try {
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) return;
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+        if (result.canceled || !result.assets?.[0]?.base64) return;
+        base64 = result.assets[0].base64;
+      } else if (source === 'gallery') {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) return;
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+        if (result.canceled || !result.assets?.[0]?.base64) return;
+        base64 = result.assets[0].base64;
+      } else {
+        const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
+        if (result.canceled || !result.assets?.[0]) return;
+        const asset = result.assets[0];
+        base64 = await readUriAsBase64(asset.uri);
+        mediaType = asset.mimeType || 'application/pdf';
+      }
+    } catch {
+      Alert.alert('', t(language, 'nutrition.import_plan_error'));
+      return;
+    }
+    if (!base64) return;
+    setParsing(true);
+    try {
+      const extracted = await apiParsePlan(token, base64, language, mediaType);
+      const hasAny = extracted && Object.values(extracted).some(v => v !== null);
+      if (!hasAny) { Alert.alert('', t(language, 'nutrition.import_plan_empty')); return; }
+      setGoalValues(prev => {
+        const next = { ...prev };
+        GOAL_FIELDS.forEach(f => { if (extracted[f.key] != null) next[f.key] = String(extracted[f.key]); });
+        return next;
+      });
+    } catch {
+      Alert.alert('', t(language, 'nutrition.import_plan_error'));
+    } finally {
+      setParsing(false);
     }
   }
 
@@ -304,6 +358,12 @@ export default function EditPersonalScreen({ navigation }) {
 
           {/* ── Nutrition Goals ── */}
           <Text style={styles.sectionDivider}>{t(language, 'nutrition.goals_title')}</Text>
+          {isNovaQI && (
+            <TouchableOpacity onPress={() => setShowImportModal(true)} style={styles.importBtn}>
+              <Text style={styles.importBtnIcon}>📄</Text>
+              <Text style={styles.importBtnText}>{t(language, 'nutrition.import_plan_btn')}</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.goalGrid}>
             {GOAL_FIELDS.map(({ key, unit, i18n: i18nKey }) => (
               <View key={key} style={styles.goalField}>
@@ -394,6 +454,31 @@ export default function EditPersonalScreen({ navigation }) {
           <Text style={styles.saveBtnText}>{t(language, 'personal.save')}</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal visible={showImportModal} transparent animationType="slide" onRequestClose={() => setShowImportModal(false)}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowImportModal(false)} />
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerHandle} />
+          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('camera')}>
+            <Text style={styles.pickerOptionText}>📷  {t(language, 'nutrition.import_plan_camera')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('gallery')}>
+            <Text style={styles.pickerOptionText}>🖼️  {t(language, 'nutrition.import_plan_gallery')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('document')}>
+            <Text style={styles.pickerOptionText}>📄  {t(language, 'nutrition.import_plan_document')}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {parsing && (
+        <View style={styles.parsingOverlay}>
+          <View style={styles.parsingBox}>
+            <ActivityIndicator size="large" color={Colors.navy} />
+            <Text style={styles.parsingText}>{t(language, 'nutrition.import_plan_loading')}</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -536,4 +621,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   saveBtnText: { color: Colors.white || '#fff', fontSize: 17, fontWeight: '900' },
+  importBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: Colors.navy, borderRadius: 14, padding: 12, borderStyle: 'dashed', marginBottom: 8 },
+  importBtnIcon: { fontSize: 16 },
+  importBtnText: { fontSize: 14, fontWeight: '700', color: Colors.navy },
+  pickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 8 },
+  pickerHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
+  pickerOption: { paddingVertical: 16, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#f8fafc' },
+  pickerOptionText: { fontSize: 16, fontWeight: '600', color: Colors.navy },
+  parsingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  parsingBox: { backgroundColor: '#fff', borderRadius: 20, padding: 32, alignItems: 'center', gap: 16, marginHorizontal: 40 },
+  parsingText: { fontSize: 14, fontWeight: '600', color: Colors.navy, textAlign: 'center' },
 });
