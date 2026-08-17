@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
-import { searchOffProducts } from './openFoodFacts.js';
+import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
@@ -1678,6 +1678,39 @@ const server = http.createServer(async (req, res) => {
       }
 
       sendJson(res, 200, merged.slice(0, 20), origin);
+      return;
+    }
+
+    // GET /nutrition/product-info?code=<barcode> — rich product data from local DB (no scan credit)
+    if (req.method === 'GET' && req.url.startsWith('/nutrition/product-info')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const u = new URL(req.url, 'http://x');
+      const code = (u.searchParams.get('code') || '').trim();
+      if (!code) { sendJson(res, 400, { error: 'code required' }, origin); return; }
+      // Try local DB first (fast, free)
+      const { rows } = await pool.query(
+        `SELECT p.*,
+           COALESCE(
+             (SELECT se.result->'productInfo'->>'ingredients_text'
+              FROM scan_events se WHERE se.product_id = p.id AND se.result IS NOT NULL
+              ORDER BY se.created_at DESC LIMIT 1),
+             p.ingredients_text
+           ) AS ingredients_text
+         FROM products p WHERE p.barcode = $1 LIMIT 1`,
+        [code]
+      );
+      let product = rows[0] || null;
+      if (!product) {
+        // Fall back to live OFF fetch (still no AI / no credit)
+        product = await fetchOffEnrichment(code);
+        if (product) product.barcode = code;
+      }
+      if (!product) { sendJson(res, 404, {}, origin); return; }
+      sendJson(res, 200, {
+        ...buildSlimProductInfo(product),
+        allergens_tags: product.allergens_tags || [],
+      }, origin);
       return;
     }
 

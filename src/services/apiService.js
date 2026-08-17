@@ -377,6 +377,18 @@ export async function apiSearchFood(token, query, language = 'en') {
   return r.json();
 }
 
+export async function apiGetProductInfo(token, barcode) {
+  try {
+    const r = await fetch(`${baseUrl()}/nutrition/product-info?code=${encodeURIComponent(barcode)}`, {
+      headers: appHeaders(token),
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function apiGetTodayExercise(token, date) {
   try {
     const r = await fetch(`${baseUrl()}/exercise/today?date=${encodeURIComponent(date)}`, {

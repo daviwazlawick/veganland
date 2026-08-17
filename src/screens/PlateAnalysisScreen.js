@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView, Keyboard, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +15,7 @@ import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { PremiumIcon } from '../components/ui';
 import { apiAnalyzePlate, apiSearchFood } from '../services/apiService';
+import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -52,7 +54,7 @@ function calcTotal(items) {
 export default function PlateAnalysisScreen({ navigation }) {
   const { language, profile, setMonthlyScanCount } = useApp();
   const { token } = useAuth();
-  const { logConsumption } = useNutrition();
+  const { logConsumption, bodyProfile } = useNutrition();
   const insets = useSafeAreaInsets();
 
   const [image, setImage] = useState(null);
@@ -62,6 +64,22 @@ export default function PlateAnalysisScreen({ navigation }) {
   const [meal, setMeal] = useState('lunch');
   const [logging, setLogging] = useState(false);
   const [logged, setLogged] = useState(false);
+
+  const [burnExIds, setBurnExIds] = useState(DEFAULT_BURN_EXERCISES);
+
+  useEffect(() => {
+    if (!isNovaQI) return;
+    AsyncStorage.getItem('@exercise_favorites').then(v => {
+      if (!v) return;
+      try {
+        const favs = JSON.parse(v);
+        if (Array.isArray(favs) && favs.length > 0) {
+          const shuffled = [...favs].sort(() => Math.random() - 0.5);
+          setBurnExIds(shuffled.slice(0, 3));
+        }
+      } catch (_) {}
+    });
+  }, []);
 
   // Edit / add modal
   const [editModal, setEditModal] = useState(false);
@@ -425,6 +443,28 @@ export default function PlateAnalysisScreen({ navigation }) {
                     <Text style={s.totalValue}>{Math.round(liveTotal.calories_kcal)} kcal</Text>
                   </View>
 
+                  {isNovaQI && liveTotal.calories_kcal > 0 && (() => {
+                    const weight = bodyProfile?.weight_kg || 70;
+                    const burnExercises = burnExIds
+                      .map(id => EXERCISES.find(e => e.id === id))
+                      .filter(Boolean);
+                    if (!burnExercises.length) return null;
+                    return (
+                      <View style={s.burnBox}>
+                        <Text style={s.burnTitle}>{t(language, 'exercise.burn_equivalent')} {Math.round(liveTotal.calories_kcal)} kcal</Text>
+                        <View style={s.burnRow}>
+                          {burnExercises.map(ex => (
+                            <View key={ex.id} style={s.burnItem}>
+                              <Text style={s.burnItemIcon}>{ex.icon}</Text>
+                              <Text style={s.burnMins}>{minutesToBurn(liveTotal.calories_kcal, ex.met, weight)}'</Text>
+                              <Text style={s.burnExName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })()}
+
                   <TouchableOpacity style={s.addItemBtn} onPress={() => openEdit(null)} activeOpacity={0.8}>
                     <Text style={s.addItemBtnText}>+ {t(language, 'nutrition.plate_add_item')}</Text>
                   </TouchableOpacity>
@@ -617,6 +657,14 @@ const s = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8 },
   totalLabel: { fontSize: 13, fontWeight: '700', color: '#475569' },
   totalValue: { fontSize: 14, fontWeight: '800', color: Colors.navy },
+
+  burnBox: { backgroundColor: '#0E1B14', borderRadius: 16, padding: 14, gap: 10, marginTop: 12 },
+  burnTitle: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 0.8 },
+  burnRow: { flexDirection: 'row', gap: 8 },
+  burnItem: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, paddingVertical: 10, gap: 3 },
+  burnItemIcon: { fontSize: 20 },
+  burnMins: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  burnExName: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '600', textAlign: 'center' },
 
   addItemBtn: { marginTop: 2, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
   addItemBtnText: { fontSize: 13, fontWeight: '700', color: Colors.navy },

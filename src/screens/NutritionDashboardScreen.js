@@ -1,11 +1,11 @@
 import React, { useCallback, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, KeyboardAvoidingView, Keyboard, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { useAuth } from '../context/AuthContext';
-import { apiSearchFood } from '../services/apiService';
+import { apiSearchFood, apiGetProductInfo } from '../services/apiService';
 import { Ionicons } from '@expo/vector-icons';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
@@ -162,6 +162,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
   const [gramsError, setGramsError] = useState(false);
+  const [fetchingProduct, setFetchingProduct] = useState(false);
   const searchTimer = useRef(null);
 
   useFocusEffect(useCallback(() => {
@@ -305,7 +306,46 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     }
   }
 
-  function pickSuggestion(item) {
+  async function pickSuggestion(item) {
+    // If item has a barcode (from OFF live search), navigate to full product result screen
+    if (item.code && isNovaQI) {
+      setAddModal(false);
+      setFetchingProduct(true);
+      setSuggestions([]);
+      const info = await apiGetProductInfo(token, item.code);
+      setFetchingProduct(false);
+      if (info) {
+        const allergenTags = (info.allergens_tags || [])
+          .map(tag => String(tag).replace(/^[a-z]{2}:/, ''))
+          .filter(Boolean);
+        const scan = {
+          status: 'SAFE',
+          title: info.product_name || item.product_name,
+          explanation: '',
+          barcode: item.code,
+          product_name: info.product_name || item.product_name,
+          ingredients_source: 'database',
+          productInfo: {
+            product_name: info.product_name || item.product_name,
+            brand: info.brand,
+            barcode: item.code,
+            source: 'database',
+            ingredients_text: info.ingredients_text || null,
+            offMeta: info.offMeta || null,
+          },
+          normalized_ingredients: info.ingredients_text
+            ? info.ingredients_text.split(/,\s*/).map(s => s.trim()).filter(Boolean)
+            : [],
+          identified_allergens: allergenTags,
+          concerns: [],
+        };
+        navigation.navigate('Result', { result: scan });
+        return;
+      }
+      // If lookup failed, fall through to form fill
+      setAddModal(true);
+    }
+    // For items without barcode (history, AI enriched) → fill the form as before
     const g = parseFloat(item.grams) || 100;
     setAddEntry(p => ({
       ...p,
@@ -683,6 +723,12 @@ export default function NutritionDashboardScreen({ navigation, route }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {fetchingProduct && (
+        <View style={s.fetchOverlay}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -729,6 +775,7 @@ const s = StyleSheet.create({
   emptySub: { fontSize: 13, color: '#94a3b8', textAlign: 'center' },
   addFoodBtn: { backgroundColor: Colors.navy, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   addFoodBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  fetchOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
   goalsBtn: { alignItems: 'center', paddingVertical: 8 },
   goalsBtnText: { fontSize: 13, color: Colors.navy, textDecorationLine: 'underline' },
   exerciseBtn: {
