@@ -33,7 +33,7 @@ function formatDate(iso, language) {
 
 export default function EditPersonalScreen({ navigation }) {
   const { language, profile, saveProfile } = useApp();
-  const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements } = useNutrition();
+  const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements, goals, saveGoals } = useNutrition();
 
   const [name, setName] = useState(profile?.name || '');
   const [bio, setBio] = useState(profile?.bio || '');
@@ -48,6 +48,20 @@ export default function EditPersonalScreen({ navigation }) {
 
   const [measures, setMeasures] = useState({});
   const [showHistory, setShowHistory] = useState(false);
+
+  const GOAL_FIELDS = [
+    { key: 'calories_kcal', unit: 'kcal', i18n: 'nutrition.calories' },
+    { key: 'protein_g',     unit: 'g',    i18n: 'nutrition.protein' },
+    { key: 'fat_g',         unit: 'g',    i18n: 'nutrition.fat' },
+    { key: 'carbs_g',       unit: 'g',    i18n: 'nutrition.carbs' },
+    { key: 'fiber_g',       unit: 'g',    i18n: 'nutrition.fiber' },
+    { key: 'sugar_g',       unit: 'g',    i18n: 'nutrition.sugar' },
+    { key: 'salt_g',        unit: 'g',    i18n: 'nutrition.salt' },
+    { key: 'water_ml',      unit: 'ml',   i18n: 'nutrition.water' },
+    { key: 'bmr',           unit: 'kcal', i18n: 'nutrition.bmr_label' },
+    { key: 'tdee',          unit: 'kcal', i18n: 'nutrition.tdee_label' },
+  ];
+  const [goalValues, setGoalValues] = useState({});
 
   const bmrInfo = useMemo(() => {
     const w = parseFloat(weight);
@@ -72,6 +86,14 @@ export default function EditPersonalScreen({ navigation }) {
       if (bodyProfile.goal) setGoal(bodyProfile.goal);
     }
   }, [bodyProfile]);
+
+  useEffect(() => {
+    if (goals) {
+      const init = {};
+      GOAL_FIELDS.forEach(f => { if (goals[f.key] != null) init[f.key] = String(Math.round(Number(goals[f.key]) * 10) / 10); });
+      setGoalValues(init);
+    }
+  }, [goals]);
 
   useEffect(() => {
     if (latest) {
@@ -128,6 +150,14 @@ export default function EditPersonalScreen({ navigation }) {
         if (!isNaN(v) && v > 0) { measureData[key] = v; hasMeasure = true; }
       });
       if (hasMeasure) await logMeasurements(measureData);
+      // Save goals if any field is filled
+      const goalPayload = {};
+      let hasGoal = false;
+      GOAL_FIELDS.forEach(({ key }) => {
+        const v = parseFloat(goalValues[key]);
+        if (!isNaN(v) && v > 0) { goalPayload[key] = v; hasGoal = true; }
+      });
+      if (hasGoal) await saveGoals(goalPayload);
       navigation.goBack();
     } catch {
       Alert.alert('', t(language, 'profile_setup.save_error'));
@@ -272,6 +302,27 @@ export default function EditPersonalScreen({ navigation }) {
             </View>
           )}
 
+          {/* ── Nutrition Goals ── */}
+          <Text style={styles.sectionDivider}>{t(language, 'nutrition.goals_title')}</Text>
+          <View style={styles.goalGrid}>
+            {GOAL_FIELDS.map(({ key, unit, i18n: i18nKey }) => (
+              <View key={key} style={styles.goalField}>
+                <Text style={styles.goalLabel}>{t(language, i18nKey)}</Text>
+                <View style={styles.goalInputRow}>
+                  <TextInput
+                    style={styles.goalInput}
+                    value={goalValues[key] || ''}
+                    onChangeText={v => setGoalValues(prev => ({ ...prev, [key]: v.replace(',', '.') }))}
+                    keyboardType="decimal-pad"
+                    placeholder="—"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                  <Text style={styles.goalUnit}>{unit}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
           {/* ── Body Measurements ── */}
           <Text style={styles.sectionDivider}>{t(language, 'measurements.title')}</Text>
 
@@ -383,6 +434,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: Colors.border,
     paddingTop: 18, marginTop: 4,
   },
+  goalGrid: { width: '100%', gap: 8 },
+  goalField: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  goalLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text },
+  goalInputRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  goalInput: {
+    width: 80, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 8,
+    padding: 8, fontSize: 14, fontWeight: '700', textAlign: 'right',
+    color: Colors.text, backgroundColor: Colors.card || '#fff',
+  },
+  goalUnit: { fontSize: 12, color: Colors.textMuted, width: 28 },
+
   bmrCard: {
     width: '100%',
     backgroundColor: Colors.forest || '#1C2B22',

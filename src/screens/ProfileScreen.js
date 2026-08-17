@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -37,11 +37,13 @@ function Row({ icon, label, value, onPress, danger, chevron = true }) {
 
 const isNovaQI = Brand.id === 'novaqi';
 
+const ACTIVITY_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏃', active: '💪', very_active: '🔥' };
+
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile, monthlyScanCount, scanHistory, streak } = useApp();
   const { user, token, logout } = useAuth();
   const { stats: referralStats } = useReferral();
-  const { goals, todayTotals, bodyProfile } = useNutrition();
+  const { goals, bodyProfile } = useNutrition();
   const [usage, setUsage] = useState(null);
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
@@ -71,6 +73,25 @@ export default function ProfileScreen({ navigation }) {
   const planColor = { free: '#94a3b8', starter: '#1A5F8F', premium: '#92400E', admin: '#1E1B4B' }[userType] || '#94a3b8';
   const planBg   = { free: '#F1F5F9', starter: '#E8F4FF', premium: '#FFF1E2', admin: '#EEF0FF' }[userType] || '#F1F5F9';
 
+  const bmrInfo = useMemo(() => {
+    if (!bodyProfile) return null;
+    const { sex, birth_date, height_cm, weight_kg, activity_level } = bodyProfile;
+    if (!weight_kg || !height_cm || !birth_date) return null;
+    const age = Math.max(10, Math.floor((Date.now() - new Date(birth_date)) / (365.25 * 24 * 3600 * 1000)));
+    const w = Number(weight_kg), h = Number(height_cm);
+    const bmr = Math.round(10 * w + 6.25 * h - 5 * age + (sex === 'male' ? 5 : -161));
+    const mult = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+    const tdee = Math.round(bmr * (mult[activity_level] || 1.375));
+    return { bmr, tdee };
+  }, [bodyProfile]);
+
+  const age = bodyProfile?.birth_date
+    ? Math.floor((Date.now() - new Date(bodyProfile.birth_date)) / (365.25 * 24 * 3600 * 1000))
+    : null;
+
+  const hasBodyProfile = bodyProfile && (bodyProfile.weight_kg || bodyProfile.height_cm);
+  const hasGoals = goals?.calories_kcal;
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={[s.header, isNovaQI && s.headerNovaqi]}>
@@ -92,8 +113,107 @@ export default function ProfileScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 110 }]}>
 
-        {/* ── Personal ── */}
+        {/* ── Personal hero ── */}
         <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
+
+        {/* ── Body stats ── */}
+        <SectionLabel label={t(language, 'nutrition.body_title')} />
+        <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('EditPersonal')}>
+          {hasBodyProfile ? (
+            <View style={s.bodyGrid}>
+              {age != null && (
+                <View style={s.bodyCell}>
+                  <Text style={s.bodyCellValue}>{age}</Text>
+                  <Text style={s.bodyCellLabel}>{t(language, 'nutrition.body_age') || 'anos'}</Text>
+                </View>
+              )}
+              {bodyProfile.height_cm && (
+                <View style={s.bodyCell}>
+                  <Text style={s.bodyCellValue}>{bodyProfile.height_cm}</Text>
+                  <Text style={s.bodyCellLabel}>cm</Text>
+                </View>
+              )}
+              {bodyProfile.weight_kg && (
+                <View style={s.bodyCell}>
+                  <Text style={s.bodyCellValue}>{bodyProfile.weight_kg}</Text>
+                  <Text style={s.bodyCellLabel}>kg</Text>
+                </View>
+              )}
+              {bodyProfile.activity_level && (
+                <View style={s.bodyCell}>
+                  <Text style={s.bodyCellValue}>{ACTIVITY_ICONS[bodyProfile.activity_level] || '🏃'}</Text>
+                  <Text style={s.bodyCellLabel}>{t(language, `nutrition.activity_${bodyProfile.activity_level}`)}</Text>
+                </View>
+              )}
+              {bodyProfile.goal && (
+                <View style={s.bodyCell}>
+                  <Text style={s.bodyCellValue}>{bodyProfile.goal === 'lose' ? '📉' : bodyProfile.goal === 'gain' ? '📈' : '⚖️'}</Text>
+                  <Text style={s.bodyCellLabel}>{t(language, `nutrition.goal_${bodyProfile.goal}`)}</Text>
+                </View>
+              )}
+              <View style={s.bodyCellEdit}>
+                <Ionicons name="pencil" size={13} color={Colors.primary} />
+              </View>
+            </View>
+          ) : (
+            <View style={s.emptyState}>
+              <Text style={s.emptyStateText}>{t(language, 'nutrition.setup_prompt_body')}</Text>
+              <Text style={s.emptyStateCta}>{t(language, 'nutrition.setup_prompt_cta')} ›</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* ── BMR / TDEE ── */}
+        {bmrInfo && (
+          <>
+            <SectionLabel label={t(language, 'nutrition.bmr_title')} />
+            <TouchableOpacity style={s.bmrCard} activeOpacity={0.88} onPress={() => navigation.navigate('EditPersonal')}>
+              <View style={s.bmrRow}>
+                <View style={s.bmrItem}>
+                  <Text style={s.bmrValue}>{bmrInfo.bmr}</Text>
+                  <Text style={s.bmrLabel}>{t(language, 'nutrition.bmr_label')}</Text>
+                  <Text style={s.bmrUnit}>kcal/dia</Text>
+                </View>
+                <View style={s.bmrDivider} />
+                <View style={s.bmrItem}>
+                  <Text style={s.bmrValue}>{bmrInfo.tdee}</Text>
+                  <Text style={s.bmrLabel}>{t(language, 'nutrition.tdee_label')}</Text>
+                  <Text style={s.bmrUnit}>kcal/dia</Text>
+                </View>
+              </View>
+              <Text style={s.bmrSub}>{t(language, 'nutrition.bmr_subtitle')}</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ── Nutrition goals ── */}
+        <SectionLabel label={t(language, 'nutrition.goals_title')} />
+        <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('EditPersonal')}>
+          {hasGoals ? (
+            <View style={s.goalsGrid}>
+              {[
+                { key: 'calories_kcal', label: t(language, 'nutrition.calories'), unit: 'kcal', color: Colors.primary },
+                { key: 'protein_g',     label: t(language, 'nutrition.protein'),  unit: 'g',    color: '#3B82F6' },
+                { key: 'carbs_g',       label: t(language, 'nutrition.carbs'),    unit: 'g',    color: '#8B5CF6' },
+                { key: 'fat_g',         label: t(language, 'nutrition.fat'),      unit: 'g',    color: '#F97316' },
+              ].map(f => (
+                <View key={f.key} style={s.goalCell}>
+                  <Text style={[s.goalCellValue, { color: f.color }]}>{Math.round(goals[f.key] || 0)}</Text>
+                  <Text style={s.goalCellUnit}>{f.unit}</Text>
+                  <Text style={s.goalCellLabel}>{f.label}</Text>
+                </View>
+              ))}
+              <View style={s.bodyCellEdit}>
+                <Ionicons name="pencil" size={13} color={Colors.primary} />
+              </View>
+            </View>
+          ) : (
+            <View style={s.emptyState}>
+              <Text style={s.emptyStateText}>{t(language, 'nutrition.setup_prompt_body')}</Text>
+              <Text style={s.emptyStateCta}>{t(language, 'nutrition.setup_prompt_cta')} ›</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
@@ -112,7 +232,7 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        {/* ── Diet & Health ── */}
+        {/* ── Diet & Allergies ── */}
         <SectionLabel label={t(language, 'profile.diet')} />
         <View style={s.card}>
           <TouchableOpacity style={s.dietRow} activeOpacity={0.8} onPress={() => navigation.navigate('ProfileSetup')}>
@@ -139,62 +259,12 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           )}
-
           {allergies.length === 0 && (
             <TouchableOpacity onPress={() => navigation.navigate('ProfileSetup')} style={s.noAllergyRow}>
               <Text style={s.noAllergyText}>+ {t(language, 'profile.allergies')}</Text>
             </TouchableOpacity>
           )}
         </View>
-
-        {/* ── Nutrition ── */}
-        <SectionLabel label={t(language, 'nutrition.tab')} />
-        <TouchableOpacity
-          style={s.card}
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate(goals?.calories_kcal ? 'NutritionDashboard' : 'EditPersonal')}
-        >
-          {goals?.calories_kcal ? (
-            <>
-              <View style={s.nutritionTopRow}>
-                <View>
-                  <Text style={s.nutritionKcal}>{Math.round(todayTotals.calories_kcal || 0)} <Text style={s.nutritionKcalUnit}>kcal {t(language, 'nutrition.period_today')}</Text></Text>
-                  <Text style={s.nutritionGoal}>/ {Math.round(goals.calories_kcal)} kcal {t(language, 'nutrition.goals_title')}</Text>
-                </View>
-                <Text style={s.rowChev}>›</Text>
-              </View>
-              <View style={s.macroGrid}>
-                {[
-                  { key: 'protein_g', label: t(language, 'nutrition.protein'), color: '#3B82F6', unit: 'g' },
-                  { key: 'carbs_g',   label: t(language, 'nutrition.carbs'),   color: '#8B5CF6', unit: 'g' },
-                  { key: 'fat_g',     label: t(language, 'nutrition.fat'),     color: '#F97316', unit: 'g' },
-                ].map(f => {
-                  const val = Math.round(todayTotals[f.key] || 0);
-                  const goal = Math.round(goals[f.key] || 0);
-                  const pct = goal > 0 ? Math.min(1, val / goal) : 0;
-                  return (
-                    <View key={f.key} style={s.macroCol}>
-                      <Text style={s.macroVal}>{val}<Text style={s.macroUnit}>{f.unit}</Text></Text>
-                      <View style={s.macroTrack}>
-                        <View style={[s.macroFill, { width: `${pct * 100}%`, backgroundColor: f.color }]} />
-                      </View>
-                      <Text style={s.macroLabel}>{f.label}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-              <Row icon="⚙️" label={t(language, 'nutrition.goals_title')} onPress={() => navigation.navigate('NutritionGoals')} chevron />
-            </>
-          ) : (
-            <View style={s.nutritionSetup}>
-              <Text style={s.nutritionSetupTitle}>{t(language, 'nutrition.setup_prompt_title')}</Text>
-              <Text style={s.nutritionSetupBody}>{t(language, 'nutrition.setup_prompt_body')}</Text>
-              <View style={s.nutritionSetupCta}>
-                <Text style={s.nutritionSetupCtaText}>{t(language, 'nutrition.setup_prompt_cta')} ›</Text>
-              </View>
-            </View>
-          )}
-        </TouchableOpacity>
 
         {/* ── Plan & Usage ── */}
         {user && usage != null && (
@@ -384,11 +454,54 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
+  // Body stats
+  bodyGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    padding: 16, gap: 12, alignItems: 'flex-start',
+  },
+  bodyCell: { alignItems: 'center', minWidth: 56 },
+  bodyCellValue: { fontSize: 18, fontWeight: '900', color: Colors.navy || Colors.text },
+  bodyCellLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginTop: 2, textAlign: 'center' },
+  bodyCellEdit: {
+    marginLeft: 'auto', width: 26, height: 26, borderRadius: 13,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'center',
+  },
+
+  // BMR card
+  bmrCard: {
+    backgroundColor: Colors.forest || Colors.navy,
+    borderRadius: 18, padding: 18, gap: 10,
+  },
+  bmrRow: { flexDirection: 'row', alignItems: 'center' },
+  bmrItem: { flex: 1, alignItems: 'center', gap: 2 },
+  bmrDivider: { width: 1, height: 48, backgroundColor: 'rgba(255,255,255,0.12)' },
+  bmrValue: { fontSize: 28, fontWeight: '900', color: '#fff' },
+  bmrLabel: { fontSize: 11, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  bmrUnit: { fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: '600' },
+  bmrSub: { fontSize: 11, color: 'rgba(255,255,255,0.35)', textAlign: 'center' },
+
+  // Goals grid
+  goalsGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    padding: 16, gap: 12, alignItems: 'flex-start',
+  },
+  goalCell: { alignItems: 'center', minWidth: 64 },
+  goalCellValue: { fontSize: 18, fontWeight: '900' },
+  goalCellUnit: { fontSize: 10, color: '#94a3b8', fontWeight: '600' },
+  goalCellLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginTop: 1, textAlign: 'center' },
+
+  // Empty state
+  emptyState: { padding: 20, gap: 4 },
+  emptyStateText: { fontSize: 13, color: '#64748b', lineHeight: 18 },
+  emptyStateCta: { fontSize: 14, fontWeight: '700', color: Colors.primary, marginTop: 4 },
+
   // Referral
   referralCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.cautionLight, borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: Colors.caution, marginTop: 12,
+    borderWidth: 1, borderColor: Colors.caution, marginTop: 20,
   },
   referralEmoji: { fontSize: 24 },
   referralTitle: { fontSize: 14, fontWeight: '800', color: Colors.cautionDark },
@@ -422,15 +535,14 @@ const s = StyleSheet.create({
   dietDesc: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   allergySection: {
     paddingHorizontal: 16, paddingBottom: 14,
-    borderTopWidth: 1, borderTopColor: '#F1F5F9',
-    paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12,
   },
   allergyHeader: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
   allergyWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   allergyChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.primaryBg,
-    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5,
+    backgroundColor: Colors.primaryBg, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 5,
     borderWidth: 1, borderColor: Colors.primaryLight,
   },
   allergyChipText: { fontSize: 11, fontWeight: '700', color: Colors.primaryDark },
@@ -439,24 +551,6 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#F1F5F9',
   },
   noAllergyText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
-
-  // Nutrition
-  nutritionTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
-  nutritionKcal: { fontSize: 22, fontWeight: '900', color: Colors.navy || '#0B1E3F' },
-  nutritionKcalUnit: { fontSize: 13, fontWeight: '500', color: '#64748b' },
-  nutritionGoal: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
-  macroGrid: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  macroCol: { flex: 1, alignItems: 'center', gap: 4 },
-  macroVal: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
-  macroUnit: { fontSize: 11, fontWeight: '500', color: '#94a3b8' },
-  macroTrack: { width: '100%', height: 5, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
-  macroFill: { height: 5, borderRadius: 3 },
-  macroLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' },
-  nutritionSetup: { padding: 20, gap: 6 },
-  nutritionSetupTitle: { fontSize: 15, fontWeight: '800', color: Colors.navy || '#0B1E3F' },
-  nutritionSetupBody: { fontSize: 13, color: '#64748b', lineHeight: 18 },
-  nutritionSetupCta: { marginTop: 6 },
-  nutritionSetupCtaText: { fontSize: 14, fontWeight: '700', color: Colors.primary },
 
   // Plan
   planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
