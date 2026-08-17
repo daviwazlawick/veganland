@@ -2,8 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import { readUriAsBase64 } from '../utils/fileUtils';
+import { pickDocumentAsBase64 } from '../utils/fileUtils';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
@@ -88,11 +87,10 @@ export default function NutritionGoalsScreen({ navigation, route }) {
         if (result.canceled || !result.assets?.[0]?.base64) return;
         base64 = result.assets[0].base64;
       } else {
-        const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
-        if (result.canceled || !result.assets?.[0]) return;
-        const asset = result.assets[0];
-        base64 = await readUriAsBase64(asset.uri);
-        mediaType = asset.mimeType || 'application/pdf';
+        const picked = await pickDocumentAsBase64();
+        if (!picked) return;
+        base64 = picked.base64;
+        mediaType = picked.mediaType;
       }
     } catch {
       Alert.alert('', t(language, 'nutrition.import_plan_error'));

@@ -6,7 +6,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
@@ -14,7 +13,7 @@ import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
 import { Brand } from '../brand';
 import { apiParsePlan } from '../services/apiService';
-import { readUriAsBase64 } from '../utils/fileUtils';
+import { pickDocumentAsBase64 } from '../utils/fileUtils';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -149,13 +148,12 @@ export default function EditPersonalScreen({ navigation }) {
         if (result.canceled || !result.assets?.[0]?.base64) return;
         base64 = result.assets[0].base64;
       } else {
-        const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
-        if (result.canceled || !result.assets?.[0]) return;
-        const asset = result.assets[0];
-        base64 = await readUriAsBase64(asset.uri);
-        mediaType = asset.mimeType || 'application/pdf';
+        const picked = await pickDocumentAsBase64();
+        if (!picked) return;
+        base64 = picked.base64;
+        mediaType = picked.mediaType;
       }
-    } catch {
+    } catch (e) {
       Alert.alert('', t(language, 'nutrition.import_plan_error'));
       return;
     }
@@ -170,7 +168,8 @@ export default function EditPersonalScreen({ navigation }) {
         GOAL_FIELDS.forEach(f => { if (extracted[f.key] != null) next[f.key] = String(extracted[f.key]); });
         return next;
       });
-    } catch {
+    } catch (e) {
+      console.error('[import] api error:', e?.message || e);
       Alert.alert('', t(language, 'nutrition.import_plan_error'));
     } finally {
       setParsing(false);
