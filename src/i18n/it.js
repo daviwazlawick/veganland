@@ -536,6 +536,7 @@ export default {
     import_plan_btn: 'Importa piano nutrizionale',
     import_plan_camera: 'Fotocamera',
     import_plan_gallery: 'Galleria',
+    import_plan_document: 'Documento (PDF)',
     import_plan_loading: 'Lettura del documento…',
     import_plan_empty: 'Nessun valore trovato. Prova con un\'altra immagine.',
     import_plan_error: 'Impossibile leggere il documento. Riprova.',

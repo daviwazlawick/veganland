@@ -536,6 +536,7 @@ export default {
     import_plan_btn: 'Import nutrition plan',
     import_plan_camera: 'Camera',
     import_plan_gallery: 'Gallery',
+    import_plan_document: 'Document (PDF)',
     import_plan_loading: 'Reading document…',
     import_plan_empty: 'No values found. Try a different image.',
     import_plan_error: 'Could not read the document. Please try again.',

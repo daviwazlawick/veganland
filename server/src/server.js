@@ -1719,10 +1719,10 @@ const server = http.createServer(async (req, res) => {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const body = await readJsonBody(req);
-      const { image, language } = body;
+      const { image, language, mediaType } = body;
       if (!image) { sendJson(res, 400, { error: 'image required' }, origin); return; }
       try {
-        const goals = await parsePlanFromImage(image, language || 'en');
+        const goals = await parsePlanFromImage(image, language || 'en', mediaType || null);
         if (!goals) { sendJson(res, 422, { error: 'unreadable' }, origin); return; }
         const hasAny = Object.values(goals).some(v => v !== null);
         if (!hasAny) { sendJson(res, 422, { error: 'empty' }, origin); return; }

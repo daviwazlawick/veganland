@@ -9,10 +9,10 @@ export function hasAnthropicApiKey() {
   return ANTHROPIC_API_KEY.trim().length > 0;
 }
 
-export async function parsePlanFromImage(imageBase64, language) {
+export async function parsePlanFromImage(imageBase64, language, mediaType = null) {
   if (!hasAnthropicApiKey()) throw new Error('ANTHROPIC_API_KEY not configured');
   const { data, type } = stripDataUri(imageBase64);
-  const mediaType = type || detectMediaType(data);
+  const resolvedType = mediaType || type || detectMediaType(data);
   const lang = responseLanguage(language);
 
   const prompt = `You are a nutrition data extractor. The user uploaded a document or image showing a personal nutrition plan, dietary prescription, or nutrition goals.
@@ -39,8 +39,13 @@ Notes:
 - If the document is in ${lang}, numbers may use comma as decimal separator
 - If you cannot read the document or it contains no nutrition goals, return {"error":"unreadable"}`;
 
+  const isPdf = resolvedType === 'application/pdf';
+  const fileBlock = isPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } }
+    : { type: 'image', source: { type: 'base64', media_type: resolvedType, data } };
+
   const content = [
-    { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
+    fileBlock,
     { type: 'text', text: prompt },
   ];
 

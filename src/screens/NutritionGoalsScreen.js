@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
@@ -68,21 +70,38 @@ export default function NutritionGoalsScreen({ navigation, route }) {
     setValues(prev => ({ ...prev, [key]: val.replace(',', '.') }));
   }
 
-  async function pickAndParse(useCamera) {
+  async function pickAndParse(source) {
     setShowPickerModal(false);
-    let result;
-    if (useCamera) {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) return;
-      result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
-    } else {
-      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+    let base64 = null;
+    let mediaType = null;
+    try {
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) return;
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+        if (result.canceled || !result.assets?.[0]?.base64) return;
+        base64 = result.assets[0].base64;
+      } else if (source === 'gallery') {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) return;
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+        if (result.canceled || !result.assets?.[0]?.base64) return;
+        base64 = result.assets[0].base64;
+      } else {
+        const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
+        if (result.canceled || !result.assets?.[0]) return;
+        const asset = result.assets[0];
+        base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+        mediaType = asset.mimeType || 'application/pdf';
+      }
+    } catch {
+      Alert.alert('', t(language, 'nutrition.import_plan_error'));
+      return;
     }
-    if (result.canceled || !result.assets?.[0]?.base64) return;
-    const base64 = result.assets[0].base64;
+    if (!base64) return;
     setParsing(true);
     try {
-      const extracted = await apiParsePlan(token, base64, language);
+      const extracted = await apiParsePlan(token, base64, language, mediaType);
       const hasAny = extracted && Object.values(extracted).some(v => v !== null);
       if (!hasAny) {
         Alert.alert('', t(language, 'nutrition.import_plan_empty'));
@@ -179,11 +198,14 @@ export default function NutritionGoalsScreen({ navigation, route }) {
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowPickerModal(false)} />
         <View style={styles.pickerSheet}>
           <View style={styles.pickerHandle} />
-          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse(true)}>
+          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('camera')}>
             <Text style={styles.pickerOptionText}>📷  {t(language, 'nutrition.import_plan_camera')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse(false)}>
+          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('gallery')}>
             <Text style={styles.pickerOptionText}>🖼️  {t(language, 'nutrition.import_plan_gallery')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.pickerOption} onPress={() => pickAndParse('document')}>
+            <Text style={styles.pickerOptionText}>📄  {t(language, 'nutrition.import_plan_document')}</Text>
           </TouchableOpacity>
         </View>
       </Modal>

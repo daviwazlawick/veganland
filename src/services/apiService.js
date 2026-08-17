@@ -426,11 +426,11 @@ export async function apiGetExerciseHistory(token, from, to) {
   return r.json();
 }
 
-export async function apiParsePlan(token, imageBase64, language) {
+export async function apiParsePlan(token, imageBase64, language, mediaType = null) {
   const r = await fetch(`${baseUrl()}/nutrition/parse-plan`, {
     method: 'POST',
     headers: appHeaders(token),
-    body: JSON.stringify({ image: imageBase64, language }),
+    body: JSON.stringify({ image: imageBase64, language, mediaType }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'parse_failed');
