@@ -1816,7 +1816,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/nutrition/measurements') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const body = await readBody(req);
+      const body = await readJsonBody(req);
       const row = await logBodyMeasurements(claims.userId, body);
       sendJson(res, 200, row || {}, origin);
       return;
