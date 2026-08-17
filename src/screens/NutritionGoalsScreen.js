@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboa
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { readUriAsBase64 } from '../utils/fileUtils';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
@@ -91,7 +91,7 @@ export default function NutritionGoalsScreen({ navigation, route }) {
         const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
         if (result.canceled || !result.assets?.[0]) return;
         const asset = result.assets[0];
-        base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+        base64 = await readUriAsBase64(asset.uri);
         mediaType = asset.mimeType || 'application/pdf';
       }
     } catch {
