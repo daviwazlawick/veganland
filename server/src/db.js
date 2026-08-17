@@ -1464,14 +1464,14 @@ export async function getNutritionGoals(userId) {
 export async function saveNutritionGoals(userId, goals) {
   const db = await getPool();
   if (!db) return null;
-  const { calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml } = goals;
+  const { calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, bmr, tdee } = goals;
   await db.query(`
-    insert into user_nutrition_goals (user_id, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, is_custom, updated_at)
-    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,now())
+    insert into user_nutrition_goals (user_id, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, bmr, tdee, is_custom, updated_at)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,now())
     on conflict (user_id) do update set
       calories_kcal=$2, protein_g=$3, fat_g=$4, carbs_g=$5, fiber_g=$6,
-      sugar_g=$7, salt_g=$8, water_ml=$9, is_custom=true, updated_at=now()`,
-    [userId, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml]
+      sugar_g=$7, salt_g=$8, water_ml=$9, bmr=$10, tdee=$11, is_custom=true, updated_at=now()`,
+    [userId, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, water_ml, bmr || null, tdee || null]
   );
   return true;
 }

@@ -8,6 +8,8 @@ import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 
 const FIELDS = [
+  { key: 'bmr',          unit: 'kcal', label: 'nutrition.bmr_label' },
+  { key: 'tdee',         unit: 'kcal', label: 'nutrition.tdee_label' },
   { key: 'calories_kcal', unit: 'kcal', label: 'nutrition.calories' },
   { key: 'protein_g',     unit: 'g',    label: 'nutrition.protein' },
   { key: 'fat_g',         unit: 'g',    label: 'nutrition.fat' },
@@ -42,9 +44,19 @@ export default function NutritionGoalsScreen({ navigation, route }) {
 
   useEffect(() => {
     const init = {};
-    FIELDS.forEach(f => { init[f.key] = base[f.key] != null ? String(Math.round(Number(base[f.key]) * 10) / 10) : ''; });
+    FIELDS.forEach(f => {
+      if (base[f.key] != null) {
+        init[f.key] = String(Math.round(Number(base[f.key]) * 10) / 10);
+      } else if (f.key === 'bmr' && bmrInfo) {
+        init[f.key] = String(bmrInfo.bmr);
+      } else if (f.key === 'tdee' && bmrInfo) {
+        init[f.key] = String(bmrInfo.tdee);
+      } else {
+        init[f.key] = '';
+      }
+    });
     setValues(init);
-  }, [goals, suggested]);
+  }, [goals, suggested, bmrInfo]);
 
   function set(key, val) {
     setValues(prev => ({ ...prev, [key]: val.replace(',', '.') }));
@@ -82,26 +94,6 @@ export default function NutritionGoalsScreen({ navigation, route }) {
               {isCustom ? t(language, 'nutrition.goals_custom') : t(language, 'nutrition.goals_auto')}
             </Text>
           </View>
-
-          {bmrInfo && (
-            <View style={styles.bmrCard}>
-              <Text style={styles.bmrCardTitle}>{t(language, 'nutrition.bmr_title')}</Text>
-              <Text style={styles.bmrCardSub}>{t(language, 'nutrition.bmr_subtitle')}</Text>
-              <View style={styles.bmrRow}>
-                <View style={styles.bmrItem}>
-                  <Text style={styles.bmrValue}>{bmrInfo.bmr}</Text>
-                  <Text style={styles.bmrLabel}>{t(language, 'nutrition.bmr_label')}</Text>
-                  <Text style={styles.bmrUnit}>kcal/dia</Text>
-                </View>
-                <View style={styles.bmrDivider} />
-                <View style={styles.bmrItem}>
-                  <Text style={styles.bmrValue}>{bmrInfo.tdee}</Text>
-                  <Text style={styles.bmrLabel}>{t(language, 'nutrition.tdee_label')}</Text>
-                  <Text style={styles.bmrUnit}>kcal/dia</Text>
-                </View>
-              </View>
-            </View>
-          )}
 
           <View style={styles.card}>
             {FIELDS.map((f, i) => (
