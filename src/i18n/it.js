@@ -179,6 +179,11 @@ export default {
     take_ingredients_photo: "Foto degli ingredienti",
     show_result_anyway: "Mostra il risultato comunque",
     photo_hint: "Mostra la lista degli ingredienti",
+    camera_choice_title: "Come vuoi scansionare?",
+    camera_choice_product: "Scansiona prodotto",
+    camera_choice_product_sub: "Analizza etichetta o codice a barre",
+    camera_choice_plate: "Analisi del piatto",
+    camera_choice_plate_sub: "Fotografa un pasto completo",
   },
   result: {
     safe: 'SICURO',

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -119,6 +120,7 @@ export default function ResultScreen({ navigation, route }) {
   const [consumeMeal, setConsumeMeal] = useState('lunch');
   const [consumeLogging, setConsumeLogging] = useState(false);
   const [consumeLogged, setConsumeLogged] = useState(false);
+  const [burnExIds, setBurnExIds] = useState(DEFAULT_BURN_EXERCISES);
 
   async function handleLogConsume() {
     const grams = parseFloat(consumeGrams) || 100;
@@ -150,6 +152,20 @@ export default function ResultScreen({ navigation, route }) {
     if (appSurveyDone || scanHistory.length < 2) return;
     const timer = setTimeout(() => setShowAppSurvey(true), 1500);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isNovaQI) return;
+    AsyncStorage.getItem('@exercise_favorites').then(v => {
+      if (!v) return;
+      try {
+        const favs = JSON.parse(v);
+        if (Array.isArray(favs) && favs.length > 0) {
+          const shuffled = [...favs].sort(() => Math.random() - 0.5);
+          setBurnExIds(shuffled.slice(0, 3));
+        }
+      } catch (_) {}
+    });
   }, []);
   const sourceKey = result.ingredients_source || result.productInfo?.source;
   const productName = result.product_name || result.productInfo?.product_name;
@@ -371,9 +387,10 @@ export default function ResultScreen({ navigation, route }) {
               {isNovaQI && nutrition?.energy_kcal > 0 && (() => {
                 const weight = bodyProfile?.weight_kg || 70;
                 const kcalPer100 = nutrition.energy_kcal;
-                const burnExercises = DEFAULT_BURN_EXERCISES
+                const burnExercises = burnExIds
                   .map(id => EXERCISES.find(e => e.id === id))
                   .filter(Boolean);
+                if (!burnExercises.length) return null;
                 return (
                   <View style={styles.burnBox}>
                     <Text style={styles.burnTitle}>{t(language, 'exercise.burn_equivalent')} 100g</Text>

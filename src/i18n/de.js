@@ -179,6 +179,11 @@ export default {
     take_ingredients_photo: 'Foto der Zutaten',
     show_result_anyway: 'Ergebnis trotzdem anzeigen',
     photo_hint: 'Zeige die Zutatenliste',
+    camera_choice_title: 'Wie möchtest du scannen?',
+    camera_choice_product: 'Produkt scannen',
+    camera_choice_product_sub: 'Etikett oder Barcode analysieren',
+    camera_choice_plate: 'Telleranalyse',
+    camera_choice_plate_sub: 'Vollständige Mahlzeit fotografieren',
   },
   result: {
     safe: 'SICHER',

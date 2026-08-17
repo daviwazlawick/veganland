@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Platform,
+  ActivityIndicator, Platform, Modal, TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -39,6 +39,7 @@ export default function ScanScreen({ navigation, route }) {
   const wrongProductBarcode = route?.params?.wrongProductBarcode || null;
   const [pendingResult, setPendingResult] = useState(null);
   const [noIngredientsPrompt, setNoIngredientsPrompt] = useState(false);
+  const [showCameraChoice, setShowCameraChoice] = useState(false);
   const [lockedBarcode, setLockedBarcode] = useState(null);
   const cameraRef = useRef(null);
   const lockRef = useRef({ code: null, since: 0, timer: null });
@@ -365,7 +366,7 @@ export default function ScanScreen({ navigation, route }) {
             <View style={styles.switchRow}>
               <TouchableOpacity
                 style={styles.switchBtn}
-                onPress={() => setScanStep('photo')}
+                onPress={() => setShowCameraChoice(true)}
                 disabled={analyzing}
               >
                 <Text style={styles.switchBtnText}>📷 {t(language, 'scan.take_photo')}</Text>
@@ -463,6 +464,45 @@ export default function ScanScreen({ navigation, route }) {
           </View>
         </View>
       )}
+
+      <Modal
+        visible={showCameraChoice}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCameraChoice(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowCameraChoice(false)}>
+          <View style={{ flex: 1 }} />
+        </TouchableWithoutFeedback>
+        <View style={cameraChoiceStyles.sheet}>
+          <View style={cameraChoiceStyles.handle} />
+          <Text style={cameraChoiceStyles.title}>{t(language, 'scan.camera_choice_title')}</Text>
+          <TouchableOpacity
+            style={cameraChoiceStyles.option}
+            activeOpacity={0.85}
+            onPress={() => { setShowCameraChoice(false); setScanStep('photo'); }}
+          >
+            <Text style={cameraChoiceStyles.optionIcon}>📷</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={cameraChoiceStyles.optionLabel}>{t(language, 'scan.camera_choice_product')}</Text>
+              <Text style={cameraChoiceStyles.optionSub}>{t(language, 'scan.camera_choice_product_sub')}</Text>
+            </View>
+            <Text style={cameraChoiceStyles.optionArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={cameraChoiceStyles.option}
+            activeOpacity={0.85}
+            onPress={() => { setShowCameraChoice(false); navigation.navigate('PlateAnalysis'); }}
+          >
+            <Text style={cameraChoiceStyles.optionIcon}>🍽️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={cameraChoiceStyles.optionLabel}>{t(language, 'scan.camera_choice_plate')}</Text>
+              <Text style={cameraChoiceStyles.optionSub}>{t(language, 'scan.camera_choice_plate_sub')}</Text>
+            </View>
+            <Text style={cameraChoiceStyles.optionArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -740,4 +780,44 @@ const onboardingScanStyles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
+});
+
+const cameraChoiceStyles = StyleSheet.create({
+  sheet: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingTop: 12,
+    gap: 10,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 40, height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: Colors.card,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  optionIcon: { fontSize: 28 },
+  optionLabel: { fontSize: 16, fontWeight: '800', color: Colors.text, marginBottom: 2 },
+  optionSub: { fontSize: 13, color: Colors.textLight, fontWeight: '500' },
+  optionArrow: { fontSize: 22, color: Colors.textMuted, fontWeight: '700' },
 });
