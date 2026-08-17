@@ -1720,14 +1720,17 @@ const server = http.createServer(async (req, res) => {
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const body = await readJsonBody(req);
       const { image, language, mediaType } = body;
+      console.log('[parse-plan] received', { imageLen: image?.length, language, mediaType });
       if (!image) { sendJson(res, 400, { error: 'image required' }, origin); return; }
       try {
         const goals = await parsePlanFromImage(image, language || 'en', mediaType || null);
+        console.log('[parse-plan] extracted:', JSON.stringify(goals));
         if (!goals) { sendJson(res, 422, { error: 'unreadable' }, origin); return; }
         const hasAny = Object.values(goals).some(v => v !== null);
         if (!hasAny) { sendJson(res, 422, { error: 'empty' }, origin); return; }
         sendJson(res, 200, goals, origin);
       } catch (e) {
+        console.error('[parse-plan] error:', e.message);
         sendJson(res, 500, { error: e.message || 'parse_failed' }, origin);
       }
       return;
