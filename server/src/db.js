@@ -1389,14 +1389,21 @@ export async function insertAppSurvey({ userId, message, dietId, language }) {
 
 // ─── Nutrition Tracking ───────────────────────────────────────────────────────
 
-export function suggestNutritionGoals(profile = {}) {
-  const { sex, birth_date, height_cm, weight_kg, activity_level, goal } = profile;
-  if (!weight_kg || !height_cm || !birth_date) {
-    return { calories_kcal: 2000, protein_g: 50, fat_g: 65, carbs_g: 260, fiber_g: 25, sugar_g: 50, salt_g: 2.3, water_ml: 2000, is_default: true };
-  }
+export function calcBMR(profile = {}) {
+  const { sex, birth_date, height_cm, weight_kg } = profile;
+  if (!weight_kg || !height_cm || !birth_date) return null;
   const age = Math.max(10, Math.floor((Date.now() - new Date(birth_date)) / (365.25 * 24 * 3600 * 1000)));
   const w = Number(weight_kg), h = Number(height_cm);
-  let bmr = 10 * w + 6.25 * h - 5 * age + (sex === 'male' ? 5 : -161);
+  return Math.round(10 * w + 6.25 * h - 5 * age + (sex === 'male' ? 5 : -161));
+}
+
+export function suggestNutritionGoals(profile = {}) {
+  const { activity_level, goal } = profile;
+  const bmr = calcBMR(profile);
+  if (bmr == null) {
+    return { calories_kcal: 2000, protein_g: 50, fat_g: 65, carbs_g: 260, fiber_g: 25, sugar_g: 50, salt_g: 2.3, water_ml: 2000, is_default: true };
+  }
+  const w = Number(profile.weight_kg);
   const multipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
   let tdee = bmr * (multipliers[activity_level] || 1.375);
   if (goal === 'lose') tdee -= 500;
@@ -1406,6 +1413,7 @@ export function suggestNutritionGoals(profile = {}) {
   const protein_g = Math.round(w * proteinPerKg);
   const fat_g = Math.round((tdee * 0.27) / 9);
   const carbs_g = Math.max(50, Math.round((tdee - protein_g * 4 - fat_g * 9) / 4));
+  const multiplier = multipliers[activity_level] || 1.375;
   return {
     calories_kcal: tdee,
     protein_g,
@@ -1415,6 +1423,8 @@ export function suggestNutritionGoals(profile = {}) {
     sugar_g: Math.round(tdee * 0.05 / 4),
     salt_g: 2.3,
     water_ml: Math.round(w * 35),
+    bmr,
+    tdee: Math.round(bmr * multiplier),
     is_default: false,
   };
 }

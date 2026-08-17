@@ -4,7 +4,7 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -1556,6 +1556,12 @@ const server = http.createServer(async (req, res) => {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const profile = await getBodyProfile(claims.userId);
+      if (profile) {
+        const bmr = calcBMR(profile);
+        const multipliers = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+        profile.bmr = bmr;
+        profile.tdee = bmr != null ? Math.round(bmr * (multipliers[profile.activity_level] || 1.375)) : null;
+      }
       sendJson(res, 200, profile || {}, origin);
       return;
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert,
@@ -48,6 +48,17 @@ export default function EditPersonalScreen({ navigation }) {
 
   const [measures, setMeasures] = useState({});
   const [showHistory, setShowHistory] = useState(false);
+
+  const bmrInfo = useMemo(() => {
+    const w = parseFloat(weight);
+    const h = parseFloat(height);
+    if (!w || !h || !birthDate) return null;
+    const age = Math.max(10, Math.floor((Date.now() - new Date(birthDate)) / (365.25 * 24 * 3600 * 1000)));
+    const bmr = Math.round(10 * w + 6.25 * h - 5 * age + (sex === 'male' ? 5 : -161));
+    const mult = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+    const tdee = Math.round(bmr * (mult[activity] || 1.375));
+    return { bmr, tdee };
+  }, [weight, height, birthDate, sex, activity]);
 
   const latest = measurementsHistory[0] || null;
 
@@ -240,6 +251,27 @@ export default function EditPersonalScreen({ navigation }) {
             </View>
           </View>
 
+          {/* ── BMR / TDEE ── */}
+          {bmrInfo && (
+            <View style={styles.bmrCard}>
+              <Text style={styles.bmrCardTitle}>{t(language, 'nutrition.bmr_title')}</Text>
+              <Text style={styles.bmrCardSub}>{t(language, 'nutrition.bmr_subtitle')}</Text>
+              <View style={styles.bmrRow}>
+                <View style={styles.bmrItem}>
+                  <Text style={styles.bmrValue}>{bmrInfo.bmr}</Text>
+                  <Text style={styles.bmrLabel}>{t(language, 'nutrition.bmr_label')}</Text>
+                  <Text style={styles.bmrUnit}>kcal/dia</Text>
+                </View>
+                <View style={styles.bmrDivider} />
+                <View style={styles.bmrItem}>
+                  <Text style={styles.bmrValue}>{bmrInfo.tdee}</Text>
+                  <Text style={styles.bmrLabel}>{t(language, 'nutrition.tdee_label')}</Text>
+                  <Text style={styles.bmrUnit}>kcal/dia</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* ── Body Measurements ── */}
           <Text style={styles.sectionDivider}>{t(language, 'measurements.title')}</Text>
 
@@ -351,6 +383,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: Colors.border,
     paddingTop: 18, marginTop: 4,
   },
+  bmrCard: {
+    width: '100%',
+    backgroundColor: Colors.forest || '#1C2B22',
+    borderRadius: 16, padding: 18, gap: 12,
+  },
+  bmrCardTitle: { fontSize: 13, fontWeight: '800', color: Colors.primary, letterSpacing: 0.4 },
+  bmrCardSub: { fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 16, marginTop: -6 },
+  bmrRow: { flexDirection: 'row', alignItems: 'center' },
+  bmrItem: { flex: 1, alignItems: 'center', gap: 2 },
+  bmrDivider: { width: 1, height: 48, backgroundColor: 'rgba(255,255,255,0.1)' },
+  bmrValue: { fontSize: 28, fontWeight: '900', color: '#fff' },
+  bmrLabel: { fontSize: 11, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  bmrUnit: { fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: '600' },
   fieldGroup: { width: '100%', gap: 8 },
   fieldLabel: {
     fontSize: 12, fontWeight: '800', color: Colors.textLight,
