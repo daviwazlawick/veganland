@@ -19,6 +19,8 @@ export async function getPool() {
   if (pool) return pool;
 
   const { default: pg } = await import('pg');
+  // Return DATE columns as plain YYYY-MM-DD strings, not Date objects
+  pg.types.setTypeParser(1082, val => val);
   pool = new pg.Pool({
     connectionString: DATABASE_URL,
     ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
