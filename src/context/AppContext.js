@@ -71,27 +71,25 @@ export function AppProvider({ children }) {
       const { user, usage, streak: streakValue } = await apiGetMe(token);
       if (usage?.count != null) setMonthlyScanCount(usage.count + (usage.bonus_remaining != null ? 0 : 0));
       if (streakValue != null) setStreak(streakValue);
-      if (user?.diet_id) {
-        const localRaw = await AsyncStorage.getItem(STORAGE_KEYS.profile);
-        const local = localRaw ? JSON.parse(localRaw) : {};
-        // Server is authoritative for name, bio, and avatar_url.
-        // Fall back to local for native file:// photos that were never uploaded.
-        const serverAvatar = user.avatar_url || null;
-        const localPhoto = local.photoUri || null;
-        const photoUri = serverAvatar || (localPhoto?.startsWith('file://') ? localPhoto : null);
-        const serverProfile = {
-          name: user.name || local.name || null,
-          bio: user.bio || local.bio || null,
-          photoUri,
-          dietId: user.diet_id,
-          allergyIds: user.allergy_ids || [],
-          halalStrictness: user.halal_strictness ?? local.halalStrictness ?? null,
-        };
+      const localRaw = await AsyncStorage.getItem(STORAGE_KEYS.profile);
+      const local = localRaw ? JSON.parse(localRaw) : {};
+      // Server is authoritative for name, bio, and avatar_url.
+      // Fall back to local for native file:// photos that were never uploaded.
+      const serverAvatar = user?.avatar_url || null;
+      const localPhoto = local.photoUri || null;
+      const photoUri = serverAvatar || (localPhoto?.startsWith('file://') ? localPhoto : null);
+      const serverProfile = {
+        name: user?.name || local.name || null,
+        bio: user?.bio || local.bio || null,
+        photoUri,
+        dietId: user?.diet_id || local.dietId || null,
+        allergyIds: user?.allergy_ids || local.allergyIds || [],
+        halalStrictness: user?.halal_strictness ?? local.halalStrictness ?? null,
+      };
+      // Only persist if there's something worth keeping
+      if (serverProfile.name || serverProfile.dietId || serverProfile.photoUri) {
         setProfileState(serverProfile);
         await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(serverProfile));
-      } else {
-        setProfileState(null);
-        await AsyncStorage.removeItem(STORAGE_KEYS.profile);
       }
     } catch {
       // silently keep local profile if server fails

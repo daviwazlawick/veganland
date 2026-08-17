@@ -500,6 +500,7 @@ export default {
     avg_daily: 'Média diária',
     total: 'Total',
     no_report_data: 'Sem dados para este período.',
+    body_age: 'Idade',
     body_sex: 'Sexo',
     body_sex_male: 'Masculino',
     body_sex_female: 'Feminino',

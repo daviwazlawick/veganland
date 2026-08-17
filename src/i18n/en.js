@@ -500,6 +500,7 @@ export default {
     avg_daily: 'Daily average',
     total: 'Total',
     no_report_data: 'No data for this period.',
+    body_age: 'Age',
     body_sex: 'Sex',
     body_sex_male: 'Male',
     body_sex_female: 'Female',
