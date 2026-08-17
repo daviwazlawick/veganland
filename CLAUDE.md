@@ -1463,3 +1463,38 @@ minutes_to_burn = ceil(calories / kcal_per_min)
 ### i18n
 - Adicionado `exercise.period_today/week/month` em todas as 6 línguas
 - `nutrition.net` renomeado para `restante` em todas as 6 línguas
+
+---
+
+## Sessão 2026-08-17 — Camera choice + Burn comparison + Add food → ResultScreen + Nutrition plan import
+
+### ScanScreen — camera choice modal (NovaQI)
+- Botão de câmara abre bottom-sheet modal em vez de ir directo para foto
+- Duas opções: "Escanear produto" (rótulo/barcode → `setScanStep('photo')`) e "Análise de prato" (→ `PlateAnalysis`)
+- i18n: `scan.camera_choice_title/product/product_sub/plate/plate_sub` em 6 línguas
+
+### ResultScreen + PlateAnalysisScreen — burn comparison com favoritos
+- Caixa "Burn equivalent" usa `@exercise_favorites` (AsyncStorage) em vez de `DEFAULT_BURN_EXERCISES`
+- Carrega favoritos no mount, embaralha e mostra 3 aleatórios; fallback para defaults se vazio
+- PlateAnalysisScreen usa `liveTotal.calories_kcal` (total do prato), não per-100g
+
+### NutritionDashboardScreen — "Add food" → ResultScreen completo
+- Quando utilizador selecciona alimento da busca com barcode (OFF live), navega para `ResultScreen` em vez de preencher o form
+- Novo endpoint `GET /nutrition/product-info?code=<barcode>`: busca no DB local → fallback OFF live (sem IA, sem crédito)
+- `apiGetProductInfo(token, barcode)` em `apiService.js`
+- Allergen tags com prefixo `en:` são normalizados no cliente (`.replace(/^[a-z]{2}:/, '')`)
+- Overlay de loading `fetchingProduct` durante busca
+
+### NutritionGoalsScreen — import de plano de nutrição (NovaQI)
+- Botão "📄 Importar plano de nutrição" (dashed border, só NovaQI) entre a nota e o botão Guardar
+- Toque abre bottom-sheet com opções Câmara / Galeria
+- Imagem enviada para `POST /nutrition/parse-plan` → Claude Haiku vision extrai goals
+- Valores extraídos preenchem automaticamente os campos; não-encontrados ficam inalterados
+- Overlay de loading com spinner durante parsing
+- `parsePlanFromImage(imageBase64, language)` em `server/src/anthropic.js`
+- `apiParsePlan(token, base64, language)` em `apiService.js`
+- i18n: `nutrition.import_plan_btn/camera/gallery/loading/empty/error` em 6 línguas
+
+### Novos endpoints servidor
+- `GET /nutrition/product-info?code=<barcode>` — dados ricos de produto (DB local + OFF, sem IA)
+- `POST /nutrition/parse-plan` — visão Claude extrai metas nutricionais de imagem/documento

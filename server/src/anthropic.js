@@ -9,6 +9,62 @@ export function hasAnthropicApiKey() {
   return ANTHROPIC_API_KEY.trim().length > 0;
 }
 
+export async function parsePlanFromImage(imageBase64, language) {
+  if (!hasAnthropicApiKey()) throw new Error('ANTHROPIC_API_KEY not configured');
+  const { data, type } = stripDataUri(imageBase64);
+  const mediaType = type || detectMediaType(data);
+  const lang = responseLanguage(language);
+
+  const prompt = `You are a nutrition data extractor. The user uploaded a document or image showing a personal nutrition plan, dietary prescription, or nutrition goals.
+
+Extract the following DAILY nutrition targets (not per-meal, not per-100g — total daily goals). Return null for any field not present in the document.
+
+Respond ONLY with valid JSON, no markdown, no explanation:
+{
+  "calories_kcal": number or null,
+  "protein_g": number or null,
+  "fat_g": number or null,
+  "carbs_g": number or null,
+  "fiber_g": number or null,
+  "sugar_g": number or null,
+  "salt_g": number or null,
+  "water_ml": number or null,
+  "bmr": number or null,
+  "tdee": number or null
+}
+
+Notes:
+- If you see sodium (mg), convert to salt_g: salt_g = sodium_mg / 400
+- If you see water in liters, convert to ml (multiply by 1000)
+- If the document is in ${lang}, numbers may use comma as decimal separator
+- If you cannot read the document or it contains no nutrition goals, return {"error":"unreadable"}`;
+
+  const content = [
+    { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
+    { type: 'text', text: prompt },
+  ];
+
+  const text = await callClaude(content, 400, MODEL_INSPECTION);
+  const parsed = extractJson(text);
+  if (parsed?.error) return null;
+  const n = v => {
+    const num = Number(v);
+    return Number.isFinite(num) && num > 0 ? Math.round(num * 10) / 10 : null;
+  };
+  return {
+    calories_kcal: n(parsed.calories_kcal),
+    protein_g:     n(parsed.protein_g),
+    fat_g:         n(parsed.fat_g),
+    carbs_g:       n(parsed.carbs_g),
+    fiber_g:       n(parsed.fiber_g),
+    sugar_g:       n(parsed.sugar_g),
+    salt_g:        n(parsed.salt_g),
+    water_ml:      n(parsed.water_ml),
+    bmr:           n(parsed.bmr),
+    tdee:          n(parsed.tdee),
+  };
+}
+
 // Fallback for the food search when the plain-text DB/OFF search comes back
 // sparse: translate the query into the app's other languages + a generic
 // English category phrase, so "leite condensado" can also match a product

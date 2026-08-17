@@ -426,6 +426,17 @@ export async function apiGetExerciseHistory(token, from, to) {
   return r.json();
 }
 
+export async function apiParsePlan(token, imageBase64, language) {
+  const r = await fetch(`${baseUrl()}/nutrition/parse-plan`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({ image: imageBase64, language }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'parse_failed');
+  return data;
+}
+
 export async function apiAnalyzePlate(token, imageBase64, language, profile) {
   const r = await fetch(`${baseUrl()}/analyze-plate`, {
     method: 'POST',

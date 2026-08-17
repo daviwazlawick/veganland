@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
-import { analyzePlate, expandSearchQuery, fetchNutritionalData } from './anthropic.js';
+import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
@@ -1711,6 +1711,25 @@ const server = http.createServer(async (req, res) => {
         ...buildSlimProductInfo(product),
         allergens_tags: product.allergens_tags || [],
       }, origin);
+      return;
+    }
+
+    // POST /nutrition/parse-plan — vision extraction of nutrition goals from uploaded image
+    if (req.method === 'POST' && req.url === '/nutrition/parse-plan') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const body = await readJsonBody(req);
+      const { image, language } = body;
+      if (!image) { sendJson(res, 400, { error: 'image required' }, origin); return; }
+      try {
+        const goals = await parsePlanFromImage(image, language || 'en');
+        if (!goals) { sendJson(res, 422, { error: 'unreadable' }, origin); return; }
+        const hasAny = Object.values(goals).some(v => v !== null);
+        if (!hasAny) { sendJson(res, 422, { error: 'empty' }, origin); return; }
+        sendJson(res, 200, goals, origin);
+      } catch (e) {
+        sendJson(res, 500, { error: e.message || 'parse_failed' }, origin);
+      }
       return;
     }
 
