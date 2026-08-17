@@ -1498,3 +1498,35 @@ minutes_to_burn = ceil(calories / kcal_per_min)
 ### Novos endpoints servidor
 - `GET /nutrition/product-info?code=<barcode>` — dados ricos de produto (DB local + OFF, sem IA)
 - `POST /nutrition/parse-plan` — visão Claude extrai metas nutricionais de imagem/documento
+
+---
+
+## Sessão 2026-08-17 (cont.) — ImportPlanButton refactor + BodyProfile/EditPersonal import
+
+### ImportPlanButton (src/components/ImportPlanButton.js) — componente partilhado
+- Extrai toda a lógica de import de plano num único componente reutilizável
+- Props: `{ language, token, onExtracted, style }`
+- Retorna `null` se `Brand.id !== 'novaqi'`
+- **Web**: `<View>` com `<input type="file" accept="application/pdf,image/*">` invisível sobreposto — picker abre directamente no click sem gap async (resolve problema de gestos no browser)
+- **Native**: `TouchableOpacity` → Modal bottom-sheet com 📷 Câmara / 🖼️ Galeria / 📄 Documento
+- Galeria: usa `requestMediaLibraryPermissionsAsync()` explícito antes de abrir
+- Documento: aceita PDF e imagens via `expo-document-picker` + `expo-file-system`
+- Parse-plan: `parsePlanFromImage` usa `document` block para PDF, `image` block para imagens
+- Overlay de loading com spinner durante parsing
+
+### Integração em 3 screens
+- **NutritionGoalsScreen**: `onExtracted` actualiza `values` state (todos os FIELDS)
+- **BodyProfileScreen**: `onExtracted` navega para `NutritionGoals` com `suggested: extracted`
+- **EditPersonalScreen**: `onExtracted` actualiza `goalValues` state via `handleExtracted()`
+- Old inline states (`showImportModal`, `parsing`), functions (`pickAndParse`), modal, overlay e styles removidos das 3 screens
+
+### favicon.ico
+- Copiado `icon.png` para `assets/novaqi/favicon.png` → build inclui favicon igual ao ícone da app
+
+### server/src/anthropic.js
+- `parsePlanFromImage(imageBase64, language, mediaType)` — suporte a PDF via `document` block + images
+- `detectMediaType()` e `stripDataUri()` como function declarations hoisted
+
+### server/src/server.js
+- `POST /nutrition/parse-plan` com debug logging
+- Fix: `readBody` → `readJsonBody` em `/nutrition/measurements` (ReferenceError)
