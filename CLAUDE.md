@@ -1555,3 +1555,23 @@ minutes_to_burn = ceil(calories / kcal_per_min)
 - Afecta **iOS e Android** — ambas as plataformas compilam o mesmo header C++
 - Trigger novo build EAS após este commit para ambas as plataformas
 - Fix: `readBody` → `readJsonBody` em `/nutrition/measurements` (ReferenceError)
+
+### HomeScreen — restaurar SVG e logo (fallbacks removidos)
+- `CalorieRing`: era barra de progresso (fallback sem SVG) → restaurado como anel circular SVG real via `react-native-svg` (`Svg` + `Circle`, strokeDasharray/offset, rotate -90)
+- Logo no header: removida função local `NovaQILogo` (só círculo simples) → importado `NovaQILogo` de `src/components/ui/NovaQILogo.js` (anel + cauda, View-based) + texto "Nova**QI**" ao lado
+- Commit: `95e8684`
+
+### ImportPlanButton — temporariamente escondido
+- Upload de ficheiro não funciona → `return null` após o check `!isNovaQI`
+- Para reactivar: remover a linha `return null; // temporarily hidden`
+- Commit: `de48a75`
+
+### Apple App Store — rejeição por falta de EULA
+- Motivo: app tem subscrições mas não tem link para Termos de Uso nos metadados
+- Fix: adicionar `https://novaqi.app/terms` no campo EULA do App Store Connect (não requer novo build)
+
+### Simulação de referrals para teste (ghuto6969@gmail.com, ID 283)
+- UPDATE directo na DB: `referral_credit_count=0`, `referral_total_rewarded=3`, `bonus_scans_remaining=15`, `bonus_scans_expires_at=now()+30days`
+- Simula 9 amigos qualificados → 3 recompensas × 5 scans = 15 bonus scans
+- Sistema: 3 referrals qualificados por recompensa (`REFERRALS_PER_REWARD=3`), 5 scans por recompensa (`REFERRER_REWARD_BONUS=5`)
+- Para reverter: UPDATE com todos os valores a 0 / null
