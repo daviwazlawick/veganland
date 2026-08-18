@@ -20,6 +20,7 @@ export default function ImportPlanButton({ language, token, onExtracted, style }
   const [parsing, setParsing] = useState(false);
 
   if (!isNovaQI) return null;
+  return null; // temporarily hidden — upload not working
 
   async function sendToApi(base64, mediaType) {
     if (!base64) return;
