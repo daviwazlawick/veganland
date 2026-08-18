@@ -8,7 +8,8 @@ import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
-import { PremiumIcon, BrandName } from '../components/ui';
+import { PremiumIcon, BrandName, NovaQILogo } from '../components/ui';
+import Svg, { Circle } from 'react-native-svg';
 import { useReferral } from '../context/ReferralContext';
 import { useNutrition } from '../context/NutritionContext';
 import { useAuth } from '../context/AuthContext';
@@ -46,27 +47,27 @@ const STATUS_CONFIG = {
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 const isNovaQI = Brand.id === 'novaqi';
 
-function NovaQILogo({ height = 36 }) {
-  const r = height * 0.5;
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', height }}>
-      <View style={{ width: height, height, borderRadius: r, borderWidth: height * 0.085, borderColor: '#2FC472', marginRight: 6 }} />
-      <Text style={{ fontFamily: BrandFonts.bold || undefined, fontWeight: '800', fontSize: height * 0.6, color: '#FFFFFF', letterSpacing: -0.5 }}>
-        Nova<Text style={{ color: '#2FC472' }}>QI</Text>
-      </Text>
-    </View>
-  );
-}
-
 function CalorieRing({ pct, size = 76, centerText }) {
   const clamped = Math.min(1, Math.max(0, pct || 0));
+  const stroke = 7;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashoffset = circumference * (1 - clamped);
   return (
-    <View style={{ width: size, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={Colors.backgroundSecondary} strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke={Colors.primary} strokeWidth={stroke} fill="none"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={dashoffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
       <Text style={{ fontFamily: BrandFonts.mono || undefined, fontWeight: '800', fontSize: 15, color: Colors.text }}>{centerText}</Text>
       <Text style={{ fontSize: 9, color: Colors.textMuted }}>kcal</Text>
-      <View style={{ width: size, height: 6, borderRadius: 3, backgroundColor: Colors.backgroundSecondary }}>
-        <View style={{ width: `${clamped * 100}%`, height: 6, borderRadius: 3, backgroundColor: Colors.primary }} />
-      </View>
     </View>
   );
 }
@@ -103,7 +104,12 @@ export default function HomeScreen({ navigation }) {
       <View style={[styles.header, isNovaQI && styles.headerNovaqi]}>
         <View>
           {isNovaQI ? (
-            <NovaQILogo width={166} height={36} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <NovaQILogo size={36} />
+              <Text style={{ fontFamily: BrandFonts.bold || undefined, fontWeight: '800', fontSize: 22, color: '#FFFFFF', letterSpacing: -0.5 }}>
+                Nova<Text style={{ color: '#2FC472' }}>QI</Text>
+              </Text>
+            </View>
           ) : (
             <BrandName
               style={styles.headerTitle}
