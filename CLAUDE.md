@@ -1529,4 +1529,29 @@ minutes_to_burn = ceil(calories / kcal_per_min)
 
 ### server/src/server.js
 - `POST /nutrition/parse-plan` com debug logging
+
+---
+
+## Sessão 2026-08-18 — react-native-svg + versão 1.0.16
+
+### Bump de versão (native build obrigatório)
+- `app.config.js`: `version: '1.0.15'` → `'1.0.16'`, `versionCode: 18` → `19`
+- Commit: `7f4b16a`
+
+### EditPersonalScreen — limpeza final
+- Removido código inline de import: `showImportModal`, `parsing`, `pickAndParse`, modal, overlay e styles
+- Substituído por `<ImportPlanButton language={language} token={token} onExtracted={handleExtracted} style={{ width: '100%' }} />`
+- Adicionado `handleExtracted()` que atualiza `goalValues` via `setGoalValues`
+- Removido `useFocusEffect` e `useCallback` (imports desnecessários)
+
+### Fix: react-native-svg 15.11.2 → 15.12.1 (iOS + Android EAS build failure)
+- **Erro**: `too many template arguments for class template 'ConcreteShadowNode'` + `use of undeclared identifier 'BaseShadowNode'` em `RNSVGConcreteShadowNode.h`
+- **Causa**: RN 0.81 mudou o template C++ `ConcreteShadowNode<>` de 6 para 5 argumentos e removeu o alias `BaseShadowNode`. `react-native-svg` 15.11.2 usa a assinatura antiga.
+- **Fix**: `npx expo install --fix` → upgrades automáticos:
+  - `react-native-svg`: `^15.11.2` → `15.12.1`
+  - `expo`: `~54.0.35` → `~54.0.37`
+  - `expo-updates`: `~29.0.18` → `~29.0.20`
+- Commit: `419ec2f`
+- Afecta **iOS e Android** — ambas as plataformas compilam o mesmo header C++
+- Trigger novo build EAS após este commit para ambas as plataformas
 - Fix: `readBody` → `readJsonBody` em `/nutrition/measurements` (ReferenceError)
