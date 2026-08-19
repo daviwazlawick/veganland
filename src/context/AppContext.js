@@ -112,13 +112,15 @@ export function AppProvider({ children }) {
       if (history) setScanHistoryState(JSON.parse(history));
       if (disclaimer === 'true') setDisclaimerAcceptedState(true);
       if (surveyDone === 'true') setAppSurveyDoneState(true);
-      // Boot the Meta SDK early on Android so the fb_mobile_activate_app
-      // (install/open) event fires at cold start — this is what Meta uses
-      // for install attribution. On iOS we still wait for ATT via
-      // acceptDisclaimer() → requestTrackingPermission() so we stay
-      // compliant with App Store rules.
+      // Boot the Meta SDK at cold start so fb_mobile_activate_app fires
+      // for install/open attribution. Android: always. iOS: only when the
+      // disclaimer was already accepted (ATT was already decided — iOS won't
+      // show the popup again, just returns the cached status). First-time iOS
+      // users still go through acceptDisclaimer() → requestTrackingPermission().
       if (Platform.OS === 'android') {
         initAnalytics().catch(() => {});
+      } else if (Platform.OS === 'ios' && disclaimer === 'true') {
+        requestTrackingPermission().catch(() => {});
       }
     } catch (e) {
       console.error('Failed to load storage', e);
