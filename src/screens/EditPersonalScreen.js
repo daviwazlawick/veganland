@@ -160,15 +160,67 @@ export default function EditPersonalScreen({ navigation }) {
     }
   }, [goals]);
 
+  // Form key → bodyMeasurements key (aliases differ for arm/hips)
+  const BA_FIELD_MAP = {
+    waist_cm:'waist_cm', hips_cm:'hip_cm', chest_cm:'chest_cm',
+    arm_cm:'bicep_cm', forearm_cm:'forearm_cm', thigh_cm:'thigh_cm',
+    calf_cm:'calf_cm', neck_cm:'neck_cm', body_fat_pct:'body_fat_pct',
+  };
+
   useEffect(() => {
+    const ba = bodyMeasurements[0] || null;
+    const filled = {};
+    // Prefer manual measurement history
     if (latest) {
-      const filled = {};
       MEASURE_FIELDS.forEach(({ key }) => {
         if (latest[key] != null) filled[key] = String(latest[key]);
       });
-      setMeasures(filled);
     }
-  }, [latest]);
+    // Fill any gaps from the last photo analysis
+    if (ba) {
+      MEASURE_FIELDS.forEach(({ key }) => {
+        const baKey = BA_FIELD_MAP[key];
+        if (filled[key] == null && baKey && ba[baKey] != null)
+          filled[key] = String(ba[baKey]);
+      });
+    }
+    if (Object.keys(filled).length > 0) setMeasures(filled);
+  }, [latest, bodyMeasurements]);
+
+  // Derived analysis data: merges form edits with last photo analysis and recomputes indices live
+  const effectiveBa = useMemo(() => {
+    const ba = bodyMeasurements[0];
+    if (!ba) return null;
+    const h  = parseFloat(height);
+    const w  = parseFloat(weight);
+    const hm = h > 50 ? h / 100 : null;
+    const waist = parseFloat(measures.waist_cm)     || ba.waist_cm;
+    const hip   = parseFloat(measures.hips_cm)      || ba.hip_cm;
+    const bf    = parseFloat(measures.body_fat_pct) || ba.body_fat_pct;
+    const bmi_v = hm && w > 0 ? +(w / (hm * hm)).toFixed(1)                              : ba.bmi;
+    const wth_v = h > 0 && waist ? +(waist / h).toFixed(2)                               : ba.waist_to_height;
+    const whi_v = waist && hip   ? +(waist / hip).toFixed(2)                              : ba.waist_to_hip;
+    const ci_v  = hm && w > 0 && waist ? +((waist / 100) / (0.109 * Math.sqrt(w / hm))).toFixed(2) : ba.conicity_index;
+    const fmk_v = bf && w > 0   ? +(w * bf / 100).toFixed(1)                             : ba.fat_mass_kg;
+    const lmk_v = bf && w > 0   ? +(w * (1 - bf / 100)).toFixed(1)                       : ba.lean_mass_kg;
+    const fmi_v = fmk_v && hm   ? +(fmk_v / (hm * hm)).toFixed(1)                       : ba.fat_mass_index;
+    const lmi_v = lmk_v && hm   ? +(lmk_v / (hm * hm)).toFixed(1)                       : ba.lean_mass_index;
+    return {
+      ...ba,
+      chest_cm:        parseFloat(measures.chest_cm)   || ba.chest_cm,
+      neck_cm:         parseFloat(measures.neck_cm)    || ba.neck_cm,
+      bicep_cm:        parseFloat(measures.arm_cm)     || ba.bicep_cm,
+      forearm_cm:      parseFloat(measures.forearm_cm) || ba.forearm_cm,
+      waist_cm:        waist,
+      hip_cm:          hip,
+      thigh_cm:        parseFloat(measures.thigh_cm)   || ba.thigh_cm,
+      calf_cm:         parseFloat(measures.calf_cm)    || ba.calf_cm,
+      body_fat_pct:    bf                              || ba.body_fat_pct,
+      bmi:             bmi_v,   waist_to_height: wth_v, waist_to_hip: whi_v,
+      conicity_index:  ci_v,    fat_mass_kg:     fmk_v, lean_mass_kg: lmk_v,
+      fat_mass_index:  fmi_v,   lean_mass_index: lmi_v,
+    };
+  }, [bodyMeasurements, measures, height, weight]);
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -428,11 +480,11 @@ export default function EditPersonalScreen({ navigation }) {
           <Text style={styles.measureHint}>{t(language, 'measurements.save_hint')}</Text>
 
           {/* ── NovaQI Body Analysis (NovaQI brand only) ── */}
-          {IS_NOVAQI && bodyMeasurements.length > 0 && (() => {
-            const ba = bodyMeasurements[0];
+          {IS_NOVAQI && effectiveBa && (() => {
+            const ba = effectiveBa;
             const sex = bodyProfile?.sex || 'female';
-            const dateStr = ba.recorded_at
-              ? new Date(ba.recorded_at).toLocaleDateString(localeFor(language), { day: '2-digit', month: 'short', year: 'numeric' })
+            const dateStr = bodyMeasurements[0]?.recorded_at
+              ? new Date(bodyMeasurements[0].recorded_at).toLocaleDateString(localeFor(language), { day: '2-digit', month: 'short', year: 'numeric' })
               : null;
 
             return (

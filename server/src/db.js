@@ -1667,7 +1667,7 @@ export async function getWeightHistory(userId, limit = 90) {
 export async function logBodyMeasurements(userId, data) {
   const db = await getPool();
   if (!db) return null;
-  const fields = ['waist_cm','hips_cm','chest_cm','arm_cm','thigh_cm','neck_cm','body_fat_pct'];
+  const fields = ['waist_cm','hips_cm','chest_cm','arm_cm','forearm_cm','thigh_cm','calf_cm','neck_cm','body_fat_pct'];
   const cols = fields.filter(f => data[f] != null);
   if (cols.length === 0) return null;
   const vals = cols.map(f => data[f]);
