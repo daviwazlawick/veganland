@@ -9,7 +9,7 @@ Body fat estimation via Siri/volume method: ±4–7% vs DEXA.
 """
 import sys, json, math, base64, tempfile, os
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import cv2
 import mediapipe as mp
 import rembg
@@ -40,7 +40,10 @@ THRESHOLDS = {
 
 
 def load_image(path):
-    img = Image.open(path).convert('RGB')
+    img = Image.open(path)
+    # Honour EXIF orientation so portrait phone photos are not sideways
+    img = ImageOps.exif_transpose(img)
+    img = img.convert('RGB')
     # Cap at 2000px tall to keep MediaPipe fast
     w, h = img.size
     if h > 2000:
