@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert, ActivityIndicator, Image, Modal, TextInput,
@@ -11,124 +11,143 @@ import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import { apiBodyAnalyze, apiSaveBodyMeasurements } from '../services/apiService';
 
-// ── Info content ─────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function ageFromBirthDate(dateStr) {
+  if (!dateStr) return '';
+  const birth = new Date(dateStr);
+  if (isNaN(birth)) return '';
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age > 0 ? String(age) : '';
+}
+
+// ── Info content ──────────────────────────────────────────────────────────────
 const INFO = {
-  arm_cm: {
-    title: 'Perímetro do braço',
-    desc: 'Circunferência do braço médio, entre ombro e cotovelo.',
-    ref: 'Homens: 28–38 cm\nMulheres: 25–33 cm',
-    why: 'Indicador de massa muscular dos membros superiores. Útil para monitorizar ganhos/perdas ao longo do tempo.',
-  },
-  forearm_cm: {
-    title: 'Perímetro do antebraço',
-    desc: 'Circunferência do antebraço entre cotovelo e pulso.',
-    ref: 'Homens: 24–32 cm\nMulheres: 20–26 cm',
-    why: 'Complementar ao braço. Reflete força de preensão e massa muscular periférica.',
-  },
-  waist_cm: {
-    title: 'Perímetro da cintura',
-    desc: 'Circunferência na zona mais estreita do tronco, acima do umbigo.',
-    ref: 'Risco elevado: >94 cm (♂) / >80 cm (♀)\nRisco muito elevado: >102 cm (♂) / >88 cm (♀)',
-    why: 'Melhor indicador simples de gordura visceral — o tipo mais associado a risco cardiovascular e metabólico.',
-  },
-  hip_cm: {
-    title: 'Perímetro do quadril',
-    desc: 'Circunferência na zona mais larga das ancas/glúteos.',
-    ref: 'Varia com estatura; tipicamente 90–105 cm',
-    why: 'Usado com a cintura para calcular RCQ. Quadril maior indica gordura subcutânea (menos nociva que visceral).',
-  },
-  thigh_cm: {
-    title: 'Perímetro da coxa',
-    desc: 'Circunferência da coxa no terço superior, abaixo da virilha.',
-    ref: 'Homens: 50–65 cm\nMulheres: 52–65 cm',
-    why: 'Coxa maior está associada a menor risco cardiovascular. Reflete massa muscular dos membros inferiores.',
-  },
-  calf_cm: {
-    title: 'Perímetro da panturrilha',
-    desc: 'Circunferência da zona mais larga da barriga da perna.',
-    ref: 'Homens: 33–42 cm\nMulheres: 31–41 cm\n\n<31 cm em idosos: critério de sarcopenia',
-    why: 'Proxy de massa muscular periférica e estado nutricional. Também reflete retenção de líquidos.',
-  },
-  bmi: {
-    title: 'IMC — Índice de Massa Corporal',
-    desc: 'Peso (kg) ÷ altura² (m²). Triagem rápida de peso relativo à altura.',
-    ref: 'Abaixo do peso: <18,5\nNormal (Eutrofia): 18,5–24,9\nExcesso de peso: 25–29,9\nObesidade: ≥30',
-    why: 'Prático e amplamente usado, mas não distingue músculo de gordura. Um atleta muscular pode ter IMC "elevado". Use em conjunto com IMM, IMG e % gordura.',
-  },
-  lean_mass_index: {
-    title: 'Índice de Massa Magra (IMM)',
-    desc: 'Massa magra (kg) ÷ altura² (m²). Avalia a quantidade de músculo, osso e órgãos em relação à altura.',
-    ref: 'Adequado: ≥14,6 kg/m² (♂) / ≥11,8 kg/m² (♀)\nBaixo: abaixo desses valores',
-    why: 'Valores adequados de IMM estão associados a menor risco de diabetes, hipertensão e melhor desempenho físico. Complementa o IMC ao separar massa muscular de gordura.',
-  },
-  fat_mass_index: {
-    title: 'Índice de Massa Gorda (IMG)',
-    desc: 'Massa gorda (kg) ÷ altura² (m²). Avalia a quantidade de gordura em relação à altura.',
-    ref: 'Adequado: <6,0 kg/m² (♂) / <9,0 kg/m² (♀)\nRisco elevado: acima desses valores',
-    why: 'Quanto maior o IMG, maior o risco de obesidade, doenças cardiovasculares e diabetes. Mais sensível que o IMC para detectar excesso de gordura em pessoas de estatura baixa.',
-  },
-  waist_to_height: {
-    title: 'Razão Cintura/Estatura (RCE)',
-    desc: 'Cintura (cm) ÷ estatura (cm). Independente do sexo e da estatura.',
-    ref: 'Baixo risco: <0,5\nRisco elevado: ≥0,5\n\n"Mantém a cintura abaixo de metade da estatura."',
-    why: 'Preditor de risco cardiometabólico mais forte do que o IMC. Estudo de 300k pessoas: RCE >0,5 associado a +45% risco cardiovascular.',
-  },
-  waist_to_hip: {
-    title: 'Razão Cintura/Quadril (RCQ)',
-    desc: 'Cintura ÷ quadril. Mede distribuição de gordura (central "maçã" vs. periférica "pera").',
-    ref: 'Adequado: <0,85 (♀) / <0,90 (♂)\nRisco elevado: ≥esses valores',
-    why: 'Gordura abdominal ("maçã") aumenta risco de diabetes tipo 2, doença cardíaca e hipertensão. Gordura periférica ("pera") é relativamente protetora.',
-  },
-  conicity_index: {
-    title: 'Índice de Conicidade (IC)',
-    desc: 'Fórmula: cintura ÷ (0,109 × √(peso/altura)). Quanto maior, mais o tronco se assemelha a um cone — acumulação central de gordura.',
-    ref: 'Adequado: <1,18\nRisco elevado: ≥1,18',
-    why: 'Mais sensível que RCQ para detectar gordura visceral. Independente do sexo. Usado para rastrear síndrome metabólica e risco cardiovascular.',
-  },
-  body_fat: {
-    title: '% de Gordura Corporal',
-    desc: 'Estimada pela fórmula de Deurenberg (1991):\n1,20×IMC + 0,23×idade − 10,8×sexo − 5,4\n\nErro médio ±4–6% vs. DEXA.',
-    ref: 'Homens:\n  Essencial: 2–5%  |  Atlético: 6–13%\n  Normal: 14–24%  |  Obeso: >25%\n\nMulheres:\n  Essencial: 10–13%  |  Atlético: 14–20%\n  Normal: 21–31%  |  Obeso: >32%',
-    why: 'Mais informativa que o IMC porque separa massa magra de gordura. Permite acompanhar recomposição corporal mesmo quando o peso não muda.',
-  },
-  body_water: {
-    title: 'Água Corporal',
-    desc: 'Estimada como 72,3% da massa magra (constante hídrica de mamíferos).',
-    ref: 'Normal: 45–60% do peso corporal (♀)\nNormal: 50–65% do peso corporal (♂)',
-    why: 'A água corporal total é essencial para todas as funções metabólicas. Desidratação de apenas 2% reduz performance cognitiva e física.',
-  },
-  ree: {
-    title: 'Gasto Energético de Repouso (GER)',
-    desc: 'Estimado pela equação de Cunningham (1980): 500 + 22 × massa magra (kg).',
-    ref: 'Variável: tipicamente 1200–2000 kcal/dia\nDepende da massa magra individual',
-    why: 'É a energia que o corpo gasta em repouso para manter funções vitais (respiração, circulação, temperatura). Base para calcular necessidade calórica total (multiplicar por fator de atividade).',
-  },
-  score: {
-    title: 'NovaQI Score',
-    desc: 'Score composto de 0–100 baseado em 6 indicadores: % gordura, IMM, IMG, RCE, RCQ e índice de conicidade.',
-    ref: '90–100: Excelente\n75–89: Bom\n60–74: Moderado\n<60: Atenção',
-    why: 'Dá uma visão global e simplificada da composição corporal. Útil para acompanhar evolução ao longo do tempo sem precisar interpretar cada indicador individualmente.',
-  },
+  arm_cm:      { title: 'Perímetro do braço',       desc: 'Circunferência do braço médio, entre ombro e cotovelo.',                                                   ref: 'Homens: 28–38 cm\nMulheres: 25–33 cm',                                                                             why: 'Indicador de massa muscular dos membros superiores.' },
+  forearm_cm:  { title: 'Perímetro do antebraço',   desc: 'Circunferência do antebraço entre cotovelo e pulso.',                                                       ref: 'Homens: 24–32 cm\nMulheres: 20–26 cm',                                                                             why: 'Reflete força de preensão e massa muscular periférica.' },
+  waist_cm:    { title: 'Perímetro da cintura',      desc: 'Circunferência na zona mais estreita do tronco, acima do umbigo.',                                         ref: 'Risco elevado: >94 cm (♂) / >80 cm (♀)\nRisco muito elevado: >102 cm (♂) / >88 cm (♀)',                         why: 'Melhor indicador simples de gordura visceral — associado a risco cardiovascular e metabólico.' },
+  hip_cm:      { title: 'Perímetro do quadril',      desc: 'Circunferência na zona mais larga das ancas/glúteos.',                                                     ref: 'Tipicamente 90–105 cm',                                                                                            why: 'Usado com a cintura para calcular RCQ. Quadril maior indica gordura subcutânea (menos nociva).' },
+  thigh_cm:    { title: 'Perímetro da coxa',         desc: 'Circunferência da coxa no terço superior, abaixo da virilha.',                                             ref: 'Homens: 50–65 cm\nMulheres: 52–65 cm',                                                                             why: 'Coxa maior está associada a menor risco cardiovascular.' },
+  calf_cm:     { title: 'Perímetro da panturrilha',  desc: 'Circunferência da zona mais larga da barriga da perna.',                                                   ref: 'Homens: 33–42 cm\nMulheres: 31–41 cm\n<31 cm em idosos = critério de sarcopenia',                               why: 'Proxy de massa muscular periférica e estado nutricional.' },
+  bmi:         { title: 'IMC',                        desc: 'Peso (kg) ÷ altura² (m²).',                                                                               ref: 'Abaixo do peso: <18,5\nNormal: 18,5–24,9\nExcesso: 25–29,9\nObesidade: ≥30',                                   why: 'Triagem rápida. Não distingue músculo de gordura — use com IMM, IMG e % gordura.' },
+  lean_mass_index: { title: 'Índice de Massa Magra (IMM)', desc: 'Massa magra (kg) ÷ altura² (m²).',                                                                  ref: 'Adequado: ≥14,6 kg/m² (♂) / ≥11,8 kg/m² (♀)',                                                                   why: 'Valores adequados associados a menor risco de diabetes e hipertensão.' },
+  fat_mass_index:  { title: 'Índice de Massa Gorda (IMG)',  desc: 'Massa gorda (kg) ÷ altura² (m²).',                                                                  ref: 'Adequado: <6,0 kg/m² (♂) / <9,0 kg/m² (♀)',                                                                     why: 'Mais sensível que IMC para detectar excesso de gordura em pessoas de baixa estatura.' },
+  waist_to_height: { title: 'Razão Cintura/Estatura (RCE)', desc: 'Cintura ÷ estatura. Independente do sexo.',                                                         ref: 'Baixo risco: <0,5\nRisco elevado: ≥0,5\n"Mantém a cintura abaixo de metade da estatura."',                      why: 'Preditor de risco cardiometabólico mais forte do que o IMC.' },
+  waist_to_hip:    { title: 'Razão Cintura/Quadril (RCQ)',  desc: 'Cintura ÷ quadril. Distribuição de gordura central vs. periférica.',                               ref: 'Adequado: <0,85 (♀) / <0,90 (♂)',                                                                               why: 'Gordura abdominal ("maçã") aumenta risco de diabetes e doença cardíaca.' },
+  conicity_index:  { title: 'Índice de Conicidade (IC)',    desc: 'Cintura ÷ (0,109 × √(peso/altura)). Quanto maior, mais acumulação central.',                       ref: 'Adequado: <1,18\nRisco elevado: ≥1,18',                                                                          why: 'Mais sensível que RCQ para detectar gordura visceral.' },
+  body_fat:        { title: '% Gordura Corporal',           desc: 'Fórmula de Deurenberg (1991): 1,20×IMC + 0,23×idade − 10,8×sexo − 5,4. Erro ±4–6% vs. DEXA.',   ref: 'Homens: Essencial 2–5% · Atlético 6–13% · Normal 14–24% · Obeso >25%\nMulheres: Essencial 10–13% · Atlético 14–20% · Normal 21–31% · Obeso >32%', why: 'Separa massa magra de gordura — permite acompanhar recomposição corporal.' },
+  body_water:      { title: 'Água Corporal',                desc: 'Estimada como 72,3% da massa magra (constante hídrica de mamíferos).',                              ref: 'Normal: 45–60% do peso (♀) / 50–65% (♂)',                                                                       why: 'Essencial para todas as funções metabólicas. Desidratação de 2% reduz performance.' },
+  ree:             { title: 'Gasto Energético de Repouso',  desc: 'Equação de Cunningham (1980): 500 + 22 × massa magra (kg).',                                        ref: 'Tipicamente 1200–2000 kcal/dia',                                                                                 why: 'Base para calcular necessidade calórica total (multiplicar por fator de atividade).' },
+  score:           { title: 'NovaQI Score',                 desc: 'Score 0–100 baseado em 6 indicadores: % gordura, IMM, IMG, RCE, RCQ e índice de conicidade.',      ref: '90–100: Excelente · 75–89: Bom · 60–74: Moderado · <60: Atenção',                                               why: 'Visão global da composição corporal. Útil para acompanhar evolução ao longo do tempo.' },
 };
 
+// ── Classification helpers ────────────────────────────────────────────────────
+const CLS_LABEL = {
+  low_risk: 'Baixo risco', elevated_risk: 'Risco elevado', adequate: 'Adequado',
+  low: 'Baixo', underweight: 'Abaixo do peso', normal: 'Eutrofia',
+  overweight: 'Excesso', obese: 'Obesidade',
+};
+const CLS_COLOR = {
+  low_risk: '#22C55E', adequate: '#22C55E', normal: '#22C55E',
+  elevated_risk: '#EF4444', obese: '#EF4444',
+  overweight: '#F59E0B', underweight: '#F59E0B', low: '#F59E0B',
+};
+
+function clsL(c) { return CLS_LABEL[c] || '—'; }
+function clsC(c) { return CLS_COLOR[c] || Colors.textMuted; }
+
+// ── Gauge (semicircle) ────────────────────────────────────────────────────────
+function Gauge({ pct, color, size = 110 }) {
+  // Draw a semicircle gauge using nested Views + overflow:hidden
+  const r = size / 2;
+  const rotation = -180 + (pct / 100) * 180;
+  return (
+    <View style={{ width: size, height: r + 8, alignItems: 'center' }}>
+      {/* Track */}
+      <View style={{ width: size, height: size, borderRadius: r, borderWidth: 10, borderColor: Colors.border, position: 'absolute', top: 0 }} />
+      {/* Fill — clip top half */}
+      <View style={{ width: size, height: r, overflow: 'hidden', position: 'absolute', top: 0 }}>
+        <View style={{
+          width: size, height: size, borderRadius: r,
+          borderWidth: 10, borderColor: color,
+          transform: [{ rotate: `${rotation}deg` }],
+        }} />
+      </View>
+      {/* Center number */}
+      <View style={{ position: 'absolute', bottom: 0, alignItems: 'center' }}>
+        <Text style={{ fontSize: 22, fontWeight: '900', color, fontFamily: BrandFonts.bold || undefined }}>{pct}%</Text>
+      </View>
+    </View>
+  );
+}
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+function ProgressBar({ value, min, max, thresholds, color }) {
+  // thresholds: [{at: 0.5, color: '#EF4444'}] — marks on the bar
+  const clamped = Math.max(min, Math.min(max, value ?? min));
+  const pct = ((clamped - min) / (max - min)) * 100;
+  return (
+    <View style={{ height: 6, backgroundColor: Colors.border, borderRadius: 3, overflow: 'hidden', marginTop: 4 }}>
+      <View style={{ height: 6, width: `${pct}%`, backgroundColor: color, borderRadius: 3 }} />
+    </View>
+  );
+}
+
+// ── Score badge grid ──────────────────────────────────────────────────────────
+function ScoreBadges({ cls, sex }) {
+  const items = [
+    { key: 'body_fat',        label: '% Gordura' },
+    { key: 'lean_mass_index', label: 'IMM' },
+    { key: 'fat_mass_index',  label: 'IMG' },
+    { key: 'waist_to_height', label: 'RCE' },
+    { key: 'waist_to_hip',    label: 'RCQ' },
+    { key: 'conicity_index',  label: 'IC' },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+      {items.map(({ key, label }) => {
+        const c = cls?.[key];
+        const color = clsC(c);
+        const isGood = c === 'low_risk' || c === 'adequate' || c === 'normal';
+        return (
+          <View key={key} style={[sbStyles.badge, { backgroundColor: color + '18', borderColor: color + '44' }]}>
+            <View style={[sbStyles.dot, { backgroundColor: color }]} />
+            <Text style={[sbStyles.label, { color }]}>{label}</Text>
+            <Text style={[sbStyles.sub, { color }]}>{clsL(c)}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+const sbStyles = StyleSheet.create({
+  badge:  { flexDirection: 'column', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1, minWidth: 68 },
+  dot:    { width: 7, height: 7, borderRadius: 4, marginBottom: 3 },
+  label:  { fontSize: 10, fontWeight: '800' },
+  sub:    { fontSize: 9, fontWeight: '600', opacity: 0.8 },
+});
+
+// ── Info modal ────────────────────────────────────────────────────────────────
 function InfoModal({ info, onClose }) {
   if (!info) return null;
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.modalCard}>
-          <Text style={styles.modalTitle}>{info.title}</Text>
-          <Text style={styles.modalDesc}>{info.desc}</Text>
-          <View style={styles.modalSection}>
-            <Text style={styles.modalSectionLabel}>Valores de referência</Text>
-            <Text style={styles.modalRef}>{info.ref}</Text>
+      <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={s.modalCard}>
+          <Text style={s.modalTitle}>{info.title}</Text>
+          <Text style={s.modalDesc}>{info.desc}</Text>
+          <View style={s.modalSection}>
+            <Text style={s.modalSectionLabel}>Valores de referência</Text>
+            <Text style={s.modalRef}>{info.ref}</Text>
           </View>
-          <View style={styles.modalSection}>
-            <Text style={styles.modalSectionLabel}>Porquê importa</Text>
-            <Text style={styles.modalRef}>{info.why}</Text>
+          <View style={s.modalSection}>
+            <Text style={s.modalSectionLabel}>Porquê importa</Text>
+            <Text style={s.modalRef}>{info.why}</Text>
           </View>
-          <TouchableOpacity style={styles.modalClose} onPress={onClose}>
-            <Text style={styles.modalCloseText}>Fechar</Text>
+          <TouchableOpacity style={s.modalClose} onPress={onClose}>
+            <Text style={s.modalCloseText}>Fechar</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -136,33 +155,29 @@ function InfoModal({ info, onClose }) {
   );
 }
 
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function BodyAnalysisScreen({ navigation }) {
   const { token } = useAuth();
   const { saveBodyProfile, bodyProfile } = useNutrition();
 
-  const [frontUri, setFrontUri]     = useState(null);
-  const [sideUri,  setSideUri]      = useState(null);
-  const [heightCm, setHeightCm]     = useState(bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '');
-  const [weightKg, setWeightKg]     = useState(bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '');
-  const [sex,      setSex]          = useState(bodyProfile?.sex || 'female');
-  const [age,      setAge]          = useState('');
-  const [analyzing, setAnalyzing]   = useState(false);
-  const [result,    setResult]      = useState(null);
+  const derivedAge = useMemo(() => ageFromBirthDate(bodyProfile?.birth_date), [bodyProfile?.birth_date]);
+
+  const [frontUri,   setFrontUri]   = useState(null);
+  const [sideUri,    setSideUri]    = useState(null);
+  const [heightCm,   setHeightCm]   = useState(bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '');
+  const [weightKg,   setWeightKg]   = useState(bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '');
+  const [sex,        setSex]        = useState(bodyProfile?.sex || 'female');
+  const [age,        setAge]        = useState(derivedAge);
+  const [analyzing,  setAnalyzing]  = useState(false);
+  const [result,     setResult]     = useState(null);
   const [activeInfo, setActiveInfo] = useState(null);
 
   function showInfo(key) { setActiveInfo(INFO[key] || null); }
 
   async function pickPhoto(side) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Preciso de acesso à galeria para seleccionar fotos.');
-      return;
-    }
-    const picked = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.5,
-      base64: false,
-    });
+    if (status !== 'granted') { Alert.alert('Permissão necessária', 'Preciso de acesso à galeria.'); return; }
+    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
     if (!picked.canceled && picked.assets?.[0]) {
       if (side === 'front') setFrontUri(picked.assets[0].uri);
       else setSideUri(picked.assets[0].uri);
@@ -170,75 +185,42 @@ export default function BodyAnalysisScreen({ navigation }) {
   }
 
   async function uriToBase64(uri) {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
+    const blob = await (await fetch(uri)).blob();
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(blob);
     });
   }
 
   async function runAnalysis() {
     if (!frontUri || !sideUri) { Alert.alert('Fotos em falta', 'Selecciona a foto frontal e a lateral.'); return; }
     if (!heightCm || !weightKg) { Alert.alert('Dados em falta', 'Preenche altura e peso.'); return; }
-    setAnalyzing(true);
-    setResult(null);
+    setAnalyzing(true); setResult(null);
     try {
       const [frontB64, sideB64] = await Promise.all([uriToBase64(frontUri), uriToBase64(sideUri)]);
-      const data = await apiBodyAnalyze(token, {
-        frontImage: frontB64,
-        sideImage:  sideB64,
-        heightCm:   parseFloat(heightCm),
-        weightKg:   parseFloat(weightKg),
-        sex,
-        age: age ? parseInt(age, 10) : 0,
-      });
-      setResult(data);
-    } catch (e) {
-      Alert.alert('Erro na análise', e.message || 'Tenta novamente.');
-    } finally {
-      setAnalyzing(false);
-    }
+      setResult(await apiBodyAnalyze(token, {
+        frontImage: frontB64, sideImage: sideB64,
+        heightCm: parseFloat(heightCm), weightKg: parseFloat(weightKg),
+        sex, age: age ? parseInt(age, 10) : 0,
+      }));
+    } catch (e) { Alert.alert('Erro na análise', e.message || 'Tenta novamente.'); }
+    finally { setAnalyzing(false); }
   }
 
   async function saveResults() {
     if (!result) return;
-    try {
-      await apiSaveBodyMeasurements(token, {
-        ...result.measurements,
-        ...result.indices,
-        confidence:      result.meta?.confidence,
-        warnings:        result.meta?.warnings,
-        scale_px_per_cm: result.meta?.scale_px_per_cm,
-      });
-    } catch { /* non-fatal */ }
-
-    Alert.alert(
-      'Actualizar perfil?',
-      `Substituir os dados do teu perfil?\n\nAltura: ${heightCm} cm\nPeso: ${weightKg} kg`,
-      [
-        { text: 'Não', style: 'cancel' },
-        {
-          text: 'Sim, actualizar',
-          onPress: async () => {
-            try {
-              const birthYear = bodyProfile?.birth_date?.slice(0, 4) || null;
-              await saveBodyProfile({
-                height_cm:      parseFloat(heightCm),
-                weight_kg:      parseFloat(weightKg),
-                sex,
-                birth_date:     birthYear ? `${birthYear}-01-01` : bodyProfile?.birth_date || null,
-                activity_level: bodyProfile?.activity_level || 'moderate',
-                goal:           bodyProfile?.goal || 'maintain',
-              });
-              Alert.alert('Perfil actualizado', 'Os dados foram guardados com sucesso.');
-            } catch { Alert.alert('Erro', 'Não foi possível guardar o perfil.'); }
-          },
-        },
-      ]
-    );
+    try { await apiSaveBodyMeasurements(token, { ...result.measurements, ...result.indices, confidence: result.meta?.confidence, warnings: result.meta?.warnings, scale_px_per_cm: result.meta?.scale_px_per_cm }); } catch {}
+    Alert.alert('Actualizar perfil?', `Altura: ${heightCm} cm · Peso: ${weightKg} kg`, [
+      { text: 'Não', style: 'cancel' },
+      { text: 'Actualizar', onPress: async () => {
+        try {
+          await saveBodyProfile({ height_cm: parseFloat(heightCm), weight_kg: parseFloat(weightKg), sex, birth_date: bodyProfile?.birth_date || null, activity_level: bodyProfile?.activity_level || 'moderate', goal: bodyProfile?.goal || 'maintain' });
+          Alert.alert('Perfil actualizado', 'Dados guardados com sucesso.');
+        } catch { Alert.alert('Erro', 'Não foi possível guardar.'); }
+      }},
+    ]);
   }
 
   const m   = result?.measurements;
@@ -247,435 +229,416 @@ export default function BodyAnalysisScreen({ navigation }) {
   const bc  = result?.body_composition;
   const sc  = result?.score;
 
-  const CLS_LABEL = {
-    low_risk: 'Baixo risco',   elevated_risk: 'Risco elevado',
-    adequate: 'Adequado',      low: 'Baixo',
-    underweight: 'Abaixo do peso', normal: 'Eutrofia',
-    overweight: 'Excesso de peso', obese: 'Obesidade',
-  };
-  const CLS_COLOR = {
-    low_risk: Colors.safe,   adequate: Colors.safe,   normal: Colors.safe,
-    elevated_risk: Colors.danger, obese: Colors.danger,
-    overweight: '#F59E0B',   underweight: '#F59E0B',   low: '#F59E0B',
-  };
-
-  function clsLabel(key) { return CLS_LABEL[cls?.[key]] || '—'; }
-  function clsColor(key) { return CLS_COLOR[cls?.[key]] || Colors.textMuted; }
-
-  function bfCategory(pct) {
+  function bfMeta(pct) {
     if (!pct) return null;
     if (sex === 'male') {
-      if (pct < 6)  return { label: 'Essencial',  color: '#F59E0B' };
-      if (pct < 14) return { label: 'Atlético',   color: Colors.safe };
-      if (pct < 25) return { label: 'Normal',     color: Colors.safe };
-      return             { label: 'Obeso',        color: Colors.danger };
-    } else {
-      if (pct < 14) return { label: 'Essencial',  color: '#F59E0B' };
-      if (pct < 21) return { label: 'Atlético',   color: Colors.safe };
-      if (pct < 32) return { label: 'Normal',     color: Colors.safe };
-      return             { label: 'Obeso',        color: Colors.danger };
+      if (pct < 6)  return { label: 'Essencial', color: '#F59E0B', pctOfMax: pct / 35 * 100 };
+      if (pct < 14) return { label: 'Atlético',  color: '#22C55E', pctOfMax: pct / 35 * 100 };
+      if (pct < 25) return { label: 'Normal',    color: '#22C55E', pctOfMax: pct / 35 * 100 };
+      return             { label: 'Obeso',       color: '#EF4444', pctOfMax: Math.min(pct / 35 * 100, 100) };
     }
+    if (pct < 14) return { label: 'Essencial', color: '#F59E0B', pctOfMax: pct / 45 * 100 };
+    if (pct < 21) return { label: 'Atlético',  color: '#22C55E', pctOfMax: pct / 45 * 100 };
+    if (pct < 32) return { label: 'Normal',    color: '#22C55E', pctOfMax: pct / 45 * 100 };
+    return             { label: 'Obeso',       color: '#EF4444', pctOfMax: Math.min(pct / 45 * 100, 100) };
   }
 
-  function scoreColor(s) {
-    if (!s) return Colors.textMuted;
-    if (s >= 90) return Colors.safe;
-    if (s >= 75) return '#22C55E';
-    if (s >= 60) return '#F59E0B';
-    return Colors.danger;
+  function scoreColor(v) {
+    if (!v) return Colors.textMuted;
+    if (v >= 90) return '#22C55E'; if (v >= 75) return '#4ADE80';
+    if (v >= 60) return '#F59E0B'; return '#EF4444';
   }
-  function scoreLabel(s) {
-    if (!s) return '—';
-    if (s >= 90) return 'Excelente';
-    if (s >= 75) return 'Bom';
-    if (s >= 60) return 'Moderado';
-    return 'Atenção';
+  function scoreLabel(v) {
+    if (!v) return '—';
+    if (v >= 90) return 'Excelente'; if (v >= 75) return 'Bom';
+    if (v >= 60) return 'Moderado';  return 'Atenção';
   }
+
+  const bf = bfMeta(bc?.body_fat_pct);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <InfoModal info={activeInfo} onClose={() => setActiveInfo(null)} />
 
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+          <Text style={s.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Análise corporal</Text>
-        <Text style={styles.badge}>ADMIN</Text>
+        <Text style={s.title}>Análise corporal</Text>
+        <Text style={s.badge}>ADMIN</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Photo pickers */}
-        <View style={styles.photoRow}>
-          <PhotoPicker label="Frente" uri={frontUri} onPress={() => pickPhoto('front')} />
-          <PhotoPicker label="Lateral" uri={sideUri}  onPress={() => pickPhoto('side')} />
+        {/* Photos */}
+        <View style={s.photoRow}>
+          {['front','side'].map(side => (
+            <TouchableOpacity key={side} style={s.photoPicker} onPress={() => pickPhoto(side)} activeOpacity={0.8}>
+              {(side === 'front' ? frontUri : sideUri)
+                ? <Image source={{ uri: side === 'front' ? frontUri : sideUri }} style={s.photoPreview} resizeMode="cover" />
+                : <Text style={s.photoPlaceholder}>+{'\n'}{side === 'front' ? 'Frente' : 'Lateral'}</Text>}
+              <Text style={s.photoLabel}>{side === 'front' ? 'Frente' : 'Lateral'}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Demographics */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Dados para calibração</Text>
-          <View style={styles.inputRow}>
-            <Field label="Altura (cm)" value={heightCm} onChangeText={setHeightCm} keyboardType="decimal-pad" />
-            <Field label="Peso (kg)"   value={weightKg} onChangeText={setWeightKg} keyboardType="decimal-pad" />
-            <Field label="Idade"       value={age}      onChangeText={setAge}       keyboardType="number-pad" />
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Dados de calibração</Text>
+          <View style={s.inputRow}>
+            <Field label="Altura (cm)" value={heightCm} onChange={setHeightCm} kbType="decimal-pad" />
+            <Field label="Peso (kg)"   value={weightKg} onChange={setWeightKg} kbType="decimal-pad" />
+            <Field label="Idade"       value={age}      onChange={setAge}       kbType="number-pad" />
           </View>
-          <View style={styles.sexRow}>
-            {['female', 'male'].map(s => (
-              <TouchableOpacity key={s} style={[styles.sexBtn, sex === s && styles.sexBtnActive]} onPress={() => setSex(s)}>
-                <Text style={[styles.sexBtnText, sex === s && styles.sexBtnTextActive]}>
-                  {s === 'female' ? '♀ Feminino' : '♂ Masculino'}
-                </Text>
+          <View style={s.sexRow}>
+            {['female','male'].map(sv => (
+              <TouchableOpacity key={sv} style={[s.sexBtn, sex === sv && s.sexBtnOn]} onPress={() => setSex(sv)}>
+                <Text style={[s.sexBtnTxt, sex === sv && s.sexBtnTxtOn]}>{sv === 'female' ? '♀ Feminino' : '♂ Masculino'}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Analyse button */}
-        <TouchableOpacity
-          style={[styles.analyzeBtn, (analyzing || !frontUri || !sideUri) && styles.analyzeBtnDisabled]}
-          onPress={runAnalysis}
-          disabled={analyzing || !frontUri || !sideUri}
-          activeOpacity={0.85}
-        >
+        {/* Analyse */}
+        <TouchableOpacity style={[s.analyzeBtn, (analyzing || !frontUri || !sideUri) && s.analyzeBtnOff]} onPress={runAnalysis} disabled={analyzing || !frontUri || !sideUri} activeOpacity={0.85}>
           {analyzing
-            ? <><ActivityIndicator color="#fff" /><Text style={styles.analyzeBtnText}> A analisar…</Text></>
-            : <Text style={styles.analyzeBtnText}>Analisar →</Text>}
+            ? <><ActivityIndicator color="#fff" /><Text style={s.analyzeBtnTxt}> A analisar…</Text></>
+            : <Text style={s.analyzeBtnTxt}>Analisar →</Text>}
         </TouchableOpacity>
 
         {result?.meta?.warnings?.length > 0 && (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>⚠ {result.meta.warnings.join(' · ')}</Text>
+          <View style={s.warnBox}><Text style={s.warnTxt}>⚠ {result.meta.warnings.join(' · ')}</Text></View>
+        )}
+
+        {result && <>
+
+          {/* Overlays */}
+          {result.overlays && (
+            <View style={s.overlayRow}>
+              {[['front','Frente'],['side','Lateral']].map(([k,l]) => result.overlays[k] ? (
+                <View key={k} style={s.overlayWrap}>
+                  <Image source={{ uri: `data:image/jpeg;base64,${result.overlays[k]}` }} style={s.overlayImg} resizeMode="contain" />
+                  <Text style={s.overlayLabel}>{l}</Text>
+                </View>
+              ) : null)}
+            </View>
+          )}
+
+          {/* ── SCORE ── */}
+          {sc != null && (
+            <View style={s.scoreCard}>
+              <View style={s.scoreTop}>
+                <View style={s.scoreNumWrap}>
+                  <Text style={[s.scoreNum, { color: scoreColor(sc) }]}>{sc}</Text>
+                  <Text style={s.scoreSlash}>/100</Text>
+                </View>
+                <View style={s.scoreInfo}>
+                  <Text style={s.scoreTitle}>NovaQI Score</Text>
+                  <View style={[s.scorePill, { backgroundColor: scoreColor(sc) + '22' }]}>
+                    <Text style={[s.scorePillTxt, { color: scoreColor(sc) }]}>{scoreLabel(sc)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => showInfo('score')} style={s.infoBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={s.infoBtnTxt}>?</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {/* Score bar */}
+              <View style={s.scoreBarTrack}>
+                <View style={[s.scoreBarFill, { width: `${sc}%`, backgroundColor: scoreColor(sc) }]} />
+              </View>
+              {/* Badge grid */}
+              <ScoreBadges cls={cls} sex={sex} />
+            </View>
+          )}
+
+          {/* ── COMPOSIÇÃO CORPORAL ── */}
+          {bc && (
+            <View style={s.card}>
+              <Row2 title="Composição corporal" onInfo={() => showInfo('body_fat')} sub="Deurenberg ±4–6%" />
+
+              {/* Gauge + split */}
+              <View style={s.bfMain}>
+                <View style={s.gaugeWrap}>
+                  <Gauge pct={bc.body_fat_pct} color={bf?.color || Colors.primary} size={120} />
+                  {bf && (
+                    <View style={[s.bfPill, { backgroundColor: bf.color + '20', borderColor: bf.color + '50' }]}>
+                      <Text style={[s.bfPillTxt, { color: bf.color }]}>{bf.label}</Text>
+                    </View>
+                  )}
+                  <Text style={s.bfGaugeLabel}>gordura corporal</Text>
+                </View>
+                <View style={s.bfCards}>
+                  <MassCard label="Massa magra" kg={bc.lean_mass_kg} color="#22C55E" />
+                  <MassCard label="Massa gorda" kg={bc.fat_mass_kg}  color={bf?.color || '#F59E0B'} />
+                </View>
+              </View>
+
+              {/* Water + REE */}
+              <View style={s.extraRow}>
+                <TouchableOpacity style={s.extraItem} onPress={() => showInfo('body_water')}>
+                  <Text style={s.extraVal}>{bc.body_water_l} L</Text>
+                  <Text style={s.extraLabel}>Água corporal</Text>
+                  <Text style={s.extraSub}>{bc.body_water_pct}%  ·  ?</Text>
+                </TouchableOpacity>
+                <View style={s.extraDiv} />
+                <TouchableOpacity style={s.extraItem} onPress={() => showInfo('ree')}>
+                  <Text style={s.extraVal}>{bc.ree_kcal} kcal</Text>
+                  <Text style={s.extraLabel}>Repouso / dia</Text>
+                  <Text style={s.extraSub}>Cunningham  ·  ?</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ── PERÍMETROS ── */}
+          <View style={s.card}>
+            <Row2 title="Perímetros" sub="Precisão ±2–4 cm (modelo elíptico)" />
+            {[
+              ['Braço',       m?.arm_cm,     'arm_cm',     8, 50],
+              ['Antebraço',   m?.forearm_cm, 'forearm_cm', 8, 45],
+              ['Cintura',     m?.waist_cm,   'waist_cm',   50, 130],
+              ['Quadril',     m?.hip_cm,     'hip_cm',     60, 140],
+              ['Coxa',        m?.thigh_cm,   'thigh_cm',   30, 90],
+              ['Panturrilha', m?.calf_cm,    'calf_cm',    20, 60],
+            ].map(([label, val, key, min, max]) => (
+              <View key={key}>
+                <MetricRow label={label} value={val != null ? `${val} cm` : '—'} onInfo={() => showInfo(key)} />
+                {val != null && <ProgressBar value={val} min={min} max={max} color={Colors.primary} />}
+              </View>
+            ))}
           </View>
-        )}
 
-        {result && (
-          <>
-            {/* Overlays */}
-            {result.overlays && (
-              <View style={styles.overlayRow}>
-                <OverlayImage b64={result.overlays.front} label="Frente" />
-                <OverlayImage b64={result.overlays.side}  label="Lateral" />
+          {/* ── ÍNDICES ── */}
+          <View style={s.card}>
+            <Row2 title="Índices" />
+            {[
+              { label: 'IMC',                    val: idx?.bmi,             clsKey: 'bmi',             infoKey: 'bmi',             min: 15, max: 40, threshOk: [18.5, 25], higher: false },
+              { label: 'IMM (kg/m²)',            val: idx?.lean_mass_index, clsKey: 'lean_mass_index', infoKey: 'lean_mass_index', min: 8,  max: 25, threshOk: [sex==='male'?14.6:11.8, 25], higher: true },
+              { label: 'IMG (kg/m²)',            val: idx?.fat_mass_index,  clsKey: 'fat_mass_index',  infoKey: 'fat_mass_index',  min: 0,  max: 18, threshOk: [0, sex==='male'?6:9], higher: false },
+              { label: 'Razão cin./estatura',    val: idx?.waist_to_height, clsKey: 'waist_to_height', infoKey: 'waist_to_height', min: 0.3, max: 0.8, threshOk: [0.3, 0.5], higher: false },
+              { label: 'Razão cintura/quadril',  val: idx?.waist_to_hip,    clsKey: 'waist_to_hip',    infoKey: 'waist_to_hip',    min: 0.5, max: 1.2, threshOk: [0.5, sex==='male'?0.9:0.85], higher: false },
+              { label: 'Índice de conicidade',   val: idx?.conicity_index,  clsKey: 'conicity_index',  infoKey: 'conicity_index',  min: 0.9, max: 1.5, threshOk: [0.9, 1.18], higher: false },
+            ].map(({ label, val, clsKey, infoKey, min, max }) => {
+              const c = cls?.[clsKey];
+              const barColor = clsC(c);
+              return (
+                <View key={infoKey}>
+                  <MetricRow
+                    label={label}
+                    value={val != null ? String(val) : '—'}
+                    tag={clsL(c)}
+                    tagColor={clsC(c)}
+                    onInfo={() => showInfo(infoKey)}
+                  />
+                  {val != null && <ProgressBar value={val} min={min} max={max} color={barColor} />}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* ── TABELA DE REFERÊNCIAS ── */}
+          <View style={s.card}>
+            <Row2 title="Referências" />
+            {[
+              ['IMG',  idx?.fat_mass_index  != null ? `${idx.fat_mass_index} kg/m²`  : '—', sex==='male' ? '<6,0' : '<9,0', 'fat_mass_index'],
+              ['IMM',  idx?.lean_mass_index != null ? `${idx.lean_mass_index} kg/m²` : '—', sex==='male' ? '>14,6' : '>11,8', 'lean_mass_index'],
+              ['RCE',  idx?.waist_to_height != null ? String(idx.waist_to_height)    : '—', '<0,5',                           'waist_to_height'],
+              ['RCQ',  idx?.waist_to_hip    != null ? String(idx.waist_to_hip)       : '—', sex==='male' ? '<0,90' : '<0,85', 'waist_to_hip'],
+              ['IC',   idx?.conicity_index  != null ? String(idx.conicity_index)     : '—', '<1,18',                          'conicity_index'],
+            ].map(([label, val, ref, key]) => (
+              <View key={key} style={s.refRow}>
+                <Text style={s.refLabel}>{label}</Text>
+                <Text style={s.refRef}>ref. {ref}</Text>
+                <Text style={[s.refVal, { color: clsC(cls?.[key]) }]}>{val}</Text>
               </View>
-            )}
+            ))}
+          </View>
 
-            {/* Score */}
-            {sc != null && (
-              <TouchableOpacity style={styles.scoreCard} onPress={() => showInfo('score')} activeOpacity={0.85}>
-                <View style={styles.scoreLeft}>
-                  <Text style={[styles.scoreNum, { color: scoreColor(sc) }]}>{sc}</Text>
-                  <Text style={styles.scoreMax}>/100</Text>
-                </View>
-                <View style={styles.scoreRight}>
-                  <Text style={styles.scoreTitle}>NovaQI Score</Text>
-                  <View style={[styles.scoreBadge, { backgroundColor: scoreColor(sc) + '22' }]}>
-                    <Text style={[styles.scoreBadgeText, { color: scoreColor(sc) }]}>{scoreLabel(sc)}</Text>
-                  </View>
-                  <Text style={styles.scoreDesc}>Baseado em 6 indicadores de composição corporal</Text>
-                </View>
-                <Text style={styles.scoreInfo}>?</Text>
-              </TouchableOpacity>
-            )}
+          <TouchableOpacity style={s.saveBtn} onPress={saveResults} activeOpacity={0.85}>
+            <Text style={s.saveBtnTxt}>Guardar resultados</Text>
+          </TouchableOpacity>
+        </>}
 
-            {/* Body composition */}
-            {bc && (
-              <View style={styles.card}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={styles.cardTitle}>Composição corporal</Text>
-                  <TouchableOpacity onPress={() => showInfo('body_fat')} style={styles.infoBtn}>
-                    <Text style={styles.infoBtnText}>?</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.cardSub}>Estimativa Deurenberg ±4–6%</Text>
-
-                {/* Fat % prominent */}
-                <View style={styles.bfRow}>
-                  <View style={styles.bfMain}>
-                    <Text style={[styles.bfPct, { color: bfCategory(bc.body_fat_pct)?.color || Colors.text }]}>
-                      {bc.body_fat_pct}%
-                    </Text>
-                    <Text style={styles.bfLabel}>gordura</Text>
-                    {bfCategory(bc.body_fat_pct) && (
-                      <View style={[styles.bfCatBadge, { backgroundColor: bfCategory(bc.body_fat_pct).color + '22' }]}>
-                        <Text style={[styles.bfCatText, { color: bfCategory(bc.body_fat_pct).color }]}>
-                          {bfCategory(bc.body_fat_pct).label}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.bfSplit}>
-                    <View style={styles.bfSplitItem}>
-                      <Text style={styles.bfSplitVal}>{bc.fat_mass_kg} kg</Text>
-                      <Text style={styles.bfSplitLabel}>massa gorda</Text>
-                    </View>
-                    <View style={styles.bfSplitItem}>
-                      <Text style={styles.bfSplitVal}>{bc.lean_mass_kg} kg</Text>
-                      <Text style={styles.bfSplitLabel}>massa magra</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Water + REE row */}
-                <View style={styles.extraRow}>
-                  <TouchableOpacity style={styles.extraItem} onPress={() => showInfo('body_water')}>
-                    <Text style={styles.extraVal}>{bc.body_water_l} L</Text>
-                    <Text style={styles.extraLabel}>água corporal</Text>
-                    <Text style={styles.extraSub}>{bc.body_water_pct}%  ·  ?</Text>
-                  </TouchableOpacity>
-                  <View style={styles.extraDivider} />
-                  <TouchableOpacity style={styles.extraItem} onPress={() => showInfo('ree')}>
-                    <Text style={styles.extraVal}>{bc.ree_kcal}</Text>
-                    <Text style={styles.extraLabel}>kcal/dia repouso</Text>
-                    <Text style={styles.extraSub}>Cunningham  ·  ?</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* Perímetros */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Perímetros</Text>
-              <Text style={styles.cardSub}>Precisão ±2–4 cm (modelo elíptico)</Text>
-              {[
-                ['Braço',       m?.arm_cm,     'arm_cm'],
-                ['Antebraço',   m?.forearm_cm, 'forearm_cm'],
-                ['Cintura',     m?.waist_cm,   'waist_cm'],
-                ['Quadril',     m?.hip_cm,     'hip_cm'],
-                ['Coxa',        m?.thigh_cm,   'thigh_cm'],
-                ['Panturrilha', m?.calf_cm,    'calf_cm'],
-              ].map(([label, val, key]) => (
-                <MetricRow key={key} label={label} value={val != null ? `${val} cm` : '—'} onInfo={() => showInfo(key)} />
-              ))}
-            </View>
-
-            {/* Índices */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Índices</Text>
-              {[
-                ['IMC',                    idx?.bmi,             'bmi',             'bmi'],
-                ['Índ. massa magra (IMM)', idx?.lean_mass_index, 'lean_mass_index', 'lean_mass_index'],
-                ['Índ. massa gorda (IMG)', idx?.fat_mass_index,  'fat_mass_index',  'fat_mass_index'],
-                ['Razão cintura/estatura', idx?.waist_to_height, 'waist_to_height', 'waist_to_height'],
-                ['Razão cintura/quadril',  idx?.waist_to_hip,    'waist_to_hip',    'waist_to_hip'],
-                ['Índice de conicidade',   idx?.conicity_index,  'conicity_index',  'conicity_index'],
-              ].map(([label, val, clsKey, infoKey]) => (
-                <MetricRow
-                  key={infoKey}
-                  label={label}
-                  value={val != null ? String(val) : '—'}
-                  tag={clsKey ? clsLabel(clsKey) : null}
-                  tagColor={clsKey ? clsColor(clsKey) : null}
-                  onInfo={() => showInfo(infoKey)}
-                />
-              ))}
-            </View>
-
-            {/* Referências rápidas (como Shaped) */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Referências</Text>
-              {[
-                ['Índ. massa gorda',  idx?.fat_mass_index  != null ? `${idx.fat_mass_index} kg/m²`  : '—', sex === 'male' ? '<6,0 kg/m²' : '<9,0 kg/m²', 'fat_mass_index'],
-                ['Índ. massa magra',  idx?.lean_mass_index != null ? `${idx.lean_mass_index} kg/m²` : '—', sex === 'male' ? '>14,6 kg/m²' : '>11,8 kg/m²', 'lean_mass_index'],
-                ['Razão cin./estatura', idx?.waist_to_height != null ? String(idx.waist_to_height) : '—', '<0,5', 'waist_to_height'],
-                ['Razão cintura/quadril', idx?.waist_to_hip != null ? String(idx.waist_to_hip) : '—', sex === 'male' ? '<0,90' : '<0,85', 'waist_to_hip'],
-                ['Índ. conicidade',   idx?.conicity_index  != null ? String(idx.conicity_index)  : '—', '<1,18', 'conicity_index'],
-              ].map(([label, val, ref, key]) => (
-                <View key={key} style={styles.refRow}>
-                  <Text style={styles.refLabel}>{label}</Text>
-                  <Text style={styles.refRef}>{ref}</Text>
-                  <Text style={[styles.refVal, { color: clsColor(key) }]}>{val}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Save */}
-            <TouchableOpacity style={styles.saveBtn} onPress={saveResults} activeOpacity={0.85}>
-              <Text style={styles.saveBtnText}>Guardar resultados</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        <View style={styles.disclaimerBox}>
-          <Text style={styles.disclaimerTitle}>Aviso legal</Text>
-          <Text style={styles.disclaimerText}>
-            Os dados gerados por esta análise <Text style={styles.disclaimerBold}>não têm poder diagnóstico</Text> e não substituem avaliação clínica. A interpretação final é da responsabilidade do profissional de saúde.{'\n\n'}
-            <Text style={styles.disclaimerBold}>As fotos não são armazenadas pelo NovaQI.</Text> São processadas localmente e no servidor apenas durante a análise e eliminadas de imediato. A gestão e armazenamento das imagens é da responsabilidade exclusiva do utilizador.{'\n\n'}
-            Poses, vestuário e qualidade da imagem podem influenciar os resultados. Precisão dos perímetros: ±2–4 cm (modelo elíptico). Erro da % gordura: ±4–6% vs. DEXA.
+        {/* Disclaimer */}
+        <View style={s.disclaimerBox}>
+          <Text style={s.disclaimerTitle}>Aviso legal</Text>
+          <Text style={s.disclaimerTxt}>
+            Os dados gerados por esta análise <Text style={s.disclaimerBold}>não têm poder diagnóstico</Text> e não substituem avaliação clínica. A interpretação final é responsabilidade do profissional de saúde.{'\n\n'}
+            <Text style={s.disclaimerBold}>As fotos não são armazenadas pelo NovaQI.</Text> São eliminadas do servidor imediatamente após a análise. A gestão das imagens é responsabilidade exclusiva do utilizador.{'\n\n'}
+            Poses, vestuário e qualidade da imagem podem influenciar os resultados. Precisão dos perímetros: ±2–4 cm. Erro % gordura: ±4–6% vs. DEXA.
           </Text>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Helper components ─────────────────────────────────────────────────────────
+
+function Row2({ title, sub, onInfo }) {
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={s.cardTitle}>{title}</Text>
+        {onInfo && (
+          <TouchableOpacity onPress={onInfo} style={s.infoBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.infoBtnTxt}>?</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {sub && <Text style={s.cardSub}>{sub}</Text>}
+    </View>
+  );
+}
+
+function MassCard({ label, kg, color }) {
+  return (
+    <View style={[s.massCard, { borderLeftColor: color }]}>
+      <Text style={[s.massKg, { color }]}>{kg} kg</Text>
+      <Text style={s.massLabel}>{label}</Text>
+    </View>
+  );
+}
 
 function MetricRow({ label, value, tag, tagColor, onInfo }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {tag && <Text style={[styles.clsTag, { color: tagColor }]}>{tag}</Text>}
+    <View style={s.row}>
+      <View style={s.rowLeft}>
+        <Text style={s.rowLabel}>{label}</Text>
+        {tag && <Text style={[s.clsTag, { color: tagColor }]}>{tag}</Text>}
       </View>
-      <View style={styles.rowRight}>
-        <Text style={styles.rowValue}>{value}</Text>
-        <TouchableOpacity onPress={onInfo} style={styles.infoBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.infoBtnText}>?</Text>
+      <View style={s.rowRight}>
+        <Text style={s.rowVal}>{value}</Text>
+        <TouchableOpacity onPress={onInfo} style={s.infoBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={s.infoBtnTxt}>?</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-function PhotoPicker({ label, uri, onPress }) {
-  return (
-    <TouchableOpacity style={styles.photoPicker} onPress={onPress} activeOpacity={0.8}>
-      {uri
-        ? <Image source={{ uri }} style={styles.photoPreview} resizeMode="cover" />
-        : <Text style={styles.photoPlaceholder}>+{'\n'}{label}</Text>}
-      <Text style={styles.photoLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function Field({ label, value, onChangeText, keyboardType }) {
+function Field({ label, value, onChange, kbType }) {
   return (
     <View style={{ flex: 1, gap: 4 }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.fieldInput}>
-        <TextInput
-          style={styles.fieldInputText}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType={keyboardType}
-          placeholder="—"
-          placeholderTextColor={Colors.textMuted}
-        />
+      <Text style={s.fieldLabel}>{label}</Text>
+      <View style={s.fieldBox}>
+        <TextInput style={s.fieldTxt} value={value} onChangeText={onChange} keyboardType={kbType} placeholder="—" placeholderTextColor={Colors.textMuted} />
       </View>
     </View>
   );
 }
 
-function OverlayImage({ b64, label }) {
-  if (!b64) return null;
-  return (
-    <View style={styles.overlayWrap}>
-      <Image source={{ uri: `data:image/jpeg;base64,${b64}` }} style={styles.overlayImg} resizeMode="contain" />
-      <Text style={styles.overlayLabel}>{label}</Text>
-    </View>
-  );
-}
-
 // ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: Colors.background },
-  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  backBtn:     { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backText:    { fontSize: 22, color: Colors.primary, fontWeight: '800' },
-  title:       { flex: 1, fontSize: 18, fontWeight: '800', color: Colors.text, fontFamily: BrandFonts.bold || undefined },
-  badge:       { fontSize: 10, fontWeight: '900', color: Colors.white, backgroundColor: Colors.danger, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  scroll:      { padding: 16, paddingBottom: 48, gap: 16 },
+const s = StyleSheet.create({
+  container:  { flex: 1, backgroundColor: Colors.background },
+  header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+  backBtn:    { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  backText:   { fontSize: 22, color: Colors.primary, fontWeight: '800' },
+  title:      { flex: 1, fontSize: 18, fontWeight: '800', color: Colors.text, fontFamily: BrandFonts.bold || undefined },
+  badge:      { fontSize: 10, fontWeight: '900', color: '#fff', backgroundColor: '#EF4444', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  scroll:     { padding: 16, paddingBottom: 56, gap: 16 },
 
-  photoRow:    { flexDirection: 'row', gap: 12 },
-  photoPicker: { flex: 1, aspectRatio: 0.75, borderRadius: 16, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  photoRow:   { flexDirection: 'row', gap: 12 },
+  photoPicker:{ flex: 1, aspectRatio: 0.75, borderRadius: 16, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   photoPreview:{ width: '100%', height: '100%' },
   photoPlaceholder: { fontSize: 28, color: Colors.textMuted, textAlign: 'center', lineHeight: 32 },
-  photoLabel:  { position: 'absolute', bottom: 6, fontSize: 11, fontWeight: '700', color: Colors.textMuted },
+  photoLabel: { position: 'absolute', bottom: 6, fontSize: 11, fontWeight: '700', color: Colors.textMuted },
 
-  section:     { backgroundColor: Colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: Colors.border },
-  sectionLabel:{ fontSize: 12, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
-  inputRow:    { flexDirection: 'row', gap: 8 },
-  fieldLabel:  { fontSize: 11, fontWeight: '700', color: Colors.textLight },
-  fieldInput:  { backgroundColor: Colors.backgroundSecondary, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8 },
-  fieldInputText: { fontSize: 15, fontWeight: '600', color: Colors.text },
-  sexRow:      { flexDirection: 'row', gap: 8 },
-  sexBtn:      { flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: Colors.backgroundSecondary, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
-  sexBtnActive:{ backgroundColor: Colors.primary, borderColor: Colors.primary },
-  sexBtnText:  { fontSize: 13, fontWeight: '700', color: Colors.textLight },
-  sexBtnTextActive: { color: Colors.white },
+  section:    { backgroundColor: Colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: Colors.border },
+  sectionLabel: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  inputRow:   { flexDirection: 'row', gap: 8 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', color: Colors.textLight },
+  fieldBox:   { backgroundColor: Colors.backgroundSecondary, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8 },
+  fieldTxt:   { fontSize: 15, fontWeight: '600', color: Colors.text },
+  sexRow:     { flexDirection: 'row', gap: 8 },
+  sexBtn:     { flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: Colors.backgroundSecondary, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  sexBtnOn:   { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  sexBtnTxt:  { fontSize: 13, fontWeight: '700', color: Colors.textLight },
+  sexBtnTxtOn:{ color: '#fff' },
 
-  analyzeBtn:  { backgroundColor: Colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  analyzeBtnDisabled: { opacity: 0.45 },
-  analyzeBtnText: { color: Colors.white, fontSize: 16, fontWeight: '900', fontFamily: BrandFonts.bold || undefined },
+  analyzeBtn: { backgroundColor: Colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  analyzeBtnOff: { opacity: 0.45 },
+  analyzeBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '900', fontFamily: BrandFonts.bold || undefined },
 
-  warningBox:  { backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#F59E0B' },
-  warningText: { fontSize: 12, color: '#92400E', fontWeight: '600' },
+  warnBox:    { backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#F59E0B' },
+  warnTxt:    { fontSize: 12, color: '#92400E', fontWeight: '600' },
 
-  overlayRow:  { flexDirection: 'row', gap: 10 },
-  overlayWrap: { flex: 1, alignItems: 'center', gap: 4 },
-  overlayImg:  { width: '100%', aspectRatio: 0.75, borderRadius: 12 },
+  overlayRow: { flexDirection: 'row', gap: 10 },
+  overlayWrap:{ flex: 1, alignItems: 'center', gap: 4 },
+  overlayImg: { width: '100%', aspectRatio: 0.75, borderRadius: 12 },
   overlayLabel:{ fontSize: 11, fontWeight: '700', color: Colors.textMuted },
 
-  // Score card
-  scoreCard:   { backgroundColor: Colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  scoreLeft:   { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  scoreNum:    { fontSize: 52, fontWeight: '900', fontFamily: BrandFonts.bold || undefined, lineHeight: 56 },
-  scoreMax:    { fontSize: 16, fontWeight: '700', color: Colors.textMuted, marginBottom: 8 },
-  scoreRight:  { flex: 1, gap: 4 },
-  scoreTitle:  { fontSize: 14, fontWeight: '900', color: Colors.text },
-  scoreBadge:  { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  scoreBadgeText: { fontSize: 11, fontWeight: '800' },
-  scoreDesc:   { fontSize: 10, color: Colors.textMuted, fontWeight: '500', lineHeight: 14 },
-  scoreInfo:   { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.backgroundSecondary, borderWidth: 1, borderColor: Colors.border, textAlign: 'center', lineHeight: 21, fontSize: 11, fontWeight: '900', color: Colors.textMuted },
+  // Score
+  scoreCard:  { backgroundColor: Colors.card, borderRadius: 16, padding: 16, gap: 12, borderWidth: 1, borderColor: Colors.border },
+  scoreTop:   { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  scoreNumWrap:{ flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  scoreNum:   { fontSize: 56, fontWeight: '900', fontFamily: BrandFonts.bold || undefined, lineHeight: 60 },
+  scoreSlash: { fontSize: 16, fontWeight: '700', color: Colors.textMuted, marginBottom: 10 },
+  scoreInfo:  { flex: 1, gap: 6 },
+  scoreTitle: { fontSize: 15, fontWeight: '900', color: Colors.text },
+  scorePill:  { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  scorePillTxt:{ fontSize: 12, fontWeight: '800' },
+  scoreBarTrack:{ height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
+  scoreBarFill: { height: 8, borderRadius: 4 },
 
-  // Cards
-  card:        { backgroundColor: Colors.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.border },
-  cardTitleRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle:   { flex: 1, fontSize: 15, fontWeight: '900', color: Colors.text, fontFamily: BrandFonts.bold || undefined },
-  cardSub:     { fontSize: 11, color: Colors.textMuted, fontWeight: '500', marginTop: -6 },
+  // Card
+  card:       { backgroundColor: Colors.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: Colors.border },
+  cardTitle:  { flex: 1, fontSize: 15, fontWeight: '900', color: Colors.text, fontFamily: BrandFonts.bold || undefined },
+  cardSub:    { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
 
-  // Body fat
-  bfRow:       { flexDirection: 'row', alignItems: 'center', gap: 16, paddingTop: 4 },
-  bfMain:      { alignItems: 'center', gap: 2 },
-  bfPct:       { fontSize: 42, fontWeight: '900', fontFamily: BrandFonts.bold || undefined },
-  bfLabel:     { fontSize: 11, fontWeight: '700', color: Colors.textMuted },
-  bfCatBadge:  { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
-  bfCatText:   { fontSize: 11, fontWeight: '800' },
-  bfSplit:     { flex: 1, gap: 10 },
-  bfSplitItem: { gap: 1 },
-  bfSplitVal:  { fontSize: 18, fontWeight: '900', color: Colors.text },
-  bfSplitLabel:{ fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
+  // Body fat gauge layout
+  bfMain:     { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  gaugeWrap:  { alignItems: 'center', gap: 6 },
+  bfPill:     { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1 },
+  bfPillTxt:  { fontSize: 11, fontWeight: '800' },
+  bfGaugeLabel:{ fontSize: 10, color: Colors.textMuted, fontWeight: '600' },
+  bfCards:    { flex: 1, gap: 8 },
+  massCard:   { backgroundColor: Colors.backgroundSecondary, borderRadius: 12, padding: 10, borderLeftWidth: 3 },
+  massKg:     { fontSize: 20, fontWeight: '900' },
+  massLabel:  { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
 
-  // Water + REE
-  extraRow:    { flexDirection: 'row', borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, gap: 0 },
-  extraItem:   { flex: 1, alignItems: 'center', gap: 2 },
-  extraDivider:{ width: 1, backgroundColor: Colors.border, marginHorizontal: 8 },
-  extraVal:    { fontSize: 20, fontWeight: '900', color: Colors.text },
-  extraLabel:  { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
-  extraSub:    { fontSize: 10, color: Colors.textMuted },
+  // Water/REE
+  extraRow:   { flexDirection: 'row', borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10 },
+  extraItem:  { flex: 1, alignItems: 'center', gap: 2 },
+  extraDiv:   { width: 1, backgroundColor: Colors.border, marginHorizontal: 8 },
+  extraVal:   { fontSize: 20, fontWeight: '900', color: Colors.text },
+  extraLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
+  extraSub:   { fontSize: 10, color: Colors.textMuted },
 
-  // Metric rows
-  row:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  rowLeft:     { flex: 1, gap: 2 },
-  rowLabel:    { fontSize: 13, color: Colors.textLight, fontWeight: '600' },
-  clsTag:      { fontSize: 10, fontWeight: '700' },
-  rowRight:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rowValue:    { fontSize: 14, fontWeight: '800', color: Colors.text },
-  infoBtn:     { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.backgroundSecondary, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  infoBtnText: { fontSize: 11, fontWeight: '900', color: Colors.textMuted },
+  // Rows
+  row:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  rowLeft:    { flex: 1, gap: 2 },
+  rowLabel:   { fontSize: 13, color: Colors.textLight, fontWeight: '600' },
+  clsTag:     { fontSize: 10, fontWeight: '700' },
+  rowRight:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowVal:     { fontSize: 14, fontWeight: '800', color: Colors.text },
+  infoBtn:    { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.backgroundSecondary, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  infoBtnTxt: { fontSize: 11, fontWeight: '900', color: Colors.textMuted },
 
   // Reference table
-  refRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  refLabel:    { flex: 1, fontSize: 12, color: Colors.textLight, fontWeight: '600' },
-  refRef:      { fontSize: 11, color: Colors.textMuted, fontWeight: '500', marginRight: 10 },
-  refVal:      { fontSize: 13, fontWeight: '800', minWidth: 55, textAlign: 'right' },
+  refRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  refLabel:   { flex: 1, fontSize: 12, color: Colors.textLight, fontWeight: '600' },
+  refRef:     { fontSize: 11, color: Colors.textMuted, marginRight: 10 },
+  refVal:     { fontSize: 13, fontWeight: '800', minWidth: 60, textAlign: 'right' },
 
-  saveBtn:     { backgroundColor: Colors.safe, borderRadius: 16, paddingVertical: 15, alignItems: 'center' },
-  saveBtnText: { color: Colors.white, fontSize: 15, fontWeight: '900' },
+  saveBtn:    { backgroundColor: '#22C55E', borderRadius: 16, paddingVertical: 15, alignItems: 'center' },
+  saveBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '900' },
 
-  // Info modal
+  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modalCard:    { backgroundColor: Colors.card, borderRadius: 20, padding: 20, width: '100%', gap: 12, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
-  modalTitle:   { fontSize: 16, fontWeight: '900', color: Colors.text, fontFamily: BrandFonts.bold || undefined },
-  modalDesc:    { fontSize: 13, color: Colors.textLight, fontWeight: '500', lineHeight: 19 },
-  modalSection: { gap: 4 },
+  modalCard:  { backgroundColor: Colors.card, borderRadius: 20, padding: 20, width: '100%', gap: 12, elevation: 12 },
+  modalTitle: { fontSize: 16, fontWeight: '900', color: Colors.text, fontFamily: BrandFonts.bold || undefined },
+  modalDesc:  { fontSize: 13, color: Colors.textLight, lineHeight: 19 },
+  modalSection:{ gap: 4 },
   modalSectionLabel: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  modalRef:     { fontSize: 13, color: Colors.text, fontWeight: '600', lineHeight: 19 },
-  modalClose:   { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  modalCloseText: { color: Colors.white, fontSize: 14, fontWeight: '800' },
+  modalRef:   { fontSize: 13, color: Colors.text, fontWeight: '600', lineHeight: 19 },
+  modalClose: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  modalCloseText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 
-  disclaimerBox:   { backgroundColor: Colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6, marginTop: 4 },
+  // Disclaimer
+  disclaimerBox:   { backgroundColor: Colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6 },
   disclaimerTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  disclaimerText:  { fontSize: 11, color: Colors.textMuted, lineHeight: 16 },
+  disclaimerTxt:   { fontSize: 11, color: Colors.textMuted, lineHeight: 16 },
   disclaimerBold:  { fontWeight: '800', color: Colors.textLight },
 });
