@@ -133,46 +133,54 @@ const sbStyles = StyleSheet.create({
 // ── Pose silhouette ───────────────────────────────────────────────────────────
 function PoseSilhouette({ pose }) {
   const clr = '#16A75A';
-  const fill = '#E2F7EA';
-  const sw = '2';
-  const sw2 = '1.6';
+  const none = 'none';
+  const lw = '2.2';
+  const lw2 = '1.8';
   if (pose === 'front') {
+    // Front A-pose: outline only, arms angled ~40° out, legs slightly apart
     return (
-      <Svg width="82" height="132" viewBox="0 0 92 166">
+      <Svg width="80" height="128" viewBox="0 0 100 170">
         {/* head */}
-        <Circle cx="46" cy="11" r="10" fill={fill} stroke={clr} strokeWidth={sw} />
+        <Circle cx="50" cy="12" r="11" fill={none} stroke={clr} strokeWidth={lw} />
         {/* neck */}
-        <Path d="M42 21 L50 21 L49 29 L43 29 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
-        {/* torso — shoulders taper to waist then widen at hips */}
-        <Path d="M19 29 Q14 54 16 66 Q18 78 22 87 L70 87 Q74 78 76 66 Q78 54 73 29 Z"
-              fill={fill} stroke={clr} strokeWidth={sw} />
-        {/* left arm A-pose */}
-        <Path d="M21 36 L2 78 L7 80 L26 40 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
-        {/* right arm A-pose */}
-        <Path d="M71 36 L90 78 L85 80 L66 40 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+        <Path d="M44 23 C44 28 56 28 56 23" fill={none} stroke={clr} strokeWidth={lw2} />
+        {/* shoulders + torso outline (single path: shoulders → waist → hips → close) */}
+        <Path d="M18 30 C15 28 13 32 14 38 L14 62 C14 72 18 80 24 86
+                 L76 86 C82 80 86 72 86 62 L86 38 C87 32 85 28 82 30
+                 C76 27 64 25 56 24 L44 24 C36 25 24 27 18 30 Z"
+              fill={none} stroke={clr} strokeWidth={lw} />
+        {/* left arm (angled ~40° outward) */}
+        <Path d="M16 34 Q4 58 2 82" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
+        {/* left hand */}
+        <Circle cx="2" cy="82" r="3" fill={none} stroke={clr} strokeWidth={lw2} />
+        {/* right arm */}
+        <Path d="M84 34 Q96 58 98 82" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
+        {/* right hand */}
+        <Circle cx="98" cy="82" r="3" fill={none} stroke={clr} strokeWidth={lw2} />
         {/* left leg */}
-        <Path d="M27 87 L24 161 L40 161 L43 87 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+        <Path d="M24 86 L20 162 L38 162 L42 86" fill={none} stroke={clr} strokeWidth={lw2} />
         {/* right leg */}
-        <Path d="M49 87 L52 161 L68 161 L65 87 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+        <Path d="M58 86 L62 162 L80 162 L76 86" fill={none} stroke={clr} strokeWidth={lw2} />
       </Svg>
     );
   }
-  // side profile — arms horizontal at 90° (out of measurement zones)
+  // Side profile — both arms extended forward at 90° (T-pose side view)
   return (
-    <Svg width="82" height="132" viewBox="0 0 134 166">
+    <Svg width="80" height="128" viewBox="0 0 140 170">
       {/* head */}
-      <Ellipse cx="62" cy="11" rx="9" ry="10" fill={fill} stroke={clr} strokeWidth={sw} />
+      <Ellipse cx="68" cy="12" rx="10" ry="12" fill={none} stroke={clr} strokeWidth={lw} />
       {/* neck */}
-      <Path d="M58 21 L66 21 L65 29 L57 29 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
-      {/* torso side profile — slight chest curve forward */}
-      <Path d="M52 29 Q43 52 44 68 Q45 80 48 87 L72 87 Q70 79 70 66 Q70 50 68 29 Z"
-            fill={fill} stroke={clr} strokeWidth={sw} />
-      {/* arm forward at 90° */}
-      <Path d="M69 37 L126 35 L126 41 L69 43 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
-      {/* arm behind at 90° */}
-      <Path d="M52 37 L20 35 L20 41 L52 43 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
-      {/* leg */}
-      <Path d="M50 87 L48 161 L68 161 L70 87 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+      <Path d="M63 24 L73 24 L72 32 L64 32 Z" fill={none} stroke={clr} strokeWidth={lw2} />
+      {/* torso side outline */}
+      <Path d="M58 32 Q50 52 50 68 Q50 80 54 88 L78 88 Q76 80 76 68 Q76 52 74 32 Z"
+            fill={none} stroke={clr} strokeWidth={lw} />
+      {/* both arms forward at 90° (toward camera = to the right in side view) */}
+      <Path d="M74 38 Q90 38 130 36" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
+      <Path d="M74 44 Q90 44 130 42" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
+      {/* hand (right arm) */}
+      <Ellipse cx="130" cy="39" rx="4" ry="6" fill={none} stroke={clr} strokeWidth={lw2} />
+      {/* leg outline */}
+      <Path d="M54 88 L52 162 L72 162 L76 88" fill={none} stroke={clr} strokeWidth={lw2} />
     </Svg>
   );
 }
