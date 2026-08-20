@@ -4,7 +4,6 @@ import {
   Alert, ActivityIndicator, Image, Modal, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Circle, Ellipse } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
@@ -131,60 +130,22 @@ const sbStyles = StyleSheet.create({
 });
 
 // ── Pose silhouette ───────────────────────────────────────────────────────────
-function PoseSilhouette({ pose }) {
-  const clr = '#16A75A';
-  const none = 'none';
-  const lw = '2.2';
-  const lw2 = '1.8';
-  if (pose === 'front') {
-    // Front A-pose: outline only, arms angled ~40° out, legs slightly apart
-    return (
-      <Svg width="80" height="128" viewBox="0 0 100 170">
-        {/* head */}
-        <Circle cx="50" cy="12" r="11" fill={none} stroke={clr} strokeWidth={lw} />
-        {/* neck */}
-        <Path d="M44 23 C44 28 56 28 56 23" fill={none} stroke={clr} strokeWidth={lw2} />
-        {/* shoulders + torso outline (single path: shoulders → waist → hips → close) */}
-        <Path d="M18 30 C15 28 13 32 14 38 L14 62 C14 72 18 80 24 86
-                 L76 86 C82 80 86 72 86 62 L86 38 C87 32 85 28 82 30
-                 C76 27 64 25 56 24 L44 24 C36 25 24 27 18 30 Z"
-              fill={none} stroke={clr} strokeWidth={lw} />
-        {/* left arm (angled ~40° outward) */}
-        <Path d="M16 34 Q4 58 2 82" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
-        {/* left hand */}
-        <Circle cx="2" cy="82" r="3" fill={none} stroke={clr} strokeWidth={lw2} />
-        {/* right arm */}
-        <Path d="M84 34 Q96 58 98 82" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
-        {/* right hand */}
-        <Circle cx="98" cy="82" r="3" fill={none} stroke={clr} strokeWidth={lw2} />
-        {/* left leg */}
-        <Path d="M24 86 L20 162 L38 162 L42 86" fill={none} stroke={clr} strokeWidth={lw2} />
-        {/* right leg */}
-        <Path d="M58 86 L62 162 L80 162 L76 86" fill={none} stroke={clr} strokeWidth={lw2} />
-      </Svg>
-    );
-  }
-  // Side profile (RIGHT side) — right arm raised forward, left arm hidden behind body
-  return (
-    <Svg width="80" height="128" viewBox="0 0 130 170">
-      {/* head */}
-      <Ellipse cx="58" cy="12" rx="10" ry="12" fill={none} stroke={clr} strokeWidth={lw} />
-      {/* neck */}
-      <Path d="M53 24 L63 24 L62 32 L54 32 Z" fill={none} stroke={clr} strokeWidth={lw2} />
-      {/* torso side outline — chest slightly forward, back straighter */}
-      <Path d="M48 32 Q39 50 40 68 Q41 80 44 88 L68 88 Q66 80 66 68 Q66 50 64 32 Z"
-            fill={none} stroke={clr} strokeWidth={lw} />
-      {/* right arm raised forward (upper arm angled slightly up, forearm horizontal) */}
-      <Path d="M64 36 Q76 32 90 30 Q108 28 122 27"
-            fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
-      {/* hand */}
-      <Ellipse cx="122" cy="27" rx="4" ry="6" fill={none} stroke={clr} strokeWidth={lw2} />
-      {/* left arm hidden — tiny stub behind torso back edge */}
-      <Path d="M48 40 Q44 42 42 46" fill={none} stroke={clr} strokeWidth="1.2" strokeLinecap="round" strokeDasharray="3 2" />
-      {/* aligned legs (profile — single leg silhouette) */}
-      <Path d="M44 88 L42 162 L62 162 L66 88" fill={none} stroke={clr} strokeWidth={lw2} />
-    </Svg>
-  );
+const SILHOUETTES = {
+  front: {
+    female: require('../../assets/novaqi/silhouette-front-female.png'),
+    male:   require('../../assets/novaqi/silhouette-front-male.png'),
+  },
+  side: {
+    female: require('../../assets/novaqi/silhouette-side-female.png'),
+    male:   require('../../assets/novaqi/silhouette-side-male.png'),
+  },
+};
+
+function PoseSilhouette({ pose, sex }) {
+  const gender = sex === 'male' ? 'male' : 'female';
+  const src = SILHOUETTES[pose]?.[gender];
+  if (!src) return null;
+  return <Image source={src} style={{ width: 100, height: 100 }} resizeMode="contain" />;
 }
 
 // ── Info modal ────────────────────────────────────────────────────────────────
@@ -351,7 +312,7 @@ export default function BodyAnalysisScreen({ navigation }) {
                 ? <Image source={{ uri: side === 'front' ? frontUri : sideUri }} style={s.photoPreview} resizeMode="cover" />
                 : (
                   <View style={s.photoEmpty}>
-                    <PoseSilhouette pose={side} />
+                    <PoseSilhouette pose={side} sex={sex} />
                     <Text style={s.photoEmptyPlus}>+ {side === 'front' ? 'Frente' : 'Lateral'}</Text>
                   </View>
                 )}
