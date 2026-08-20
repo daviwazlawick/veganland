@@ -711,7 +711,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_d     = _d(hip_y)
     thigh_d   = _d(thigh_y)
     calf_d    = _d(calf_y)
-    neck_d    = _d(nk_cy if nk_cy is not None else neck_y)
+    # neck depth not used — arm is at the same height in the side photo and
+    # contaminates the mask; neck is roughly cylindrical so circular approx is used
     # arm/forearm depth not used — circular approximation in circumference step
 
     # ── Circumferences ────────────────────────────────────────────────────
@@ -730,9 +731,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_circ     = ellipse_circ(hip_w,     hip_d)
     thigh_circ   = ellipse_circ(thigh_w,   thigh_d)
     calf_circ    = ellipse_circ(calf_w,    calf_d)
-    neck_circ    = ellipse_circ(neck_w,    neck_d)
-
-    # Arms: circular cross-section (side photo captures torso depth, not arm depth)
+    # Neck + arms: circular cross-section (side photo unusable — arm contaminates at neck level)
+    neck_circ    = circular_circ(neck_w)
     bicep_circ   = circular_circ(bicep_w)
     forearm_circ = circular_circ(forearm_w)
 
@@ -850,7 +850,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # so the side line matches exactly where the perpendicular scan landed.
     bicep_side_y = side_y(measure_ys_front.get('bicep') or arm_y)
     measure_ys_side = {
-        'neck':   side_y(nk_cy if nk_cy is not None else neck_y),
+        # neck omitted from side overlay — arm contaminates the mask at that level
         'chest':  side_y(chest_y),
         'waist':  side_y(waist_y),
         'hip':    side_y(hip_y),
