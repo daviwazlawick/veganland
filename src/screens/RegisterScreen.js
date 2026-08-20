@@ -338,6 +338,7 @@ export default function RegisterScreen({ navigation }) {
               disclaimerVersion={DISCLAIMER_VERSION}
               referralCode={referralCode && referralCode.length === 6 ? referralCode : null}
               onError={(msg) => setError(msg)}
+              onSuccess={() => { if (referralCode && referralCode.length === 6) clearPendingCode(); }}
             />
             <Text style={styles.socialTermsHint}>{t(language, 'auth.social_terms_hint')}</Text>
           </View>
