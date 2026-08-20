@@ -422,61 +422,111 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if rp and rd: return 'right', rp, rd
         return None, None, None
 
-    # Both knee x-coords for leg separation midpoint
-    lkx_both = _lm_x(front_lms, 'left_knee')
-    rkx_both = _lm_x(front_lms, 'right_knee')
-    knee_mid = (lkx_both + rkx_both) / 2 if (lkx_both and rkx_both) else None
+    # ── Arm x-bounds: anchor on elbow (definitively on the arm, not torso) ──
+    # At elbow level the mask shows only the arm. We scan along the mask row
+    # at elbow_y to find the arm's true x-extent, then expand by arm_expand_px
+    # to cover the bicep (which is wider). This avoids depending on shoulder
+    # landmarks whose mask edge differs from the joint position.
+    arm_expand_px = 80  # ≈ 7 cm at typical scale — enough for any bicep
 
-    # ── Bicep: shoulder → elbow ───────────────────────────────────────────
-    # Center-x constrained to be outside the torso shoulder bounds so we
-    # never start the scan inside the chest.
+    def _arm_x_from_elbow(elbow_xy):
+        if not elbow_xy: return None, None
+        ey, ex = int(elbow_xy[1]), int(elbow_xy[0])
+        h_m, w_m = front_mask.shape
+        if not (0 <= ey < h_m and 0 <= ex < w_m) or not front_mask[ey, ex]:
+            return None, None
+        xl = ex
+        for x in range(ex - 1, max(0, ex - 300), -1):
+            if not front_mask[ey, x]: break
+            xl = x
+        xr = ex
+        for x in range(ex + 1, min(w_m, ex + 300)):
+            if not front_mask[ey, x]: break
+            xr = x
+        return max(0, xl - arm_expand_px), min(w_m, xr + arm_expand_px)
+
     arm_side, sh_xy, el_xy = _far_side('left_shoulder','left_elbow','right_shoulder','right_elbow')
-
-    if sh_xy and el_xy:
-        arm_goes_right = el_xy[0] > sh_xy[0]   # True if arm extends to image-right
-        if arm_goes_right:
-            b_cx_min = shoulder_xr  # scan only where cx > right-shoulder landmark
-            b_cx_max = None
-        else:
-            b_cx_min = None
-            b_cx_max = shoulder_xl  # scan only where cx < left-shoulder landmark
-    else:
-        b_cx_min = b_cx_max = None
+    arm_xl, arm_xr = _arm_x_from_elbow(el_xy)
 
     bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
         front_mask, sh_xy, el_xy, scale,
-        center_x_min=b_cx_min, center_x_max=b_cx_max) \
-        if (sh_xy and el_xy) else (None,)*6
+        center_x_min=arm_xl, center_x_max=arm_xr,
+        ray_x_min=arm_xl,    ray_x_max=arm_xr) \
+        if (sh_xy and el_xy and arm_xl is not None) else (None,)*6
     if bx0 is not None:
         overlay_lines_front['bicep'] = (bx0, by0, bx1, by1)
         measure_ys_front['bicep']    = b_cy
 
-    # ── Forearm: elbow → wrist (same side as bicep) ───────────────────────
+    # ── Forearm: elbow → wrist ────────────────────────────────────────────
     el2_xy = _lm_xy(front_lms, f'{arm_side}_elbow') if arm_side else None
     wr_xy  = _lm_xy(front_lms, f'{arm_side}_wrist') if arm_side else None
+    # Forearm is narrower than bicep — use wrist as anchor for tighter bounds
+    wr_expand_px = 60
+    def _arm_x_from_wrist(wrist_xy):
+        if not wrist_xy: return None, None
+        wy, wx = int(wrist_xy[1]), int(wrist_xy[0])
+        h_m, w_m = front_mask.shape
+        if not (0 <= wy < h_m and 0 <= wx < w_m) or not front_mask[wy, wx]:
+            return None, None
+        xl = wx
+        for x in range(wx - 1, max(0, wx - 200), -1):
+            if not front_mask[wy, x]: break
+            xl = x
+        xr = wx
+        for x in range(wx + 1, min(w_m, wx + 200)):
+            if not front_mask[wy, x]: break
+            xr = x
+        return max(0, xl - wr_expand_px), min(w_m, xr + wr_expand_px)
+
+    fa_xl, fa_xr = _arm_x_from_wrist(wr_xy)
+    # Fall back to elbow bounds if wrist not visible
+    if fa_xl is None: fa_xl, fa_xr = arm_xl, arm_xr
+
     forearm_w, fx0, fy0, fx1, fy1, f_cy = measure_limb_perp(
         front_mask, el2_xy, wr_xy, scale,
-        center_x_min=b_cx_min, center_x_max=b_cx_max) \
-        if (el2_xy and wr_xy) else (None,)*6
+        center_x_min=fa_xl, center_x_max=fa_xr,
+        ray_x_min=fa_xl,    ray_x_max=fa_xr) \
+        if (el2_xy and wr_xy and fa_xl is not None) else (None,)*6
     if fx0 is not None:
         overlay_lines_front['forearm'] = (fx0, fy0, fx1, fy1)
         measure_ys_front['forearm']    = f_cy
 
-    # ── Thigh: hip → knee ────────────────────────────────────────────────
-    # Ray and center constrained to one side of the knee midpoint so we
-    # don't measure both thighs as one.
-    leg_side, hip_xy, kn_xy = _far_side('left_hip','left_knee','right_hip','right_knee')
+    # ── Thigh / Calf: interpolated medial separator ───────────────────────
+    # The inner boundary between thighs moves from hip_mid (at hip level) to
+    # knee_mid (at knee level). Interpolate at each measurement y-level.
+    lkx_b = _lm_x(front_lms, 'left_knee');  rkx_b = _lm_x(front_lms, 'right_knee')
+    lhx_b = _lm_x(front_lms, 'left_hip');   rhx_b = _lm_x(front_lms, 'right_hip')
+    lax_b = _lm_x(front_lms, 'left_ankle'); rax_b = _lm_x(front_lms, 'right_ankle')
+    knee_mid   = (lkx_b + rkx_b) / 2 if (lkx_b and rkx_b) else None
+    hip_mid    = (lhx_b + rhx_b) / 2 if (lhx_b and rhx_b) else knee_mid
+    ankle_mid  = (lax_b + rax_b) / 2 if (lax_b and rax_b) else knee_mid
 
-    if kn_xy and knee_mid is not None:
-        buf = 20  # px buffer around midpoint
-        if kn_xy[0] < cx_img:   # chosen knee is on the left side of image
-            t_cx_min, t_cx_max    = None,          knee_mid + buf
-            t_rx_min, t_rx_max    = None,          knee_mid + buf
-        else:                    # chosen knee is on the right side
-            t_cx_min, t_cx_max    = knee_mid - buf, None
-            t_rx_min, t_rx_max    = knee_mid - buf, None
-    else:
-        t_cx_min = t_cx_max = t_rx_min = t_rx_max = None
+    def _leg_sep(y_meas, y_top, y_bot, mid_top, mid_bot):
+        """Interpolated medial x at measurement y."""
+        if None in (y_meas, y_top, y_bot, mid_top, mid_bot): return knee_mid
+        span = y_bot - y_top
+        if span < 1: return (mid_top + mid_bot) / 2
+        t = max(0.0, min(1.0, (y_meas - y_top) / span))
+        return mid_top + t * (mid_bot - mid_top)
+
+    leg_side, hip_xy, kn_xy = _far_side('left_hip','left_knee','right_hip','right_knee')
+    kn2_xy = _lm_xy(front_lms, f'{leg_side}_knee')  if leg_side else None
+    an_xy  = _lm_xy(front_lms, f'{leg_side}_ankle') if leg_side else None
+
+    buf_leg = 10
+    thigh_sep = _leg_sep(thigh_y, hip_y, knee_y, hip_mid, knee_mid)
+    calf_sep  = _leg_sep(calf_y,  knee_y, ankle_y, knee_mid, ankle_mid)
+
+    def _leg_bounds(kn_xy_arg, sep):
+        if kn_xy_arg is None or sep is None:
+            return None, None, None, None
+        if kn_xy_arg[0] < cx_img:  # leg on left side of image
+            return None, sep + buf_leg, None, sep + buf_leg
+        else:                        # leg on right side
+            return sep - buf_leg, None, sep - buf_leg, None
+
+    t_cx_min, t_cx_max, t_rx_min, t_rx_max = _leg_bounds(kn_xy, thigh_sep)
+    c_cx_min, c_cx_max, c_rx_min, c_rx_max = _leg_bounds(kn_xy, calf_sep)
 
     thigh_w, tx0, ty0, tx1, ty1, t_cy = measure_limb_perp(
         front_mask, hip_xy, kn_xy, scale,
@@ -487,13 +537,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         overlay_lines_front['thigh'] = (tx0, ty0, tx1, ty1)
         measure_ys_front['thigh']    = t_cy
 
-    # ── Calf: knee → ankle (same side as thigh) ──────────────────────────
-    kn2_xy = _lm_xy(front_lms, f'{leg_side}_knee')  if leg_side else None
-    an_xy  = _lm_xy(front_lms, f'{leg_side}_ankle') if leg_side else None
     calf_w, cx0, cy0, cx1, cy1, c_cy = measure_limb_perp(
         front_mask, kn2_xy, an_xy, scale,
-        center_x_min=t_cx_min, center_x_max=t_cx_max,
-        ray_x_min=t_rx_min,    ray_x_max=t_rx_max) \
+        center_x_min=c_cx_min, center_x_max=c_cx_max,
+        ray_x_min=c_rx_min,    ray_x_max=c_rx_max) \
         if (kn2_xy and an_xy) else (None,)*6
     if cx0 is not None:
         overlay_lines_front['calf'] = (cx0, cy0, cx1, cy1)
