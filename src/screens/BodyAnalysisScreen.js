@@ -164,23 +164,25 @@ function PoseSilhouette({ pose }) {
       </Svg>
     );
   }
-  // Side profile — both arms extended forward at 90° (T-pose side view)
+  // Side profile (RIGHT side) — right arm raised forward, left arm hidden behind body
   return (
-    <Svg width="80" height="128" viewBox="0 0 140 170">
+    <Svg width="80" height="128" viewBox="0 0 130 170">
       {/* head */}
-      <Ellipse cx="68" cy="12" rx="10" ry="12" fill={none} stroke={clr} strokeWidth={lw} />
+      <Ellipse cx="58" cy="12" rx="10" ry="12" fill={none} stroke={clr} strokeWidth={lw} />
       {/* neck */}
-      <Path d="M63 24 L73 24 L72 32 L64 32 Z" fill={none} stroke={clr} strokeWidth={lw2} />
-      {/* torso side outline */}
-      <Path d="M58 32 Q50 52 50 68 Q50 80 54 88 L78 88 Q76 80 76 68 Q76 52 74 32 Z"
+      <Path d="M53 24 L63 24 L62 32 L54 32 Z" fill={none} stroke={clr} strokeWidth={lw2} />
+      {/* torso side outline — chest slightly forward, back straighter */}
+      <Path d="M48 32 Q39 50 40 68 Q41 80 44 88 L68 88 Q66 80 66 68 Q66 50 64 32 Z"
             fill={none} stroke={clr} strokeWidth={lw} />
-      {/* both arms forward at 90° (toward camera = to the right in side view) */}
-      <Path d="M74 38 Q90 38 130 36" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
-      <Path d="M74 44 Q90 44 130 42" fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
-      {/* hand (right arm) */}
-      <Ellipse cx="130" cy="39" rx="4" ry="6" fill={none} stroke={clr} strokeWidth={lw2} />
-      {/* leg outline */}
-      <Path d="M54 88 L52 162 L72 162 L76 88" fill={none} stroke={clr} strokeWidth={lw2} />
+      {/* right arm raised forward (upper arm angled slightly up, forearm horizontal) */}
+      <Path d="M64 36 Q76 32 90 30 Q108 28 122 27"
+            fill={none} stroke={clr} strokeWidth={lw2} strokeLinecap="round" />
+      {/* hand */}
+      <Ellipse cx="122" cy="27" rx="4" ry="6" fill={none} stroke={clr} strokeWidth={lw2} />
+      {/* left arm hidden — tiny stub behind torso back edge */}
+      <Path d="M48 40 Q44 42 42 46" fill={none} stroke={clr} strokeWidth="1.2" strokeLinecap="round" strokeDasharray="3 2" />
+      {/* aligned legs (profile — single leg silhouette) */}
+      <Path d="M44 88 L42 162 L62 162 L66 88" fill={none} stroke={clr} strokeWidth={lw2} />
     </Svg>
   );
 }
@@ -336,7 +338,7 @@ export default function BodyAnalysisScreen({ navigation }) {
             </View>
             <View style={s.poseTip}>
               <Text style={s.poseTipLabel}>Lado direito</Text>
-              <Text style={s.poseTipText}>Braço direito esticado para a câmera{'\n'}Braço esquerdo atrás do corpo</Text>
+              <Text style={s.poseTipText}>Braço direito levantado à frente{'\n'}Braço esquerdo atrás do corpo{'\n'}Pernas alinhadas · Costas da mão p/ câmera{'\n'}Cabelo comprido preso em coque</Text>
             </View>
           </View>
         </View>
