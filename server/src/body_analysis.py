@@ -707,8 +707,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     wth = round(waist_circ / height_cm, 2) if waist_circ else None
     whr = round(waist_circ / hip_circ, 2)  if (waist_circ and hip_circ) else None
 
-    # Índice de conicidade = cintura / (0.109 × √(peso/altura_m))
-    ci = round(waist_circ / (0.109 * math.sqrt(weight_kg / height_m)), 2) \
+    # Índice de conicidade = cintura_m / (0.109 × √(peso/altura_m))
+    ci = round((waist_circ / 100) / (0.109 * math.sqrt(weight_kg / height_m)), 2) \
          if waist_circ else None
 
     # ── Body fat — Deurenberg formula (1991), r²=0.79 vs DEXA ───────────
