@@ -1575,3 +1575,62 @@ minutes_to_burn = ceil(calories / kcal_per_min)
 - Simula 9 amigos qualificados → 3 recompensas × 5 scans = 15 bonus scans
 - Sistema: 3 referrals qualificados por recompensa (`REFERRALS_PER_REWARD=3`), 5 scans por recompensa (`REFERRER_REWARD_BONUS=5`)
 - Para reverter: UPDATE com todos os valores a 0 / null
+
+---
+
+## Sessão 2026-08-20 — Body Analysis: calibração de medidas + protocolo Shaped
+
+### Ficheiros principais
+- `server/src/body_analysis.py` — pipeline de análise (server-side, activo imediatamente)
+- `src/screens/BodyAnalysisScreen.js` — UI de upload + resultados
+
+### Correcções de medição
+
+**`measure_limb_perp()`** — parâmetros `t_min`/`t_max` adicionados (default 0.20/0.80):
+- Coxa usa `t_min=0.40, t_max=0.75` — evita zona da virilha (era 0.20 → linha na virilha)
+- `thigh_y = hip_y + (knee_y - hip_y) * 0.45` (era 0.35) — ponto de profundidade na foto lateral
+
+**Braço (bíceps) — ancorado no cotovelo:**
+- `_arm_x_from_elbow()` varre a máscara ao nível do cotovelo para encontrar os bounds reais do braço (em vez do ombro que está dentro do deltoide/tronco)
+- Tanto `center_x_min/max` como `ray_x_min/max` restritos ao range do braço → exclui peito
+- Forearm usa `_arm_x_from_wrist()` com mesma lógica
+- Renomeado `arm_cm` → `bicep_cm` em todo o código e UI
+
+**Coxa — separador medial interpolado:**
+- `_leg_sep()` interpola entre `hip_mid` e `knee_mid` no y exacto da medição (era sempre `knee_mid`)
+- Evita que as duas coxas sejam medidas como uma só
+
+**Foto lateral — profundidade sem interferência da mão:**
+- `_d()` encontra o segmento contíguo da máscara que contém o centro do corpo (`_sbcx` calculado via landmarks anca/joelho/ombro da foto lateral)
+- Exclui a mão que sobressai à frente do corpo ao nível da coxa/quadril
+
+**Linha de bíceps na lateral:**
+- `measure_ys_side` agora inclui `'bicep'` → a linha amarela aparece na foto lateral
+
+### Protocolo Shaped (CHECKs automáticos)
+Todos adicionados como `warnings[]` em `meta.warnings` (não rejeitam):
+
+| Warning | Condição |
+|---|---|
+| `low_resolution` | imagem < 1200px altura |
+| `low_segmentation_confidence` | máscara rembg muito ruidosa (alpha parcial > 45%) |
+| `cropped_head` | máscara toca borda superior (≤ 4px) |
+| `cropped_feet` | máscara toca borda inferior (≤ 4px) |
+| `front_arms_too_close` | ambos os pulsos dentro da largura do quadril |
+| `front_legs_together` | separação dos tornozelos < 25% da largura do quadril |
+| `side_not_true_profile` | ambos os quadris com visibilidade similar na lateral |
+| `side_right_arm_not_raised` | pulso direito > 25% altura abaixo do ombro |
+
+**Nota:** `cropped_head/feet` foram convertidos para aviso simples (a rejeição hard via `sys.exit(1)` causava falha em fotos legítimas onde o rembg toca a borda).
+
+### Pose da foto lateral — protocolo Shaped
+- **Lado direito** do corpo para a câmera
+- Braço direito esticado para a câmera (para a frente, horizontal)
+- Braço esquerdo atrás do corpo
+- Ambas as pernas alinhadas (só uma visível de perfil)
+
+### Silhuetas (BodyAnalysisScreen.js)
+- Redesenhadas com cores NovaQI (`#16A75A` stroke, sem fill)
+- Frente: contorno orgânico, braços ~40° com mão circular, pernas separadas
+- Lateral: dois braços esticados para a frente (curvas paralelas em SVG)
+- Textos guia: "Braços afastados, pernas abertas, palmas para câmera" / "Lado direito — braço direito esticado, esquerdo atrás"
