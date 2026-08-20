@@ -274,16 +274,22 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     warnings = []
 
     # ── Load images ──────────────────────────────────────────────────────
-    front_pil = load_image(front_path)
-    side_pil  = load_image(side_path)
+    try:
+        front_pil = load_image(front_path)
+        side_pil  = load_image(side_path)
+    except Exception as e:
+        raise ValueError(f'Não conseguimos abrir as fotos ({e}). Verifique se são imagens válidas em JPEG ou PNG.')
 
     # [CHECK] low_resolution — flag but continue
     if front_pil.size[1] < 1200 or side_pil.size[1] < 1200:
         warnings.append('low_resolution')
 
     # ── Segment ──────────────────────────────────────────────────────────
-    front_rgba = segment_body(front_pil)
-    side_rgba  = segment_body(side_pil)
+    try:
+        front_rgba = segment_body(front_pil)
+        side_rgba  = segment_body(side_pil)
+    except Exception as e:
+        raise ValueError(f'Falha ao remover o fundo das fotos ({e}). Tente com fundo mais simples e iluminação uniforme.')
     front_mask = get_mask(front_rgba)
     side_mask  = get_mask(side_rgba)
 
@@ -304,6 +310,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         warnings.append('front_pose_not_detected')
     if not side_lms:
         warnings.append('side_pose_not_detected')
+
+    # Hard stop: if neither photo has any body landmarks, we can't measure anything.
+    if not front_lms and not side_lms:
+        raise ValueError(
+            'Corpo não detectado em nenhuma das fotos. '
+            'Certifique-se de que o corpo inteiro está enquadrado, '
+            'com boa iluminação e fundo simples.'
+        )
 
     # ── Scale calibration (front photo, mask height → height_cm) ─────────
     top_y, bottom_y = mask_height_span(front_mask)
