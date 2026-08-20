@@ -1634,3 +1634,95 @@ Todos adicionados como `warnings[]` em `meta.warnings` (não rejeitam):
 - Frente: contorno orgânico, braços ~40° com mão circular, pernas separadas
 - Lateral: dois braços esticados para a frente (curvas paralelas em SVG)
 - Textos guia: "Braços afastados, pernas abertas, palmas para câmera" / "Lado direito — braço direito esticado, esquerdo atrás"
+
+### Warnings removidos (falsos positivos sistemáticos)
+Estes 4 warnings foram eliminados por disparar em fotos correctas:
+- `cropped_head` / `cropped_feet` — rembg toca borda normalmente; `scale_calibration_failed` cobre casos reais
+- `side_not_true_profile` — MediaPipe estima ambos os quadris mesmo em perfil real
+- `side_right_arm_not_raised` — pulso da câmera tem visibilidade baixa por definição no protocolo Shaped
+
+### Silhuetas reais (BodyAnalysisScreen.js)
+SVGs substituídos por fotos reais carregadas pelo utilizador:
+```js
+assets/novaqi/silhouette-front-female.png  (1254×1254)
+assets/novaqi/silhouette-front-male.png    (1254×1254)
+assets/novaqi/silhouette-side-female.png   (1254×1254)
+assets/novaqi/silhouette-side-male.png     (1254×1254)
+```
+Selecção por sexo: `SILHOUETTES[pose][sex === 'male' ? 'male' : 'female']`
+
+### Quadril — medição por segmento contíguo
+`_meas_horiz_body(y)` — nova função que percorre a linha da máscara para encontrar o segmento contíguo mais próximo do centro da imagem (em vez de usar os bounds dos landmarks de anca, que ficam dentro da pélvis e excluíam os glúteos).
+
+### Índice de conicidade — correcção de unidade
+A fórmula usava `waist_circ` em cm; a fórmula correcta exige metros: `(waist_circ / 100) / (0.109 × √(kg/altura_m))`.
+
+---
+
+## Sessão 2026-08-20 (continuação) — Medidas peito/pescoço, save completo, ProfileScreen
+
+### Novas medidas: Peito e Pescoço
+
+**Peito (`chest_cm`):**
+- `chest_y = shoulder_y + (hip_y - shoulder_y) * 0.15` — nível das axilas
+- Front width: `_meas_horiz(chest_y, shoulder_xl, shoulder_xr)` — **bounded por landmarks de ombro** para não medir até ao final dos braços em A-pose
+- Side depth: `_d(chest_y)`
+- Circunferência: elipse (Ramanujan)
+
+**Pescoço (`neck_cm`):**
+- `neck_y = top_y + (shoulder_y - top_y) * 0.65` — 65% do caminho cabeça→ombro (era 0.80 → media clavícula a clavícula)
+- Front width: `_meas_horiz(neck_y, shoulder_xl, shoulder_xr)` — bounded para não medir largura da cabeça
+- Side depth: `_d(neck_y)`
+- Circunferência: elipse
+- Overlay: adicionado à foto frontal e lateral
+
+### DB — migração de colunas em falta
+```sql
+ALTER TABLE body_measurements
+  ADD COLUMN IF NOT EXISTS lean_mass_index numeric,
+  ADD COLUMN IF NOT EXISTS fat_mass_index  numeric,
+  ADD COLUMN IF NOT EXISTS lean_mass_kg    numeric,
+  ADD COLUMN IF NOT EXISTS fat_mass_kg     numeric,
+  ADD COLUMN IF NOT EXISTS body_water_pct  numeric,
+  ADD COLUMN IF NOT EXISTS ree_kcal        numeric,
+  ADD COLUMN IF NOT EXISTS score           integer;
+```
+Aplicado em produção 2026-08-20.
+
+### db.js — saveBodyMeasurements corrigido
+- **Bug**: destruturava `arm_cm` mas a análise retorna `bicep_cm` → bíceps nunca era guardado
+- **Fix**: destrutura `bicep_cm`, mapeia para coluna `arm_cm`
+- Guarda agora: `chest_cm`, `neck_cm`, `lean_mass_index`, `fat_mass_index`, `lean_mass_kg`, `fat_mass_kg`, `body_water_pct`, `ree_kcal`, `score`
+
+### db.js — getBodyMeasurementHistory corrigido
+- Retorna `arm_cm as bicep_cm` + todos os novos campos
+- Endpoint GET `/body/measurements`: removido guard admin-only (qualquer utilizador autenticado acede ao seu histórico)
+
+### BodyAnalysisScreen.js — save call corrigido
+```js
+{ ...result.measurements, ...result.indices, ...(result.body_composition || {}),
+  score: result.score, confidence, warnings, scale_px_per_cm }
+```
+Antes: faltavam `body_composition` e `score`.
+
+### apiService.js — nova função
+```js
+export async function apiGetBodyMeasurements(token)  // GET /body/measurements → history[]
+```
+
+### NutritionContext.js — bodyMeasurements
+- Estado `bodyMeasurements` adicionado
+- Incluído em `Promise.all` no `refresh()`
+- Exposto via Context value
+
+### ProfileScreen.js — secção Análise Corporal
+Componente `BodyAnalysisCard` (NovaQI only):
+- Mostra: **badge de pontuação NovaQI**, data da última análise, botão → navega para BodyAnalysis
+- **Grid de perímetros**: chest, neck, bicep, forearm, waist, hip, thigh, calf (8 valores em cm)
+- **Composição corporal** (rows): body_fat_pct, lean_mass_kg, fat_mass_kg, body_water_pct, ree_kcal
+- **Índices** (rows): bmi, lean_mass_index, fat_mass_index, waist_to_height, waist_to_hip, conicity_index
+- Se sem histórico: empty state com CTA "Fazer análise corporal"
+
+### i18n — secção `body_analysis` (6 idiomas)
+Chaves adicionadas: `section_title`, `last_analysis`, `score`, `chest_cm`, `neck_cm`, `bicep_cm`, `forearm_cm`, `waist_cm`, `hip_cm`, `thigh_cm`, `calf_cm`, `bmi`, `body_fat_pct`, `lean_mass_kg`, `fat_mass_kg`, `body_water_pct`, `ree_kcal`, `lean_mass_index`, `fat_mass_index`, `waist_to_height`, `waist_to_hip`, `conicity_index`, `no_analysis`, `run_analysis`.
+Resolve bug: nomes das medidas apareciam em inglês quando perfil em português.
