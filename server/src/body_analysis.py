@@ -110,6 +110,21 @@ def width_at_y(mask, y, margin=2):
     return int(np.median(widths)) if widths else 0
 
 
+def width_at_y_bounded(mask, y, x_min=0, x_max=None, margin=2):
+    """Width of mask at row y restricted to x_min..x_max column range."""
+    h, w_img = mask.shape
+    xl = max(0, int(x_min))
+    xr = min(w_img, int(x_max)) if x_max is not None else w_img
+    widths = []
+    for dy in range(-margin, margin + 1):
+        row = y + dy
+        if 0 <= row < h:
+            cols = np.where(mask[row, xl:xr])[0]
+            if len(cols) >= 2:
+                widths.append(int(cols[-1]) - int(cols[0]))
+    return int(np.median(widths)) if widths else 0
+
+
 def ellipse_circumference(a, b):
     """Ramanujan approximation for ellipse perimeter. a, b = semi-axes."""
     h = ((a - b) ** 2) / ((a + b) ** 2)
@@ -245,18 +260,62 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         'forearm': forearm_y, 'thigh': thigh_y, 'calf': calf_y,
     }.items() if v is not None}
 
-    # ── Width measurements (front) ────────────────────────────────────────
-    def measure_width(y, mask, sc):
-        if y is None: return None
-        px = width_at_y(mask, int(y))
-        return round(px * sc, 1) if px > 0 else None
+    # ── Landmark x-bounds (to isolate body segments from limbs) ──────────
+    def _lm_x(lms, name):
+        if lms and name in lms and lms[name].get('visibility', 0) > 0.4:
+            return lms[name]['x']
+        return None
 
-    waist_w   = measure_width(waist_y,   front_mask, scale)
-    hip_w     = measure_width(hip_y,     front_mask, scale)
-    arm_w     = measure_width(arm_y,     front_mask, scale)
-    forearm_w = measure_width(forearm_y, front_mask, scale)
-    thigh_w   = measure_width(thigh_y,   front_mask, scale)
-    calf_w    = measure_width(calf_y,    front_mask, scale)
+    # Torso inner bounds: column range that contains only torso (excludes arms)
+    lsx = _lm_x(front_lms, 'left_shoulder')
+    rsx = _lm_x(front_lms, 'right_shoulder')
+    lhx = _lm_x(front_lms, 'left_hip')
+    rhx = _lm_x(front_lms, 'right_hip')
+    torso_xs = [x for x in [lsx, rsx, lhx, rhx] if x is not None]
+    torso_xl = min(torso_xs) if torso_xs else 0
+    torso_xr = max(torso_xs) if torso_xs else fw
+
+    # Knee x for leg split
+    lkx = _lm_x(front_lms, 'left_knee')
+    rkx = _lm_x(front_lms, 'right_knee')
+
+    # ── Width measurements (front) ────────────────────────────────────────
+    def _w(y, xl, xr):
+        if y is None: return None
+        px = width_at_y_bounded(front_mask, int(y), xl, xr)
+        return round(px * scale, 1) if px > 0 else None
+
+    # Torso: restrict to landmark torso x range (excludes arms at both sides)
+    waist_w = _w(waist_y, torso_xl, torso_xr)
+    hip_w   = _w(hip_y,   torso_xl, torso_xr)
+
+    # Arms: A-pose → arms are OUTSIDE torso x range; measure each side, take max
+    def _arm_w(y):
+        if y is None: return None
+        buf = 4
+        left  = width_at_y_bounded(front_mask, int(y), 0,              torso_xl - buf)
+        right = width_at_y_bounded(front_mask, int(y), torso_xr + buf, fw)
+        px = max(left, right)
+        return round(px * scale, 1) if px > 0 else None
+
+    arm_w     = _arm_w(arm_y)
+    forearm_w = _arm_w(forearm_y)
+
+    # Legs: split at knee x midpoint, measure one leg at a time
+    def _leg_w(y):
+        if y is None: return None
+        if lkx and rkx:
+            mid_x = (lkx + rkx) / 2
+            l = width_at_y_bounded(front_mask, int(y), 0,     mid_x)
+            r = width_at_y_bounded(front_mask, int(y), mid_x, fw)
+            px = max(l, r)
+        else:
+            # fallback: full width / 2 (symmetric assumption)
+            px = width_at_y(front_mask, int(y)) // 2
+        return round(px * scale, 1) if px > 0 else None
+
+    thigh_w = _leg_w(thigh_y)
+    calf_w  = _leg_w(calf_y)
 
     # ── Depth measurements (side) ─────────────────────────────────────────
     # Map front Y positions to side photo (same body proportions)
@@ -273,20 +332,25 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     thigh_d   = measure_width(side_y(thigh_y),   side_mask, scale_side)
     calf_d    = measure_width(side_y(calf_y),    side_mask, scale_side)
 
-    # ── Ellipse circumferences ────────────────────────────────────────────
-    def circumference(w_cm, d_cm):
+    # ── Circumferences ────────────────────────────────────────────────────
+    def ellipse_circ(w_cm, d_cm):
         if w_cm is None or d_cm is None: return None
-        a = w_cm / 2
-        b = d_cm / 2
-        # Arms/legs: depth often over-estimated due to clothes — apply 0.85 factor
-        return round(ellipse_circumference(a, b), 1)
+        return round(ellipse_circumference(w_cm / 2, d_cm / 2), 1)
 
-    waist_circ    = circumference(waist_w,   waist_d)
-    hip_circ      = circumference(hip_w,     hip_d)
-    arm_circ      = circumference(arm_w,     arm_d)
-    forearm_circ  = circumference(forearm_w, forearm_d)
-    thigh_circ    = circumference(thigh_w,   thigh_d)
-    calf_circ     = circumference(calf_w,    calf_d)
+    def circular_circ(diameter_cm):
+        # Arms/forearms: side-photo depth can't isolate a single arm → circular approximation
+        if diameter_cm is None: return None
+        return round(math.pi * diameter_cm, 1)
+
+    # Torso and legs: front width + side depth → ellipse
+    waist_circ   = ellipse_circ(waist_w,   waist_d)
+    hip_circ     = ellipse_circ(hip_w,     hip_d)
+    thigh_circ   = ellipse_circ(thigh_w,   thigh_d)
+    calf_circ    = ellipse_circ(calf_w,    calf_d)
+
+    # Arms: circular cross-section (side photo captures torso depth, not arm depth)
+    arm_circ     = circular_circ(arm_w)
+    forearm_circ = circular_circ(forearm_w)
 
     # ── Indices ───────────────────────────────────────────────────────────
     height_m = height_cm / 100

@@ -4,6 +4,7 @@ import {
   Alert, ActivityIndicator, Image, Modal, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path, Circle, Ellipse } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
@@ -128,6 +129,40 @@ const sbStyles = StyleSheet.create({
   label:  { fontSize: 10, fontWeight: '800' },
   sub:    { fontSize: 9, fontWeight: '600', opacity: 0.8 },
 });
+
+// ── Pose silhouette ───────────────────────────────────────────────────────────
+function PoseSilhouette({ pose }) {
+  const clr = '#94a3b8';
+  const fill = 'rgba(148,163,184,0.18)';
+  const sw = '1.8';
+  if (pose === 'front') {
+    return (
+      <Svg width="78" height="130" viewBox="0 0 90 160">
+        {/* head */}
+        <Circle cx="45" cy="13" r="11" fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* torso */}
+        <Path d="M30 24 Q27 52 28 88 L62 88 Q63 52 60 24 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* left arm A-pose ~35° outward */}
+        <Path d="M30 32 L7 70 L11 73 L34 36 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* right arm */}
+        <Path d="M60 32 L83 70 L79 73 L56 36 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* left leg */}
+        <Path d="M33 88 L31 152 L41 152 L43 88 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* right leg */}
+        <Path d="M47 88 L49 152 L59 152 L57 88 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+      </Svg>
+    );
+  }
+  // side profile
+  return (
+    <Svg width="42" height="130" viewBox="0 0 50 160">
+      <Ellipse cx="27" cy="13" rx="9" ry="11" fill={fill} stroke={clr} strokeWidth={sw} />
+      <Path d="M20 24 L16 88 L36 88 L32 24 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+      <Path d="M22 34 L15 68 L19 69 L26 36 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+      <Path d="M20 88 L18 152 L28 152 L30 88 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+    </Svg>
+  );
+}
 
 // ── Info modal ────────────────────────────────────────────────────────────────
 function InfoModal({ info, onClose }) {
@@ -270,13 +305,33 @@ export default function BodyAnalysisScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
+        {/* Pose guide */}
+        <View style={s.poseGuide}>
+          <Text style={s.poseGuideTitle}>Como tirar as fotos</Text>
+          <View style={s.poseGuideRow}>
+            <View style={s.poseTip}>
+              <Text style={s.poseTipLabel}>Frente</Text>
+              <Text style={s.poseTipText}>Braços a 30–40° do corpo{'\n'}Pés juntos · Corpo inteiro visível</Text>
+            </View>
+            <View style={s.poseTip}>
+              <Text style={s.poseTipLabel}>Lateral</Text>
+              <Text style={s.poseTipText}>Perfil reto{'\n'}Braços ligeiramente à frente</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Photos */}
         <View style={s.photoRow}>
           {['front','side'].map(side => (
             <TouchableOpacity key={side} style={s.photoPicker} onPress={() => pickPhoto(side)} activeOpacity={0.8}>
               {(side === 'front' ? frontUri : sideUri)
                 ? <Image source={{ uri: side === 'front' ? frontUri : sideUri }} style={s.photoPreview} resizeMode="cover" />
-                : <Text style={s.photoPlaceholder}>+{'\n'}{side === 'front' ? 'Frente' : 'Lateral'}</Text>}
+                : (
+                  <View style={s.photoEmpty}>
+                    <PoseSilhouette pose={side} />
+                    <Text style={s.photoEmptyPlus}>+ {side === 'front' ? 'Frente' : 'Lateral'}</Text>
+                  </View>
+                )}
               <Text style={s.photoLabel}>{side === 'front' ? 'Frente' : 'Lateral'}</Text>
             </TouchableOpacity>
           ))}
@@ -539,11 +594,20 @@ const s = StyleSheet.create({
   badge:      { fontSize: 10, fontWeight: '900', color: '#fff', backgroundColor: '#EF4444', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   scroll:     { padding: 16, paddingBottom: 56, gap: 16 },
 
-  photoRow:   { flexDirection: 'row', gap: 12 },
-  photoPicker:{ flex: 1, aspectRatio: 0.75, borderRadius: 16, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  photoPreview:{ width: '100%', height: '100%' },
-  photoPlaceholder: { fontSize: 28, color: Colors.textMuted, textAlign: 'center', lineHeight: 32 },
-  photoLabel: { position: 'absolute', bottom: 6, fontSize: 11, fontWeight: '700', color: Colors.textMuted },
+  poseGuide:      { backgroundColor: Colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border },
+  poseGuideTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
+  poseGuideRow:   { flexDirection: 'row', gap: 12 },
+  poseTip:        { flex: 1 },
+  poseTipLabel:   { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 3 },
+  poseTipText:    { fontSize: 12, color: Colors.textMuted, lineHeight: 17 },
+
+  photoRow:        { flexDirection: 'row', gap: 12 },
+  photoPicker:     { flex: 1, aspectRatio: 0.75, borderRadius: 16, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  photoPreview:    { width: '100%', height: '100%' },
+  photoEmpty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  photoEmptyPlus:  { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  photoPlaceholder:{ fontSize: 28, color: Colors.textMuted, textAlign: 'center', lineHeight: 32 },
+  photoLabel:      { position: 'absolute', bottom: 6, fontSize: 11, fontWeight: '700', color: Colors.textMuted },
 
   section:    { backgroundColor: Colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: Colors.border },
   sectionLabel: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
