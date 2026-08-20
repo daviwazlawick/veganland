@@ -1048,6 +1048,26 @@ export async function setUserType(userId, userType) {
   if (r.rowCount === 0) console.warn(`[webhook] setUserType: user ${userId} not found in DB (RC anonymous purchase?)`);
 }
 
+// Called on INITIAL_PURCHASE only. If the user was referred, SET their bonus
+// scans to exactly SCAN_LIMITS[plan] — "double your plan's scans for the first
+// month". Uses SET (not add) so the 7-scan registration bonus is replaced by
+// the correct plan amount.
+export async function grantReferralSignupBonusOnPurchase(userId, userType) {
+  const db = await getPool();
+  if (!db) return;
+  const limit = SCAN_LIMITS[userType];
+  if (!limit) return;
+  const r = await db.query('select referred_by_user_id from users where id = $1', [userId]);
+  if (!r.rows[0]?.referred_by_user_id) return;
+  await db.query(
+    `update users
+        set bonus_scans_remaining = $2,
+            bonus_scans_expires_at = now() + interval '30 days'
+      where id = $1`,
+    [userId, limit]
+  );
+}
+
 export async function storeEmailConfirmationToken(userId, token) {
   const db = await getPool();
   if (!db) return;
