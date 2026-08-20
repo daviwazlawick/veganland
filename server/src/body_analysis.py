@@ -293,7 +293,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         definite = int((alpha > 200).sum())
         partial  = int(((alpha > 30) & (alpha <= 200)).sum())
         return partial / max(definite, 1)
-    if _seg_quality(front_rgba) > 0.45 or _seg_quality(side_rgba) > 0.45:
+    if _seg_quality(front_rgba) > 0.75 or _seg_quality(side_rgba) > 0.75:
         warnings.append('low_segmentation_confidence')
 
     # ── Landmarks ────────────────────────────────────────────────────────
