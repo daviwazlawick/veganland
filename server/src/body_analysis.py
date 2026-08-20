@@ -114,7 +114,10 @@ def width_at_y_bounded(mask, y, x_min=0, x_max=None, margin=2):
     """Width of mask at row y restricted to x_min..x_max column range."""
     h, w_img = mask.shape
     xl = max(0, int(x_min))
-    xr = min(w_img, int(x_max)) if x_max is not None else w_img
+    # Clamp to [0, w_img] — avoids Python negative-index wraparound
+    xr = max(0, min(w_img, int(x_max))) if x_max is not None else w_img
+    if xr <= xl:
+        return 0
     widths = []
     for dy in range(-margin, margin + 1):
         row = y + dy
@@ -289,9 +292,11 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     waist_w = _w(waist_y, torso_xl, torso_xr)
     hip_w   = _w(hip_y,   torso_xl, torso_xr)
 
-    # Arms: A-pose → arms are OUTSIDE torso x range; measure each side, take max
+    # Arms: A-pose → arms are OUTSIDE torso x range; measure each side, take max.
+    # Requires landmark detection — if no landmarks, can't isolate arm from torso.
+    has_torso_bounds = len(torso_xs) >= 2
     def _arm_w(y):
-        if y is None: return None
+        if y is None or not has_torso_bounds: return None
         buf = 4
         left  = width_at_y_bounded(front_mask, int(y), 0,              torso_xl - buf)
         right = width_at_y_bounded(front_mask, int(y), torso_xr + buf, fw)
@@ -325,12 +330,17 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if top_y_s is None: return None
         return top_y_s + rel * (bottom_y_s - top_y_s)
 
-    waist_d   = measure_width(side_y(waist_y),   side_mask, scale_side)
-    hip_d     = measure_width(side_y(hip_y),     side_mask, scale_side)
-    arm_d     = measure_width(side_y(arm_y),     side_mask, scale_side)
-    forearm_d = measure_width(side_y(forearm_y), side_mask, scale_side)
-    thigh_d   = measure_width(side_y(thigh_y),   side_mask, scale_side)
-    calf_d    = measure_width(side_y(calf_y),    side_mask, scale_side)
+    def _d(front_y_px):
+        sy = side_y(front_y_px)
+        if sy is None: return None
+        px = width_at_y(side_mask, int(sy))
+        return round(px * scale_side, 1) if px > 0 else None
+
+    waist_d   = _d(waist_y)
+    hip_d     = _d(hip_y)
+    thigh_d   = _d(thigh_y)
+    calf_d    = _d(calf_y)
+    # arm/forearm depth not used — circular approximation in circumference step
 
     # ── Circumferences ────────────────────────────────────────────────────
     def ellipse_circ(w_cm, d_cm):
