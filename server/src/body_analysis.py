@@ -322,14 +322,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         scale_side = scale
         warnings.append('side_scale_fallback')
 
-    # [CHECK] cropped_head / cropped_feet — warn only; true rejection would require
-    # checking edge-width vs body-width to distinguish "head near edge" from "torso cut".
-    # scale_calibration_failed already handles truly unusable crops.
-    _EDGE = 4  # px tolerance
-    if top_y    is not None and top_y    <= _EDGE:          warnings.append('cropped_head')
-    if bottom_y is not None and fh - bottom_y <= _EDGE:     warnings.append('cropped_feet')
-    if top_y_s  is not None and top_y_s  <= _EDGE:          warnings.append('cropped_head')
-    if bottom_y_s is not None and sh - bottom_y_s <= _EDGE: warnings.append('cropped_feet')
+    # cropped_head/cropped_feet removed — rembg masks routinely touch frame edges
+    # even in well-framed photos; scale_calibration_failed covers truly unusable crops.
 
     # ── Reference Y positions from landmarks (or fallback geometry) ───────
     def lm_y(lms, *names):
@@ -418,27 +412,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             if hip_w_px > 0 and ankle_sep < 0.25 * hip_w_px:
                 warnings.append('front_legs_together')
 
-    # [CHECK] side_not_true_profile — both hips similarly visible (not a profile)
-    if side_lms:
-        r_hip_v = side_lms.get('right_hip', {}).get('visibility', 0)
-        l_hip_v = side_lms.get('left_hip',  {}).get('visibility', 0)
-        if r_hip_v > 0.3 and l_hip_v > 0.3:
-            vis_ratio = min(r_hip_v, l_hip_v) / max(r_hip_v, l_hip_v)
-            if vis_ratio > 0.65:
-                warnings.append('side_not_true_profile')
-
-    # [CHECK] side_right_arm_not_raised — right wrist hanging far below shoulder
-    if side_lms:
-        r_w_lm  = side_lms.get('right_wrist', {})
-        r_s_lm  = side_lms.get('right_shoulder', {})
-        r_wrist_vis = r_w_lm.get('visibility', 0)
-        r_wy = r_w_lm.get('y')
-        r_sy = r_s_lm.get('y')
-        if r_wy is not None and r_sy is not None and r_wrist_vis > 0.35:
-            if r_wy > r_sy + sh * 0.25:
-                warnings.append('side_right_arm_not_raised')
-        elif r_wrist_vis <= 0.35:
-            warnings.append('side_right_arm_not_raised')
+    # side_not_true_profile removed — MediaPipe infers both hips even when one is hidden,
+    # so visibility-based profile detection always fires false positives.
+    # side_right_arm_not_raised removed — arm toward camera has low wrist visibility
+    # by definition (Shaped protocol), so the check always fired incorrectly.
 
     shoulder_xs = [x for x in [lsx, rsx] if x is not None]
     shoulder_xl = min(shoulder_xs) if len(shoulder_xs) >= 2 else None
