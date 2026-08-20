@@ -298,10 +298,25 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     ci = round(waist_circ / (0.109 * math.sqrt(weight_kg / height_m)), 2) \
          if waist_circ else None
 
-    # ── Body fat via Siri / volume estimation ─────────────────────────────
-    # Estimate body volume from ellipse cross-sections integrated vertically
-    # Very rough — keep as experimental, not shown to user by default
-    body_fat_pct = None  # Phase 2 — requires volume integration
+    # ── Body fat — Deurenberg formula (1991), r²=0.79 vs DEXA ───────────
+    # %BF = 1.20×BMI + 0.23×age − 10.8×sex_factor − 5.4
+    # sex_factor: 1=male, 0=female; valid adults 18-65, error ±4-6%
+    if age and age > 0:
+        sex_factor = 1 if sex == 'male' else 0
+        body_fat_pct = round(1.20 * bmi + 0.23 * age - 10.8 * sex_factor - 5.4, 1)
+        body_fat_pct = max(3.0, min(60.0, body_fat_pct))
+    else:
+        body_fat_pct = None
+
+    # Fat mass / lean mass split
+    fat_mass_kg  = round(weight_kg * body_fat_pct / 100, 1) if body_fat_pct else None
+    lean_mass_kg = round(weight_kg - fat_mass_kg, 1)        if fat_mass_kg  else None
+
+    # BMI classification
+    if   bmi < 18.5: bmi_class = 'underweight'
+    elif bmi < 25.0: bmi_class = 'normal'
+    elif bmi < 30.0: bmi_class = 'overweight'
+    else:            bmi_class = 'obese'
 
     # ── Confidence scores ─────────────────────────────────────────────────
     # Waist and hip benefit from more surrounding mask context → higher confidence
@@ -340,11 +355,17 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'conicity_index':    ci,
         },
         'classification': {
+            'bmi':              bmi_class,
             'waist_to_height':  classify(wth, 'waist_to_height', sex) if wth else None,
             'waist_to_hip':     classify(whr, 'waist_to_hip', sex)    if whr else None,
             'conicity_index':   classify(ci,  'conicity_index', sex)   if ci  else None,
         },
-        'body_composition': None,  # Phase 2
+        'body_composition': {
+            'body_fat_pct':  body_fat_pct,
+            'fat_mass_kg':   fat_mass_kg,
+            'lean_mass_kg':  lean_mass_kg,
+            'method':        'deurenberg_bmi',
+        } if body_fat_pct else None,
         'meta': {
             'input_height_cm':  height_cm,
             'input_weight_kg':  weight_kg,

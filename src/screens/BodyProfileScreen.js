@@ -37,8 +37,8 @@ export default function BodyProfileScreen({ navigation }) {
   }, [bodyProfile]);
 
   async function handleSave() {
-    const heightNum = parseFloat(height);
-    const weightNum = parseFloat(weight);
+    const heightNum = parseFloat(height.replace(',', '.'));
+    const weightNum = parseFloat(weight.replace(',', '.'));
     if (height && (isNaN(heightNum) || heightNum < 50 || heightNum > 300)) {
       Alert.alert('', 'Height must be between 50 and 300 cm.'); return;
     }
