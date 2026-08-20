@@ -134,6 +134,75 @@ def ellipse_circumference(a, b):
     return math.pi * (a + b) * (1 + 3 * h / (10 + math.sqrt(4 - 3 * h)))
 
 
+def measure_limb_perp(mask, p1, p2, scale, n_samples=18):
+    """
+    Find the maximum-girth perpendicular cross-section of a limb.
+
+    Scans n_samples planes perpendicular to the limb axis (p1→p2) between
+    20 % and 80 % of the segment length, raycasts in the perpendicular
+    direction to measure the mask width at each plane, and returns the widest.
+
+    Returns (width_cm, x0, y0, x1, y1, center_y) where (x0,y0)→(x1,y1) is
+    the measurement line to draw, or (None,)*6 if measurement fails.
+    """
+    dx = p2[0] - p1[0]
+    dy = p2[1] - p1[1]
+    length = math.sqrt(dx * dx + dy * dy)
+    if length < 10:
+        return (None,) * 6
+
+    # Perpendicular unit vector (rotated 90° from axis)
+    px = -dy / length
+    py =  dx / length
+    h_m, w_m = mask.shape
+
+    best_width = 0
+    best_line  = None
+    best_cy    = int((p1[1] + p2[1]) / 2)
+
+    for i in range(n_samples):
+        t  = 0.20 + 0.60 * i / max(n_samples - 1, 1)
+        cx = p1[0] + t * dx
+        cy = p1[1] + t * dy
+        cxi, cyi = int(round(cx)), int(round(cy))
+        if not (0 <= cxi < w_m and 0 <= cyi < h_m):
+            continue
+        if not mask[cyi, cxi]:
+            continue  # center not inside mask → skip this plane
+
+        # Raycast forward (+perp)
+        d_pos = 0
+        for d in range(1, 200):
+            xi = int(round(cx + d * px))
+            yi = int(round(cy + d * py))
+            if not (0 <= xi < w_m and 0 <= yi < h_m) or not mask[yi, xi]:
+                break
+            d_pos = d
+
+        # Raycast backward (−perp)
+        d_neg = 0
+        for d in range(1, 200):
+            xi = int(round(cx - d * px))
+            yi = int(round(cy - d * py))
+            if not (0 <= xi < w_m and 0 <= yi < h_m) or not mask[yi, xi]:
+                break
+            d_neg = d
+
+        width_px = d_pos + d_neg
+        if width_px > best_width:
+            best_width = width_px
+            best_cy    = cyi
+            best_line  = (
+                int(round(cx - d_neg * px)), int(round(cy - d_neg * py)),
+                int(round(cx + d_pos * px)), int(round(cy + d_pos * py)),
+            )
+
+    if best_line is None or best_width == 0:
+        return (None,) * 6
+
+    return round(best_width * scale, 1), *best_line, best_cy
+
+
 def classify(value, key, sex='female'):
     if key == 'waist_to_height':
         return 'low_risk' if value < 0.5 else 'elevated_risk'
@@ -145,28 +214,43 @@ def classify(value, key, sex='female'):
     return None
 
 
-def make_overlay(img_pil, mask, lms, measure_ys, scale, side='front', measure_x_bounds=None):
-    """Draw segmentation boundary + measurement lines on image."""
+def make_overlay(img_pil, mask, lms, measure_ys, scale, side='front',
+                 overlay_lines=None, measure_x_bounds=None):
+    """
+    Draw segmentation outline + measurement lines.
+    overlay_lines : {label: (x0,y0,x1,y1)} — angled perpendicular lines (limbs)
+    measure_x_bounds: {label: (x0,x1)}     — horizontal lines (torso)
+    """
     arr = np.array(img_pil.convert('RGB'))
-    # Mask outline
     mask_u8 = mask.astype(np.uint8) * 255
     contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(arr, contours, -1, (80, 200, 120), 2)
-    # Measurement lines — use recorded x bounds when available so lines match measurements
+
     for label, y_px in measure_ys.items():
         y = int(y_px)
-        if measure_x_bounds and label in measure_x_bounds:
+        if overlay_lines and label in overlay_lines:
+            x0, y0, x1, y1 = overlay_lines[label]
+            cv2.line(arr, (x0, y0), (x1, y1), (255, 200, 0), 2)
+            mid_x = (x0 + x1) // 2
+            mid_y = (y0 + y1) // 2
+            cv2.putText(arr, label, (mid_x - 20, mid_y - 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        elif measure_x_bounds and label in measure_x_bounds:
             x0, x1 = measure_x_bounds[label]
+            cv2.line(arr, (x0, y), (x1, y), (255, 200, 0), 2)
+            mid_x = (x0 + x1) // 2
+            cv2.putText(arr, label, (mid_x - 20, y - 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         else:
             cols = np.where(mask[y] if 0 <= y < mask.shape[0] else [])[0]
             if len(cols) < 2:
                 continue
             x0, x1 = int(cols[0]), int(cols[-1])
-        cv2.line(arr, (x0, y), (x1, y), (255, 200, 0), 2)
-        mid = (x0 + x1) // 2
-        cv2.putText(arr, label, (mid - 20, y - 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    # Landmark dots
+            cv2.line(arr, (x0, y), (x1, y), (255, 200, 0), 2)
+            mid = (x0 + x1) // 2
+            cv2.putText(arr, label, (mid - 20, y - 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
     if lms:
         for name, pt in lms.items():
             cv2.circle(arr, (int(pt['x']), int(pt['y'])), 4, (100, 180, 255), -1)
@@ -266,18 +350,21 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         'forearm': forearm_y, 'thigh': thigh_y, 'calf': calf_y,
     }.items() if v is not None}
 
-    # ── Landmark x-bounds ────────────────────────────────────────────────
+    # ── Landmark helpers ──────────────────────────────────────────────────
     def _lm_x(lms, name):
         if lms and name in lms and lms[name].get('visibility', 0) > 0.4:
             return lms[name]['x']
+        return None
+
+    def _lm_xy(lms, name):
+        if lms and name in lms and lms[name].get('visibility', 0) > 0.4:
+            return (lms[name]['x'], lms[name]['y'])
         return None
 
     lsx = _lm_x(front_lms, 'left_shoulder')
     rsx = _lm_x(front_lms, 'right_shoulder')
     lhx = _lm_x(front_lms, 'left_hip')
     rhx = _lm_x(front_lms, 'right_hip')
-    lkx = _lm_x(front_lms, 'left_knee')
-    rkx = _lm_x(front_lms, 'right_knee')
 
     shoulder_xs = [x for x in [lsx, rsx] if x is not None]
     shoulder_xl = min(shoulder_xs) if len(shoulder_xs) >= 2 else None
@@ -288,68 +375,82 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_xl = min(hip_xs) if len(hip_xs) >= 2 else shoulder_xl
     hip_xr = max(hip_xs) if len(hip_xs) >= 2 else shoulder_xr
 
-    # ── Width helper — returns (cm, x0_px, x1_px) for overlay accuracy ───
-    def _meas(mask_arg, y, xl, xr, sc):
+    # ── Torso: horizontal bounded measurement ─────────────────────────────
+    def _meas_horiz(y, xl, xr):
         if y is None or xl is None or xr is None: return None, None, None
-        xl_c = max(0, int(xl))
-        xr_c = max(0, min(mask_arg.shape[1], int(xr)))
+        xl_c = max(0, int(xl)); xr_c = max(0, min(front_mask.shape[1], int(xr)))
         if xr_c <= xl_c: return None, None, None
         x0s, x1s = [], []
         for dy in range(-2, 3):
             row = int(y) + dy
-            if 0 <= row < mask_arg.shape[0]:
-                cols = np.where(mask_arg[row, xl_c:xr_c])[0]
+            if 0 <= row < front_mask.shape[0]:
+                cols = np.where(front_mask[row, xl_c:xr_c])[0]
                 if len(cols) >= 2:
-                    x0s.append(xl_c + int(cols[0]))
-                    x1s.append(xl_c + int(cols[-1]))
+                    x0s.append(xl_c + int(cols[0])); x1s.append(xl_c + int(cols[-1]))
         if not x0s: return None, None, None
         x0 = int(np.median(x0s)); x1 = int(np.median(x1s))
         w_px = x1 - x0
-        return (round(w_px * sc, 1) if w_px > 0 else None), x0, x1
+        return (round(w_px * scale, 1) if w_px > 0 else None), x0, x1
 
-    measure_x_bounds_front = {}
+    measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
+    overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
-    # Waist: within shoulder bounds (shoulder-width excludes arms better than hip bounds)
-    waist_w, wx0, wx1 = _meas(front_mask, waist_y, shoulder_xl or 0, shoulder_xr or fw, scale)
+    waist_w, wx0, wx1 = _meas_horiz(waist_y, shoulder_xl or 0, shoulder_xr or fw)
     if wx0 is not None: measure_x_bounds_front['waist'] = (wx0, wx1)
 
-    # Hip: within hip bounds
-    hip_w, hx0, hx1 = _meas(front_mask, hip_y, hip_xl or 0, hip_xr or fw, scale)
+    hip_w, hx0, hx1 = _meas_horiz(hip_y, hip_xl or 0, hip_xr or fw)
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
-    # Bicep / Forearm: OUTSIDE shoulder bounds (A-pose separates arms from torso).
-    # Shoulder bounds are narrower than hip bounds, so arms at A-pose extend beyond them.
-    def _arm_meas(y):
-        if y is None or not has_shoulder_bounds: return None, None, None
-        buf = 4
-        lw, lx0, lx1 = _meas(front_mask, y, 0, shoulder_xl - buf, scale)
-        rw, rx0, rx1 = _meas(front_mask, y, shoulder_xr + buf, fw, scale)
-        if (lw or 0) >= (rw or 0):
-            return lw, lx0, lx1
-        return rw, rx0, rx1
+    # ── Limbs: perpendicular scan along limb axis ─────────────────────────
+    # Pick the arm/leg side whose distal landmark (elbow / knee) is furthest
+    # from the image centre — that limb is most likely in A-pose / separated.
+    cx_img = fw / 2
 
-    bicep_w,   bx0, bx1 = _arm_meas(arm_y)
-    forearm_w, fx0, fx1 = _arm_meas(forearm_y)
-    if bx0 is not None: measure_x_bounds_front['bicep']   = (bx0, bx1)
-    if fx0 is not None: measure_x_bounds_front['forearm'] = (fx0, fx1)
+    def _far_side(left_prox, left_dist, right_prox, right_dist):
+        """Return (side_name, p1_xy, p2_xy) for the limb whose distal end is furthest laterally."""
+        lp = _lm_xy(front_lms, left_prox);  ld = _lm_xy(front_lms, left_dist)
+        rp = _lm_xy(front_lms, right_prox); rd = _lm_xy(front_lms, right_dist)
+        if ld and rd:
+            if abs(ld[0] - cx_img) >= abs(rd[0] - cx_img):
+                return 'left', lp, ld
+            return 'right', rp, rd
+        if lp and ld: return 'left',  lp, ld
+        if rp and rd: return 'right', rp, rd
+        return None, None, None
 
-    # Thigh / Calf: split at knee midpoint, measure one leg
-    def _leg_meas(y):
-        if y is None: return None, None, None
-        if lkx and rkx:
-            mid_x = (lkx + rkx) / 2
-            lw, lx0, lx1 = _meas(front_mask, y, 0,     mid_x, scale)
-            rw, rx0, rx1 = _meas(front_mask, y, mid_x, fw,    scale)
-            if (lw or 0) >= (rw or 0): return lw, lx0, lx1
-            return rw, rx0, rx1
-        else:
-            px = width_at_y(front_mask, int(y)) // 2
-            return (round(px * scale, 1) if px > 0 else None), None, None
+    # Bicep: shoulder → elbow (arm more laterally extended in A-pose)
+    arm_side, sh_xy, el_xy = _far_side('left_shoulder','left_elbow','right_shoulder','right_elbow')
+    bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(front_mask, sh_xy, el_xy, scale) \
+        if (sh_xy and el_xy) else (None,)*6
+    if bx0 is not None:
+        overlay_lines_front['bicep'] = (bx0, by0, bx1, by1)
+        measure_ys_front['bicep']    = b_cy
 
-    thigh_w, tx0, tx1 = _leg_meas(thigh_y)
-    calf_w,  cx0, cx1 = _leg_meas(calf_y)
-    if tx0 is not None: measure_x_bounds_front['thigh'] = (tx0, tx1)
-    if cx0 is not None: measure_x_bounds_front['calf']  = (cx0, cx1)
+    # Forearm: elbow → wrist (same side as bicep)
+    el2_xy = _lm_xy(front_lms, f'{arm_side}_elbow') if arm_side else None
+    wr_xy  = _lm_xy(front_lms, f'{arm_side}_wrist') if arm_side else None
+    forearm_w, fx0, fy0, fx1, fy1, f_cy = measure_limb_perp(front_mask, el2_xy, wr_xy, scale) \
+        if (el2_xy and wr_xy) else (None,)*6
+    if fx0 is not None:
+        overlay_lines_front['forearm'] = (fx0, fy0, fx1, fy1)
+        measure_ys_front['forearm']    = f_cy
+
+    # Thigh: hip → knee
+    leg_side, hip_xy, kn_xy = _far_side('left_hip','left_knee','right_hip','right_knee')
+    thigh_w, tx0, ty0, tx1, ty1, t_cy = measure_limb_perp(front_mask, hip_xy, kn_xy, scale) \
+        if (hip_xy and kn_xy) else (None,)*6
+    if tx0 is not None:
+        overlay_lines_front['thigh'] = (tx0, ty0, tx1, ty1)
+        measure_ys_front['thigh']    = t_cy
+
+    # Calf: knee → ankle (same side as thigh)
+    kn2_xy = _lm_xy(front_lms, f'{leg_side}_knee')  if leg_side else None
+    an_xy  = _lm_xy(front_lms, f'{leg_side}_ankle') if leg_side else None
+    calf_w, cx0, cy0, cx1, cy1, c_cy = measure_limb_perp(front_mask, kn2_xy, an_xy, scale) \
+        if (kn2_xy and an_xy) else (None,)*6
+    if cx0 is not None:
+        overlay_lines_front['calf'] = (cx0, cy0, cx1, cy1)
+        measure_ys_front['calf']    = c_cy
 
     # ── Depth measurements (side) ─────────────────────────────────────────
     # Map front Y positions to side photo (same body proportions)
@@ -505,7 +606,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     }
     measure_ys_side = {k: v for k, v in measure_ys_side.items() if v}
 
-    front_overlay = make_overlay(front_pil, front_mask, front_lms, measure_ys_front, scale, 'front', measure_x_bounds_front)
+    front_overlay = make_overlay(front_pil, front_mask, front_lms, measure_ys_front, scale, 'front',
+                                  overlay_lines=overlay_lines_front, measure_x_bounds=measure_x_bounds_front)
     side_overlay  = make_overlay(side_pil,  side_mask,  side_lms,  measure_ys_side,  scale_side, 'side')
 
     return {
