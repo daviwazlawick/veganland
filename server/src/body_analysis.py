@@ -345,7 +345,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # Braço: between shoulder and elbow
     arm_y = (shoulder_y + elbow_y) / 2 if (shoulder_y and elbow_y) else None
     # Coxa: between hip and knee
-    thigh_y = hip_y + (knee_y - hip_y) * 0.35 if (hip_y and knee_y) else None
+    thigh_y = hip_y + (knee_y - hip_y) * 0.45 if (hip_y and knee_y) else None
     # Panturrilha: between knee and ankle
     calf_y = knee_y + (ankle_y - knee_y) * 0.40 if (knee_y and ankle_y) else None
 
