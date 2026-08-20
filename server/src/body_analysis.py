@@ -275,11 +275,24 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     front_pil = load_image(front_path)
     side_pil  = load_image(side_path)
 
+    # [CHECK] low_resolution — flag but continue
+    if front_pil.size[1] < 1200 or side_pil.size[1] < 1200:
+        warnings.append('low_resolution')
+
     # ── Segment ──────────────────────────────────────────────────────────
     front_rgba = segment_body(front_pil)
     side_rgba  = segment_body(side_pil)
     front_mask = get_mask(front_rgba)
     side_mask  = get_mask(side_rgba)
+
+    # [CHECK] low_segmentation_confidence — high partial-alpha ratio = noisy mask
+    def _seg_quality(rgba_img):
+        alpha = np.array(rgba_img)[:, :, 3]
+        definite = int((alpha > 200).sum())
+        partial  = int(((alpha > 30) & (alpha <= 200)).sum())
+        return partial / max(definite, 1)
+    if _seg_quality(front_rgba) > 0.45 or _seg_quality(side_rgba) > 0.45:
+        warnings.append('low_segmentation_confidence')
 
     # ── Landmarks ────────────────────────────────────────────────────────
     front_lms, fw, fh = get_landmarks(front_pil)
@@ -306,6 +319,17 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     else:
         scale_side = scale
         warnings.append('side_scale_fallback')
+
+    # [CHECK] cropped_head / cropped_feet — CRITICAL: calibration invalid → REJECT
+    _EDGE = 4  # px tolerance
+    if top_y    is not None and top_y    <= _EDGE:          warnings.append('cropped_head')
+    if bottom_y is not None and fh - bottom_y <= _EDGE:     warnings.append('cropped_feet')
+    if top_y_s  is not None and top_y_s  <= _EDGE:          warnings.append('cropped_head')
+    if bottom_y_s is not None and sh - bottom_y_s <= _EDGE: warnings.append('cropped_feet')
+    if any(w in warnings for w in ('cropped_head', 'cropped_feet')):
+        print(json.dumps({'error': 'photo_cropped', 'meta': {'warnings': list(dict.fromkeys(warnings))}}),
+              flush=True)
+        sys.exit(1)
 
     # ── Reference Y positions from landmarks (or fallback geometry) ───────
     def lm_y(lms, *names):
@@ -369,6 +393,52 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     rsx = _lm_x(front_lms, 'right_shoulder')
     lhx = _lm_x(front_lms, 'left_hip')
     rhx = _lm_x(front_lms, 'right_hip')
+
+    # ── Shaped protocol pose quality checks ──────────────────────────────
+    # [CHECK] front_arms_too_close — both wrists inside hip-width column
+    if front_lms:
+        lwx_c = _lm_x(front_lms, 'left_wrist')
+        rwx_c = _lm_x(front_lms, 'right_wrist')
+        lhx_c = _lm_x(front_lms, 'left_hip')
+        rhx_c = _lm_x(front_lms, 'right_hip')
+        if all(v is not None for v in [lwx_c, rwx_c, lhx_c, rhx_c]):
+            hx_min, hx_max = min(lhx_c, rhx_c), max(lhx_c, rhx_c)
+            if hx_min < lwx_c < hx_max and hx_min < rwx_c < hx_max:
+                warnings.append('front_arms_too_close')
+
+    # [CHECK] front_legs_together — ankle separation < 25 % of hip width
+    if front_lms:
+        lax_c = _lm_x(front_lms, 'left_ankle')
+        rax_c = _lm_x(front_lms, 'right_ankle')
+        lhx_c = _lm_x(front_lms, 'left_hip')
+        rhx_c = _lm_x(front_lms, 'right_hip')
+        if all(v is not None for v in [lax_c, rax_c, lhx_c, rhx_c]):
+            ankle_sep = abs(lax_c - rax_c)
+            hip_w_px  = abs(lhx_c - rhx_c)
+            if hip_w_px > 0 and ankle_sep < 0.25 * hip_w_px:
+                warnings.append('front_legs_together')
+
+    # [CHECK] side_not_true_profile — both hips similarly visible (not a profile)
+    if side_lms:
+        r_hip_v = side_lms.get('right_hip', {}).get('visibility', 0)
+        l_hip_v = side_lms.get('left_hip',  {}).get('visibility', 0)
+        if r_hip_v > 0.3 and l_hip_v > 0.3:
+            vis_ratio = min(r_hip_v, l_hip_v) / max(r_hip_v, l_hip_v)
+            if vis_ratio > 0.65:
+                warnings.append('side_not_true_profile')
+
+    # [CHECK] side_right_arm_not_raised — right wrist hanging far below shoulder
+    if side_lms:
+        r_w_lm  = side_lms.get('right_wrist', {})
+        r_s_lm  = side_lms.get('right_shoulder', {})
+        r_wrist_vis = r_w_lm.get('visibility', 0)
+        r_wy = r_w_lm.get('y')
+        r_sy = r_s_lm.get('y')
+        if r_wy is not None and r_sy is not None and r_wrist_vis > 0.35:
+            if r_wy > r_sy + sh * 0.25:
+                warnings.append('side_right_arm_not_raised')
+        elif r_wrist_vis <= 0.35:
+            warnings.append('side_right_arm_not_raised')
 
     shoulder_xs = [x for x in [lsx, rsx] if x is not None]
     shoulder_xl = min(shoulder_xs) if len(shoulder_xs) >= 2 else None

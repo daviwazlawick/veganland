@@ -324,11 +324,11 @@ export default function BodyAnalysisScreen({ navigation }) {
           <View style={s.poseGuideRow}>
             <View style={s.poseTip}>
               <Text style={s.poseTipLabel}>Frente</Text>
-              <Text style={s.poseTipText}>Braços a 30–40° do corpo{'\n'}Pés juntos · Corpo inteiro visível</Text>
+              <Text style={s.poseTipText}>Braços afastados do tronco{'\n'}Pernas abertas · Palmas para a câmera</Text>
             </View>
             <View style={s.poseTip}>
-              <Text style={s.poseTipLabel}>Lateral</Text>
-              <Text style={s.poseTipText}>Perfil reto · braços a 90°{'\n'}Pés juntos · Corpo inteiro visível</Text>
+              <Text style={s.poseTipLabel}>Lado direito</Text>
+              <Text style={s.poseTipText}>Braço direito esticado para a câmera{'\n'}Braço esquerdo atrás do corpo</Text>
             </View>
           </View>
         </View>
