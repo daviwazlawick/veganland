@@ -134,25 +134,30 @@ def ellipse_circumference(a, b):
     return math.pi * (a + b) * (1 + 3 * h / (10 + math.sqrt(4 - 3 * h)))
 
 
-def measure_limb_perp(mask, p1, p2, scale, n_samples=18):
+def measure_limb_perp(mask, p1, p2, scale, n_samples=18,
+                       center_x_min=None, center_x_max=None,
+                       ray_x_min=None,    ray_x_max=None):
     """
     Find the maximum-girth perpendicular cross-section of a limb.
 
     Scans n_samples planes perpendicular to the limb axis (p1→p2) between
-    20 % and 80 % of the segment length, raycasts in the perpendicular
-    direction to measure the mask width at each plane, and returns the widest.
+    20–80 % of the segment.  For each plane:
+      - The scan center must satisfy center_x_min ≤ cx ≤ center_x_max (if set).
+        This keeps the center on the limb, not inside the torso or other limb.
+      - Each raycast step is rejected if its xi falls outside ray_x_min..ray_x_max.
+        This prevents the ray from crossing into adjacent body parts.
 
-    Returns (width_cm, x0, y0, x1, y1, center_y) where (x0,y0)→(x1,y1) is
-    the measurement line to draw, or (None,)*6 if measurement fails.
+    Returns (width_cm, x0, y0, x1, y1, center_y) or (None,)*6 on failure.
     """
+    if p1 is None or p2 is None:
+        return (None,) * 6
     dx = p2[0] - p1[0]
     dy = p2[1] - p1[1]
     length = math.sqrt(dx * dx + dy * dy)
     if length < 10:
         return (None,) * 6
 
-    # Perpendicular unit vector (rotated 90° from axis)
-    px = -dy / length
+    px = -dy / length   # perpendicular unit vector
     py =  dx / length
     h_m, w_m = mask.shape
 
@@ -165,28 +170,27 @@ def measure_limb_perp(mask, p1, p2, scale, n_samples=18):
         cx = p1[0] + t * dx
         cy = p1[1] + t * dy
         cxi, cyi = int(round(cx)), int(round(cy))
-        if not (0 <= cxi < w_m and 0 <= cyi < h_m):
-            continue
-        if not mask[cyi, cxi]:
-            continue  # center not inside mask → skip this plane
 
-        # Raycast forward (+perp)
-        d_pos = 0
-        for d in range(1, 200):
-            xi = int(round(cx + d * px))
-            yi = int(round(cy + d * py))
-            if not (0 <= xi < w_m and 0 <= yi < h_m) or not mask[yi, xi]:
-                break
-            d_pos = d
+        # Reject plane if center is outside the allowed x window
+        if center_x_min is not None and cx < center_x_min: continue
+        if center_x_max is not None and cx > center_x_max: continue
+        if not (0 <= cxi < w_m and 0 <= cyi < h_m):        continue
+        if not mask[cyi, cxi]:                              continue
 
-        # Raycast backward (−perp)
-        d_neg = 0
-        for d in range(1, 200):
-            xi = int(round(cx - d * px))
-            yi = int(round(cy - d * py))
-            if not (0 <= xi < w_m and 0 <= yi < h_m) or not mask[yi, xi]:
-                break
-            d_neg = d
+        def _ray(sign):
+            d_end = 0
+            for d in range(1, 200):
+                xi = int(round(cx + sign * d * px))
+                yi = int(round(cy + sign * d * py))
+                if not (0 <= xi < w_m and 0 <= yi < h_m): break
+                if ray_x_min is not None and xi < ray_x_min: break
+                if ray_x_max is not None and xi > ray_x_max: break
+                if not mask[yi, xi]: break
+                d_end = d
+            return d_end
+
+        d_pos = _ray(+1)
+        d_neg = _ray(-1)
 
         width_px = d_pos + d_neg
         if width_px > best_width:
@@ -418,35 +422,78 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if rp and rd: return 'right', rp, rd
         return None, None, None
 
-    # Bicep: shoulder → elbow (arm more laterally extended in A-pose)
+    # Both knee x-coords for leg separation midpoint
+    lkx_both = _lm_x(front_lms, 'left_knee')
+    rkx_both = _lm_x(front_lms, 'right_knee')
+    knee_mid = (lkx_both + rkx_both) / 2 if (lkx_both and rkx_both) else None
+
+    # ── Bicep: shoulder → elbow ───────────────────────────────────────────
+    # Center-x constrained to be outside the torso shoulder bounds so we
+    # never start the scan inside the chest.
     arm_side, sh_xy, el_xy = _far_side('left_shoulder','left_elbow','right_shoulder','right_elbow')
-    bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(front_mask, sh_xy, el_xy, scale) \
+
+    if sh_xy and el_xy:
+        arm_goes_right = el_xy[0] > sh_xy[0]   # True if arm extends to image-right
+        if arm_goes_right:
+            b_cx_min = shoulder_xr  # scan only where cx > right-shoulder landmark
+            b_cx_max = None
+        else:
+            b_cx_min = None
+            b_cx_max = shoulder_xl  # scan only where cx < left-shoulder landmark
+    else:
+        b_cx_min = b_cx_max = None
+
+    bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
+        front_mask, sh_xy, el_xy, scale,
+        center_x_min=b_cx_min, center_x_max=b_cx_max) \
         if (sh_xy and el_xy) else (None,)*6
     if bx0 is not None:
         overlay_lines_front['bicep'] = (bx0, by0, bx1, by1)
         measure_ys_front['bicep']    = b_cy
 
-    # Forearm: elbow → wrist (same side as bicep)
+    # ── Forearm: elbow → wrist (same side as bicep) ───────────────────────
     el2_xy = _lm_xy(front_lms, f'{arm_side}_elbow') if arm_side else None
     wr_xy  = _lm_xy(front_lms, f'{arm_side}_wrist') if arm_side else None
-    forearm_w, fx0, fy0, fx1, fy1, f_cy = measure_limb_perp(front_mask, el2_xy, wr_xy, scale) \
+    forearm_w, fx0, fy0, fx1, fy1, f_cy = measure_limb_perp(
+        front_mask, el2_xy, wr_xy, scale,
+        center_x_min=b_cx_min, center_x_max=b_cx_max) \
         if (el2_xy and wr_xy) else (None,)*6
     if fx0 is not None:
         overlay_lines_front['forearm'] = (fx0, fy0, fx1, fy1)
         measure_ys_front['forearm']    = f_cy
 
-    # Thigh: hip → knee
+    # ── Thigh: hip → knee ────────────────────────────────────────────────
+    # Ray and center constrained to one side of the knee midpoint so we
+    # don't measure both thighs as one.
     leg_side, hip_xy, kn_xy = _far_side('left_hip','left_knee','right_hip','right_knee')
-    thigh_w, tx0, ty0, tx1, ty1, t_cy = measure_limb_perp(front_mask, hip_xy, kn_xy, scale) \
+
+    if kn_xy and knee_mid is not None:
+        buf = 20  # px buffer around midpoint
+        if kn_xy[0] < cx_img:   # chosen knee is on the left side of image
+            t_cx_min, t_cx_max    = None,          knee_mid + buf
+            t_rx_min, t_rx_max    = None,          knee_mid + buf
+        else:                    # chosen knee is on the right side
+            t_cx_min, t_cx_max    = knee_mid - buf, None
+            t_rx_min, t_rx_max    = knee_mid - buf, None
+    else:
+        t_cx_min = t_cx_max = t_rx_min = t_rx_max = None
+
+    thigh_w, tx0, ty0, tx1, ty1, t_cy = measure_limb_perp(
+        front_mask, hip_xy, kn_xy, scale,
+        center_x_min=t_cx_min, center_x_max=t_cx_max,
+        ray_x_min=t_rx_min,    ray_x_max=t_rx_max) \
         if (hip_xy and kn_xy) else (None,)*6
     if tx0 is not None:
         overlay_lines_front['thigh'] = (tx0, ty0, tx1, ty1)
         measure_ys_front['thigh']    = t_cy
 
-    # Calf: knee → ankle (same side as thigh)
+    # ── Calf: knee → ankle (same side as thigh) ──────────────────────────
     kn2_xy = _lm_xy(front_lms, f'{leg_side}_knee')  if leg_side else None
     an_xy  = _lm_xy(front_lms, f'{leg_side}_ankle') if leg_side else None
-    calf_w, cx0, cy0, cx1, cy1, c_cy = measure_limb_perp(front_mask, kn2_xy, an_xy, scale) \
+    calf_w, cx0, cy0, cx1, cy1, c_cy = measure_limb_perp(
+        front_mask, kn2_xy, an_xy, scale,
+        center_x_min=t_cx_min, center_x_max=t_cx_max,
+        ray_x_min=t_rx_min,    ray_x_max=t_rx_max) \
         if (kn2_xy and an_xy) else (None,)*6
     if cx0 is not None:
         overlay_lines_front['calf'] = (cx0, cy0, cx1, cy1)
