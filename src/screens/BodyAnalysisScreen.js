@@ -495,10 +495,14 @@ export default function BodyAnalysisScreen({ navigation }) {
           </>
         )}
 
-        <Text style={styles.disclaimer}>
-          Apenas para uso interno (admin). Precisão ±2–4 cm.{'\n'}
-          Não tem poder diagnóstico.
-        </Text>
+        <View style={styles.disclaimerBox}>
+          <Text style={styles.disclaimerTitle}>Aviso legal</Text>
+          <Text style={styles.disclaimerText}>
+            Os dados gerados por esta análise <Text style={styles.disclaimerBold}>não têm poder diagnóstico</Text> e não substituem avaliação clínica. A interpretação final é da responsabilidade do profissional de saúde.{'\n\n'}
+            <Text style={styles.disclaimerBold}>As fotos não são armazenadas pelo NovaQI.</Text> São processadas localmente e no servidor apenas durante a análise e eliminadas de imediato. A gestão e armazenamento das imagens é da responsabilidade exclusiva do utilizador.{'\n\n'}
+            Poses, vestuário e qualidade da imagem podem influenciar os resultados. Precisão dos perímetros: ±2–4 cm (modelo elíptico). Erro da % gordura: ±4–6% vs. DEXA.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -670,5 +674,8 @@ const styles = StyleSheet.create({
   modalClose:   { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
   modalCloseText: { color: Colors.white, fontSize: 14, fontWeight: '800' },
 
-  disclaimer:  { fontSize: 10, color: Colors.textMuted, textAlign: 'center', lineHeight: 15, marginTop: 8 },
+  disclaimerBox:   { backgroundColor: Colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6, marginTop: 4 },
+  disclaimerTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  disclaimerText:  { fontSize: 11, color: Colors.textMuted, lineHeight: 16 },
+  disclaimerBold:  { fontWeight: '800', color: Colors.textLight },
 });
