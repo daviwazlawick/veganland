@@ -609,6 +609,8 @@ export default {
     arm: 'Arm / Bizeps (cm)',
     thigh: 'Oberschenkel (cm)',
     neck: 'Hals (cm)',
+    forearm: 'Unterarm (cm)',
+    calf: 'Wade (cm)',
     body_fat: 'Körperfett (%)',
     last_recorded: 'Zuletzt erfasst',
     history: 'Verlauf ansehen',

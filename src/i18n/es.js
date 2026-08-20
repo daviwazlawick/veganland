@@ -609,6 +609,8 @@ export default {
     arm: 'Brazo / bíceps (cm)',
     thigh: 'Muslo (cm)',
     neck: 'Cuello (cm)',
+    forearm: 'Antebrazo (cm)',
+    calf: 'Pantorrilla (cm)',
     body_fat: 'Grasa corporal (%)',
     last_recorded: 'Última medición',
     history: 'Ver historial',

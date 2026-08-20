@@ -609,6 +609,8 @@ export default {
     arm: 'Braccio / bicipite (cm)',
     thigh: 'Coscia (cm)',
     neck: 'Collo (cm)',
+    forearm: 'Avambraccio (cm)',
+    calf: 'Polpaccio (cm)',
     body_fat: 'Grasso corporeo (%)',
     last_recorded: "Ultima misurazione",
     history: 'Vedi cronologia',

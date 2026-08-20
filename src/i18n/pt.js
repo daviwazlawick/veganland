@@ -609,6 +609,8 @@ export default {
     arm: 'Braço / bíceps (cm)',
     thigh: 'Coxa (cm)',
     neck: 'Pescoço (cm)',
+    forearm: 'Antebraço (cm)',
+    calf: 'Panturrilha (cm)',
     body_fat: 'Gordura corporal (%)',
     last_recorded: 'Última medição',
     history: 'Ver histórico',

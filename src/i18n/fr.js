@@ -609,6 +609,8 @@ export default {
     arm: 'Bras / biceps (cm)',
     thigh: 'Cuisse (cm)',
     neck: 'Cou (cm)',
+    forearm: 'Avant-bras (cm)',
+    calf: 'Mollet (cm)',
     body_fat: 'Graisse corporelle (%)',
     last_recorded: 'Dernière mesure',
     history: 'Voir l\'historique',

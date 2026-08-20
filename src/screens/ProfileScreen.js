@@ -43,7 +43,7 @@ export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile, monthlyScanCount, scanHistory, streak } = useApp();
   const { user, token, logout } = useAuth();
   const { stats: referralStats } = useReferral();
-  const { goals, bodyProfile, bodyMeasurements } = useNutrition();
+  const { goals, bodyProfile } = useNutrition();
   const [usage, setUsage] = useState(null);
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
@@ -215,23 +215,6 @@ export default function ProfileScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        {/* ── Body Analysis (NovaQI only) ── */}
-        {isNovaQI && (
-          <>
-            <SectionLabel label={t(language, 'body_analysis.section_title')} />
-            {bodyMeasurements.length > 0 ? (
-              <BodyAnalysisCard data={bodyMeasurements[0]} language={language} navigation={navigation} />
-            ) : (
-              <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('BodyAnalysis')}>
-                <View style={s.emptyState}>
-                  <Text style={s.emptyStateText}>{t(language, 'body_analysis.no_analysis')}</Text>
-                  <Text style={s.emptyStateCta}>{t(language, 'body_analysis.run_analysis')} ›</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-
         {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
           <TouchableOpacity style={s.referralCard} activeOpacity={0.9} onPress={() => navigation.navigate('Referral')}>
@@ -386,66 +369,6 @@ export default function ProfileScreen({ navigation }) {
 
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function _baFmt(key, val) {
-  if (val == null) return null;
-  if (key === 'ree_kcal') return String(Math.round(val));
-  if (key === 'waist_to_height' || key === 'waist_to_hip' || key === 'conicity_index') return Number(val).toFixed(2);
-  return Number(val).toFixed(1);
-}
-const BA_UNIT = {
-  chest_cm:'cm', neck_cm:'cm', bicep_cm:'cm', forearm_cm:'cm',
-  waist_cm:'cm', hip_cm:'cm', thigh_cm:'cm', calf_cm:'cm',
-  body_fat_pct:'%', lean_mass_kg:'kg', fat_mass_kg:'kg',
-  body_water_pct:'%', ree_kcal:'kcal',
-  bmi:'', lean_mass_index:'kg/m²', fat_mass_index:'kg/m²',
-  waist_to_height:'', waist_to_hip:'', conicity_index:'',
-};
-const BA_ALL_KEYS = [
-  'chest_cm','neck_cm','bicep_cm','forearm_cm',
-  'waist_cm','hip_cm','thigh_cm','calf_cm',
-  'body_fat_pct','lean_mass_kg','fat_mass_kg','body_water_pct','ree_kcal',
-  'bmi','lean_mass_index','fat_mass_index',
-  'waist_to_height','waist_to_hip','conicity_index',
-];
-
-function BodyAnalysisCard({ data, language, navigation }) {
-  const dateStr = data.recorded_at
-    ? new Date(data.recorded_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
-    : null;
-
-  const items = BA_ALL_KEYS.filter(k => data[k] != null);
-
-  return (
-    <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('BodyAnalysis')}>
-      <View style={s.bodyGrid}>
-        {data.score != null && (
-          <View style={s.bodyCell}>
-            <Text style={s.bodyCellValue}>{data.score}</Text>
-            <Text style={s.bodyCellLabel}>{t(language, 'body_analysis.score')}</Text>
-          </View>
-        )}
-        {items.map(k => {
-          const unit = BA_UNIT[k];
-          const name = t(language, `body_analysis.${k}`);
-          const label = unit ? `${name} · ${unit}` : name;
-          return (
-            <View key={k} style={s.bodyCell}>
-              <Text style={s.bodyCellValue}>{_baFmt(k, data[k])}</Text>
-              <Text style={s.bodyCellLabel}>{label}</Text>
-            </View>
-          );
-        })}
-        <View style={s.bodyCellEdit}>
-          <Ionicons name="chevron-forward" size={13} color={Colors.primary} />
-        </View>
-      </View>
-      {dateStr && (
-        <Text style={s.baDate}>{t(language, 'body_analysis.last_analysis')}: {dateStr}</Text>
-      )}
-    </TouchableOpacity>
   );
 }
 
@@ -667,9 +590,6 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   accountEmail: { flex: 1, fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
-
-  // Body Analysis Card
-  baDate: { fontSize: 11, color: Colors.textMuted, fontWeight: '500', paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 },
 
   // About
   aboutCard: {

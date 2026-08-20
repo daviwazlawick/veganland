@@ -11,20 +11,85 @@ import { useNutrition } from '../context/NutritionContext';
 import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
 import ImportPlanButton from '../components/ImportPlanButton';
+import Brand from '../brand';
 
 const SEXES = ['male', 'female', 'other'];
 const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
 const GOALS = ['lose', 'maintain', 'gain'];
+const IS_NOVAQI = Brand.id === 'novaqi';
 
 const MEASURE_FIELDS = [
   { key: 'waist_cm',     i18n: 'measurements.waist',    placeholder: '80' },
   { key: 'hips_cm',      i18n: 'measurements.hips',     placeholder: '95' },
   { key: 'chest_cm',     i18n: 'measurements.chest',    placeholder: '100' },
   { key: 'arm_cm',       i18n: 'measurements.arm',      placeholder: '35' },
+  { key: 'forearm_cm',   i18n: 'measurements.forearm',  placeholder: '28' },
   { key: 'thigh_cm',     i18n: 'measurements.thigh',    placeholder: '55' },
+  { key: 'calf_cm',      i18n: 'measurements.calf',     placeholder: '37' },
   { key: 'neck_cm',      i18n: 'measurements.neck',     placeholder: '38' },
   { key: 'body_fat_pct', i18n: 'measurements.body_fat', placeholder: '18' },
 ];
+
+function _baScore(score) {
+  if (score >= 80) return { color: '#22C55E', label: 'Excelente' };
+  if (score >= 60) return { color: '#84CC16', label: 'Bom' };
+  if (score >= 40) return { color: '#F97316', label: 'Moderado' };
+  return { color: '#EF4444', label: 'Atenção' };
+}
+function _baFmt(key, val) {
+  if (val == null) return '—';
+  if (key === 'ree_kcal') return String(Math.round(val));
+  if (['waist_to_height','waist_to_hip','conicity_index'].includes(key)) return Number(val).toFixed(2);
+  return Number(val).toFixed(1);
+}
+function _baCls(key, val, sex) {
+  if (val == null) return null;
+  const v = Number(val);
+  if (key === 'waist_to_height') return v < 0.5 ? { color: '#22C55E', label: 'Baixo risco' } : { color: '#EF4444', label: 'Risco elevado' };
+  if (key === 'waist_to_hip') { const th = sex === 'male' ? 0.90 : 0.85; return v < th ? { color: '#22C55E', label: 'Adequado' } : { color: '#EF4444', label: 'Risco elevado' }; }
+  if (key === 'conicity_index') return v < 1.18 ? { color: '#22C55E', label: 'Adequado' } : { color: '#EF4444', label: 'Risco elevado' };
+  if (key === 'bmi') {
+    if (v < 18.5) return { color: '#3B82F6', label: 'Abaixo do peso' };
+    if (v < 25.0) return { color: '#22C55E', label: 'Normal' };
+    if (v < 30.0) return { color: '#F97316', label: 'Sobrepeso' };
+    return { color: '#EF4444', label: 'Obesidade' };
+  }
+  if (key === 'lean_mass_index') {
+    const [lo, hi] = sex === 'male' ? [17, 22] : [14, 18];
+    if (v < lo) return { color: '#F97316', label: 'Abaixo' };
+    if (v <= hi) return { color: '#22C55E', label: 'Normal' };
+    return { color: '#3B82F6', label: 'Elevado' };
+  }
+  if (key === 'fat_mass_index') {
+    if (sex === 'male') {
+      if (v < 2) return { color: '#3B82F6', label: 'Essencial' };
+      if (v < 5) return { color: '#22C55E', label: 'Baixo' };
+      if (v < 8) return { color: '#84CC16', label: 'Normal' };
+      return { color: '#EF4444', label: 'Elevado' };
+    } else {
+      if (v < 3) return { color: '#3B82F6', label: 'Essencial' };
+      if (v < 7) return { color: '#22C55E', label: 'Baixo' };
+      if (v < 12) return { color: '#84CC16', label: 'Normal' };
+      return { color: '#EF4444', label: 'Elevado' };
+    }
+  }
+  if (key === 'body_fat_pct') {
+    if (sex === 'male') {
+      if (v < 6)  return { color: '#3B82F6', label: 'Essencial' };
+      if (v < 14) return { color: '#22C55E', label: 'Atleta' };
+      if (v < 18) return { color: '#84CC16', label: 'Fitness' };
+      if (v < 25) return { color: '#F97316', label: 'Aceitável' };
+      return { color: '#EF4444', label: 'Obeso' };
+    } else {
+      if (v < 14) return { color: '#3B82F6', label: 'Essencial' };
+      if (v < 21) return { color: '#22C55E', label: 'Atleta' };
+      if (v < 25) return { color: '#84CC16', label: 'Fitness' };
+      if (v < 32) return { color: '#F97316', label: 'Aceitável' };
+      return { color: '#EF4444', label: 'Obeso' };
+    }
+  }
+  return null;
+}
 
 function formatDate(iso, language) {
   if (!iso) return '';
@@ -33,7 +98,7 @@ function formatDate(iso, language) {
 
 export default function EditPersonalScreen({ navigation }) {
   const { language, token, profile, saveProfile } = useApp();
-  const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements, goals, saveGoals } = useNutrition();
+  const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements, goals, saveGoals, bodyMeasurements } = useNutrition();
 
   const [name, setName] = useState(profile?.name || '');
   const [bio, setBio] = useState(profile?.bio || '');
@@ -362,6 +427,137 @@ export default function EditPersonalScreen({ navigation }) {
 
           <Text style={styles.measureHint}>{t(language, 'measurements.save_hint')}</Text>
 
+          {/* ── NovaQI Body Analysis (NovaQI brand only) ── */}
+          {IS_NOVAQI && bodyMeasurements.length > 0 && (() => {
+            const ba = bodyMeasurements[0];
+            const sex = bodyProfile?.sex || 'female';
+            const dateStr = ba.recorded_at
+              ? new Date(ba.recorded_at).toLocaleDateString(localeFor(language), { day: '2-digit', month: 'short', year: 'numeric' })
+              : null;
+
+            return (
+              <>
+                <Text style={styles.sectionDivider}>{t(language, 'body_analysis.section_title')}</Text>
+                {dateStr && <Text style={styles.baDateLabel}>{t(language, 'body_analysis.last_analysis')}: {dateStr}</Text>}
+
+                {/* Score */}
+                {ba.score != null && (() => {
+                  const sc = _baScore(ba.score);
+                  return (
+                    <View style={styles.baCard}>
+                      <Text style={styles.baCardTitle}>{t(language, 'body_analysis.score')}</Text>
+                      <View style={styles.baScoreRow}>
+                        <Text style={[styles.baScoreNum, { color: sc.color }]}>{ba.score}</Text>
+                        <Text style={styles.baScoreDen}>/100</Text>
+                        <View style={[styles.baBadge, { backgroundColor: sc.color + '20', borderColor: sc.color }]}>
+                          <Text style={[styles.baBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.baScoreBar}>
+                        <View style={[styles.baScoreFill, { width: `${Math.min(100, ba.score)}%`, backgroundColor: sc.color }]} />
+                      </View>
+                    </View>
+                  );
+                })()}
+
+                {/* Medidas Corporais */}
+                {[ba.chest_cm, ba.neck_cm, ba.bicep_cm, ba.forearm_cm, ba.waist_cm, ba.hip_cm, ba.thigh_cm, ba.calf_cm].some(v => v != null) && (
+                  <View style={styles.baCard}>
+                    <Text style={styles.baCardTitle}>Medidas Corporais</Text>
+                    <View style={styles.baGrid}>
+                      {[
+                        ['chest_cm',   ba.chest_cm,   'cm'],
+                        ['neck_cm',    ba.neck_cm,    'cm'],
+                        ['bicep_cm',   ba.bicep_cm,   'cm'],
+                        ['forearm_cm', ba.forearm_cm, 'cm'],
+                        ['waist_cm',   ba.waist_cm,   'cm'],
+                        ['hip_cm',     ba.hip_cm,     'cm'],
+                        ['thigh_cm',   ba.thigh_cm,   'cm'],
+                        ['calf_cm',    ba.calf_cm,    'cm'],
+                      ].filter(([, v]) => v != null).map(([key, val, unit]) => (
+                        <View key={key} style={styles.baCell}>
+                          <Text style={styles.baCellVal}>{_baFmt(key, val)} <Text style={styles.baCellUnit}>{unit}</Text></Text>
+                          <Text style={styles.baCellLabel}>{t(language, `body_analysis.${key}`)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Composição Corporal */}
+                {[ba.body_fat_pct, ba.lean_mass_kg, ba.fat_mass_kg, ba.body_water_pct, ba.ree_kcal].some(v => v != null) && (
+                  <View style={styles.baCard}>
+                    <Text style={styles.baCardTitle}>Composição Corporal</Text>
+                    <View style={styles.baGrid}>
+                      {[
+                        ['body_fat_pct',  ba.body_fat_pct,  '%'],
+                        ['lean_mass_kg',  ba.lean_mass_kg,  'kg'],
+                        ['fat_mass_kg',   ba.fat_mass_kg,   'kg'],
+                        ['body_water_pct',ba.body_water_pct,'%'],
+                        ['ree_kcal',      ba.ree_kcal,      'kcal'],
+                      ].filter(([, v]) => v != null).map(([key, val, unit]) => {
+                        const cls = _baCls(key, val, sex);
+                        return (
+                          <View key={key} style={styles.baCell}>
+                            <Text style={styles.baCellVal}>{_baFmt(key, val)} <Text style={styles.baCellUnit}>{unit}</Text></Text>
+                            <Text style={styles.baCellLabel}>{t(language, `body_analysis.${key}`)}</Text>
+                            {cls && <View style={[styles.baMini, { backgroundColor: cls.color + '20', borderColor: cls.color }]}><Text style={[styles.baMiniText, { color: cls.color }]}>{cls.label}</Text></View>}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Índices */}
+                {[ba.bmi, ba.lean_mass_index, ba.fat_mass_index, ba.waist_to_height, ba.waist_to_hip, ba.conicity_index].some(v => v != null) && (
+                  <View style={styles.baCard}>
+                    <Text style={styles.baCardTitle}>Índices</Text>
+                    <View style={styles.baGrid}>
+                      {[
+                        ['bmi',             ba.bmi,             ''],
+                        ['lean_mass_index',  ba.lean_mass_index, 'kg/m²'],
+                        ['fat_mass_index',   ba.fat_mass_index,  'kg/m²'],
+                        ['waist_to_height',  ba.waist_to_height, ''],
+                        ['waist_to_hip',     ba.waist_to_hip,    ''],
+                        ['conicity_index',   ba.conicity_index,  ''],
+                      ].filter(([, v]) => v != null).map(([key, val, unit]) => {
+                        const cls = _baCls(key, val, sex);
+                        return (
+                          <View key={key} style={styles.baCell}>
+                            <Text style={styles.baCellVal}>{_baFmt(key, val)}{unit ? <Text style={styles.baCellUnit}> {unit}</Text> : null}</Text>
+                            <Text style={styles.baCellLabel}>{t(language, `body_analysis.${key}`)}</Text>
+                            {cls && <View style={[styles.baMini, { backgroundColor: cls.color + '20', borderColor: cls.color }]}><Text style={[styles.baMiniText, { color: cls.color }]}>{cls.label}</Text></View>}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Quadro de Referências */}
+                <View style={styles.baCard}>
+                  <Text style={styles.baCardTitle}>Quadro de Referências</Text>
+                  {[
+                    { label: 'IMG (Índice Massa Gorda)',   male: '2–8 kg/m²',   female: '3–12 kg/m²' },
+                    { label: 'IMM (Índice Massa Magra)',   male: '17–22 kg/m²', female: '14–18 kg/m²' },
+                    { label: 'RCE (Cintura/Estatura)',     male: '< 0,50',       female: '< 0,50' },
+                    { label: 'RCQ (Cintura/Quadril)',      male: '< 0,90',       female: '< 0,85' },
+                    { label: 'IC (Índice Conicidade)',     male: '< 1,18',       female: '< 1,18' },
+                  ].map((row, i) => (
+                    <View key={i} style={[styles.baRefRow, i > 0 && styles.baRefRowBorder]}>
+                      <Text style={styles.baRefLabel} numberOfLines={2}>{row.label}</Text>
+                      <View style={styles.baRefVals}>
+                        <Text style={styles.baRefVal}><Text style={styles.baRefSex}>♂ </Text>{row.male}</Text>
+                        <Text style={styles.baRefVal}><Text style={styles.baRefSex}>♀ </Text>{row.female}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
+            );
+          })()}
+
           {/* ── History ── */}
           {measurementsHistory.length > 0 && (
             <TouchableOpacity style={styles.historyToggle} onPress={() => setShowHistory(v => !v)} activeOpacity={0.7}>
@@ -512,6 +708,35 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   measureHint: { width: '100%', fontSize: 12, color: Colors.textMuted, fontStyle: 'italic' },
+
+  // Body Analysis cards
+  baDateLabel: { width: '100%', fontSize: 12, color: Colors.primary, fontWeight: '700', marginTop: -10 },
+  baCard: {
+    width: '100%', backgroundColor: Colors.card || '#fff',
+    borderRadius: 18, padding: 16, gap: 14,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  baCardTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  baScoreRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  baScoreNum: { fontSize: 48, fontWeight: '900', lineHeight: 52 },
+  baScoreDen: { fontSize: 18, color: Colors.textMuted, fontWeight: '600', paddingBottom: 6 },
+  baBadge: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, marginLeft: 'auto', alignSelf: 'center' },
+  baBadgeText: { fontSize: 12, fontWeight: '800' },
+  baScoreBar: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
+  baScoreFill: { height: 8, borderRadius: 4 },
+  baGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  baCell: { minWidth: 76, alignItems: 'flex-start', gap: 2 },
+  baCellVal: { fontSize: 18, fontWeight: '900', color: Colors.text },
+  baCellUnit: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
+  baCellLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  baMini: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
+  baMiniText: { fontSize: 10, fontWeight: '700' },
+  baRefRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  baRefRowBorder: { borderTopWidth: 1, borderTopColor: Colors.border },
+  baRefLabel: { flex: 1, fontSize: 12, fontWeight: '600', color: Colors.text, lineHeight: 16 },
+  baRefVals: { gap: 2, alignItems: 'flex-end' },
+  baRefVal: { fontSize: 12, fontWeight: '700', color: Colors.navy || Colors.text },
+  baRefSex: { color: Colors.textMuted, fontWeight: '600' },
 
   // History
   historyToggle: {

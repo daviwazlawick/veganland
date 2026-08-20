@@ -609,6 +609,8 @@ export default {
     arm: 'Arm / bicep (cm)',
     thigh: 'Thigh (cm)',
     neck: 'Neck (cm)',
+    forearm: 'Forearm (cm)',
+    calf: 'Calf (cm)',
     body_fat: 'Body fat (%)',
     last_recorded: 'Last recorded',
     history: 'View history',

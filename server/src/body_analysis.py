@@ -492,27 +492,30 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_w, hx0, hx1 = _meas_horiz_body(hip_y)
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
-    # Neck: perpendicular cross-section along nose→mid-shoulder axis.
-    # Horizontal scan was wrong — it measured nape-to-chin width.
-    # Perpendicular to the neck axis gives the true circumference diameter.
-    nose_xy   = _lm_xy(front_lms, 'nose')
-    lsh_xy2   = _lm_xy(front_lms, 'left_shoulder')
-    rsh_xy2   = _lm_xy(front_lms, 'right_shoulder')
-    if lsh_xy2 and rsh_xy2:
-        mid_sh_xy = ((lsh_xy2[0] + rsh_xy2[0]) / 2, (lsh_xy2[1] + rsh_xy2[1]) / 2)
-    elif lsh_xy2: mid_sh_xy = lsh_xy2
-    elif rsh_xy2: mid_sh_xy = rsh_xy2
-    else:         mid_sh_xy = None
-
-    neck_w, nkx0, nky0, nkx1, nky1, nk_cy = measure_limb_perp(
-        front_mask, nose_xy, mid_sh_xy, scale,
-        center_x_min=shoulder_xl, center_x_max=shoulder_xr,
-        ray_x_min=shoulder_xl,    ray_x_max=shoulder_xr,
-        t_min=0.50, t_max=0.85) \
-        if (nose_xy and mid_sh_xy) else (None,) * 6
-    if nkx0 is not None:
-        overlay_lines_front['neck'] = (nkx0, nky0, nkx1, nky1)
-        measure_ys_front['neck']    = nk_cy
+    # Neck: find the minimum horizontal width between chin and shoulder level.
+    # The neck is the narrowest point in this range from the front view.
+    # Min-width scan avoids confusing the wider trapezius/clavicle zone with the neck.
+    # Arms are at A-pose so they don't appear at neck level — _meas_horiz_body is clean here.
+    neck_w = None
+    if top_y is not None and shoulder_y is not None:
+        chin_approx_y = top_y + (shoulder_y - top_y) * 0.42
+        _nk_top = int(chin_approx_y)
+        _nk_bot = int(shoulder_y) - 6
+        _nk_min_px = None
+        _nk_best_y = None
+        _nkx0_f, _nkx1_f = None, None
+        for _sy in range(_nk_top, _nk_bot, 2):
+            _, _x0, _x1 = _meas_horiz_body(_sy)
+            if _x0 is not None and _x1 is not None:
+                _w = _x1 - _x0
+                if _nk_min_px is None or _w < _nk_min_px:
+                    _nk_min_px = _w
+                    _nk_best_y = _sy
+                    _nkx0_f, _nkx1_f = _x0, _x1
+        if _nk_min_px and _nk_best_y:
+            neck_w = round(_nk_min_px * scale, 1)
+            measure_x_bounds_front['neck'] = (_nkx0_f, _nkx1_f)
+            measure_ys_front['neck'] = _nk_best_y
 
     # ── Limbs: perpendicular scan along limb axis ─────────────────────────
     # Pick the arm/leg side whose distal landmark (elbow / knee) is furthest
