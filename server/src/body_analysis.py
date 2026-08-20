@@ -322,16 +322,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         scale_side = scale
         warnings.append('side_scale_fallback')
 
-    # [CHECK] cropped_head / cropped_feet — CRITICAL: calibration invalid → REJECT
+    # [CHECK] cropped_head / cropped_feet — warn only; true rejection would require
+    # checking edge-width vs body-width to distinguish "head near edge" from "torso cut".
+    # scale_calibration_failed already handles truly unusable crops.
     _EDGE = 4  # px tolerance
     if top_y    is not None and top_y    <= _EDGE:          warnings.append('cropped_head')
     if bottom_y is not None and fh - bottom_y <= _EDGE:     warnings.append('cropped_feet')
     if top_y_s  is not None and top_y_s  <= _EDGE:          warnings.append('cropped_head')
     if bottom_y_s is not None and sh - bottom_y_s <= _EDGE: warnings.append('cropped_feet')
-    if any(w in warnings for w in ('cropped_head', 'cropped_feet')):
-        print(json.dumps({'error': 'photo_cropped', 'meta': {'warnings': list(dict.fromkeys(warnings))}}),
-              flush=True)
-        sys.exit(1)
 
     # ── Reference Y positions from landmarks (or fallback geometry) ───────
     def lm_y(lms, *names):
