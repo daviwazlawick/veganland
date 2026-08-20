@@ -24,6 +24,7 @@ import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 import DisclaimerScreen from '../screens/DisclaimerScreen';
 import ReferralScreen from '../screens/ReferralScreen';
 import BodyProfileScreen from '../screens/BodyProfileScreen';
+import BodyAnalysisScreen from '../screens/BodyAnalysisScreen';
 import NutritionGoalsScreen from '../screens/NutritionGoalsScreen';
 import NutritionDashboardScreen from '../screens/NutritionDashboardScreen';
 import NutritionReportScreen from '../screens/NutritionReportScreen';
@@ -178,6 +179,7 @@ export default function AppNavigator() {
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
             <Stack.Screen name="Referral" component={ReferralScreen} />
             <Stack.Screen name="BodyProfile" component={BodyProfileScreen} />
+            <Stack.Screen name="BodyAnalysis" component={BodyAnalysisScreen} />
             <Stack.Screen name="NutritionGoals" component={NutritionGoalsScreen} />
             <Stack.Screen name="NutritionDashboard" component={NutritionDashboardScreen} />
             <Stack.Screen name="NutritionReport" component={NutritionReportScreen} />
@@ -200,6 +202,7 @@ export default function AppNavigator() {
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
             <Stack.Screen name="Referral" component={ReferralScreen} />
             <Stack.Screen name="BodyProfile" component={BodyProfileScreen} />
+            <Stack.Screen name="BodyAnalysis" component={BodyAnalysisScreen} />
             <Stack.Screen name="NutritionGoals" component={NutritionGoalsScreen} />
             <Stack.Screen name="NutritionDashboard" component={NutritionDashboardScreen} />
             <Stack.Screen name="NutritionReport" component={NutritionReportScreen} />

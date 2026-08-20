@@ -4,7 +4,10 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
+import { spawn } from 'node:child_process';
+import { writeFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
@@ -1575,6 +1578,79 @@ const server = http.createServer(async (req, res) => {
       const profile = await getBodyProfile(claims.userId);
       const suggested = suggestNutritionGoals(profile);
       sendJson(res, 200, { ok: true, suggested }, origin);
+      return;
+    }
+
+    // POST /body/analyze — photo-based body measurement (admin only for now)
+    if (req.method === 'POST' && req.url === '/body/analyze') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
+
+      const body = await readJsonBody(req);
+      const { front_image, side_image, height_cm, weight_kg, sex, age } = body;
+      if (!front_image || !side_image || !height_cm || !weight_kg) {
+        sendJson(res, 400, { error: 'front_image, side_image, height_cm, weight_kg required' }, origin);
+        return;
+      }
+
+      // Write images to temp files
+      const tmpDir = '/tmp';
+      const frontPath = join(tmpDir, `ba_front_${claims.userId}_${Date.now()}.jpg`);
+      const sidePath  = join(tmpDir, `ba_side_${claims.userId}_${Date.now()}.jpg`);
+      try {
+        const frontBuf = Buffer.from(front_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const sideBuf  = Buffer.from(side_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        await writeFile(frontPath, frontBuf);
+        await writeFile(sidePath, sideBuf);
+
+        const result = await new Promise((resolve, reject) => {
+          const py = spawn('/opt/body-analysis-env/bin/python3', [
+            '/opt/veganland/server/src/body_analysis.py',
+            frontPath, sidePath,
+            String(height_cm), String(weight_kg),
+            sex || 'unknown', String(age || 0),
+          ]);
+          let out = '';
+          let err = '';
+          py.stdout.on('data', d => { out += d; });
+          py.stderr.on('data', d => { err += d; });
+          py.on('close', code => {
+            if (code !== 0) return reject(new Error(err || 'analysis failed'));
+            try { resolve(JSON.parse(out)); }
+            catch { reject(new Error('invalid JSON from pipeline')); }
+          });
+        });
+
+        sendJson(res, 200, result, origin);
+      } finally {
+        unlink(frontPath).catch(() => {});
+        unlink(sidePath).catch(() => {});
+      }
+      return;
+    }
+
+    // POST /body/measurements — save photo analysis results to DB
+    if (req.method === 'POST' && req.url === '/body/measurements') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
+      const body = await readJsonBody(req);
+      const record = await saveBodyMeasurements(claims.userId, body);
+      sendJson(res, 200, { ok: true, id: record?.id, recorded_at: record?.recorded_at }, origin);
+      return;
+    }
+
+    // GET /body/measurements — history of saved photo analyses
+    if (req.method === 'GET' && req.url.startsWith('/body/measurements')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
+      const history = await getBodyMeasurementHistory(claims.userId);
+      sendJson(res, 200, { history }, origin);
       return;
     }
 

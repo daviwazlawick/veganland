@@ -1474,6 +1474,45 @@ export async function saveBodyProfile(userId, data) {
   return true;
 }
 
+export async function saveBodyMeasurements(userId, data) {
+  const db = await getPool();
+  if (!db) return null;
+  const {
+    arm_cm, forearm_cm, waist_cm, hip_cm, thigh_cm, calf_cm,
+    bmi, waist_to_height, waist_to_hip, conicity_index,
+    body_fat_pct, confidence, warnings, scale_px_per_cm,
+  } = data;
+  const res = await db.query(`
+    insert into body_measurements
+      (user_id, arm_cm, forearm_cm, waist_cm, hips_cm, thigh_cm, calf_cm,
+       bmi, waist_to_height, waist_to_hip, conicity_index,
+       body_fat_pct, confidence, warnings, scale_px_per_cm, source, recorded_at)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'photo_analysis',now())
+    returning id, recorded_at`,
+    [userId, arm_cm||null, forearm_cm||null, waist_cm||null, hip_cm||null,
+     thigh_cm||null, calf_cm||null, bmi||null, waist_to_height||null,
+     waist_to_hip||null, conicity_index||null, body_fat_pct||null,
+     confidence ? JSON.stringify(confidence) : null,
+     warnings ? JSON.stringify(warnings) : null,
+     scale_px_per_cm||null]
+  );
+  return res.rows[0];
+}
+
+export async function getBodyMeasurementHistory(userId, limit = 10) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(
+    `select id, arm_cm, forearm_cm, waist_cm, hips_cm as hip_cm, thigh_cm, calf_cm,
+            bmi, waist_to_height, waist_to_hip, conicity_index,
+            body_fat_pct, confidence, warnings, source, recorded_at
+     from body_measurements where user_id = $1
+     order by recorded_at desc limit $2`,
+    [userId, limit]
+  );
+  return res.rows;
+}
+
 export async function getNutritionGoals(userId) {
   const db = await getPool();
   if (!db) return null;

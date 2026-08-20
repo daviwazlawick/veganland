@@ -447,3 +447,32 @@ export async function apiAnalyzePlate(token, imageBase64, language, profile) {
   if (!r.ok) throw new Error('plate_analysis_failed');
   return r.json();
 }
+
+export async function apiBodyAnalyze(token, { frontImage, sideImage, heightCm, weightKg, sex, age }) {
+  const r = await fetch(`${baseUrl()}/body/analyze`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({
+      front_image: frontImage,
+      side_image: sideImage,
+      height_cm: heightCm,
+      weight_kg: weightKg,
+      sex,
+      age,
+    }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'analysis_failed');
+  return data;
+}
+
+export async function apiSaveBodyMeasurements(token, measurements) {
+  const r = await fetch(`${baseUrl()}/body/measurements`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify(measurements),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'save_failed');
+  return data;
+}

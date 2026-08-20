@@ -334,14 +334,17 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={s.accountEmail} numberOfLines={1}>{user.email}</Text>
               </View>
               {userType === 'admin' && (
-                <Row icon="🛡️" label="Admin Panel" onPress={async () => {
-                  try {
-                    const url = await apiAdminHandoff(token);
-                    await WebBrowser.openBrowserAsync(url);
-                  } catch {
-                    await WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`);
-                  }
-                }} />
+                <>
+                  <Row icon="🛡️" label="Admin Panel" onPress={async () => {
+                    try {
+                      const url = await apiAdminHandoff(token);
+                      await WebBrowser.openBrowserAsync(url);
+                    } catch {
+                      await WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`);
+                    }
+                  }} />
+                  <Row icon="📐" label="Análise corporal" onPress={() => navigation.navigate('BodyAnalysis')} />
+                </>
               )}
               <Row label={t(language, 'profile.terms')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)} />
               <Row label={t(language, 'profile.privacy')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)} />
