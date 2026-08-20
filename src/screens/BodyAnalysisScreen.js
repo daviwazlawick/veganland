@@ -25,6 +25,8 @@ function ageFromBirthDate(dateStr) {
 
 // ── Info content ──────────────────────────────────────────────────────────────
 const INFO = {
+  chest_cm:    { title: 'Perímetro do peito',        desc: 'Circunferência do tórax ao nível das axilas, aproximada por elipse (largura frontal × profundidade lateral).', ref: 'Homens: 90–110 cm\nMulheres: 80–100 cm',                                                                           why: 'Indicador de volume do tórax e massa dos músculos peitorais.' },
+  neck_cm:     { title: 'Perímetro do pescoço',      desc: 'Circunferência do pescoço entre a cabeça e os ombros.',                                                     ref: 'Homens: 37–43 cm\nMulheres: 32–38 cm\n>43 cm (♂) / >41 cm (♀) associado a apneia do sono',                      why: 'Proxy de gordura visceral superior e factor de risco para apneia obstrutiva do sono.' },
   bicep_cm:    { title: 'Bíceps',                     desc: 'Circunferência do braço no ponto mais largo, entre ombro e cotovelo.',                                      ref: 'Homens: 28–38 cm\nMulheres: 25–33 cm',                                                                             why: 'Indicador de massa muscular dos membros superiores.' },
   forearm_cm:  { title: 'Perímetro do antebraço',   desc: 'Circunferência do antebraço entre cotovelo e pulso.',                                                       ref: 'Homens: 24–32 cm\nMulheres: 20–26 cm',                                                                             why: 'Reflete força de preensão e massa muscular periférica.' },
   waist_cm:    { title: 'Perímetro da cintura',      desc: 'Circunferência na zona mais estreita do tronco, acima do umbigo.',                                         ref: 'Risco elevado: >94 cm (♂) / >80 cm (♀)\nRisco muito elevado: >102 cm (♂) / >88 cm (♀)',                         why: 'Melhor indicador simples de gordura visceral — associado a risco cardiovascular e metabólico.' },
@@ -433,6 +435,8 @@ export default function BodyAnalysisScreen({ navigation }) {
           <View style={s.card}>
             <Row2 title="Perímetros" sub="Precisão ±2–4 cm (modelo elíptico)" />
             {[
+              ['Peito',       m?.chest_cm,   'chest_cm',   60, 140],
+              ['Pescoço',     m?.neck_cm,    'neck_cm',    25, 55],
               ['Bíceps',      m?.bicep_cm,   'bicep_cm',   8, 50],
               ['Antebraço',   m?.forearm_cm, 'forearm_cm', 8, 45],
               ['Cintura',     m?.waist_cm,   'waist_cm',   50, 130],
