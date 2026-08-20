@@ -75,12 +75,12 @@ function sendJson(res, status, body, origin = '') {
   res.end(JSON.stringify(body));
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxBytes = MAX_BODY_BYTES) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => {
       body += chunk;
-      if (Buffer.byteLength(body) > MAX_BODY_BYTES) {
+      if (Buffer.byteLength(body) > maxBytes) {
         reject(new Error('Request body too large'));
         req.destroy();
       }
@@ -1588,7 +1588,7 @@ const server = http.createServer(async (req, res) => {
       const user = await getUserById(claims.userId);
       if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
 
-      const body = await readJsonBody(req);
+      const body = await readJsonBody(req, 30 * 1024 * 1024);
       const { front_image, side_image, height_cm, weight_kg, sex, age } = body;
       if (!front_image || !side_image || !height_cm || !weight_kg) {
         sendJson(res, 400, { error: 'front_image, side_image, height_cm, weight_kg required' }, origin);

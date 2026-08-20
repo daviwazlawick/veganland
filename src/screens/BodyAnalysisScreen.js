@@ -34,7 +34,7 @@ export default function BodyAnalysisScreen({ navigation }) {
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
+      quality: 0.5,
       base64: false,
     });
     if (!picked.canceled && picked.assets?.[0]) {
