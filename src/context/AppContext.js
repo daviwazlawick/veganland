@@ -78,18 +78,25 @@ export function AppProvider({ children }) {
       const serverAvatar = user?.avatar_url || null;
       const localPhoto = local.photoUri || null;
       const photoUri = serverAvatar || (localPhoto?.startsWith('file://') ? localPhoto : null);
+      // diet_id and allergy_ids are server-authoritative — never fall back to
+      // a stale local value (which could belong to a different account on the
+      // same device and would incorrectly bypass onboarding for new users).
       const serverProfile = {
         name: user?.name || local.name || null,
         bio: user?.bio || local.bio || null,
         photoUri,
-        dietId: user?.diet_id || local.dietId || null,
-        allergyIds: user?.allergy_ids || local.allergyIds || [],
-        halalStrictness: user?.halal_strictness ?? local.halalStrictness ?? null,
+        dietId: user?.diet_id || null,
+        allergyIds: user?.allergy_ids || [],
+        halalStrictness: user?.halal_strictness ?? null,
       };
-      // Only persist if there's something worth keeping
-      if (serverProfile.name || serverProfile.dietId || serverProfile.photoUri) {
+      if (serverProfile.dietId) {
         setProfileState(serverProfile);
         await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(serverProfile));
+      } else {
+        // No diet chosen yet — clear any stale local profile so the navigator
+        // routes this user through onboarding instead of going straight to Main.
+        setProfileState(null);
+        await AsyncStorage.removeItem(STORAGE_KEYS.profile);
       }
     } catch {
       // silently keep local profile if server fails
