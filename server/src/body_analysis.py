@@ -136,12 +136,13 @@ def ellipse_circumference(a, b):
 
 def measure_limb_perp(mask, p1, p2, scale, n_samples=18,
                        center_x_min=None, center_x_max=None,
-                       ray_x_min=None,    ray_x_max=None):
+                       ray_x_min=None,    ray_x_max=None,
+                       t_min=0.20, t_max=0.80):
     """
     Find the maximum-girth perpendicular cross-section of a limb.
 
     Scans n_samples planes perpendicular to the limb axis (p1→p2) between
-    20–80 % of the segment.  For each plane:
+    t_min and t_max of the segment.  For each plane:
       - The scan center must satisfy center_x_min ≤ cx ≤ center_x_max (if set).
         This keeps the center on the limb, not inside the torso or other limb.
       - Each raycast step is rejected if its xi falls outside ray_x_min..ray_x_max.
@@ -165,8 +166,9 @@ def measure_limb_perp(mask, p1, p2, scale, n_samples=18,
     best_line  = None
     best_cy    = int((p1[1] + p2[1]) / 2)
 
+    t_span = t_max - t_min
     for i in range(n_samples):
-        t  = 0.20 + 0.60 * i / max(n_samples - 1, 1)
+        t  = t_min + t_span * i / max(n_samples - 1, 1)
         cx = p1[0] + t * dx
         cy = p1[1] + t * dy
         cxi, cyi = int(round(cx)), int(round(cy))
@@ -601,7 +603,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     thigh_w, tx0, ty0, tx1, ty1, t_cy = measure_limb_perp(
         front_mask, hip_xy, kn_xy, scale,
         center_x_min=t_cx_min, center_x_max=t_cx_max,
-        ray_x_min=t_rx_min,    ray_x_max=t_rx_max) \
+        ray_x_min=t_rx_min,    ray_x_max=t_rx_max,
+        t_min=0.40, t_max=0.75) \
         if (hip_xy and kn_xy) else (None,)*6
     if tx0 is not None:
         overlay_lines_front['thigh'] = (tx0, ty0, tx1, ty1)
@@ -800,9 +803,15 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     }
 
     # ── Overlays ──────────────────────────────────────────────────────────
+    # Use the actual front measurement center y for bicep (t_cy), not the raw arm_y,
+    # so the side line matches exactly where the perpendicular scan landed.
+    bicep_side_y = side_y(measure_ys_front.get('bicep') or arm_y)
     measure_ys_side = {
-        'waist': side_y(waist_y), 'hip': side_y(hip_y),
-        'thigh': side_y(thigh_y), 'calf': side_y(calf_y),
+        'waist':  side_y(waist_y),
+        'hip':    side_y(hip_y),
+        'bicep':  bicep_side_y,
+        'thigh':  side_y(thigh_y),
+        'calf':   side_y(calf_y),
     }
     measure_ys_side = {k: v for k, v in measure_ys_side.items() if v}
 
