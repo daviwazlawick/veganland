@@ -318,6 +318,72 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     elif bmi < 30.0: bmi_class = 'overweight'
     else:            bmi_class = 'obese'
 
+    # ── Derived composition metrics ───────────────────────────────────────
+    # Água corporal — constante hídrica de mamíferos: 72.3% da massa magra
+    body_water_l   = round(lean_mass_kg * 0.723, 1) if lean_mass_kg else None
+    body_water_pct = round(body_water_l / weight_kg * 100, 1) if body_water_l else None
+
+    # Gasto energético de repouso — equação de Cunningham (1980)
+    ree_kcal = round(500 + 22 * lean_mass_kg, 1) if lean_mass_kg else None
+
+    # Índice de massa magra e gorda (lean/fat mass index)
+    imm = round(lean_mass_kg / (height_m ** 2), 1) if lean_mass_kg else None
+    img = round(fat_mass_kg  / (height_m ** 2), 1) if fat_mass_kg  else None
+
+    # IMM/IMG classifications (references: Schutz 2002, Kyle 2003)
+    def classify_imm(v, sx):
+        if v is None: return None
+        # Adequate: M ≥14.6, F ≥11.8 (using common clinical cut-offs)
+        thresh = 14.6 if sx == 'male' else 11.8
+        return 'adequate' if v >= thresh else 'low'
+    def classify_img(v, sx):
+        if v is None: return None
+        # Excess: M ≥6.0, F ≥9.0
+        thresh = 6.0 if sx == 'male' else 9.0
+        return 'adequate' if v < thresh else 'elevated_risk'
+
+    # ── NovaQI Score (0–100) ──────────────────────────────────────────────
+    # 6 indicators × 100/6 pts each; partial credit for borderline values
+    def _pts(condition_ok, condition_border=False):
+        if condition_ok:    return 100 / 6
+        if condition_border: return 50  / 6
+        return 0
+
+    score_pts = 0
+    n_available = 0
+
+    if body_fat_pct is not None:
+        n_available += 1
+        if sex == 'male':
+            score_pts += _pts(body_fat_pct < 25, 25 <= body_fat_pct < 30)
+        else:
+            score_pts += _pts(body_fat_pct < 32, 32 <= body_fat_pct < 38)
+
+    if imm is not None:
+        n_available += 1
+        thresh_imm = 14.6 if sex == 'male' else 11.8
+        score_pts += _pts(imm >= thresh_imm, thresh_imm - 2 <= imm < thresh_imm)
+
+    if img is not None:
+        n_available += 1
+        thresh_img = 6.0 if sex == 'male' else 9.0
+        score_pts += _pts(img < thresh_img, thresh_img <= img < thresh_img + 2.5)
+
+    if wth is not None:
+        n_available += 1
+        score_pts += _pts(wth < 0.5, 0.5 <= wth < 0.6)
+
+    if whr is not None:
+        n_available += 1
+        t = 0.90 if sex == 'male' else 0.85
+        score_pts += _pts(whr < t, t <= whr < t + 0.1)
+
+    if ci is not None:
+        n_available += 1
+        score_pts += _pts(ci < 1.18, 1.18 <= ci < 1.30)
+
+    novaqi_score = round(score_pts / max(n_available, 1) * 6) if n_available else None
+
     # ── Confidence scores ─────────────────────────────────────────────────
     # Waist and hip benefit from more surrounding mask context → higher confidence
     confidence = {
@@ -350,22 +416,30 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         },
         'indices': {
             'bmi':               bmi,
+            'lean_mass_index':   imm,
+            'fat_mass_index':    img,
             'waist_to_height':   wth,
             'waist_to_hip':      whr,
             'conicity_index':    ci,
         },
         'classification': {
             'bmi':              bmi_class,
+            'lean_mass_index':  classify_imm(imm, sex),
+            'fat_mass_index':   classify_img(img, sex),
             'waist_to_height':  classify(wth, 'waist_to_height', sex) if wth else None,
             'waist_to_hip':     classify(whr, 'waist_to_hip', sex)    if whr else None,
             'conicity_index':   classify(ci,  'conicity_index', sex)   if ci  else None,
         },
         'body_composition': {
-            'body_fat_pct':  body_fat_pct,
-            'fat_mass_kg':   fat_mass_kg,
-            'lean_mass_kg':  lean_mass_kg,
-            'method':        'deurenberg_bmi',
+            'body_fat_pct':    body_fat_pct,
+            'fat_mass_kg':     fat_mass_kg,
+            'lean_mass_kg':    lean_mass_kg,
+            'body_water_l':    body_water_l,
+            'body_water_pct':  body_water_pct,
+            'ree_kcal':        ree_kcal,
+            'method':          'deurenberg_bmi',
         } if body_fat_pct else None,
+        'score':             novaqi_score,
         'meta': {
             'input_height_cm':  height_cm,
             'input_weight_kg':  weight_kg,
