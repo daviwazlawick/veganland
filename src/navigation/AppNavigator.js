@@ -148,7 +148,7 @@ export default function AppNavigator() {
   }
 
   const initialRouteName =
-    !token ? (hasLaunchedBefore ? 'Login' : 'Register') :
+    !token ? (hasLaunchedBefore ? 'Login' : 'Welcome') :
     !disclaimerAccepted ? 'Disclaimer' :
     !profile ? 'ProfileSetup' :
     profileInitialRoute;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
@@ -20,6 +21,7 @@ const CARD_WIDTH = (width - 48 - 12) / 2;
 export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
   const { token, user, refreshUser } = useAuth();
+  const { saveBodyProfile } = useNutrition();
   const isFirstTime = !profile?.dietId;
   const [step, setStep] = useState(1);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
@@ -27,12 +29,19 @@ export default function ProfileSetupScreen({ navigation }) {
   const [halalStrictness, setHalalStrictness] = useState(profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS);
   const [selectedPlan, setSelectedPlan] = useState('starter');
   const [saving, setSaving] = useState(false);
+  // Step 3 (first-time only): basic body info
+  const [bodyName, setBodyName] = useState('');
+  const [bodyBirthYear, setBodyBirthYear] = useState('');
+  const [bodyHeight, setBodyHeight] = useState('');
+  const [bodyWeight, setBodyWeight] = useState('');
 
   const currentUserType = user?.user_type || 'free';
 
   useEffect(() => {
     if (step === 3 && !isFirstTime) refreshUser();
   }, [step]);
+
+  const finalStep = 3;
 
   function toggleAllergy(id) {
     setSelectedAllergies(prev =>
@@ -51,11 +60,22 @@ export default function ProfileSetupScreen({ navigation }) {
         dietId: selectedDiet,
         allergyIds: selectedAllergies,
         halalStrictness: selectedDiet === 'halal' ? halalStrictness : (profile?.halalStrictness || null),
+        name: bodyName.trim() || profile?.name || null,
       });
+      if (isFirstTime && (bodyBirthYear || bodyHeight || bodyWeight)) {
+        const birthDate = bodyBirthYear.trim().length === 4
+          ? `${bodyBirthYear.trim()}-01-01`
+          : null;
+        await saveBodyProfile({
+          birth_date: birthDate,
+          height_cm: bodyHeight ? parseFloat(bodyHeight) : null,
+          weight_kg: bodyWeight ? parseFloat(bodyWeight) : null,
+          activity_level: 'moderate',
+          goal: 'maintain',
+          sex: null,
+        }).catch(() => {});
+      }
       if (isFirstTime) {
-        // New signups get one guided scan before the paywall.
-        // Users who already burned their onboarding scan (edge case: reinstall
-        // after paywall) go straight to the paywall as before.
         const needsOnboardingScan = user?.onboarding_scan_used !== true;
         if (needsOnboardingScan) {
           navigation.reset({
@@ -121,7 +141,6 @@ export default function ProfileSetupScreen({ navigation }) {
 
   const canUpgrade = currentUserType !== 'premium' && currentUserType !== 'admin';
   const currentPlanForPaywall = currentUserType === 'starter' ? 'starter' : 'free';
-  const finalStep = isFirstTime ? 2 : 3;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -135,12 +154,8 @@ export default function ProfileSetupScreen({ navigation }) {
           <StepPill number={1} label={t(language, 'profile_setup.diet_step')} active={true} />
           <View style={[styles.connector, step >= 2 && (isNovaQI ? styles.connectorActiveNovaqi : styles.connectorActive)]} />
           <StepPill number={2} label={t(language, 'profile_setup.allergies_step')} active={step >= 2} />
-          {!isFirstTime && (
-            <>
-              <View style={[styles.connector, step >= 3 && (isNovaQI ? styles.connectorActiveNovaqi : styles.connectorActive)]} />
-              <StepPill number={3} label={t(language, 'profile_setup.plan_step')} active={step >= 3} />
-            </>
-          )}
+          <View style={[styles.connector, step >= 3 && (isNovaQI ? styles.connectorActiveNovaqi : styles.connectorActive)]} />
+          <StepPill number={3} label={t(language, isFirstTime ? 'profile_setup.body_step' : 'profile_setup.plan_step')} active={step >= 3} />
         </View>
       </View>
 
@@ -241,96 +256,100 @@ export default function ProfileSetupScreen({ navigation }) {
           </>
         )}
 
-        {step === 3 && (
+        {step === 3 && isFirstTime && (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ width: '100%', alignItems: 'center' }}
+          >
+            <PremiumIcon name="profile" size={72} />
+            <Text style={styles.sectionTitle}>{t(language, 'profile_setup.body_title')}</Text>
+            <Text style={styles.sectionSub}>{t(language, 'profile_setup.body_subtitle')}</Text>
+            <View style={styles.bodyForm}>
+              <View style={styles.bodyField}>
+                <Text style={styles.bodyFieldLabel}>{t(language, 'profile_setup.body_name')}</Text>
+                <TextInput
+                  style={styles.bodyInput}
+                  placeholder={t(language, 'profile_setup.body_name_placeholder')}
+                  placeholderTextColor={Colors.textMuted}
+                  value={bodyName}
+                  onChangeText={setBodyName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={styles.bodyField}>
+                <Text style={styles.bodyFieldLabel}>{t(language, 'profile_setup.body_birth_year')}</Text>
+                <TextInput
+                  style={styles.bodyInput}
+                  placeholder={t(language, 'profile_setup.body_birth_year_placeholder')}
+                  placeholderTextColor={Colors.textMuted}
+                  value={bodyBirthYear}
+                  onChangeText={setBodyBirthYear}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={styles.bodyRow}>
+                <View style={[styles.bodyField, { flex: 1 }]}>
+                  <Text style={styles.bodyFieldLabel}>{t(language, 'profile_setup.body_height')}</Text>
+                  <TextInput
+                    style={styles.bodyInput}
+                    placeholder="cm"
+                    placeholderTextColor={Colors.textMuted}
+                    value={bodyHeight}
+                    onChangeText={setBodyHeight}
+                    keyboardType="decimal-pad"
+                    returnKeyType="next"
+                  />
+                </View>
+                <View style={[styles.bodyField, { flex: 1 }]}>
+                  <Text style={styles.bodyFieldLabel}>{t(language, 'profile_setup.body_weight')}</Text>
+                  <TextInput
+                    style={styles.bodyInput}
+                    placeholder="kg"
+                    placeholderTextColor={Colors.textMuted}
+                    value={bodyWeight}
+                    onChangeText={setBodyWeight}
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                  />
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        )}
+
+        {step === 3 && !isFirstTime && (
           <>
             <PremiumIcon name="premium" size={72} />
             <Text style={styles.sectionTitle}>{t(language, 'plans.title')}</Text>
             <Text style={styles.sectionSub}>{t(language, 'plans.subtitle')}</Text>
-
-            {isFirstTime ? (
-              <View style={styles.planList}>
-                {[
-                  { id: 'starter', nameKey: 'starter_name', descKey: 'starter_desc', priceKey: 'starter_price', popular: true  },
-                  { id: 'premium', nameKey: 'premium_name', descKey: 'premium_desc', priceKey: 'premium_price', popular: false },
-                ].map(plan => {
-                  const sel = selectedPlan === plan.id;
-                  return (
-                    <TouchableOpacity
-                      key={plan.id}
-                      style={[styles.planCard, sel && styles.planCardSelected]}
-                      onPress={() => setSelectedPlan(plan.id)}
-                      activeOpacity={0.85}
-                    >
-                      {plan.popular && (
-                        <View style={styles.popularBadge}>
-                          <Text style={styles.popularText}>{t(language, 'plans.most_popular')}</Text>
-                        </View>
-                      )}
-                      <View style={styles.planRow}>
-                        <View style={styles.planInfo}>
-                          <Text style={[styles.planName, sel && styles.planNameSel]}>
-                            {t(language, `plans.${plan.nameKey}`)}
-                          </Text>
-                          <Text style={styles.planDesc}>
-                            {t(language, `plans.${plan.descKey}`)}
-                          </Text>
-                          <View style={styles.trialPill}>
-                            <Text style={styles.trialPillText}>
-                              {Platform.OS === 'android'
-                                ? t(language, 'plans.trial_pill_android')
-                                : t(language, 'plans.trial_pill_ios')}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.planPriceWrap}>
-                          <Text style={[styles.planPrice, sel && styles.planPriceSel]}>
-                            {t(language, `plans.${plan.priceKey}`)}
-                          </Text>
-                          <Text style={styles.planPerMonth}>{t(language, 'plans.per_month')}</Text>
-                        </View>
-                        <View style={[styles.radio, sel && styles.radioSelected]}>
-                          {sel && <View style={styles.radioDot} />}
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-                {!HIDE_FREE_OPTION && (
-                  <TouchableOpacity onPress={handleContinueFree} style={styles.continueFreeLinkWrap}>
-                    <Text style={styles.continueFreeLink}>{t(language, 'plans.continue_free')}</Text>
-                  </TouchableOpacity>
-                )}
-                <Text style={styles.trialDisclosure}>{t(language, 'plans.trial_disclosure')}</Text>
+            <View style={styles.currentPlanCard}>
+              <View style={styles.currentPlanBadge}>
+                <Text style={styles.currentPlanBadgeText}>{t(language, 'plans.current')}</Text>
               </View>
-            ) : (
-              <>
-                <View style={styles.currentPlanCard}>
-                  <View style={styles.currentPlanBadge}>
-                    <Text style={styles.currentPlanBadgeText}>{t(language, 'plans.current')}</Text>
-                  </View>
-                  <View style={styles.currentPlanRow}>
-                    <View style={styles.currentPlanInfo}>
-                      <Text style={styles.currentPlanName}>{getPlanName()}</Text>
-                      <Text style={styles.currentPlanDesc}>{getPlanDesc()}</Text>
-                    </View>
-                    <View style={styles.currentPlanPriceWrap}>
-                      <Text style={styles.currentPlanPrice}>{getPlanPrice()}</Text>
-                      {currentUserType !== 'free' && currentUserType !== 'admin' && (
-                        <Text style={styles.currentPlanPerMonth}>{t(language, 'plans.per_month')}</Text>
-                      )}
-                    </View>
-                  </View>
+              <View style={styles.currentPlanRow}>
+                <View style={styles.currentPlanInfo}>
+                  <Text style={styles.currentPlanName}>{getPlanName()}</Text>
+                  <Text style={styles.currentPlanDesc}>{getPlanDesc()}</Text>
                 </View>
-                {canUpgrade && (
-                  <TouchableOpacity
-                    style={styles.upgradeBtn}
-                    onPress={() => navigation.navigate('Paywall', { currentPlan: currentPlanForPaywall })}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
-                  </TouchableOpacity>
-                )}
-              </>
+                <View style={styles.currentPlanPriceWrap}>
+                  <Text style={styles.currentPlanPrice}>{getPlanPrice()}</Text>
+                  {currentUserType !== 'free' && currentUserType !== 'admin' && (
+                    <Text style={styles.currentPlanPerMonth}>{t(language, 'plans.per_month')}</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+            {canUpgrade && (
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                onPress={() => navigation.navigate('Paywall', { currentPlan: currentPlanForPaywall })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+              </TouchableOpacity>
             )}
           </>
         )}
@@ -600,4 +619,14 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { backgroundColor: Colors.border },
   btnText: { color: Colors.white, fontSize: 18, fontWeight: '900' },
+  bodyForm: { width: '100%', gap: 16, marginTop: 8 },
+  bodyField: { gap: 6 },
+  bodyFieldLabel: { fontSize: 13, fontWeight: '700', color: Colors.textLight, marginLeft: 4 },
+  bodyInput: {
+    backgroundColor: Colors.card,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 16, fontWeight: '600', color: Colors.text,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  bodyRow: { flexDirection: 'row', gap: 12 },
 });
