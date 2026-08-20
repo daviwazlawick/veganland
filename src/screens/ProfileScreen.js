@@ -389,69 +389,62 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-const BA_CIRCUM_KEYS = ['chest_cm','neck_cm','bicep_cm','forearm_cm','waist_cm','hip_cm','thigh_cm','calf_cm'];
-const BA_COMP_KEYS   = ['body_fat_pct','lean_mass_kg','fat_mass_kg','body_water_pct','ree_kcal'];
-const BA_INDEX_KEYS  = ['bmi','lean_mass_index','fat_mass_index','waist_to_height','waist_to_hip','conicity_index'];
-const BA_UNITS = { body_fat_pct: '%', lean_mass_kg: 'kg', fat_mass_kg: 'kg', body_water_pct: '%', ree_kcal: 'kcal', bmi: '', lean_mass_index: '', fat_mass_index: '', waist_to_height: '', waist_to_hip: '', conicity_index: '' };
+function _baFmt(key, val) {
+  if (val == null) return null;
+  if (key === 'ree_kcal') return String(Math.round(val));
+  if (key === 'waist_to_height' || key === 'waist_to_hip' || key === 'conicity_index') return Number(val).toFixed(2);
+  return Number(val).toFixed(1);
+}
+const BA_UNIT = {
+  chest_cm:'cm', neck_cm:'cm', bicep_cm:'cm', forearm_cm:'cm',
+  waist_cm:'cm', hip_cm:'cm', thigh_cm:'cm', calf_cm:'cm',
+  body_fat_pct:'%', lean_mass_kg:'kg', fat_mass_kg:'kg',
+  body_water_pct:'%', ree_kcal:'kcal',
+  bmi:'', lean_mass_index:'kg/m²', fat_mass_index:'kg/m²',
+  waist_to_height:'', waist_to_hip:'', conicity_index:'',
+};
+const BA_ALL_KEYS = [
+  'chest_cm','neck_cm','bicep_cm','forearm_cm',
+  'waist_cm','hip_cm','thigh_cm','calf_cm',
+  'body_fat_pct','lean_mass_kg','fat_mass_kg','body_water_pct','ree_kcal',
+  'bmi','lean_mass_index','fat_mass_index',
+  'waist_to_height','waist_to_hip','conicity_index',
+];
 
 function BodyAnalysisCard({ data, language, navigation }) {
   const dateStr = data.recorded_at
     ? new Date(data.recorded_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
     : null;
 
-  function BaRow({ label, value, unit = 'cm' }) {
-    if (value == null) return null;
-    return (
-      <View style={s.baRow}>
-        <Text style={s.baRowLabel}>{label}</Text>
-        <Text style={s.baRowValue}>{typeof value === 'number' ? value.toFixed(value % 1 === 0 ? 0 : 1) : value}{unit ? ` ${unit}` : ''}</Text>
-      </View>
-    );
-  }
-
-  function BaSubTitle({ label }) {
-    return <Text style={s.baSubTitle}>{label}</Text>;
-  }
+  const items = BA_ALL_KEYS.filter(k => data[k] != null);
 
   return (
     <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('BodyAnalysis')}>
-      <View style={s.baHeader}>
+      <View style={s.bodyGrid}>
         {data.score != null && (
-          <View style={s.baScoreBadge}>
-            <Text style={s.baScoreNum}>{data.score}</Text>
-            <Text style={s.baScoreLabel}>{t(language, 'body_analysis.score')}</Text>
+          <View style={s.bodyCell}>
+            <Text style={s.bodyCellValue}>{data.score}</Text>
+            <Text style={s.bodyCellLabel}>{t(language, 'body_analysis.score')}</Text>
           </View>
         )}
-        <View style={{ flex: 1 }}>
-          {dateStr && <Text style={s.baDate}>{t(language, 'body_analysis.last_analysis')}: {dateStr}</Text>}
+        {items.map(k => {
+          const unit = BA_UNIT[k];
+          const name = t(language, `body_analysis.${k}`);
+          const label = unit ? `${name} · ${unit}` : name;
+          return (
+            <View key={k} style={s.bodyCell}>
+              <Text style={s.bodyCellValue}>{_baFmt(k, data[k])}</Text>
+              <Text style={s.bodyCellLabel}>{label}</Text>
+            </View>
+          );
+        })}
+        <View style={s.bodyCellEdit}>
+          <Ionicons name="chevron-forward" size={13} color={Colors.primary} />
         </View>
-        <Text style={s.rowChev}>›</Text>
       </View>
-
-      <BaSubTitle label="Perímetros" />
-      <View style={s.baGrid}>
-        {BA_CIRCUM_KEYS.map(k => data[k] != null && (
-          <View key={k} style={s.baCell}>
-            <Text style={s.baCellVal}>{Number(data[k]).toFixed(1)}</Text>
-            <Text style={s.baCellUnit}>cm</Text>
-            <Text style={s.baCellLbl}>{t(language, `body_analysis.${k}`)}</Text>
-          </View>
-        ))}
-      </View>
-
-      {(data.body_fat_pct != null || data.lean_mass_kg != null) && (
-        <>
-          <BaSubTitle label="Composição" />
-          {BA_COMP_KEYS.map(k => data[k] != null && (
-            <BaRow key={k} label={t(language, `body_analysis.${k}`)} value={data[k]} unit={BA_UNITS[k]} />
-          ))}
-        </>
+      {dateStr && (
+        <Text style={s.baDate}>{t(language, 'body_analysis.last_analysis')}: {dateStr}</Text>
       )}
-
-      <BaSubTitle label="Índices" />
-      {BA_INDEX_KEYS.map(k => data[k] != null && (
-        <BaRow key={k} label={t(language, `body_analysis.${k}`)} value={data[k]} unit={BA_UNITS[k]} />
-      ))}
     </TouchableOpacity>
   );
 }
@@ -676,20 +669,7 @@ const s = StyleSheet.create({
   accountEmail: { flex: 1, fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
 
   // Body Analysis Card
-  baHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  baScoreBadge: { width: 52, height: 52, borderRadius: 14, backgroundColor: Colors.primaryBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.primaryLight },
-  baScoreNum: { fontSize: 20, fontWeight: '900', color: Colors.primary },
-  baScoreLabel: { fontSize: 8, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase', letterSpacing: 0.3 },
-  baDate: { fontSize: 12, color: Colors.textMuted, fontWeight: '500' },
-  baSubTitle: { fontSize: 10, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 },
-  baGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, paddingBottom: 6, gap: 6 },
-  baCell: { alignItems: 'center', minWidth: 72, paddingHorizontal: 6, paddingVertical: 8, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  baCellVal: { fontSize: 16, fontWeight: '900', color: Colors.navy || Colors.text },
-  baCellUnit: { fontSize: 9, color: '#94a3b8', fontWeight: '600', marginTop: -2 },
-  baCellLbl: { fontSize: 9, color: '#64748b', fontWeight: '600', textTransform: 'uppercase', marginTop: 3, textAlign: 'center' },
-  baRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
-  baRowLabel: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' },
-  baRowValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  baDate: { fontSize: 11, color: Colors.textMuted, fontWeight: '500', paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 },
 
   // About
   aboutCard: {

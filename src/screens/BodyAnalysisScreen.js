@@ -286,7 +286,7 @@ export default function BodyAnalysisScreen({ navigation }) {
           <Text style={s.backText}>←</Text>
         </TouchableOpacity>
         <Text style={s.title}>Análise corporal</Text>
-        <Text style={s.badge}>ADMIN</Text>
+        <View />
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
