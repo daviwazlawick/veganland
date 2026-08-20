@@ -356,8 +356,12 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if elbow_y    is None: elbow_y    = top_y + span * 0.42
         if wrist_y    is None: wrist_y    = top_y + span * 0.57
 
+    # Peito: ~15% do ombro ao quadril (nível das axilas)
+    chest_y = shoulder_y + (hip_y - shoulder_y) * 0.15 if (shoulder_y and hip_y) else None
     # Cintura: ~60% from shoulder to hip (narrowest torso zone)
     waist_y = shoulder_y + (hip_y - shoulder_y) * 0.60 if (shoulder_y and hip_y) else None
+    # Pescoço: ~65% from top to shoulder (above clavicles, below head)
+    neck_y = top_y + (shoulder_y - top_y) * 0.65 if (top_y is not None and shoulder_y) else None
     # Antebraço: between elbow and wrist
     forearm_y = (elbow_y + wrist_y) / 2 if (elbow_y and wrist_y) else None
     # Braço: between shoulder and elbow
@@ -368,6 +372,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     calf_y = knee_y + (ankle_y - knee_y) * 0.40 if (knee_y and ankle_y) else None
 
     measure_ys_front = {k: v for k, v in {
+        'neck': neck_y, 'chest': chest_y,
         'waist': waist_y, 'hip': hip_y, 'bicep': arm_y,
         'forearm': forearm_y, 'thigh': thigh_y, 'calf': calf_y,
     }.items() if v is not None}
@@ -475,6 +480,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
     overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
+    # Chest: bounded by shoulder landmarks to exclude arms that extend outward in A-pose
+    chest_w, chx0, chx1 = _meas_horiz(chest_y, shoulder_xl or 0, shoulder_xr or fw)
+    if chx0 is not None: measure_x_bounds_front['chest'] = (chx0, chx1)
+
     waist_w, wx0, wx1 = _meas_horiz(waist_y, shoulder_xl or 0, shoulder_xr or fw)
     if wx0 is not None: measure_x_bounds_front['waist'] = (wx0, wx1)
 
@@ -482,6 +491,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # the hip joint landmarks (which sit inside the pelvis, not at the body edge).
     hip_w, hx0, hx1 = _meas_horiz_body(hip_y)
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
+
+    # Neck: bounded by shoulder landmarks to avoid measuring head width
+    neck_w, nkx0, nkx1 = _meas_horiz(neck_y, shoulder_xl or 0, shoulder_xr or fw)
+    if nkx0 is not None: measure_x_bounds_front['neck'] = (nkx0, nkx1)
 
     # ── Limbs: perpendicular scan along limb axis ─────────────────────────
     # Pick the arm/leg side whose distal landmark (elbow / knee) is furthest
@@ -675,10 +688,12 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
         return round(px * scale_side, 1) if px > 0 else None
 
+    chest_d   = _d(chest_y)
     waist_d   = _d(waist_y)
     hip_d     = _d(hip_y)
     thigh_d   = _d(thigh_y)
     calf_d    = _d(calf_y)
+    neck_d    = _d(neck_y)
     # arm/forearm depth not used — circular approximation in circumference step
 
     # ── Circumferences ────────────────────────────────────────────────────
@@ -692,10 +707,12 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         return round(math.pi * diameter_cm, 1)
 
     # Torso and legs: front width + side depth → ellipse
+    chest_circ   = ellipse_circ(chest_w,   chest_d)
     waist_circ   = ellipse_circ(waist_w,   waist_d)
     hip_circ     = ellipse_circ(hip_w,     hip_d)
     thigh_circ   = ellipse_circ(thigh_w,   thigh_d)
     calf_circ    = ellipse_circ(calf_w,    calf_d)
+    neck_circ    = ellipse_circ(neck_w,    neck_d)
 
     # Arms: circular cross-section (side photo captures torso depth, not arm depth)
     bicep_circ   = circular_circ(bicep_w)
@@ -800,12 +817,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # ── Confidence scores ─────────────────────────────────────────────────
     # Waist and hip benefit from more surrounding mask context → higher confidence
     confidence = {
-        'waist_cm':   0.80 if (front_lms and waist_circ) else 0.50,
-        'hip_cm':     0.85 if (front_lms and hip_circ)   else 0.50,
-        'bicep_cm':   0.70 if (front_lms and bicep_circ)  else 0.40,
+        'chest_cm':   0.75 if (front_lms and chest_circ)   else 0.45,
+        'neck_cm':    0.65 if (front_lms and neck_circ)    else 0.40,
+        'waist_cm':   0.80 if (front_lms and waist_circ)   else 0.50,
+        'hip_cm':     0.85 if (front_lms and hip_circ)     else 0.50,
+        'bicep_cm':   0.70 if (front_lms and bicep_circ)   else 0.40,
         'forearm_cm': 0.65 if (front_lms and forearm_circ) else 0.40,
-        'thigh_cm':   0.72 if (front_lms and thigh_circ) else 0.45,
-        'calf_cm':    0.68 if (front_lms and calf_circ)  else 0.40,
+        'thigh_cm':   0.72 if (front_lms and thigh_circ)   else 0.45,
+        'calf_cm':    0.68 if (front_lms and calf_circ)    else 0.40,
     }
 
     # ── Overlays ──────────────────────────────────────────────────────────
@@ -813,6 +832,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # so the side line matches exactly where the perpendicular scan landed.
     bicep_side_y = side_y(measure_ys_front.get('bicep') or arm_y)
     measure_ys_side = {
+        'neck':   side_y(neck_y),
+        'chest':  side_y(chest_y),
         'waist':  side_y(waist_y),
         'hip':    side_y(hip_y),
         'bicep':  bicep_side_y,
@@ -827,6 +848,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     return {
         'measurements': {
+            'chest_cm':   chest_circ,
+            'neck_cm':    neck_circ,
             'bicep_cm':   bicep_circ,
             'forearm_cm': forearm_circ,
             'waist_cm':   waist_circ,

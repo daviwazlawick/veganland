@@ -1643,8 +1643,6 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url.startsWith('/body/measurements')) {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const user = await getUserById(claims.userId);
-      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
       const history = await getBodyMeasurementHistory(claims.userId);
       sendJson(res, 200, { history }, origin);
       return;

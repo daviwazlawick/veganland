@@ -1478,20 +1478,30 @@ export async function saveBodyMeasurements(userId, data) {
   const db = await getPool();
   if (!db) return null;
   const {
-    arm_cm, forearm_cm, waist_cm, hip_cm, thigh_cm, calf_cm,
-    bmi, waist_to_height, waist_to_hip, conicity_index,
-    body_fat_pct, confidence, warnings, scale_px_per_cm,
+    bicep_cm, forearm_cm, chest_cm, neck_cm,
+    waist_cm, hip_cm, thigh_cm, calf_cm,
+    bmi, lean_mass_index, fat_mass_index,
+    waist_to_height, waist_to_hip, conicity_index,
+    body_fat_pct, fat_mass_kg, lean_mass_kg, body_water_pct, ree_kcal,
+    score, confidence, warnings, scale_px_per_cm,
   } = data;
   const res = await db.query(`
     insert into body_measurements
-      (user_id, arm_cm, forearm_cm, waist_cm, hips_cm, thigh_cm, calf_cm,
-       bmi, waist_to_height, waist_to_hip, conicity_index,
-       body_fat_pct, confidence, warnings, scale_px_per_cm, source, recorded_at)
-    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'photo_analysis',now())
+      (user_id, arm_cm, forearm_cm, chest_cm, neck_cm,
+       waist_cm, hips_cm, thigh_cm, calf_cm,
+       bmi, lean_mass_index, fat_mass_index,
+       waist_to_height, waist_to_hip, conicity_index,
+       body_fat_pct, fat_mass_kg, lean_mass_kg, body_water_pct, ree_kcal,
+       score, confidence, warnings, scale_px_per_cm, source, recorded_at)
+    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'photo_analysis',now())
     returning id, recorded_at`,
-    [userId, arm_cm||null, forearm_cm||null, waist_cm||null, hip_cm||null,
-     thigh_cm||null, calf_cm||null, bmi||null, waist_to_height||null,
-     waist_to_hip||null, conicity_index||null, body_fat_pct||null,
+    [userId,
+     bicep_cm||null, forearm_cm||null, chest_cm||null, neck_cm||null,
+     waist_cm||null, hip_cm||null, thigh_cm||null, calf_cm||null,
+     bmi||null, lean_mass_index||null, fat_mass_index||null,
+     waist_to_height||null, waist_to_hip||null, conicity_index||null,
+     body_fat_pct||null, fat_mass_kg||null, lean_mass_kg||null, body_water_pct||null, ree_kcal||null,
+     score||null,
      confidence ? JSON.stringify(confidence) : null,
      warnings ? JSON.stringify(warnings) : null,
      scale_px_per_cm||null]
@@ -1503,9 +1513,13 @@ export async function getBodyMeasurementHistory(userId, limit = 10) {
   const db = await getPool();
   if (!db) return [];
   const res = await db.query(
-    `select id, arm_cm, forearm_cm, waist_cm, hips_cm as hip_cm, thigh_cm, calf_cm,
-            bmi, waist_to_height, waist_to_hip, conicity_index,
-            body_fat_pct, confidence, warnings, source, recorded_at
+    `select id,
+            arm_cm as bicep_cm, forearm_cm, chest_cm, neck_cm,
+            waist_cm, hips_cm as hip_cm, thigh_cm, calf_cm,
+            bmi, lean_mass_index, fat_mass_index,
+            waist_to_height, waist_to_hip, conicity_index,
+            body_fat_pct, fat_mass_kg, lean_mass_kg, body_water_pct, ree_kcal,
+            score, confidence, warnings, source, recorded_at
      from body_measurements where user_id = $1
      order by recorded_at desc limit $2`,
     [userId, limit]

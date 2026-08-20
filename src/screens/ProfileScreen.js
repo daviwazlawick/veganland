@@ -43,7 +43,7 @@ export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile, monthlyScanCount, scanHistory, streak } = useApp();
   const { user, token, logout } = useAuth();
   const { stats: referralStats } = useReferral();
-  const { goals, bodyProfile } = useNutrition();
+  const { goals, bodyProfile, bodyMeasurements } = useNutrition();
   const [usage, setUsage] = useState(null);
   const [userType, setUserType] = useState('starter');
   const insets = useSafeAreaInsets();
@@ -215,6 +215,23 @@ export default function ProfileScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
+        {/* ── Body Analysis (NovaQI only) ── */}
+        {isNovaQI && (
+          <>
+            <SectionLabel label={t(language, 'body_analysis.section_title')} />
+            {bodyMeasurements.length > 0 ? (
+              <BodyAnalysisCard data={bodyMeasurements[0]} language={language} navigation={navigation} />
+            ) : (
+              <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('BodyAnalysis')}>
+                <View style={s.emptyState}>
+                  <Text style={s.emptyStateText}>{t(language, 'body_analysis.no_analysis')}</Text>
+                  <Text style={s.emptyStateCta}>{t(language, 'body_analysis.run_analysis')} ›</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
         {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
           <TouchableOpacity style={s.referralCard} activeOpacity={0.9} onPress={() => navigation.navigate('Referral')}>
@@ -369,6 +386,73 @@ export default function ProfileScreen({ navigation }) {
 
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+const BA_CIRCUM_KEYS = ['chest_cm','neck_cm','bicep_cm','forearm_cm','waist_cm','hip_cm','thigh_cm','calf_cm'];
+const BA_COMP_KEYS   = ['body_fat_pct','lean_mass_kg','fat_mass_kg','body_water_pct','ree_kcal'];
+const BA_INDEX_KEYS  = ['bmi','lean_mass_index','fat_mass_index','waist_to_height','waist_to_hip','conicity_index'];
+const BA_UNITS = { body_fat_pct: '%', lean_mass_kg: 'kg', fat_mass_kg: 'kg', body_water_pct: '%', ree_kcal: 'kcal', bmi: '', lean_mass_index: '', fat_mass_index: '', waist_to_height: '', waist_to_hip: '', conicity_index: '' };
+
+function BodyAnalysisCard({ data, language, navigation }) {
+  const dateStr = data.recorded_at
+    ? new Date(data.recorded_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+    : null;
+
+  function BaRow({ label, value, unit = 'cm' }) {
+    if (value == null) return null;
+    return (
+      <View style={s.baRow}>
+        <Text style={s.baRowLabel}>{label}</Text>
+        <Text style={s.baRowValue}>{typeof value === 'number' ? value.toFixed(value % 1 === 0 ? 0 : 1) : value}{unit ? ` ${unit}` : ''}</Text>
+      </View>
+    );
+  }
+
+  function BaSubTitle({ label }) {
+    return <Text style={s.baSubTitle}>{label}</Text>;
+  }
+
+  return (
+    <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('BodyAnalysis')}>
+      <View style={s.baHeader}>
+        {data.score != null && (
+          <View style={s.baScoreBadge}>
+            <Text style={s.baScoreNum}>{data.score}</Text>
+            <Text style={s.baScoreLabel}>{t(language, 'body_analysis.score')}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          {dateStr && <Text style={s.baDate}>{t(language, 'body_analysis.last_analysis')}: {dateStr}</Text>}
+        </View>
+        <Text style={s.rowChev}>›</Text>
+      </View>
+
+      <BaSubTitle label="Perímetros" />
+      <View style={s.baGrid}>
+        {BA_CIRCUM_KEYS.map(k => data[k] != null && (
+          <View key={k} style={s.baCell}>
+            <Text style={s.baCellVal}>{Number(data[k]).toFixed(1)}</Text>
+            <Text style={s.baCellUnit}>cm</Text>
+            <Text style={s.baCellLbl}>{t(language, `body_analysis.${k}`)}</Text>
+          </View>
+        ))}
+      </View>
+
+      {(data.body_fat_pct != null || data.lean_mass_kg != null) && (
+        <>
+          <BaSubTitle label="Composição" />
+          {BA_COMP_KEYS.map(k => data[k] != null && (
+            <BaRow key={k} label={t(language, `body_analysis.${k}`)} value={data[k]} unit={BA_UNITS[k]} />
+          ))}
+        </>
+      )}
+
+      <BaSubTitle label="Índices" />
+      {BA_INDEX_KEYS.map(k => data[k] != null && (
+        <BaRow key={k} label={t(language, `body_analysis.${k}`)} value={data[k]} unit={BA_UNITS[k]} />
+      ))}
+    </TouchableOpacity>
   );
 }
 
@@ -590,6 +674,22 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   accountEmail: { flex: 1, fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
+
+  // Body Analysis Card
+  baHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  baScoreBadge: { width: 52, height: 52, borderRadius: 14, backgroundColor: Colors.primaryBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.primaryLight },
+  baScoreNum: { fontSize: 20, fontWeight: '900', color: Colors.primary },
+  baScoreLabel: { fontSize: 8, fontWeight: '700', color: Colors.primary, textTransform: 'uppercase', letterSpacing: 0.3 },
+  baDate: { fontSize: 12, color: Colors.textMuted, fontWeight: '500' },
+  baSubTitle: { fontSize: 10, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 },
+  baGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, paddingBottom: 6, gap: 6 },
+  baCell: { alignItems: 'center', minWidth: 72, paddingHorizontal: 6, paddingVertical: 8, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  baCellVal: { fontSize: 16, fontWeight: '900', color: Colors.navy || Colors.text },
+  baCellUnit: { fontSize: 9, color: '#94a3b8', fontWeight: '600', marginTop: -2 },
+  baCellLbl: { fontSize: 9, color: '#64748b', fontWeight: '600', textTransform: 'uppercase', marginTop: 3, textAlign: 'center' },
+  baRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  baRowLabel: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' },
+  baRowValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
 
   // About
   aboutCard: {

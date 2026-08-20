@@ -230,7 +230,7 @@ export default function BodyAnalysisScreen({ navigation }) {
 
   async function saveResults() {
     if (!result) return;
-    try { await apiSaveBodyMeasurements(token, { ...result.measurements, ...result.indices, confidence: result.meta?.confidence, warnings: result.meta?.warnings, scale_px_per_cm: result.meta?.scale_px_per_cm }); } catch {}
+    try { await apiSaveBodyMeasurements(token, { ...result.measurements, ...result.indices, ...(result.body_composition || {}), score: result.score, confidence: result.meta?.confidence, warnings: result.meta?.warnings, scale_px_per_cm: result.meta?.scale_px_per_cm }); } catch {}
     Alert.alert('Actualizar perfil?', `Altura: ${heightCm} cm · Peso: ${weightKg} kg`, [
       { text: 'Não', style: 'cancel' },
       { text: 'Actualizar', onPress: async () => {

@@ -476,3 +476,10 @@ export async function apiSaveBodyMeasurements(token, measurements) {
   if (!r.ok) throw new Error(data.error || 'save_failed');
   return data;
 }
+
+export async function apiGetBodyMeasurements(token) {
+  const r = await fetch(`${baseUrl()}/body/measurements`, { headers: appHeaders(token) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'fetch_failed');
+  return data.history || [];
+}

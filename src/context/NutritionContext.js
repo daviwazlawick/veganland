@@ -8,6 +8,7 @@ import {
   apiLogWeight, apiGetWeightHistory,
   apiGetTodayExercise, apiLogExercise, apiDeleteExercise,
   apiLogMeasurements, apiGetMeasurements,
+  apiGetBodyMeasurements,
 } from '../services/apiService';
 
 const NutritionContext = createContext(null);
@@ -19,6 +20,7 @@ export function NutritionProvider({ children }) {
   const [todayLog, setTodayLog] = useState([]);
   const [weightHistory, setWeightHistory] = useState([]);
   const [measurementsHistory, setMeasurementsHistory] = useState([]);
+  const [bodyMeasurements, setBodyMeasurements] = useState([]);
   const [todayExercise, setTodayExercise] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -27,12 +29,13 @@ export function NutritionProvider({ children }) {
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
-      const [profile, g, log, wh, mh, ex] = await Promise.all([
+      const [profile, g, log, wh, mh, bm, ex] = await Promise.all([
         apiGetBodyProfile(token).catch(() => null),
         apiGetNutritionGoals(token).catch(() => null),
         apiGetDayLog(token, todayStr()).catch(() => []),
         apiGetWeightHistory(token).catch(() => []),
         apiGetMeasurements(token).catch(() => []),
+        apiGetBodyMeasurements(token).catch(() => []),
         apiGetTodayExercise(token, todayStr()),
       ]);
       if (profile != null) setBodyProfile(profile);
@@ -40,6 +43,7 @@ export function NutritionProvider({ children }) {
       setTodayLog(Array.isArray(log) ? log : []);
       setWeightHistory(Array.isArray(wh) ? wh : []);
       setMeasurementsHistory(Array.isArray(mh) ? mh : []);
+      setBodyMeasurements(Array.isArray(bm) ? bm : []);
       setTodayExercise(Array.isArray(ex) ? ex : []);
     } catch {}
     setLoaded(true);
@@ -130,7 +134,7 @@ export function NutritionProvider({ children }) {
 
   return (
     <NutritionContext.Provider value={{
-      bodyProfile, goals, todayLog, todayTotals, weightHistory, measurementsHistory, loaded,
+      bodyProfile, goals, todayLog, todayTotals, weightHistory, measurementsHistory, bodyMeasurements, loaded,
       todayExercise, todayBurned,
       refresh, saveBodyProfile, saveGoals,
       logConsumption, updateConsumption, deleteConsumption, getReport, addWeight,
