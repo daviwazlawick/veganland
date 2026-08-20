@@ -360,8 +360,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     chest_y = shoulder_y + (hip_y - shoulder_y) * 0.15 if (shoulder_y and hip_y) else None
     # Cintura: ~60% from shoulder to hip (narrowest torso zone)
     waist_y = shoulder_y + (hip_y - shoulder_y) * 0.60 if (shoulder_y and hip_y) else None
-    # Pescoço: ~65% from top to shoulder (above clavicles, below head)
-    neck_y = top_y + (shoulder_y - top_y) * 0.65 if (top_y is not None and shoulder_y) else None
+    # Pescoço: ~70% from top to shoulder (above clavicles, clear of hair)
+    neck_y = top_y + (shoulder_y - top_y) * 0.70 if (top_y is not None and shoulder_y) else None
     # Antebraço: between elbow and wrist
     forearm_y = (elbow_y + wrist_y) / 2 if (elbow_y and wrist_y) else None
     # Braço: between shoulder and elbow
@@ -492,8 +492,9 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_w, hx0, hx1 = _meas_horiz_body(hip_y)
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
-    # Neck: bounded by shoulder landmarks to avoid measuring head width
-    neck_w, nkx0, nkx1 = _meas_horiz(neck_y, shoulder_xl or 0, shoulder_xr or fw)
+    # Neck: pick the contiguous body segment nearest image centre (excludes side hair
+    # that is separated from the neck by any gap in the mask).
+    neck_w, nkx0, nkx1 = _meas_horiz_body(neck_y)
     if nkx0 is not None: measure_x_bounds_front['neck'] = (nkx0, nkx1)
 
     # ── Limbs: perpendicular scan along limb axis ─────────────────────────
