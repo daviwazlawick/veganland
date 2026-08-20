@@ -492,10 +492,27 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_w, hx0, hx1 = _meas_horiz_body(hip_y)
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
-    # Neck: pick the contiguous body segment nearest image centre (excludes side hair
-    # that is separated from the neck by any gap in the mask).
-    neck_w, nkx0, nkx1 = _meas_horiz_body(neck_y)
-    if nkx0 is not None: measure_x_bounds_front['neck'] = (nkx0, nkx1)
+    # Neck: perpendicular cross-section along nose→mid-shoulder axis.
+    # Horizontal scan was wrong — it measured nape-to-chin width.
+    # Perpendicular to the neck axis gives the true circumference diameter.
+    nose_xy   = _lm_xy(front_lms, 'nose')
+    lsh_xy2   = _lm_xy(front_lms, 'left_shoulder')
+    rsh_xy2   = _lm_xy(front_lms, 'right_shoulder')
+    if lsh_xy2 and rsh_xy2:
+        mid_sh_xy = ((lsh_xy2[0] + rsh_xy2[0]) / 2, (lsh_xy2[1] + rsh_xy2[1]) / 2)
+    elif lsh_xy2: mid_sh_xy = lsh_xy2
+    elif rsh_xy2: mid_sh_xy = rsh_xy2
+    else:         mid_sh_xy = None
+
+    neck_w, nkx0, nky0, nkx1, nky1, nk_cy = measure_limb_perp(
+        front_mask, nose_xy, mid_sh_xy, scale,
+        center_x_min=shoulder_xl, center_x_max=shoulder_xr,
+        ray_x_min=shoulder_xl,    ray_x_max=shoulder_xr,
+        t_min=0.50, t_max=0.85) \
+        if (nose_xy and mid_sh_xy) else (None,) * 6
+    if nkx0 is not None:
+        overlay_lines_front['neck'] = (nkx0, nky0, nkx1, nky1)
+        measure_ys_front['neck']    = nk_cy
 
     # ── Limbs: perpendicular scan along limb axis ─────────────────────────
     # Pick the arm/leg side whose distal landmark (elbow / knee) is furthest
@@ -694,7 +711,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_d     = _d(hip_y)
     thigh_d   = _d(thigh_y)
     calf_d    = _d(calf_y)
-    neck_d    = _d(neck_y)
+    neck_d    = _d(nk_cy if nk_cy is not None else neck_y)
     # arm/forearm depth not used — circular approximation in circumference step
 
     # ── Circumferences ────────────────────────────────────────────────────
@@ -833,7 +850,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # so the side line matches exactly where the perpendicular scan landed.
     bicep_side_y = side_y(measure_ys_front.get('bicep') or arm_y)
     measure_ys_side = {
-        'neck':   side_y(neck_y),
+        'neck':   side_y(nk_cy if nk_cy is not None else neck_y),
         'chest':  side_y(chest_y),
         'waist':  side_y(waist_y),
         'hip':    side_y(hip_y),
