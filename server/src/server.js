@@ -1581,12 +1581,10 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // POST /body/analyze — photo-based body measurement (admin only for now)
+    // POST /body/analyze — photo-based body measurement (all authenticated users)
     if (req.method === 'POST' && req.url === '/body/analyze') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const user = await getUserById(claims.userId);
-      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
 
       const body = await readJsonBody(req, 30 * 1024 * 1024);
       const { front_image, side_image, height_cm, weight_kg, sex, age } = body;
@@ -1635,8 +1633,6 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/body/measurements') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const user = await getUserById(claims.userId);
-      if (user?.user_type !== 'admin') { sendJson(res, 403, { error: 'Admin only' }, origin); return; }
       const body = await readJsonBody(req);
       const record = await saveBodyMeasurements(claims.userId, body);
       sendJson(res, 200, { ok: true, id: record?.id, recorded_at: record?.recorded_at }, origin);
