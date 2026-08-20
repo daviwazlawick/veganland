@@ -49,9 +49,14 @@ def load_image(path):
     return img
 
 
+_rembg_session = None
+
 def segment_body(img_pil):
     """Returns RGBA image with background removed."""
-    return rembg.remove(img_pil)
+    global _rembg_session
+    if _rembg_session is None:
+        _rembg_session = rembg.new_session("u2net")
+    return rembg.remove(img_pil, session=_rembg_session)
 
 
 def get_mask(rgba_pil):
