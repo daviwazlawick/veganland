@@ -426,8 +426,9 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_xl = min(hip_xs) if len(hip_xs) >= 2 else shoulder_xl
     hip_xr = max(hip_xs) if len(hip_xs) >= 2 else shoulder_xr
 
-    # ── Torso: horizontal bounded measurement ─────────────────────────────
+    # ── Torso: horizontal measurements ───────────────────────────────────────
     def _meas_horiz(y, xl, xr):
+        """Bounded horizontal measurement (waist: bounded by shoulder landmarks)."""
         if y is None or xl is None or xr is None: return None, None, None
         xl_c = max(0, int(xl)); xr_c = max(0, min(front_mask.shape[1], int(xr)))
         if xr_c <= xl_c: return None, None, None
@@ -443,13 +444,43 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         w_px = x1 - x0
         return (round(w_px * scale, 1) if w_px > 0 else None), x0, x1
 
+    def _meas_horiz_body(y):
+        """Full-width measurement using the contiguous body segment nearest the image
+        centre. Avoids the landmark-bounds problem for the hip, where the anatomical
+        landmarks sit at the joint (inside the pelvis) and miss the full glute width."""
+        if y is None: return None, None, None
+        cx_body = fw / 2
+        x0s, x1s = [], []
+        for dy in range(-2, 3):
+            row_i = int(y) + dy
+            if not (0 <= row_i < front_mask.shape[0]): continue
+            m = front_mask[row_i]
+            # Collect all contiguous runs
+            runs, in_run, start = [], False, 0
+            for xi in range(fw):
+                if m[xi] and not in_run:
+                    in_run, start = True, xi
+                elif not m[xi] and in_run:
+                    runs.append((start, xi - 1)); in_run = False
+            if in_run: runs.append((start, fw - 1))
+            if not runs: continue
+            # Pick the run whose centre is closest to the image centre
+            best = min(runs, key=lambda r: abs((r[0] + r[1]) / 2 - cx_body))
+            x0s.append(best[0]); x1s.append(best[1])
+        if not x0s: return None, None, None
+        x0 = int(np.median(x0s)); x1 = int(np.median(x1s))
+        w_px = x1 - x0
+        return (round(w_px * scale, 1) if w_px > 0 else None), x0, x1
+
     measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
     overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
     waist_w, wx0, wx1 = _meas_horiz(waist_y, shoulder_xl or 0, shoulder_xr or fw)
     if wx0 is not None: measure_x_bounds_front['waist'] = (wx0, wx1)
 
-    hip_w, hx0, hx1 = _meas_horiz(hip_y, hip_xl or 0, hip_xr or fw)
+    # Hip: use full-mask contiguous-body scan so glute width is not clipped by
+    # the hip joint landmarks (which sit inside the pelvis, not at the body edge).
+    hip_w, hx0, hx1 = _meas_horiz_body(hip_y)
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
     # ── Limbs: perpendicular scan along limb axis ─────────────────────────
