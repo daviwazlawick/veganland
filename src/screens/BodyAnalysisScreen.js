@@ -132,34 +132,47 @@ const sbStyles = StyleSheet.create({
 
 // ── Pose silhouette ───────────────────────────────────────────────────────────
 function PoseSilhouette({ pose }) {
-  const clr = '#94a3b8';
-  const fill = 'rgba(148,163,184,0.18)';
-  const sw = '1.8';
+  const clr = '#16A75A';
+  const fill = '#E2F7EA';
+  const sw = '2';
+  const sw2 = '1.6';
   if (pose === 'front') {
     return (
-      <Svg width="78" height="130" viewBox="0 0 90 160">
+      <Svg width="82" height="132" viewBox="0 0 92 166">
         {/* head */}
-        <Circle cx="45" cy="13" r="11" fill={fill} stroke={clr} strokeWidth={sw} />
-        {/* torso */}
-        <Path d="M30 24 Q27 52 28 88 L62 88 Q63 52 60 24 Z" fill={fill} stroke={clr} strokeWidth={sw} />
-        {/* left arm A-pose ~35° outward */}
-        <Path d="M30 32 L7 70 L11 73 L34 36 Z" fill={fill} stroke={clr} strokeWidth={sw} />
-        {/* right arm */}
-        <Path d="M60 32 L83 70 L79 73 L56 36 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        <Circle cx="46" cy="11" r="10" fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* neck */}
+        <Path d="M42 21 L50 21 L49 29 L43 29 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+        {/* torso — shoulders taper to waist then widen at hips */}
+        <Path d="M19 29 Q14 54 16 66 Q18 78 22 87 L70 87 Q74 78 76 66 Q78 54 73 29 Z"
+              fill={fill} stroke={clr} strokeWidth={sw} />
+        {/* left arm A-pose */}
+        <Path d="M21 36 L2 78 L7 80 L26 40 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+        {/* right arm A-pose */}
+        <Path d="M71 36 L90 78 L85 80 L66 40 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
         {/* left leg */}
-        <Path d="M33 88 L31 152 L41 152 L43 88 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        <Path d="M27 87 L24 161 L40 161 L43 87 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
         {/* right leg */}
-        <Path d="M47 88 L49 152 L59 152 L57 88 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+        <Path d="M49 87 L52 161 L68 161 L65 87 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
       </Svg>
     );
   }
-  // side profile
+  // side profile — arms horizontal at 90° (out of measurement zones)
   return (
-    <Svg width="42" height="130" viewBox="0 0 50 160">
-      <Ellipse cx="27" cy="13" rx="9" ry="11" fill={fill} stroke={clr} strokeWidth={sw} />
-      <Path d="M20 24 L16 88 L36 88 L32 24 Z" fill={fill} stroke={clr} strokeWidth={sw} />
-      <Path d="M22 34 L15 68 L19 69 L26 36 Z" fill={fill} stroke={clr} strokeWidth={sw} />
-      <Path d="M20 88 L18 152 L28 152 L30 88 Z" fill={fill} stroke={clr} strokeWidth={sw} />
+    <Svg width="82" height="132" viewBox="0 0 134 166">
+      {/* head */}
+      <Ellipse cx="62" cy="11" rx="9" ry="10" fill={fill} stroke={clr} strokeWidth={sw} />
+      {/* neck */}
+      <Path d="M58 21 L66 21 L65 29 L57 29 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+      {/* torso side profile — slight chest curve forward */}
+      <Path d="M52 29 Q43 52 44 68 Q45 80 48 87 L72 87 Q70 79 70 66 Q70 50 68 29 Z"
+            fill={fill} stroke={clr} strokeWidth={sw} />
+      {/* arm forward at 90° */}
+      <Path d="M69 37 L126 35 L126 41 L69 43 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+      {/* arm behind at 90° */}
+      <Path d="M52 37 L20 35 L20 41 L52 43 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
+      {/* leg */}
+      <Path d="M50 87 L48 161 L68 161 L70 87 Z" fill={fill} stroke={clr} strokeWidth={sw2} />
     </Svg>
   );
 }
@@ -315,7 +328,7 @@ export default function BodyAnalysisScreen({ navigation }) {
             </View>
             <View style={s.poseTip}>
               <Text style={s.poseTipLabel}>Lateral</Text>
-              <Text style={s.poseTipText}>Perfil reto{'\n'}Braços ligeiramente à frente</Text>
+              <Text style={s.poseTipText}>Perfil reto · braços a 90°{'\n'}Pés juntos · Corpo inteiro visível</Text>
             </View>
           </View>
         </View>

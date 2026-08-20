@@ -554,10 +554,46 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if top_y_s is None: return None
         return top_y_s + rel * (bottom_y_s - top_y_s)
 
+    # Body-centre x in side photo (used to pick the contiguous body segment,
+    # excluding the hand which sticks out in front/behind at thigh/hip level).
+    def _side_body_cx():
+        xs = []
+        for nm in ('left_hip', 'right_hip', 'left_knee', 'right_knee',
+                   'left_shoulder', 'right_shoulder'):
+            x = _lm_x(side_lms, nm)
+            if x is not None:
+                xs.append(x)
+        return (sum(xs) / len(xs)) if xs else None
+
+    _sbcx = _side_body_cx()  # fraction [0,1] of side image width
+
     def _d(front_y_px):
         sy = side_y(front_y_px)
         if sy is None: return None
-        px = width_at_y(side_mask, int(sy))
+        si = int(sy)
+        h_s, w_s = side_mask.shape
+        if not (0 <= si < h_s): return None
+        row = side_mask[si]
+        mask_xs = np.where(row)[0]
+        if len(mask_xs) == 0: return None
+
+        if _sbcx is not None:
+            # Find the contiguous mask segment that contains the body centre.
+            # This excludes the hand if there is any gap between it and the body.
+            cx = int(_sbcx * w_s)
+            cx = max(0, min(w_s - 1, cx))
+            if row[cx]:
+                xl = cx
+                while xl > 0 and row[xl - 1]: xl -= 1
+                xr = cx
+                while xr < w_s - 1 and row[xr + 1]: xr += 1
+                px = xr - xl + 1
+            else:
+                # Body centre not in mask — use widest segment as fallback
+                px = int(mask_xs[-1]) - int(mask_xs[0]) + 1
+        else:
+            px = int(mask_xs[-1]) - int(mask_xs[0]) + 1
+
         return round(px * scale_side, 1) if px > 0 else None
 
     waist_d   = _d(waist_y)
