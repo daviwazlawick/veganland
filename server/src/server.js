@@ -1599,8 +1599,8 @@ const server = http.createServer(async (req, res) => {
       const frontPath = join(tmpDir, `ba_front_${claims.userId}_${Date.now()}.jpg`);
       const sidePath  = join(tmpDir, `ba_side_${claims.userId}_${Date.now()}.jpg`);
       try {
-        const frontBuf = Buffer.from(front_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-        const sideBuf  = Buffer.from(side_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const frontBuf = Buffer.from(front_image.replace(/^data:[^,]+,/, ''), 'base64');
+        const sideBuf  = Buffer.from(side_image.replace(/^data:[^,]+,/, ''), 'base64');
         await writeFile(frontPath, frontBuf);
         await writeFile(sidePath, sideBuf);
 
@@ -1613,9 +1613,12 @@ const server = http.createServer(async (req, res) => {
           ]);
           let out = '';
           let err = '';
+          // 5-minute timeout — first run loads the model (~30s), subsequent runs ~20s
+          const timer = setTimeout(() => { py.kill(); reject(new Error('A análise demorou demasiado tempo. Tente novamente.')); }, 300_000);
           py.stdout.on('data', d => { out += d; });
           py.stderr.on('data', d => { err += d; });
           py.on('close', code => {
+            clearTimeout(timer);
             if (code !== 0) {
               // Python prints {"error": "..."} to stdout even on failure — surface it
               let msg = 'analysis failed';
