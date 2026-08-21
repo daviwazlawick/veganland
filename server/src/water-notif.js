@@ -5,14 +5,12 @@ import { getPool } from './db.js';
 // WINDOW_MINUTES: fire if we're within ±20 min of the target (30-min run cadence).
 const WINDOW_MINUTES = 20;
 const ALL_SLOTS = [
-  // Water reminders
-  { name: 'water_morning',   minutes: 9  * 60,       type: 'water' },
-  { name: 'water_midday',    minutes: 13 * 60,       type: 'water' },
-  { name: 'water_afternoon', minutes: 17 * 60,       type: 'water' },
-  // Food log reminders
-  { name: 'food_morning',    minutes: 8  * 60 + 30,  type: 'food' },
-  { name: 'food_midday',     minutes: 11 * 60 + 50,  type: 'food' },
-  { name: 'food_evening',    minutes: 19 * 60,       type: 'food' },
+  { name: 'food_morning',    minutes:  8 * 60, type: 'food'  },
+  { name: 'water_morning',   minutes:  9 * 60, type: 'water' },
+  { name: 'food_midday',     minutes: 12 * 60, type: 'food'  },
+  { name: 'water_midday',    minutes: 13 * 60, type: 'water' },
+  { name: 'water_afternoon', minutes: 17 * 60, type: 'water' },
+  { name: 'food_evening',    minutes: 19 * 60, type: 'food'  },
 ];
 
 // ── Message builders ──────────────────────────────────────────────────────────
@@ -22,7 +20,7 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
   const T = {
     pt: {
       water_morning: waterToday === 0
-        ? 'Comece o dia com um copo de água!'
+        ? 'Comece o dia hidratado — a água optimiza a sua composição corporal!'
         : `Bom início! Já tomou ${waterToday}ml. Continue!`,
       water_midday: waterToday === 0
         ? 'Já é meio-dia e ainda não bebeu água hoje!'
@@ -33,7 +31,7 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
     },
     en: {
       water_morning: waterToday === 0
-        ? 'Start your day with a glass of water!'
+        ? 'Start your day hydrated — water supports your body composition goals!'
         : `Great start! ${waterToday}ml done. Keep going!`,
       water_midday: waterToday === 0
         ? "It's midday — you haven't had any water yet!"
@@ -44,7 +42,7 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
     },
     de: {
       water_morning: waterToday === 0
-        ? 'Starte deinen Tag mit einem Glas Wasser!'
+        ? 'Starte deinen Tag hydriert — Wasser unterstützt deine Körperziele!'
         : `Guter Start! ${waterToday}ml getrunken. Weiter so!`,
       water_midday: waterToday === 0
         ? 'Mittag — du hast noch kein Wasser getrunken!'
@@ -55,7 +53,7 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
     },
     fr: {
       water_morning: waterToday === 0
-        ? "Commencez la journée avec un verre d'eau!"
+        ? "Commencez la journée hydraté — l'eau soutient vos objectifs corporels!"
         : `Bon début ! ${waterToday}ml bus. Continuez !`,
       water_midday: waterToday === 0
         ? "Il est midi — vous n'avez pas encore bu d'eau !"
@@ -66,7 +64,7 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
     },
     it: {
       water_morning: waterToday === 0
-        ? "Inizia la giornata con un bicchiere d'acqua!"
+        ? "Inizia la giornata idratato — l'acqua supporta la tua composizione corporea!"
         : `Ottimo inizio! ${waterToday}ml bevuti. Continua!`,
       water_midday: waterToday === 0
         ? "È mezzogiorno e non hai ancora bevuto acqua!"
@@ -77,7 +75,7 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
     },
     es: {
       water_morning: waterToday === 0
-        ? '¡Empieza el día con un vaso de agua!'
+        ? '¡Empieza el día hidratado — el agua apoya tu composición corporal!'
         : `¡Buen comienzo! ${waterToday}ml bebidos. ¡Sigue!`,
       water_midday: waterToday === 0
         ? '¡Es mediodía y aún no has bebido agua!'
@@ -88,58 +86,95 @@ function waterMessage(locale, slotName, waterToday, waterGoal) {
     },
   };
   const lang = T[locale] ? locale : 'en';
-  return { title: '💧 ' + titleFor(lang, 'water', slotName), body: T[lang][slotName] };
+  const titles = { pt: '💧 Hidratação', en: '💧 Hydration', de: '💧 Hydration', fr: '💧 Hydratation', it: '💧 Idratazione', es: '💧 Hidratación' };
+  return { title: titles[lang] || titles.en, body: T[lang][slotName] };
 }
 
-function foodMessage(locale, slotName) {
-  const titles = {
-    pt: { food_morning: '🍽️ Diário Alimentar', food_midday: '🍽️ Hora do Almoço', food_evening: '🍽️ Jantar Registado?' },
-    en: { food_morning: '🍽️ Food Journal', food_midday: '🍽️ Lunch Time', food_evening: '🍽️ Evening Check-in' },
-    de: { food_morning: '🍽️ Ernährungstagebuch', food_midday: '🍽️ Mittagszeit', food_evening: '🍽️ Abend-Check' },
-    fr: { food_morning: '🍽️ Journal Alimentaire', food_midday: '🍽️ Heure du Déjeuner', food_evening: '🍽️ Bilan du Soir' },
-    it: { food_morning: '🍽️ Diario Alimentare', food_midday: '🍽️ Ora di Pranzo', food_evening: '🍽️ Check Serale' },
-    es: { food_morning: '🍽️ Diario Alimentario', food_midday: '🍽️ Hora del Almuerzo', food_evening: '🍽️ Check de la Noche' },
-  };
-  const bodies = {
+function foodMessage(locale, slotName, caloriesToday, caloriesGoal) {
+  const remaining = caloriesGoal - caloriesToday;
+  const T = {
     pt: {
-      food_morning:  'Não se esqueça de registar o seu pequeno-almoço para acompanhar a sua nutrição hoje.',
-      food_midday:   'Hora de almoço! Registe o que comeu para manter o controlo do seu consumo.',
-      food_evening:  'Registe o jantar de hoje para completar o seu diário alimentar.',
+      food_morning: caloriesToday === 0
+        ? 'Registe o pequeno-almoço para análise nutricional precisa!'
+        : `${caloriesToday} kcal registadas. Continue para uma análise completa!`,
+      food_midday: caloriesToday === 0
+        ? 'Nada registado ainda — registe o almoço agora!'
+        : `${caloriesToday} kcal. Registe o almoço para manter o registo completo.`,
+      food_evening: caloriesToday < 300
+        ? 'Poucos registos hoje — registe o jantar para completar o seu perfil!'
+        : remaining > 0
+          ? `${caloriesToday} kcal — faltam ${remaining} kcal para a meta diária.`
+          : `Meta atingida! ${caloriesToday} kcal registadas hoje.`,
     },
     en: {
-      food_morning:  "Don't forget to log your breakfast to track your nutrition today.",
-      food_midday:   "Lunchtime! Log what you ate to stay on top of your intake.",
-      food_evening:  "Log your dinner to complete today's food journal.",
+      food_morning: caloriesToday === 0
+        ? 'Log your breakfast for accurate nutrition tracking!'
+        : `${caloriesToday} kcal logged. Keep it up for a complete analysis!`,
+      food_midday: caloriesToday === 0
+        ? 'Nothing logged yet — record your lunch now!'
+        : `${caloriesToday} kcal. Log lunch to keep your record complete.`,
+      food_evening: caloriesToday < 300
+        ? 'Few entries today — log dinner to complete your profile!'
+        : remaining > 0
+          ? `${caloriesToday} kcal — ${remaining} kcal left for your daily goal.`
+          : `Goal reached! ${caloriesToday} kcal logged today.`,
     },
     de: {
-      food_morning:  'Vergiss nicht, dein Frühstück einzutragen, um deine Ernährung zu verfolgen.',
-      food_midday:   'Mittagszeit! Trage dein Essen ein, um den Überblick zu behalten.',
-      food_evening:  'Trage dein Abendessen ein, um dein Ernährungstagebuch zu vervollständigen.',
+      food_morning: caloriesToday === 0
+        ? 'Frühstück erfassen für eine genaue Ernährungsanalyse!'
+        : `${caloriesToday} kcal erfasst. Weiter so für eine vollständige Analyse!`,
+      food_midday: caloriesToday === 0
+        ? 'Noch nichts erfasst — erfasse jetzt dein Mittagessen!'
+        : `${caloriesToday} kcal. Mittagessen erfassen für vollständige Aufzeichnungen.`,
+      food_evening: caloriesToday < 300
+        ? 'Wenige Einträge heute — Abendessen erfassen!'
+        : remaining > 0
+          ? `${caloriesToday} kcal — noch ${remaining} kcal bis zum Tagesziel.`
+          : `Ziel erreicht! ${caloriesToday} kcal heute erfasst.`,
     },
     fr: {
-      food_morning:  "N'oubliez pas d'enregistrer votre petit-déjeuner pour suivre votre nutrition.",
-      food_midday:   "C'est l'heure du déjeuner ! Enregistrez ce que vous avez mangé.",
-      food_evening:  "Enregistrez votre dîner pour compléter votre journal alimentaire.",
+      food_morning: caloriesToday === 0
+        ? 'Enregistrez votre petit-déjeuner pour un suivi nutritionnel précis !'
+        : `${caloriesToday} kcal enregistrées. Continuez pour une analyse complète !`,
+      food_midday: caloriesToday === 0
+        ? 'Rien enregistré — notez votre déjeuner maintenant !'
+        : `${caloriesToday} kcal. Notez le déjeuner pour un suivi complet.`,
+      food_evening: caloriesToday < 300
+        ? 'Peu de données aujourd\'hui — enregistrez le dîner !'
+        : remaining > 0
+          ? `${caloriesToday} kcal — encore ${remaining} kcal pour l'objectif.`
+          : `Objectif atteint ! ${caloriesToday} kcal enregistrées aujourd'hui.`,
     },
     it: {
-      food_morning:  "Non dimenticare di registrare la colazione per monitorare la tua nutrizione.",
-      food_midday:   "Ora di pranzo! Registra cosa hai mangiato per tenere traccia.",
-      food_evening:  "Registra la cena di oggi per completare il tuo diario alimentare.",
+      food_morning: caloriesToday === 0
+        ? 'Registra la colazione per un\'analisi nutrizionale precisa!'
+        : `${caloriesToday} kcal registrate. Continua per un\'analisi completa!`,
+      food_midday: caloriesToday === 0
+        ? 'Niente ancora — registra il pranzo adesso!'
+        : `${caloriesToday} kcal. Registra il pranzo per un profilo completo.`,
+      food_evening: caloriesToday < 300
+        ? 'Pochi dati oggi — registra la cena per completare il profilo!'
+        : remaining > 0
+          ? `${caloriesToday} kcal — mancano ${remaining} kcal all'obiettivo.`
+          : `Obiettivo raggiunto! ${caloriesToday} kcal registrate oggi.`,
     },
     es: {
-      food_morning:  "No olvides registrar tu desayuno para seguir tu nutrición de hoy.",
-      food_midday:   "¡Hora de almorzar! Registra lo que comiste para mantener el control.",
-      food_evening:  "Registra tu cena para completar tu diario alimentario de hoy.",
+      food_morning: caloriesToday === 0
+        ? '¡Registra el desayuno para un análisis nutricional preciso!'
+        : `${caloriesToday} kcal registradas. ¡Sigue para un análisis completo!`,
+      food_midday: caloriesToday === 0
+        ? '¡Nada registrado — anota tu almuerzo ahora!'
+        : `${caloriesToday} kcal. Registra el almuerzo para mantener el perfil completo.`,
+      food_evening: caloriesToday < 300
+        ? '¡Pocos registros hoy — anota la cena para completar tu perfil!'
+        : remaining > 0
+          ? `${caloriesToday} kcal — faltan ${remaining} kcal para la meta diaria.`
+          : `¡Meta alcanzada! ${caloriesToday} kcal registradas hoy.`,
     },
   };
-  const lang = titles[locale] ? locale : 'en';
-  return { title: titles[lang][slotName], body: bodies[lang][slotName] };
-}
-
-function titleFor(lang, type, slotName) {
-  if (type !== 'water') return '';
-  const t = { pt: 'Hidratação', en: 'Hydration', de: 'Hydration', fr: 'Hydratation', it: 'Idratazione', es: 'Hidratación' };
-  return t[lang] || t.en;
+  const lang = T[locale] ? locale : 'en';
+  const titles = { pt: '🍽️ Nutrição', en: '🍽️ Nutrition', de: '🍽️ Ernährung', fr: '🍽️ Nutrition', it: '🍽️ Nutrizione', es: '🍽️ Nutrición' };
+  return { title: titles[lang] || titles.en, body: T[lang][slotName] };
 }
 
 // ── Push sender ───────────────────────────────────────────────────────────────
@@ -170,13 +205,13 @@ export async function runNotifications() {
 
   // 1. Candidates: users with push tokens + timezone + nutrition goals
   const { rows: candidates } = await db.query(`
-    SELECT pt.user_id, pt.token, pt.locale, pt.timezone, pt.brand,
-           COALESCE(g.water_ml, 2000) AS water_goal
+    SELECT pt.user_id, pt.token, pt.locale, pt.timezone,
+           COALESCE(g.water_ml, 2000)       AS water_goal,
+           COALESCE(g.calories_kcal, 2000)  AS calorie_goal
     FROM push_tokens pt
     JOIN user_nutrition_goals g ON g.user_id = pt.user_id
     WHERE pt.user_id IS NOT NULL
       AND pt.timezone IS NOT NULL
-      AND g.water_ml IS NOT NULL AND g.water_ml > 0
   `).catch(() => ({ rows: [] }));
 
   if (candidates.length === 0) return;
@@ -216,7 +251,16 @@ export async function runNotifications() {
   `, [userIds]).catch(() => ({ rows: [] }));
   const waterMap = Object.fromEntries(waterRows.map(r => [r.user_id, r.water_ml]));
 
-  // 4. Already sent today (last 2 days to be safe)
+  // 4. Today's calorie totals
+  const { rows: calorieRows } = await db.query(`
+    SELECT user_id, COALESCE(SUM(calories_kcal), 0)::int AS calories_kcal
+    FROM consumption_log
+    WHERE user_id = ANY($1) AND calories_kcal IS NOT NULL AND consumed_at >= CURRENT_DATE
+    GROUP BY user_id
+  `, [userIds]).catch(() => ({ rows: [] }));
+  const calorieMap = Object.fromEntries(calorieRows.map(r => [r.user_id, r.calories_kcal]));
+
+  // 5. Already sent today (last 2 days to be safe)
   const { rows: sentRows } = await db.query(`
     SELECT user_id, slot, local_date::text
     FROM water_notification_log
@@ -224,7 +268,7 @@ export async function runNotifications() {
   `, [userIds]).catch(() => ({ rows: [] }));
   const sentSet = new Set(sentRows.map(r => `${r.user_id}:${r.slot}:${r.local_date}`));
 
-  // 5. Build messages
+  // 6. Build messages
   const messages = [];
   const toLog = [];
 
@@ -232,18 +276,15 @@ export async function runNotifications() {
     const sentKey = `${u.user_id}:${u.slot}:${u.localDate}`;
     if (sentSet.has(sentKey)) continue;
 
-    const isNovaQI = u.brand === 'novaqi';
-
-    // NovaQI is a body-composition app, not a daily food tracker — skip food reminders
-    if (isNovaQI && u.slotType === 'food') continue;
-
     let msg;
+    let waterMlAtSend = waterMap[u.user_id] || 0;
+
     if (u.slotType === 'water') {
-      const waterToday = waterMap[u.user_id] || 0;
-      if (waterToday >= u.water_goal) continue; // goal met, skip
-      msg = waterMessage(u.locale || 'en', u.slot, waterToday, u.water_goal);
+      if (waterMlAtSend >= u.water_goal) continue; // goal already met
+      msg = waterMessage(u.locale || 'en', u.slot, waterMlAtSend, u.water_goal);
     } else {
-      msg = foodMessage(u.locale || 'en', u.slot);
+      const caloriesToday = calorieMap[u.user_id] || 0;
+      msg = foodMessage(u.locale || 'en', u.slot, caloriesToday, u.calorie_goal);
     }
 
     messages.push({
@@ -251,13 +292,9 @@ export async function runNotifications() {
       title: msg.title,
       body: msg.body,
       sound: 'default',
-      data: {
-        route: 'NutritionDashboard',
-        slot: u.slot,
-        params: u.slotType === 'food' ? { openAddFood: true } : undefined,
-      },
+      data: { route: 'NutritionDashboard', slot: u.slot },
     });
-    toLog.push({ userId: u.user_id, slot: u.slot, localDate: u.localDate, waterMl: waterMap[u.user_id] || 0 });
+    toLog.push({ userId: u.user_id, slot: u.slot, localDate: u.localDate, waterMl: waterMlAtSend });
   }
 
   if (messages.length === 0) return;
