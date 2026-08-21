@@ -753,21 +753,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     bicep_circ   = circular_circ(bicep_w)
     forearm_circ = circular_circ(forearm_w)
 
-    # ── Bias correction (literature-based, photo vs tape measure) ────────
-    # Photo-based ellipse/circular models systematically underestimate vs tape.
-    # Factors derived from photo-anthropometry literature (Daanen & Psikuta 2018,
-    # Kuehnapfel et al. 2016). These are initial estimates; will be refined with
-    # user-collected calibration data (plan 3).
-    _BIAS = {
-        'chest':   1.05,  # ellipse model + A-pose arm occlusion
-        'waist':   1.04,  # soft tissue + ellipse underestimation
-        'hip':     1.03,  # glute boundary bias
-        'thigh':   1.04,  # ellipse on non-elliptical cross-section
-        'calf':    1.03,  # more cylindrical, less bias
-        'neck':    1.06,  # circular approx from front-only, neck is elliptical
-        'bicep':   1.05,  # circular approx from front-only
-        'forearm': 1.04,  # circular approx from front-only
-    }
+    # Raw circumferences stored for future calibration (plan 3)
     raw_circ = {
         'chest_cm':   chest_circ,
         'waist_cm':   waist_circ,
@@ -778,17 +764,6 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         'bicep_cm':   bicep_circ,
         'forearm_cm': forearm_circ,
     }
-    def _correct(v, factor):
-        return round(v * factor, 1) if v is not None else None
-
-    chest_circ   = _correct(chest_circ,   _BIAS['chest'])
-    waist_circ   = _correct(waist_circ,   _BIAS['waist'])
-    hip_circ     = _correct(hip_circ,     _BIAS['hip'])
-    thigh_circ   = _correct(thigh_circ,   _BIAS['thigh'])
-    calf_circ    = _correct(calf_circ,    _BIAS['calf'])
-    neck_circ    = _correct(neck_circ,    _BIAS['neck'])
-    bicep_circ   = _correct(bicep_circ,   _BIAS['bicep'])
-    forearm_circ = _correct(forearm_circ, _BIAS['forearm'])
 
     # ── Indices ───────────────────────────────────────────────────────────
     height_m = height_cm / 100
@@ -989,7 +964,6 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'confidence':       confidence,
             'warnings':         warnings,
             'raw_cm':           raw_circ,
-            'bias_factors':     _BIAS,
             'seg_model':        'u2net_human_seg',
             'bf_method':        body_fat_method,
         },
