@@ -58,7 +58,7 @@ def segment_body(img_pil):
     """Returns RGBA image with background removed."""
     global _rembg_session
     if _rembg_session is None:
-        _rembg_session = rembg.new_session("u2net_human_seg")
+        _rembg_session = rembg.new_session("birefnet-general-lite")
     return rembg.remove(img_pil, session=_rembg_session)
 
 
@@ -964,7 +964,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'confidence':       confidence,
             'warnings':         warnings,
             'raw_cm':           raw_circ,
-            'seg_model':        'u2net_human_seg',
+            'seg_model':        'birefnet-general-lite',
             'bf_method':        body_fat_method,
         },
         'overlays': {
