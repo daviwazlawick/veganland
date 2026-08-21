@@ -58,7 +58,7 @@ def segment_body(img_pil):
     """Returns RGBA image with background removed."""
     global _rembg_session
     if _rembg_session is None:
-        _rembg_session = rembg.new_session("u2net")
+        _rembg_session = rembg.new_session("birefnet-general")
     return rembg.remove(img_pil, session=_rembg_session)
 
 
@@ -97,7 +97,7 @@ def mask_height_span(mask):
     return int(ys[0]), int(ys[-1])
 
 
-def width_at_y(mask, y, margin=2):
+def width_at_y(mask, y, margin=4):
     """Width in pixels of the mask at row y (averaged over ±margin rows)."""
     h = mask.shape[0]
     widths = []
@@ -452,7 +452,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         xl_c = max(0, int(xl)); xr_c = max(0, min(front_mask.shape[1], int(xr)))
         if xr_c <= xl_c: return None, None, None
         x0s, x1s = [], []
-        for dy in range(-2, 3):
+        for dy in range(-4, 5):
             row = int(y) + dy
             if 0 <= row < front_mask.shape[0]:
                 cols = np.where(front_mask[row, xl_c:xr_c])[0]
@@ -470,7 +470,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if y is None: return None, None, None
         cx_body = fw / 2
         x0s, x1s = [], []
-        for dy in range(-2, 3):
+        for dy in range(-4, 5):
             row_i = int(y) + dy
             if not (0 <= row_i < front_mask.shape[0]): continue
             m = front_mask[row_i]
@@ -753,6 +753,43 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     bicep_circ   = circular_circ(bicep_w)
     forearm_circ = circular_circ(forearm_w)
 
+    # ── Bias correction (literature-based, photo vs tape measure) ────────
+    # Photo-based ellipse/circular models systematically underestimate vs tape.
+    # Factors derived from photo-anthropometry literature (Daanen & Psikuta 2018,
+    # Kuehnapfel et al. 2016). These are initial estimates; will be refined with
+    # user-collected calibration data (plan 3).
+    _BIAS = {
+        'chest':   1.05,  # ellipse model + A-pose arm occlusion
+        'waist':   1.04,  # soft tissue + ellipse underestimation
+        'hip':     1.03,  # glute boundary bias
+        'thigh':   1.04,  # ellipse on non-elliptical cross-section
+        'calf':    1.03,  # more cylindrical, less bias
+        'neck':    1.06,  # circular approx from front-only, neck is elliptical
+        'bicep':   1.05,  # circular approx from front-only
+        'forearm': 1.04,  # circular approx from front-only
+    }
+    raw_circ = {
+        'chest_cm':   chest_circ,
+        'waist_cm':   waist_circ,
+        'hip_cm':     hip_circ,
+        'thigh_cm':   thigh_circ,
+        'calf_cm':    calf_circ,
+        'neck_cm':    neck_circ,
+        'bicep_cm':   bicep_circ,
+        'forearm_cm': forearm_circ,
+    }
+    def _correct(v, factor):
+        return round(v * factor, 1) if v is not None else None
+
+    chest_circ   = _correct(chest_circ,   _BIAS['chest'])
+    waist_circ   = _correct(waist_circ,   _BIAS['waist'])
+    hip_circ     = _correct(hip_circ,     _BIAS['hip'])
+    thigh_circ   = _correct(thigh_circ,   _BIAS['thigh'])
+    calf_circ    = _correct(calf_circ,    _BIAS['calf'])
+    neck_circ    = _correct(neck_circ,    _BIAS['neck'])
+    bicep_circ   = _correct(bicep_circ,   _BIAS['bicep'])
+    forearm_circ = _correct(forearm_circ, _BIAS['forearm'])
+
     # ── Indices ───────────────────────────────────────────────────────────
     height_m = height_cm / 100
     bmi = round(weight_kg / (height_m ** 2), 1)
@@ -763,15 +800,38 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     ci = round((waist_circ / 100) / (0.109 * math.sqrt(weight_kg / height_m)), 2) \
          if waist_circ else None
 
-    # ── Body fat — Deurenberg formula (1991), r²=0.79 vs DEXA ───────────
-    # %BF = 1.20×BMI + 0.23×age − 10.8×sex_factor − 5.4
-    # sex_factor: 1=male, 0=female; valid adults 18-65, error ±4-6%
-    if age and age > 0:
+    # ── Body fat ──────────────────────────────────────────────────────────
+    # Primary: US Navy circumference method (Hodgdon & Beckett 1984), ±3–4% vs DEXA.
+    # Uses the actual circumferences measured from the photos.
+    # Fallback: Deurenberg BMI formula (1991), ±4–6% vs DEXA.
+    body_fat_method = None
+    if waist_circ and neck_circ and height_cm:
+        try:
+            if sex == 'male':
+                diff = waist_circ - neck_circ
+                if diff > 0:
+                    body_fat_pct = round(
+                        86.01 * math.log10(diff) - 70.041 * math.log10(height_cm) + 36.76, 1)
+                    body_fat_method = 'navy_circumference'
+            else:
+                if hip_circ:
+                    diff = waist_circ + hip_circ - neck_circ
+                    if diff > 0:
+                        body_fat_pct = round(
+                            163.205 * math.log10(diff) - 97.684 * math.log10(height_cm) - 78.387, 1)
+                        body_fat_method = 'navy_circumference'
+        except Exception:
+            body_fat_pct = None
+
+    if body_fat_method is None and age and age > 0:
         sex_factor = 1 if sex == 'male' else 0
         body_fat_pct = round(1.20 * bmi + 0.23 * age - 10.8 * sex_factor - 5.4, 1)
-        body_fat_pct = max(3.0, min(60.0, body_fat_pct))
-    else:
+        body_fat_method = 'deurenberg_bmi'
+    elif body_fat_method is None:
         body_fat_pct = None
+
+    if body_fat_pct is not None:
+        body_fat_pct = max(3.0, min(60.0, body_fat_pct))
 
     # Fat mass / lean mass split
     fat_mass_kg  = round(weight_kg * body_fat_pct / 100, 1) if body_fat_pct else None
@@ -915,7 +975,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'body_water_l':    body_water_l,
             'body_water_pct':  body_water_pct,
             'ree_kcal':        ree_kcal,
-            'method':          'deurenberg_bmi',
+            'method':          body_fat_method,
         } if body_fat_pct else None,
         'score':             novaqi_score,
         'meta': {
@@ -928,6 +988,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'side_image_dims':  [sw, sh],
             'confidence':       confidence,
             'warnings':         warnings,
+            'raw_cm':           raw_circ,
+            'bias_factors':     _BIAS,
+            'seg_model':        'birefnet-general',
+            'bf_method':        body_fat_method,
         },
         'overlays': {
             'front': front_overlay,
