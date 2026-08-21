@@ -170,7 +170,7 @@ export async function runNotifications() {
 
   // 1. Candidates: users with push tokens + timezone + nutrition goals
   const { rows: candidates } = await db.query(`
-    SELECT pt.user_id, pt.token, pt.locale, pt.timezone,
+    SELECT pt.user_id, pt.token, pt.locale, pt.timezone, pt.brand,
            COALESCE(g.water_ml, 2000) AS water_goal
     FROM push_tokens pt
     JOIN user_nutrition_goals g ON g.user_id = pt.user_id
@@ -232,6 +232,11 @@ export async function runNotifications() {
     const sentKey = `${u.user_id}:${u.slot}:${u.localDate}`;
     if (sentSet.has(sentKey)) continue;
 
+    const isNovaQI = u.brand === 'novaqi';
+
+    // NovaQI is a body-composition app, not a daily food tracker — skip food reminders
+    if (isNovaQI && u.slotType === 'food') continue;
+
     let msg;
     if (u.slotType === 'water') {
       const waterToday = waterMap[u.user_id] || 0;
@@ -249,7 +254,6 @@ export async function runNotifications() {
       data: {
         route: 'NutritionDashboard',
         slot: u.slot,
-        // Food reminders open the Add Food modal directly
         params: u.slotType === 'food' ? { openAddFood: true } : undefined,
       },
     });

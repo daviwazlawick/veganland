@@ -1337,7 +1337,8 @@ const server = http.createServer(async (req, res) => {
       if (!pushToken || typeof pushToken !== 'string') {
         sendJson(res, 400, { error: 'token required' }, origin); return;
       }
-      await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale, timezone });
+      const brand = host?.includes('novaqi') ? 'novaqi' : 'veganland';
+      await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale, timezone, brand });
       sendJson(res, 200, { ok: true }, origin);
       return;
     }
