@@ -222,13 +222,14 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
   async function runAnalysis() {
     if (!frontUri || !sideUri) { Alert.alert('Fotos em falta', 'Selecciona a foto frontal e a lateral.'); return; }
-    if (!heightCm || !weightKg) { Alert.alert('Dados em falta', 'Preenche altura e peso.'); return; }
+    if (!weightKg) { Alert.alert('Dados em falta', 'Preenche o peso.'); return; }
     setAnalyzing(true); setResult(null);
     try {
       const [frontB64, sideB64] = await Promise.all([uriToBase64(frontUri), uriToBase64(sideUri)]);
       setResult(await apiBodyAnalyze(token, {
         frontImage: frontB64, sideImage: sideB64,
-        heightCm: parseFloat(heightCm), weightKg: parseFloat(weightKg),
+        heightCm: heightCm ? parseFloat(heightCm) : 0,
+        weightKg: parseFloat(weightKg),
         sex, age: age ? parseInt(age, 10) : 0,
       }));
     } catch (e) { Alert.alert('Erro na análise', e.message || 'Tenta novamente.'); }
@@ -352,9 +353,10 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         {/* Demographics */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>Dados de calibração</Text>
+          <Text style={s.sectionHint}>Altura é opcional se usares o cartão de crédito nas fotos.</Text>
           <View style={s.inputRow}>
-            <Field label="Altura (cm)" value={heightCm} onChange={setHeightCm} kbType="decimal-pad" />
-            <Field label="Peso (kg)"   value={weightKg} onChange={setWeightKg} kbType="decimal-pad" />
+            <Field label="Altura (cm) — opcional" value={heightCm} onChange={setHeightCm} kbType="decimal-pad" />
+            <Field label="Peso (kg)"               value={weightKg} onChange={setWeightKg} kbType="decimal-pad" />
             <Field label="Idade"       value={age}      onChange={setAge}       kbType="number-pad" />
           </View>
           <View style={s.sexRow}>
@@ -637,6 +639,7 @@ const s = StyleSheet.create({
 
   section:    { backgroundColor: Colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: Colors.border },
   sectionLabel: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  sectionHint:  { fontSize: 11, color: Colors.textMuted, marginTop: 2, marginBottom: 8 },
   inputRow:   { flexDirection: 'row', gap: 8 },
   fieldLabel: { fontSize: 11, fontWeight: '700', color: Colors.textLight },
   fieldBox:   { backgroundColor: Colors.backgroundSecondary, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8 },

@@ -1589,8 +1589,8 @@ const server = http.createServer(async (req, res) => {
 
       const body = await readJsonBody(req, 30 * 1024 * 1024);
       const { front_image, side_image, height_cm, weight_kg, sex, age } = body;
-      if (!front_image || !side_image || !height_cm || !weight_kg) {
-        sendJson(res, 400, { error: 'front_image, side_image, height_cm, weight_kg required' }, origin);
+      if (!front_image || !side_image || !weight_kg) {
+        sendJson(res, 400, { error: 'front_image, side_image, weight_kg required' }, origin);
         return;
       }
 

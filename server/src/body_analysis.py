@@ -425,30 +425,47 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     top_y, bottom_y = mask_height_span(front_mask)
 
     height_cm_estimated = None
-
-    def _height_scale(body_span_px):
-        return height_cm / body_span_px if body_span_px > 50 else None
+    height_cm_known = height_cm and height_cm > 0  # False when user didn't provide height
 
     def _validate_card_scale(card_scale, body_span_px):
-        """Reject card scale if the implied height differs >30 % from stated height."""
+        """Reject card scale if the implied height is implausible or conflicts with stated height."""
         if card_scale is None or body_span_px is None or body_span_px < 50:
             return False
         estimated = body_span_px * card_scale
-        return abs(estimated - height_cm) / max(height_cm, 1) <= 0.30
+        if estimated < 100 or estimated > 250:   # outside human range
+            return False
+        if height_cm_known:
+            return abs(estimated - height_cm) / max(height_cm, 1) <= 0.30
+        return True  # no stated height to compare against — accept if in human range
 
     body_span_front = (bottom_y - top_y) if (top_y is not None and bottom_y is not None) else None
 
     if card_scale_front is not None and _validate_card_scale(card_scale_front, body_span_front):
         scale = card_scale_front
         height_cm_estimated = round(body_span_front * scale, 1)
+        # Use estimated height for all downstream calculations when none was provided
+        if not height_cm_known:
+            height_cm = height_cm_estimated
     elif card_scale_front is not None:
-        # Card detected but height sanity check failed — likely false positive
+        # Card detected but sanity check failed — likely false positive
         warnings.append('card_scale_rejected')
         card_scale_front = None
-        scale = _height_scale(body_span_front) or 1.0
+        if not height_cm_known:
+            raise ValueError(
+                'Cartão de crédito não detectado correctamente e altura não fornecida. '
+                'Cole o cartão plano no centro do peito e tente novamente, '
+                'ou preencha a altura manualmente.'
+            )
+        scale = height_cm / body_span_front if body_span_front and body_span_front > 50 else 1.0
         if scale == 1.0:
             warnings.append('scale_calibration_failed')
     elif body_span_front and body_span_front > 50:
+        if not height_cm_known:
+            raise ValueError(
+                'Cartão de crédito não detectado e altura não fornecida. '
+                'Cole o cartão plano no centro do peito e tente novamente, '
+                'ou preencha a altura manualmente.'
+            )
         scale = height_cm / body_span_front
     else:
         warnings.append('scale_calibration_failed')
