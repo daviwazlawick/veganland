@@ -186,6 +186,8 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
   const [frontUri,   setFrontUri]   = useState(route?.params?.frontUri || null);
   const [sideUri,    setSideUri]    = useState(route?.params?.sideUri  || null);
+  const [frontB64,   setFrontB64]   = useState(null);
+  const [sideB64,    setSideB64]    = useState(null);
   const [heightCm,   setHeightCm]   = useState(bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '');
   const [weightKg,   setWeightKg]   = useState(bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '');
   const [sex,        setSex]        = useState(bodyProfile?.sex || 'female');
@@ -209,13 +211,22 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   async function pickPhoto(side) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permissão necessária', 'Preciso de acesso à galeria.'); return; }
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5 });
+    // base64:true makes Expo transcode HEIC/HEIF/WebP → JPEG automatically on iOS
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      base64: true,
+    });
     if (!picked.canceled && picked.assets?.[0]) {
-      if (side === 'front') setFrontUri(picked.assets[0].uri);
-      else setSideUri(picked.assets[0].uri);
+      const asset = picked.assets[0];
+      const mime = asset.mimeType || 'image/jpeg';
+      const b64 = `data:${mime};base64,${asset.base64}`;
+      if (side === 'front') { setFrontUri(asset.uri); setFrontB64(b64); }
+      else                  { setSideUri(asset.uri);  setSideB64(b64); }
     }
   }
 
+  // Fallback for URIs from VideoAnalysisScreen (always JPEG from camera)
   async function uriToBase64(uri) {
     const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
     return `data:image/jpeg;base64,${base64}`;
@@ -226,9 +237,13 @@ export default function BodyAnalysisScreen({ navigation, route }) {
     if (!weightKg) { Alert.alert('Dados em falta', 'Preenche o peso.'); return; }
     setAnalyzing(true); setResult(null);
     try {
-      const [frontB64, sideB64] = await Promise.all([uriToBase64(frontUri), uriToBase64(sideUri)]);
+      // Use pre-converted base64 from picker; fall back to FileSystem for camera URIs
+      const [fB64, sB64] = await Promise.all([
+        frontB64 || uriToBase64(frontUri),
+        sideB64  || uriToBase64(sideUri),
+      ]);
       setResult(await apiBodyAnalyze(token, {
-        frontImage: frontB64, sideImage: sideB64,
+        frontImage: fB64, sideImage: sB64,
         heightCm: heightCm ? parseFloat(heightCm) : 0,
         weightKg: parseFloat(weightKg),
         sex, age: age ? parseInt(age, 10) : 0,

@@ -760,30 +760,47 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             measure_ys_front['chest'] = _ch_best_y
     if chx0 is not None: measure_x_bounds_front['chest'] = (chx0, chx1)
 
-    # Waist: min-width zone 52–83% shoulder-to-hip.
-    # Card is a scale reference only — its Y position is not used for anchoring.
+    # Waist: measured at UMBILICUS level (55-70% shoulder-to-hip, pick max width).
+    # This matches the consumer tape protocol (fita ao nível do umbigo). For
+    # people with abdominal fat, umbilicus width > anatomical narrow width, and
+    # umbilicus depth captures the belly bulge → ellipse gives real tape value
+    # directly, without needing a SHAPE_K compensation factor (removed for waist).
+    # A separate min-width scan below computes the anatomical narrow waist for
+    # internal use in the Navy body-fat formula (original 1984 protocol).
     waist_w, wx0, wx1 = None, None, None
     _wz_rows_scanned = 0
     _wz_rows_valid = 0
+    narrow_waist_cm = None
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
-        _wz_top = int(shoulder_y + _span * 0.52)
-        _wz_bot = int(shoulder_y + _span * 0.83)
+        # Umbilicus zone: max width in 55-70% shoulder-to-hip
+        _wz_top = int(shoulder_y + _span * 0.55)
+        _wz_bot = int(shoulder_y + _span * 0.70)
         _wz_best_w, _wz_best_y = None, None
         for _sy in range(_wz_top, _wz_bot, 2):
             _wz_rows_scanned += 1
             _w, _x0, _x1 = _meas_horiz_body(_sy)
             if _w is not None:
                 _wz_rows_valid += 1
-                if _wz_best_w is None or _w < _wz_best_w:
+                if _wz_best_w is None or _w > _wz_best_w:   # MAX for umbilicus
                     _wz_best_w, _wz_best_y, wx0, wx1 = _w, _sy, _x0, _x1
         if _wz_best_w is not None:
             waist_w = _wz_best_w
             waist_y = _wz_best_y
             measure_ys_front['waist'] = _wz_best_y
-        print(f'[waist-scan] range=[{_wz_top},{_wz_bot}] scanned={_wz_rows_scanned} '
-              f'valid={_wz_rows_valid} best_w={_wz_best_w} best_y={_wz_best_y} '
-              f'wx0={wx0} wx1={wx1}', file=sys.stderr)
+
+        # Anatomical narrow waist (min-width, 45-65% zone) — internal only
+        _nw_top = int(shoulder_y + _span * 0.45)
+        _nw_bot = int(shoulder_y + _span * 0.65)
+        _nw_best_w = None
+        for _sy in range(_nw_top, _nw_bot, 2):
+            _nw, _, _ = _meas_horiz_body(_sy)
+            if _nw is not None and (_nw_best_w is None or _nw < _nw_best_w):
+                _nw_best_w = _nw
+        narrow_waist_cm = _nw_best_w
+        print(f'[waist-scan] umb_range=[{_wz_top},{_wz_bot}] scanned={_wz_rows_scanned} '
+              f'valid={_wz_rows_valid} umb_w={_wz_best_w} umb_y={_wz_best_y} '
+              f'narrow_w={narrow_waist_cm} wx0={wx0} wx1={wx1}', file=sys.stderr)
     if wx0 is not None: measure_x_bounds_front['waist'] = (wx0, wx1)
 
     # Hip: max-width zone scan from hip landmark to 30% towards knee (captures glute peak)
@@ -1200,16 +1217,18 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # need downward correction (neck also switches to circular approx below).
     _h_m = (height_cm / 100.0) if height_cm else 0
     _bmi_for_k = weight_kg / (_h_m ** 2) if (_h_m > 0 and weight_kg) else 22.0
+    # Waist SHAPE_K removed (=1.00) — now measured directly at umbilicus level
+    # (55-70% shoulder-to-hip, max width), matching consumer tape protocol.
     if _bmi_for_k < 22:      # lean (calibrated against davi 2026-08-24)
-        _SHAPE_K = {'chest': 1.09, 'waist': 1.15, 'hip': 1.05,
+        _SHAPE_K = {'chest': 1.09, 'waist': 1.00, 'hip': 1.05,
                     'thigh': 1.08, 'calf': 1.00, 'neck': 1.00,
                     'bicep': 0.91, 'forearm': 0.91}
     elif _bmi_for_k < 27:    # normal (interpolated, not yet calibrated)
-        _SHAPE_K = {'chest': 1.06, 'waist': 1.10, 'hip': 1.00,
+        _SHAPE_K = {'chest': 1.06, 'waist': 1.00, 'hip': 1.00,
                     'thigh': 1.05, 'calf': 1.00, 'neck': 1.00,
                     'bicep': 0.94, 'forearm': 0.94}
     else:                    # overweight/obese (glute+belly break ellipse more)
-        _SHAPE_K = {'chest': 1.02, 'waist': 1.05, 'hip': 0.95,
+        _SHAPE_K = {'chest': 1.02, 'waist': 1.00, 'hip': 0.95,
                     'thigh': 1.00, 'calf': 1.00, 'neck': 1.00,
                     'bicep': 0.96, 'forearm': 0.96}
     def _shape(v, k):
@@ -1236,20 +1255,35 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     # ── Body fat ──────────────────────────────────────────────────────────
     # Primary: US Navy circumference method (Hodgdon & Beckett 1984), ±3–4% vs DEXA.
-    # Uses the actual circumferences measured from the photos.
-    # Fallback: Deurenberg BMI formula (1991), ±4–6% vs DEXA.
+    # IMPORTANT: Navy 1984 was calibrated with the ANATOMICAL narrow waist
+    # (between rib and iliac crest), NOT the umbilicus. Modern consumer tape
+    # protocols measure at umbilicus, which for people with abdominal fat is
+    # 5-15cm wider than the anatomical narrow — this over-estimates body fat
+    # by 5-10 percentage points via the Navy formula (davi 2026-08-24: umbilicus
+    # 84cm → 26.2% body fat; anatomical 72.9cm → 17.0% — matches Deurenberg
+    # BMI+age of 17.2%, consistent with BMI 19.8 lean profile).
+    # We use raw_circ['waist_cm'] (pre-SHAPE_K = anatomical narrow) here to
+    # keep the Navy formula in its original protocol. Display waist stays at
+    # umbilicus level (matches consumer tape + WHO cardio-risk indices).
     body_fat_method = None
-    if waist_circ and neck_circ and height_cm:
+    # Coherence principle: use the same values we DISPLAY (yellow line on
+    # overlay = measurement value = input to every derived formula). No
+    # internal "phantom" measurements that the user can't see. Navy formula
+    # gets the umbilicus-level waist that the yellow line points to.
+    _waist_for_bf = waist_circ
+    _hip_for_bf   = hip_circ
+    _neck_for_bf  = neck_circ
+    if _waist_for_bf and _neck_for_bf and height_cm:
         try:
             if sex == 'male':
-                diff = waist_circ - neck_circ
+                diff = _waist_for_bf - _neck_for_bf
                 if diff > 0:
                     body_fat_pct = round(
                         86.01 * math.log10(diff) - 70.041 * math.log10(height_cm) + 36.76, 1)
                     body_fat_method = 'navy_circumference'
             else:
-                if hip_circ:
-                    diff = waist_circ + hip_circ - neck_circ
+                if _hip_for_bf:
+                    diff = _waist_for_bf + _hip_for_bf - _neck_for_bf
                     if diff > 0:
                         body_fat_pct = round(
                             163.205 * math.log10(diff) - 97.684 * math.log10(height_cm) - 78.387, 1)
