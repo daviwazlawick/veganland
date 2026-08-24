@@ -681,22 +681,22 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
     overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
-    # Chest: scan zone guided by card centre (front card is on chest).
-    # Narrow window (±15 px) when card detected; wide zone (10-30%) as fallback.
+    # Chest: bounded by shoulder landmark x-positions so arms are excluded.
+    # _meas_horiz scans only between shoulder_xl and shoulder_xr — arms beyond that boundary
+    # are never included regardless of whether they touch the torso mask.
     chest_w, chx0, chx1 = None, None, None
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
-        _ch_lo = shoulder_y + _span * 0.05
-        _ch_hi = shoulder_y + _span * 0.52
-        if card_front_cy is not None and _ch_lo <= card_front_cy <= _ch_hi:
-            _ch_top = int(card_front_cy - 15)
-            _ch_bot = int(card_front_cy + 15)
-        else:
-            _ch_top = int(shoulder_y + _span * 0.10)
-            _ch_bot = int(shoulder_y + _span * 0.30)
+        _ch_top = int(shoulder_y + _span * 0.05)
+        _ch_bot = int(shoulder_y + _span * 0.28)
         _ch_best_w, _ch_best_y = None, None
+        _ch_xl = shoulder_xl if has_shoulder_bounds else None
+        _ch_xr = shoulder_xr if has_shoulder_bounds else None
         for _sy in range(_ch_top, _ch_bot, 2):
-            _w, _x0, _x1 = _meas_horiz_body(_sy)
+            if _ch_xl is not None:
+                _w, _x0, _x1 = _meas_horiz(_sy, _ch_xl, _ch_xr)
+            else:
+                _w, _x0, _x1 = _meas_horiz_body(_sy)
             if _w is not None and (_ch_best_w is None or _w > _ch_best_w):
                 _ch_best_w, _ch_best_y, chx0, chx1 = _w, _sy, _x0, _x1
         if _ch_best_w is not None:
@@ -705,20 +705,13 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             measure_ys_front['chest'] = _ch_best_y
     if chx0 is not None: measure_x_bounds_front['chest'] = (chx0, chx1)
 
-    # Waist: scan zone guided by side card centre (side card is on lateral waist).
-    # Convert card_side_cy to front-photo y; narrow window when available.
+    # Waist: min-width zone 52–83% shoulder-to-hip.
+    # Card is a scale reference only — its Y position is not used for anchoring.
     waist_w, wx0, wx1 = None, None, None
-    _card_waist_front_y = front_y_from_side(card_side_cy)
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
-        _wz_lo = shoulder_y + _span * 0.35
-        _wz_hi = shoulder_y + _span * 0.90
-        if _card_waist_front_y is not None and _wz_lo <= _card_waist_front_y <= _wz_hi:
-            _wz_top = int(_card_waist_front_y - 18)
-            _wz_bot = int(_card_waist_front_y + 18)
-        else:
-            _wz_top = int(shoulder_y + _span * 0.45)
-            _wz_bot = int(shoulder_y + _span * 0.80)
+        _wz_top = int(shoulder_y + _span * 0.52)
+        _wz_bot = int(shoulder_y + _span * 0.83)
         _wz_best_w, _wz_best_y = None, None
         for _sy in range(_wz_top, _wz_bot, 2):
             _w, _x0, _x1 = _meas_horiz_body(_sy)
@@ -809,15 +802,66 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
                 max(0, x_lo - ray_margin), min(w_m, x_hi + ray_margin))
 
     arm_side, sh_xy, el_xy = _far_side('left_shoulder','left_elbow','right_shoulder','right_elbow')
-    arm_cx_min, arm_cx_max, arm_rx_min, arm_rx_max = _arm_lm_bounds(
-        sh_xy, el_xy, _ARM_CTR_MARGIN, _BICEP_RAY_MARGIN)
 
-    bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
-        front_mask, sh_xy, el_xy, scale,
-        center_x_min=arm_cx_min, center_x_max=arm_cx_max,
-        ray_x_min=arm_rx_min,    ray_x_max=arm_rx_max,
-        t_min=0.20, t_max=0.65) \
-        if (sh_xy and el_xy and arm_cx_min is not None) else (None,)*6
+    def _bicep_separated(sh, el, side_nm):
+        """
+        Find bicep by scanning only rows where the arm has SEPARATED from the torso
+        (two distinct contiguous runs). This is the only way to measure the arm
+        without including the chest — stop exactly at the arm's green contour edge.
+        Falls back gracefully: if arm never separates in the scan range, returns None.
+        """
+        if not sh or not el: return (None,)*6
+        sy_i = int(sh[1]); ey_i = int(el[1])
+        if ey_i <= sy_i: return (None,)*6
+        span = ey_i - sy_i
+        cx_mid = fw / 2.0
+        best_w, best_res = 0, (None,)*6
+        # x-range where the arm landmark projects (shoulder + elbow x-spread + margin)
+        arm_x_lo = int(min(sh[0], el[0])) - 30
+        arm_x_hi = int(max(sh[0], el[0])) + 30
+        # Start at 40% so we are clearly past the chest/axilla junction.
+        for yi in range(int(sy_i + span * 0.40), int(sy_i + span * 0.75), 2):
+            if not (0 <= yi < front_mask.shape[0]): continue
+            row = front_mask[yi]
+            runs, in_run = [], False
+            for xi in range(fw):
+                if row[xi] and not in_run:
+                    in_run, start = True, xi
+                elif not row[xi] and in_run:
+                    runs.append((start, xi - 1)); in_run = False
+            if in_run: runs.append((start, fw - 1))
+            if len(runs) < 2: continue          # arm still merged with torso
+            body = min(runs, key=lambda r: abs((r[0] + r[1]) / 2 - cx_mid))
+            cands = [r for r in runs if r is not body]
+            if not cands: continue
+            if side_nm == 'left':
+                arm = min(cands, key=lambda r: (r[0] + r[1]) / 2)
+                if (arm[0] + arm[1]) / 2 >= cx_mid: continue
+            else:
+                arm = max(cands, key=lambda r: (r[0] + r[1]) / 2)
+                if (arm[0] + arm[1]) / 2 <= cx_mid: continue
+            # Verify run is within expected arm x-range (landmark-anchored)
+            arm_cx = (arm[0] + arm[1]) / 2
+            if not (arm_x_lo <= arm_cx <= arm_x_hi): continue
+            w_px = arm[1] - arm[0]
+            if w_px < 5: continue
+            if w_px > best_w:
+                best_w = w_px
+                best_res = (round(w_px * scale, 1), arm[0], yi, arm[1], yi, yi)
+        return best_res
+
+    bicep_w, bx0, by0, bx1, by1, b_cy = _bicep_separated(sh_xy, el_xy, arm_side)
+
+    if bicep_w is None and sh_xy and el_xy:
+        # Fallback: landmark-bounds scan (used when arm never separates from torso)
+        arm_cx_min, arm_cx_max, arm_rx_min, arm_rx_max = _arm_lm_bounds(
+            sh_xy, el_xy, _ARM_CTR_MARGIN, _BICEP_RAY_MARGIN)
+        bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
+            front_mask, sh_xy, el_xy, scale,
+            center_x_min=arm_cx_min, center_x_max=arm_cx_max,
+            ray_x_min=arm_rx_min,    ray_x_max=arm_rx_max,
+            t_min=0.45, t_max=0.68)
+
     if bx0 is not None:
         overlay_lines_front['bicep'] = (bx0, by0, bx1, by1)
         measure_ys_front['bicep']    = b_cy
@@ -878,7 +922,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         front_mask, hip_xy, kn_xy, scale,
         center_x_min=t_cx_min, center_x_max=t_cx_max,
         ray_x_min=t_rx_min,    ray_x_max=t_rx_max,
-        t_min=0.40, t_max=0.75) \
+        t_min=0.50, t_max=0.75) \
         if (hip_xy and kn_xy) else (None,)*6
     if tx0 is not None:
         overlay_lines_front['thigh'] = (tx0, ty0, tx1, ty1)
@@ -1009,9 +1053,9 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # Arm at 90° forward only fuses with torso at chest/shoulder level.
     # Below the waist the arm is absent — use full contiguous segment (arm_level=False).
     chest_d = _d(chest_y, arm_level=True)
-    waist_d = _d(waist_y, side_y_override=card_side_cy, arm_level=True)
+    waist_d = _d(waist_y, arm_level=False)
     hip_d   = _d(hip_scan_y, arm_level=False)
-    thigh_d = _d(thigh_y, arm_level=False)
+    thigh_d = _d(measure_ys_front.get('thigh') or thigh_y, arm_level=False)
     calf_d  = _d(calf_y,  arm_level=False)
     # Neck: arm is at SHOULDER level, not neck level — side mask at neck_y is clean.
     # Use side depth to build an ellipse instead of circular approximation.
@@ -1185,16 +1229,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     }
 
     # ── Overlays ──────────────────────────────────────────────────────────
-    # Use the actual front measurement center y for bicep (t_cy), not the raw arm_y,
-    # so the side line matches exactly where the perpendicular scan landed.
-    bicep_side_y = side_y(measure_ys_front.get('bicep') or arm_y)
+    _thigh_y_actual = measure_ys_front.get('thigh') or thigh_y
     measure_ys_side = {
-        # neck omitted from side overlay — arm contaminates the mask at that level
+        'neck':   side_y(measure_ys_front.get('neck') or neck_y),
         'chest':  side_y(chest_y),
         'waist':  side_y(waist_y),
         'hip':    side_y(hip_y),
-        'bicep':  bicep_side_y,
-        'thigh':  side_y(thigh_y),
+        'bicep':  side_y(measure_ys_front.get('bicep') or arm_y),
+        'thigh':  side_y(_thigh_y_actual),
         'calf':   side_y(calf_y),
     }
     measure_ys_side = {k: v for k, v in measure_ys_side.items() if v}
