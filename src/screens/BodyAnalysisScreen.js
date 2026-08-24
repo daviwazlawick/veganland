@@ -309,14 +309,25 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         {/* Pose guide */}
         <View style={s.poseGuide}>
           <Text style={s.poseGuideTitle}>Como tirar as fotos</Text>
+
+          <View style={s.cardHint}>
+            <Text style={s.cardHintIcon}>💳</Text>
+            <Text style={s.cardHintText}>
+              Cola um cartão de crédito com fita-cola PLANO no{' '}
+              <Text style={{ fontWeight: '800' }}>centro do peito</Text> (foto de frente) e na{' '}
+              <Text style={{ fontWeight: '800' }}>lateral da cintura</Text> (foto de lado).{' '}
+              Parede branca, roupa justa, corpo inteiro visível.
+            </Text>
+          </View>
+
           <View style={s.poseGuideRow}>
             <View style={s.poseTip}>
               <Text style={s.poseTipLabel}>Frente</Text>
-              <Text style={s.poseTipText}>Braços afastados do tronco{'\n'}Pernas abertas · Palmas para a câmera</Text>
+              <Text style={s.poseTipText}>Cartão no centro do peito{'\n'}Braços afastados · Palmas para a câmera{'\n'}Pernas abertas</Text>
             </View>
             <View style={s.poseTip}>
               <Text style={s.poseTipLabel}>Lado direito</Text>
-              <Text style={s.poseTipText}>Braço direito levantado à frente{'\n'}Braço esquerdo atrás do corpo{'\n'}Pernas alinhadas · Costas da mão p/ câmera{'\n'}Cabelo comprido preso em coque</Text>
+              <Text style={s.poseTipText}>Cartão na lateral da cintura{'\n'}Braço dir. à frente · Braço esq. atrás{'\n'}Pernas alinhadas · Cabelo em coque</Text>
             </View>
           </View>
         </View>
@@ -599,6 +610,9 @@ const s = StyleSheet.create({
 
   poseGuide:      { backgroundColor: Colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border },
   poseGuideTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
+  cardHint:       { flexDirection: 'row', backgroundColor: '#FFF8E7', borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#F5C842', gap: 8, alignItems: 'flex-start' },
+  cardHintIcon:   { fontSize: 20 },
+  cardHintText:   { flex: 1, fontSize: 12, color: '#7A5C00', lineHeight: 18 },
   poseGuideRow:   { flexDirection: 'row', gap: 12 },
   poseTip:        { flex: 1 },
   poseTipLabel:   { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 3 },

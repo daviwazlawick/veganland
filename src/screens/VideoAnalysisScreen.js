@@ -22,11 +22,12 @@ const SILHOUETTES = {
 const STEPS = ['intro', 'front', 'side', 'confirm'];
 
 const TIPS = [
-  { icon: '🏠', text: 'Fundo simples e liso (parede branca ou cor única)' },
-  { icon: '👕', text: 'Roupa justa — leggings, calções ou roupa interior' },
-  { icon: '📱', text: 'Coloca o telemóvel estável a ~2m de distância ao nível do peito' },
-  { icon: '💡', text: 'Boa iluminação — evita sombras atrás de ti' },
-  { icon: '📏', text: 'Corpo inteiro visível da cabeça à planta do pé' },
+  { icon: '🧱', text: 'Encosta-te a uma parede BRANCA ou lisa — sem padrões, móveis ou sombras atrás de ti' },
+  { icon: '👙', text: 'Roupa JUSTA: leggings, calções curtos ou roupa interior. Sem camisolas largas nem cintos' },
+  { icon: '💳', text: 'Cola um cartão de crédito com fita-cola no CENTRO DO PEITO (frente) e na LATERAL DA CINTURA (lado). O cartão deve ficar bem plano e totalmente visível' },
+  { icon: '📱', text: 'Telemóvel fixo a ~2 m de distância, ao nível do peito — usa um suporte ou encosta-o a algo estável' },
+  { icon: '💡', text: 'Boa iluminação frontal — evita luz atrás de ti (contra-luz) ou sombras no rosto' },
+  { icon: '📏', text: 'Corpo INTEIRO visível da cabeça à planta do pé — não te cortes nos bordos da câmara' },
 ];
 
 export default function VideoAnalysisScreen({ navigation }) {
@@ -96,11 +97,21 @@ export default function VideoAnalysisScreen({ navigation }) {
         <ScrollView contentContainerStyle={s.introContainer} showsVerticalScrollIndicator={false}>
           <Text style={s.title}>Vídeo Análise</Text>
           <Text style={s.subtitle}>
-            O app guia-te passo a passo para capturar as tuas fotos frontal e lateral com a máxima precisão.
+            O app guia-te passo a passo. Segue as instruções para obter as medições mais precisas possível.
           </Text>
 
+          <View style={s.cardCallout}>
+            <Text style={s.cardCalloutIcon}>💳</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.cardCalloutTitle}>Cartão de crédito obrigatório</Text>
+              <Text style={s.cardCalloutText}>
+                Antes de começar, cola com fita-cola um cartão de crédito plano no centro do peito. Terás de o mudar para a lateral da cintura antes da foto de lado.
+              </Text>
+            </View>
+          </View>
+
           <View style={s.tipsCard}>
-            <Text style={s.tipsTitle}>Antes de começar</Text>
+            <Text style={s.tipsTitle}>Instruções completas</Text>
             {TIPS.map((t, i) => (
               <View key={i} style={s.tipRow}>
                 <Text style={s.tipIcon}>{t.icon}</Text>
@@ -147,8 +158,8 @@ export default function VideoAnalysisScreen({ navigation }) {
     const isFront = step === 'front';
     const silhouette = SILHOUETTES[isFront ? 'front' : 'side'][sex === 'male' ? 'male' : 'female'];
     const instruction = isFront
-      ? 'Fica de frente para a câmara\nCorpo inteiro visível, braços ligeiramente afastados'
-      : 'Roda 90° para a esquerda\nOmbro esquerdo fica mais próximo da câmara';
+      ? 'Cartão no centro do peito · Braços afastados do tronco\nPernas abertas · Corpo inteiro visível'
+      : 'Cartão na lateral da cintura · Roda 90° para a esquerda\nOmbro esquerdo à frente · Corpo inteiro visível';
     const stepLabel = isFront ? 'Passo 1 de 2 — Frente' : 'Passo 2 de 2 — Lado esquerdo';
 
     if (!permission?.granted) {
@@ -253,6 +264,11 @@ const s = StyleSheet.create({
   confirmContainer:  { padding: 24, paddingBottom: 48 },
   title:             { fontSize: 26, fontWeight: '800', color: Colors.text, marginBottom: 8, fontFamily: BrandFonts.bold || undefined },
   subtitle:          { fontSize: 15, color: Colors.textMuted, lineHeight: 22, marginBottom: 24 },
+
+  cardCallout:       { flexDirection: 'row', backgroundColor: '#FFF8E7', borderRadius: 14, padding: 16, marginBottom: 20, borderWidth: 1.5, borderColor: '#F5C842', gap: 12 },
+  cardCalloutIcon:   { fontSize: 28, lineHeight: 34 },
+  cardCalloutTitle:  { fontSize: 14, fontWeight: '800', color: '#7A5C00', marginBottom: 4 },
+  cardCalloutText:   { fontSize: 13, color: '#7A5C00', lineHeight: 19 },
 
   tipsCard:          { backgroundColor: Colors.card, borderRadius: 16, padding: 20, marginBottom: 24 },
   tipsTitle:         { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 14 },

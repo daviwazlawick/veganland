@@ -270,6 +270,72 @@ def make_overlay(img_pil, mask, lms, measure_ys, scale, side='front',
     return b64
 
 
+# ISO/IEC 7810 ID-1 credit card — worldwide standard
+CARD_W_MM = 85.60
+CARD_H_MM = 53.98
+CARD_ASPECT = CARD_W_MM / CARD_H_MM  # ≈ 1.586
+
+
+def detect_credit_card(img_np, mask=None):
+    """
+    Detect a credit card in the image by its ISO 7810 ID-1 aspect ratio (85.60×53.98 mm).
+    Returns (scale_cm_per_px, bbox_xywh) or (None, None).
+    Tries multiple Canny thresholds for robustness across lighting conditions.
+    """
+    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    img_h, img_w = img_np.shape[:2]
+
+    best_area = 0
+    best_result = (None, None)
+
+    for lo, hi in [(30, 100), (50, 150), (80, 220)]:
+        edges = cv2.Canny(blurred, lo, hi)
+        edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)
+        contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours:
+            peri = cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, 0.03 * peri, True)
+            if len(approx) != 4:
+                continue
+
+            x, y, w, h = cv2.boundingRect(approx)
+            if w == 0 or h == 0:
+                continue
+
+            aspect = w / h
+            # Accept landscape (≈1.586) or portrait (≈0.630)
+            if 1.30 < aspect < 1.90:
+                card_w_px, card_h_px = w, h
+            elif 0.52 < aspect < 0.77:
+                card_w_px, card_h_px = h, w
+            else:
+                continue
+
+            # Card width should be 4–35 % of image width
+            if card_w_px < img_w * 0.04 or card_w_px > img_w * 0.35:
+                continue
+
+            # Card centre must be on the body mask
+            if mask is not None:
+                cx_c, cy_c = x + w // 2, y + h // 2
+                if not (0 <= cy_c < mask.shape[0] and 0 <= cx_c < mask.shape[1]):
+                    continue
+                if not mask[cy_c, cx_c]:
+                    continue
+
+            area = cv2.contourArea(cnt)
+            if area > best_area:
+                best_area = area
+                s_w = (CARD_W_MM / card_w_px) / 10   # cm/px from width
+                s_h = (CARD_H_MM / card_h_px) / 10   # cm/px from height
+                scale_cm = (s_w + s_h) / 2
+                best_result = (scale_cm, (x, y, w, h))
+
+    return best_result
+
+
 def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     warnings = []
 
@@ -319,18 +385,37 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'com boa iluminação e fundo simples.'
         )
 
-    # ── Scale calibration (front photo, mask height → height_cm) ─────────
+    # ── Scale calibration ────────────────────────────────────────────────────
+    # Primary: credit card detection (ISO 7810, 85.60×53.98 mm — worldwide standard).
+    # This gives scale at the exact body plane, independent of camera distance.
+    # Fallback: mask height divided by user-provided height_cm.
+    front_np = np.array(front_pil)
+    side_np  = np.array(side_pil)
+
+    card_scale_front, card_bbox_front = detect_credit_card(front_np, front_mask)
+    card_scale_side,  card_bbox_side  = detect_credit_card(side_np,  side_mask)
+
     top_y, bottom_y = mask_height_span(front_mask)
-    if top_y is None or bottom_y is None or (bottom_y - top_y) < 50:
+
+    if card_scale_front is not None:
+        scale = card_scale_front
+        # Estimate height from card scale + body span (more accurate than user input)
+        if top_y is not None and bottom_y is not None and (bottom_y - top_y) > 50:
+            height_cm_estimated = round((bottom_y - top_y) * scale, 1)
+        else:
+            height_cm_estimated = None
+    elif top_y is None or bottom_y is None or (bottom_y - top_y) < 50:
         warnings.append('scale_calibration_failed')
         scale = 1.0
+        height_cm_estimated = None
     else:
-        height_px = bottom_y - top_y
-        scale = height_cm / height_px          # cm per pixel (front)
+        scale = height_cm / (bottom_y - top_y)
+        height_cm_estimated = None
 
-    # Same for side photo
     top_y_s, bottom_y_s = mask_height_span(side_mask)
-    if top_y_s and bottom_y_s and (bottom_y_s - top_y_s) > 50:
+    if card_scale_side is not None:
+        scale_side = card_scale_side
+    elif top_y_s and bottom_y_s and (bottom_y_s - top_y_s) > 50:
         scale_side = height_cm / (bottom_y_s - top_y_s)
     else:
         scale_side = scale
@@ -1007,6 +1092,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'raw_cm':           raw_circ,
             'seg_model':        'u2net_human_seg',
             'bf_method':        body_fat_method,
+            'card_calibrated':  card_scale_front is not None or card_scale_side is not None,
+            'card_scale_front': round(card_scale_front, 5) if card_scale_front else None,
+            'card_scale_side':  round(card_scale_side,  5) if card_scale_side  else None,
+            'height_cm_estimated': height_cm_estimated,
         },
         'overlays': {
             'front': front_overlay,
