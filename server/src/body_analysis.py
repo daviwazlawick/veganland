@@ -276,16 +276,24 @@ CARD_H_MM = 53.98
 CARD_ASPECT = CARD_W_MM / CARD_H_MM  # ≈ 1.586
 
 
-def detect_credit_card(img_np, mask=None):
+def detect_credit_card(img_np, mask=None, y_range=None, x_range=None):
     """
     Detect a credit card (ISO 7810 ID-1, 85.60×53.98 mm) using minAreaRect.
     minAreaRect handles imperfect edges, slight rotation, and non-4-point contours.
+
+    y_range : (lo_frac, hi_frac) of image height where card centre is expected.
+    x_range : (lo_frac, hi_frac) of image width where card centre is expected.
+
     Returns (scale_cm_per_px, bbox_xywh) or (None, None).
-    False positives are caught upstream by the height sanity check.
     """
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     img_h, img_w = img_np.shape[:2]
+
+    y_lo = int(img_h * y_range[0]) if y_range else 0
+    y_hi = int(img_h * y_range[1]) if y_range else img_h
+    x_lo = int(img_w * x_range[0]) if x_range else 0
+    x_hi = int(img_w * x_range[1]) if x_range else img_w
 
     best_score = 0
     best_result = (None, None)
@@ -327,8 +335,13 @@ def detect_credit_card(img_np, mask=None):
             if solidity < 0.70:
                 continue
 
-            # Centre must be on the body mask
             cx_c, cy_c = int(rx), int(ry)
+
+            # Positional filter: card must be in expected region of image
+            if not (y_lo <= cy_c <= y_hi and x_lo <= cx_c <= x_hi):
+                continue
+
+            # Centre must be on the body mask
             if mask is not None:
                 if not (0 <= cy_c < mask.shape[0] and 0 <= cx_c < mask.shape[1]):
                     continue
@@ -417,8 +430,12 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     front_np = np.array(front_pil)
     side_np  = np.array(side_pil)
 
-    card_scale_front, card_bbox_front = detect_credit_card(front_np, front_mask)
-    card_scale_side,  card_bbox_side  = detect_credit_card(side_np,  side_mask)
+    # Front: card on centre of chest → upper-centre body
+    # Side:  card on right lateral waist → mid-height, no x constraint (varies with orientation)
+    card_scale_front, card_bbox_front = detect_credit_card(
+        front_np, front_mask, y_range=(0.10, 0.62), x_range=(0.18, 0.82))
+    card_scale_side,  card_bbox_side  = detect_credit_card(
+        side_np, side_mask, y_range=(0.25, 0.78))
 
     top_y, bottom_y = mask_height_span(front_mask)
 
@@ -477,12 +494,27 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     elif card_scale_side is not None:
         warnings.append('card_scale_side_rejected')
         card_scale_side = None
-        scale_side = _height_scale(body_span_side) or scale
+        scale_side = (height_cm / body_span_side
+                      if body_span_side and body_span_side > 50 and height_cm
+                      else scale)
     elif top_y_s and bottom_y_s and (bottom_y_s - top_y_s) > 50:
         scale_side = height_cm / (bottom_y_s - top_y_s)
     else:
         scale_side = scale
         warnings.append('side_scale_fallback')
+
+    # Card centre y positions for anchoring measurements (only if scale passed validation)
+    card_front_cy = None
+    if card_scale_front is not None and card_bbox_front:
+        _x, _y, _bw, _bh = card_bbox_front
+        card_front_cy = _y + _bh / 2
+
+    card_side_cy = None
+    if card_scale_side is not None and card_bbox_side:
+        _x, _y, _bw, _bh = card_bbox_side
+        card_side_cy = _y + _bh / 2
+
+    print(f'[card-anchor] front_cy={card_front_cy} side_cy={card_side_cy}', file=sys.stderr)
 
     # cropped_head/cropped_feet removed — rembg masks routinely touch frame edges
     # even in well-framed photos; scale_calibration_failed covers truly unusable crops.
@@ -642,12 +674,19 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
     overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
-    # Chest: max-width zone scan 10-30% of shoulder-to-hip (axilla level)
+    # Chest: scan zone guided by card centre (front card is on chest).
+    # Narrow window (±15 px) when card detected; wide zone (10-30%) as fallback.
     chest_w, chx0, chx1 = None, None, None
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
-        _ch_top = int(shoulder_y + _span * 0.10)
-        _ch_bot = int(shoulder_y + _span * 0.30)
+        _ch_lo = shoulder_y + _span * 0.05
+        _ch_hi = shoulder_y + _span * 0.52
+        if card_front_cy is not None and _ch_lo <= card_front_cy <= _ch_hi:
+            _ch_top = int(card_front_cy - 15)
+            _ch_bot = int(card_front_cy + 15)
+        else:
+            _ch_top = int(shoulder_y + _span * 0.10)
+            _ch_bot = int(shoulder_y + _span * 0.30)
         _ch_best_w, _ch_best_y = None, None
         for _sy in range(_ch_top, _ch_bot, 2):
             _w, _x0, _x1 = _meas_horiz(_sy, shoulder_xl or 0, shoulder_xr or fw)
@@ -659,12 +698,20 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             measure_ys_front['chest'] = _ch_best_y
     if chx0 is not None: measure_x_bounds_front['chest'] = (chx0, chx1)
 
-    # Waist: min-width zone scan 45-80% of shoulder-to-hip (true narrowest torso point)
+    # Waist: scan zone guided by side card centre (side card is on lateral waist).
+    # Convert card_side_cy to front-photo y; narrow window when available.
     waist_w, wx0, wx1 = None, None, None
+    _card_waist_front_y = front_y_from_side(card_side_cy)
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
-        _wz_top = int(shoulder_y + _span * 0.45)
-        _wz_bot = int(shoulder_y + _span * 0.80)
+        _wz_lo = shoulder_y + _span * 0.35
+        _wz_hi = shoulder_y + _span * 0.90
+        if _card_waist_front_y is not None and _wz_lo <= _card_waist_front_y <= _wz_hi:
+            _wz_top = int(_card_waist_front_y - 18)
+            _wz_bot = int(_card_waist_front_y + 18)
+        else:
+            _wz_top = int(shoulder_y + _span * 0.45)
+            _wz_bot = int(shoulder_y + _span * 0.80)
         _wz_best_w, _wz_best_y = None, None
         for _sy in range(_wz_top, _wz_bot, 2):
             _w, _x0, _x1 = _meas_horiz(_sy, shoulder_xl or 0, shoulder_xr or fw)
@@ -881,17 +928,31 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if top_y_s is None: return None
         return top_y_s + rel * (bottom_y_s - top_y_s)
 
-    # Body-centre x in side photo (used to pick the contiguous body segment,
-    # excluding the hand which sticks out in front/behind at thigh/hip level).
+    def front_y_from_side(side_y_px):
+        """Inverse of side_y() — map a side-photo y pixel to front-photo y."""
+        if side_y_px is None or top_y_s is None or bottom_y_s is None: return None
+        rel = (side_y_px - top_y_s) / max(bottom_y_s - top_y_s, 1)
+        if top_y is None or bottom_y is None: return None
+        return top_y + rel * (bottom_y - top_y)
+
+    # Body-centre x in side photo: use hip midpoint as primary anchor (most stable
+    # in a side-view because both hips project near the torso centre), falling back
+    # to shoulder and knee midpoints if hip landmarks are missing.
     def _side_body_cx():
+        # Hip midpoint — prefer this; both hips average to body centre depth
+        lhx = _lm_x(side_lms, 'left_hip')
+        rhx = _lm_x(side_lms, 'right_hip')
+        if lhx is not None and rhx is not None:
+            return ((lhx + rhx) / 2) / sw
+        # Fallback: average over all available torso landmarks
         xs = []
-        for nm in ('left_hip', 'right_hip', 'left_knee', 'right_knee',
-                   'left_shoulder', 'right_shoulder'):
+        for nm in ('left_hip', 'right_hip', 'left_shoulder', 'right_shoulder',
+                   'left_knee', 'right_knee'):
             x = _lm_x(side_lms, nm)
             if x is not None:
                 xs.append(x)
         if not xs: return None
-        return (sum(xs) / len(xs)) / sw  # normalise to [0,1] — _lm_x returns pixels
+        return (sum(xs) / len(xs)) / sw  # normalise to [0,1]
 
     _sbcx = _side_body_cx()  # fraction [0,1] of side image width
 
@@ -918,46 +979,78 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     _arm_x = _side_extended_elbow_x()
 
-    def _d(front_y_px):
-        sy = side_y(front_y_px)
+    def _d(front_y_px, side_y_override=None, arm_level=False):
+        """
+        Measure body depth (cm) from the side photo at the given front-photo y position.
+
+        side_y_override : use this side-photo y directly (e.g. from card anchor).
+        arm_level : True at chest/shoulder where the extended arm fuses with the torso.
+                    Uses 2×min(half_l, half_r) to exclude arm.  False at hip and below
+                    where no arm contamination exists — uses full contiguous segment width.
+        """
+        sy = side_y_override if side_y_override is not None else side_y(front_y_px)
         if sy is None: return None
         si = int(sy)
         h_s, w_s = side_mask.shape
         if not (0 <= si < h_s): return None
-        row = side_mask[si]
-        mask_xs = np.where(row)[0]
-        if len(mask_xs) == 0: return None
 
-        if _sbcx is not None:
-            cx = int(_sbcx * w_s)
-            cx = max(0, min(w_s - 1, cx))
-            if row[cx]:
-                xl = cx
-                while xl > 0 and row[xl - 1]: xl -= 1
-                xr = cx
-                while xr < w_s - 1 and row[xr + 1]: xr += 1
-                # One arm is extended at 90° in front and fuses with the torso
-                # silhouette — no gap means the contiguous segment includes the arm.
-                # Using 2 × the SHORTER half from centre gives the clean body depth:
-                # the arm inflates one half; the other half (back of torso) is clean.
-                half_l = cx - xl
-                half_r = xr - cx
-                px = 2 * min(half_l, half_r) + 1
+        # Average over ±3 rows for stability
+        pxs = []
+        for drow in range(-3, 4):
+            ri = si + drow
+            if not (0 <= ri < h_s): continue
+            row = side_mask[ri]
+            mask_xs = np.where(row)[0]
+            if len(mask_xs) == 0: continue
+
+            if arm_level and _sbcx is not None:
+                # Arm at 90° forward merges with torso — use landmark-anchored centre
+                # to identify the clean (back) half, then double it for full depth.
+                cx = int(_sbcx * w_s)
+                cx = max(0, min(w_s - 1, cx))
+                if row[cx]:
+                    xl = cx
+                    while xl > 0 and row[xl - 1]: xl -= 1
+                    xr = cx
+                    while xr < w_s - 1 and row[xr + 1]: xr += 1
+                    half_l = cx - xl
+                    half_r = xr - cx
+                    pxs.append(2 * min(half_l, half_r) + 1)
+                else:
+                    pxs.append(int(mask_xs[-1]) - int(mask_xs[0]) + 1)
             else:
-                px = int(mask_xs[-1]) - int(mask_xs[0]) + 1
-        else:
-            px = int(mask_xs[-1]) - int(mask_xs[0]) + 1
+                # Below arm level — arm not present, use full contiguous body segment.
+                # Seed from body centre (_sbcx) if available, else mask midpoint.
+                cx_frac = _sbcx if _sbcx is not None else 0.5
+                cx = int(cx_frac * w_s)
+                cx = max(0, min(w_s - 1, cx))
+                if not row[cx]:
+                    # Seed not on body — fall back to mask midpoint
+                    cx = (int(mask_xs[0]) + int(mask_xs[-1])) // 2
+                if row[cx]:
+                    xl = cx
+                    while xl > 0 and row[xl - 1]: xl -= 1
+                    xr = cx
+                    while xr < w_s - 1 and row[xr + 1]: xr += 1
+                    pxs.append(xr - xl + 1)
+                else:
+                    pxs.append(int(mask_xs[-1]) - int(mask_xs[0]) + 1)
 
+        if not pxs: return None
+        px = int(np.median(pxs))
         return round(px * scale_side, 1) if px > 0 else None
 
-    chest_d   = _d(chest_y)
-    waist_d   = _d(waist_y)
-    hip_d     = _d(hip_scan_y)
-    thigh_d   = _d(thigh_y)
-    calf_d    = _d(calf_y)
-    # neck depth not used — arm is at the same height in the side photo and
-    # contaminates the mask; neck is roughly cylindrical so circular approx is used
-    # arm/forearm depth not used — circular approximation in circumference step
+    # Arm at 90° forward only fuses with torso at chest/shoulder level.
+    # Below the waist the arm is absent — use full contiguous segment (arm_level=False).
+    chest_d = _d(chest_y, arm_level=True)
+    waist_d = _d(waist_y, side_y_override=card_side_cy, arm_level=True)
+    hip_d   = _d(hip_scan_y, arm_level=False)
+    thigh_d = _d(thigh_y, arm_level=False)
+    calf_d  = _d(calf_y,  arm_level=False)
+    # Neck: arm is at SHOULDER level, not neck level — side mask at neck_y is clean.
+    # Use side depth to build an ellipse instead of circular approximation.
+    neck_d  = _d(neck_y, arm_level=False) if neck_y else None
+    # arm/forearm: arm points toward camera in side view — can't isolate from torso
 
     # ── Circumferences ────────────────────────────────────────────────────
     def ellipse_circ(w_cm, d_cm):
@@ -975,8 +1068,9 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_circ     = ellipse_circ(hip_w,     hip_d)
     thigh_circ   = ellipse_circ(thigh_w,   thigh_d)
     calf_circ    = ellipse_circ(calf_w,    calf_d)
-    # Neck + arms: circular cross-section (side photo unusable — arm contaminates at neck level)
-    neck_circ    = circular_circ(neck_w)
+    # Neck: use ellipse when side depth is available (arm is at shoulder, not neck level)
+    neck_circ    = ellipse_circ(neck_w, neck_d) if neck_d else circular_circ(neck_w)
+    # Arms: circular approximation (arm points toward camera in side → no clean depth)
     bicep_circ   = circular_circ(bicep_w)
     forearm_circ = circular_circ(forearm_w)
 
@@ -1193,9 +1287,12 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'raw_cm':           raw_circ,
             'seg_model':        'u2net_human_seg',
             'bf_method':        body_fat_method,
-            'card_calibrated':  card_scale_front is not None or card_scale_side is not None,
-            'card_scale_front': round(card_scale_front, 5) if card_scale_front else None,
-            'card_scale_side':  round(card_scale_side,  5) if card_scale_side  else None,
+            'card_calibrated':    card_scale_front is not None or card_scale_side is not None,
+            'card_scale_front':   round(card_scale_front, 5) if card_scale_front else None,
+            'card_scale_side':    round(card_scale_side,  5) if card_scale_side  else None,
+            'card_front_cy_px':   round(card_front_cy, 1)   if card_front_cy   else None,
+            'card_side_cy_px':    round(card_side_cy, 1)    if card_side_cy    else None,
+            'neck_depth_cm':      neck_d,
             'height_cm_estimated': height_cm_estimated,
         },
         'overlays': {
