@@ -516,6 +516,13 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     print(f'[card-anchor] front_cy={card_front_cy} side_cy={card_side_cy}', file=sys.stderr)
 
+    def front_y_from_side(side_y_px):
+        """Map a side-photo y pixel to the equivalent front-photo y (inverse of side_y)."""
+        if side_y_px is None or top_y_s is None or bottom_y_s is None: return None
+        rel = (side_y_px - top_y_s) / max(bottom_y_s - top_y_s, 1)
+        if top_y is None or bottom_y is None: return None
+        return top_y + rel * (bottom_y - top_y)
+
     # cropped_head/cropped_feet removed — rembg masks routinely touch frame edges
     # even in well-framed photos; scale_calibration_failed covers truly unusable crops.
 
@@ -927,13 +934,6 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         rel = (front_y_px - top_y) / max(bottom_y - top_y, 1)
         if top_y_s is None: return None
         return top_y_s + rel * (bottom_y_s - top_y_s)
-
-    def front_y_from_side(side_y_px):
-        """Inverse of side_y() — map a side-photo y pixel to front-photo y."""
-        if side_y_px is None or top_y_s is None or bottom_y_s is None: return None
-        rel = (side_y_px - top_y_s) / max(bottom_y_s - top_y_s, 1)
-        if top_y is None or bottom_y is None: return None
-        return top_y + rel * (bottom_y - top_y)
 
     # Body-centre x in side photo: use hip midpoint as primary anchor (most stable
     # in a side-view because both hips project near the torso centre), falling back
