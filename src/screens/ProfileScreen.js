@@ -346,9 +346,6 @@ export default function ProfileScreen({ navigation }) {
               {isNovaQI && (
                 <Row icon="📐" label="Análise corporal" onPress={() => navigation.navigate('BodyAnalysis')} />
               )}
-              {isNovaQI && (
-                <Row icon="🎥" label="Vídeo Análise" onPress={() => navigation.navigate('VideoAnalysis')} />
-              )}
               <Row label={t(language, 'profile.terms')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)} />
               <Row label={t(language, 'profile.privacy')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)} />
               <Row label={t(language, 'profile.imprint')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/imprint`)} />
