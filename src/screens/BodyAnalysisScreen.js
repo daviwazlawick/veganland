@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
 import { Colors } from '../constants/colors';
@@ -177,14 +178,14 @@ function InfoModal({ info, onClose }) {
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
-export default function BodyAnalysisScreen({ navigation }) {
+export default function BodyAnalysisScreen({ navigation, route }) {
   const { token } = useAuth();
   const { saveBodyProfile, bodyProfile, refresh } = useNutrition();
 
   const derivedAge = useMemo(() => ageFromBirthDate(bodyProfile?.birth_date), [bodyProfile?.birth_date]);
 
-  const [frontUri,   setFrontUri]   = useState(null);
-  const [sideUri,    setSideUri]    = useState(null);
+  const [frontUri,   setFrontUri]   = useState(route?.params?.frontUri || null);
+  const [sideUri,    setSideUri]    = useState(route?.params?.sideUri  || null);
   const [heightCm,   setHeightCm]   = useState(bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '');
   const [weightKg,   setWeightKg]   = useState(bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '');
   const [sex,        setSex]        = useState(bodyProfile?.sex || 'female');
@@ -192,6 +193,15 @@ export default function BodyAnalysisScreen({ navigation }) {
   const [analyzing,  setAnalyzing]  = useState(false);
   const [result,     setResult]     = useState(null);
   const [activeInfo, setActiveInfo] = useState(null);
+
+  // Auto-analyze when photos arrive from VideoAnalysisScreen
+  const autoTriggered = React.useRef(false);
+  React.useEffect(() => {
+    if (route?.params?.frontUri && route?.params?.sideUri && !autoTriggered.current) {
+      autoTriggered.current = true;
+      setTimeout(() => runAnalysis(), 300);
+    }
+  }, []);
 
   function showInfo(key) { setActiveInfo(INFO[key] || null); }
 
@@ -206,13 +216,8 @@ export default function BodyAnalysisScreen({ navigation }) {
   }
 
   async function uriToBase64(uri) {
-    const blob = await (await fetch(uri)).blob();
-    return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload  = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(blob);
-    });
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    return `data:image/jpeg;base64,${base64}`;
   }
 
   async function runAnalysis() {
