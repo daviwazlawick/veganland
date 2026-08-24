@@ -187,40 +187,69 @@ export default function EditPersonalScreen({ navigation }) {
     if (Object.keys(filled).length > 0) setMeasures(filled);
   }, [latest, bodyMeasurements]);
 
-  // Derived analysis data: merges form edits with last photo analysis and recomputes indices live
+  // Derived analysis: merges manual form edits with last photo analysis.
+  // All indices, body composition and NovaQI score are recomputed live whenever
+  // any input changes — no re-scan needed to see updated results.
   const effectiveBa = useMemo(() => {
-    const ba = bodyMeasurements[0];
-    if (!ba) return null;
-    const h  = parseFloat(height);
-    const w  = parseFloat(weight);
-    const hm = h > 50 ? h / 100 : null;
-    const waist = parseFloat(measures.waist_cm)     || ba.waist_cm;
-    const hip   = parseFloat(measures.hips_cm)      || ba.hip_cm;
-    const bf    = parseFloat(measures.body_fat_pct) || ba.body_fat_pct;
-    const bmi_v = hm && w > 0 ? +(w / (hm * hm)).toFixed(1)                              : ba.bmi;
-    const wth_v = h > 0 && waist ? +(waist / h).toFixed(2)                               : ba.waist_to_height;
-    const whi_v = waist && hip   ? +(waist / hip).toFixed(2)                              : ba.waist_to_hip;
-    const ci_v  = hm && w > 0 && waist ? +((waist / 100) / (0.109 * Math.sqrt(w / hm))).toFixed(2) : ba.conicity_index;
-    const fmk_v = bf && w > 0   ? +(w * bf / 100).toFixed(1)                             : ba.fat_mass_kg;
-    const lmk_v = bf && w > 0   ? +(w * (1 - bf / 100)).toFixed(1)                       : ba.lean_mass_kg;
-    const fmi_v = fmk_v && hm   ? +(fmk_v / (hm * hm)).toFixed(1)                       : ba.fat_mass_index;
-    const lmi_v = lmk_v && hm   ? +(lmk_v / (hm * hm)).toFixed(1)                       : ba.lean_mass_index;
+    const ba  = bodyMeasurements[0] || {};
+    const h   = parseFloat(height);
+    const w   = parseFloat(weight);
+    const hm  = h > 50 ? h / 100 : null;
+    const sx  = bodyProfile?.sex || 'female';
+
+    // Manual values win; photo analysis fills gaps
+    const chest   = parseFloat(measures.chest_cm)     || ba.chest_cm     || null;
+    const neck    = parseFloat(measures.neck_cm)      || ba.neck_cm      || null;
+    const bicep   = parseFloat(measures.arm_cm)       || ba.bicep_cm     || null;
+    const forearm = parseFloat(measures.forearm_cm)   || ba.forearm_cm   || null;
+    const waist   = parseFloat(measures.waist_cm)     || ba.waist_cm     || null;
+    const hip     = parseFloat(measures.hips_cm)      || ba.hip_cm       || null;
+    const thigh   = parseFloat(measures.thigh_cm)     || ba.thigh_cm     || null;
+    const calf    = parseFloat(measures.calf_cm)      || ba.calf_cm      || null;
+    const bf      = parseFloat(measures.body_fat_pct) || ba.body_fat_pct || null;
+
+    // Indices — fully recomputed from current values
+    const bmi_v = hm && w > 0         ? +(w / (hm * hm)).toFixed(1)                                      : (ba.bmi             || null);
+    const wth_v = h > 0 && waist      ? +(waist / h).toFixed(2)                                           : (ba.waist_to_height || null);
+    const whi_v = waist && hip        ? +(waist / hip).toFixed(2)                                         : (ba.waist_to_hip    || null);
+    const ci_v  = hm && w > 0 && waist? +((waist / 100) / (0.109 * Math.sqrt(w / hm))).toFixed(2)        : (ba.conicity_index  || null);
+
+    // Body composition — recomputed from bf% + weight
+    const fmk_v = bf && w > 0  ? +(w * bf / 100).toFixed(1)          : (ba.fat_mass_kg    || null);
+    const lmk_v = bf && w > 0  ? +(w * (1 - bf / 100)).toFixed(1)    : (ba.lean_mass_kg   || null);
+    const fmi_v = fmk_v && hm  ? +(fmk_v / (hm * hm)).toFixed(1)    : (ba.fat_mass_index || null);
+    const lmi_v = lmk_v && hm  ? +(lmk_v / (hm * hm)).toFixed(1)    : (ba.lean_mass_index|| null);
+    const bwl_v = lmk_v        ? +(lmk_v * 0.723).toFixed(1)         : (ba.body_water_l   || null);
+    const bwp_v = bwl_v && w > 0 ? +(bwl_v / w * 100).toFixed(1)    : (ba.body_water_pct || null);
+    const ree_v = lmk_v        ? Math.round(500 + 22 * lmk_v)        : (ba.ree_kcal       || null);
+
+    // NovaQI score — same formula as body_analysis.py (6 indicators, 100/6 pts each)
+    function _pts(ok, border = false) { return ok ? 100 / 6 : border ? 50 / 6 : 0; }
+    let score_pts = 0, n_avail = 0;
+    if (bf != null)    { n_avail++; score_pts += sx === 'male' ? _pts(bf < 25, bf >= 25 && bf < 30)             : _pts(bf < 32, bf >= 32 && bf < 38); }
+    if (lmi_v != null) { n_avail++; const th = sx === 'male' ? 14.6 : 11.8; score_pts += _pts(lmi_v >= th, lmi_v >= th - 2 && lmi_v < th); }
+    if (fmi_v != null) { n_avail++; const th = sx === 'male' ? 6.0 : 9.0;   score_pts += _pts(fmi_v < th, fmi_v >= th && fmi_v < th + 2.5); }
+    if (wth_v != null) { n_avail++; score_pts += _pts(wth_v < 0.5, wth_v >= 0.5 && wth_v < 0.6); }
+    if (whi_v != null) { n_avail++; const th = sx === 'male' ? 0.90 : 0.85;  score_pts += _pts(whi_v < th, whi_v >= th && whi_v < th + 0.1); }
+    if (ci_v  != null) { n_avail++; score_pts += _pts(ci_v < 1.18, ci_v >= 1.18 && ci_v < 1.30); }
+    const score_v = n_avail > 0 ? Math.round(score_pts / n_avail * 6) : (ba.score || null);
+
+    // Only render the analysis panel if there is at least some data to show
+    const hasData = [chest, neck, bicep, waist, hip, bf, bmi_v, wth_v].some(v => v != null);
+    if (!hasData) return null;
+
     return {
       ...ba,
-      chest_cm:        parseFloat(measures.chest_cm)   || ba.chest_cm,
-      neck_cm:         parseFloat(measures.neck_cm)    || ba.neck_cm,
-      bicep_cm:        parseFloat(measures.arm_cm)     || ba.bicep_cm,
-      forearm_cm:      parseFloat(measures.forearm_cm) || ba.forearm_cm,
-      waist_cm:        waist,
-      hip_cm:          hip,
-      thigh_cm:        parseFloat(measures.thigh_cm)   || ba.thigh_cm,
-      calf_cm:         parseFloat(measures.calf_cm)    || ba.calf_cm,
-      body_fat_pct:    bf                              || ba.body_fat_pct,
-      bmi:             bmi_v,   waist_to_height: wth_v, waist_to_hip: whi_v,
-      conicity_index:  ci_v,    fat_mass_kg:     fmk_v, lean_mass_kg: lmk_v,
-      fat_mass_index:  fmi_v,   lean_mass_index: lmi_v,
+      chest_cm: chest, neck_cm: neck, bicep_cm: bicep, forearm_cm: forearm,
+      waist_cm: waist, hip_cm: hip, thigh_cm: thigh, calf_cm: calf,
+      body_fat_pct: bf,
+      bmi: bmi_v, waist_to_height: wth_v, waist_to_hip: whi_v, conicity_index: ci_v,
+      fat_mass_kg: fmk_v, lean_mass_kg: lmk_v,
+      fat_mass_index: fmi_v, lean_mass_index: lmi_v,
+      body_water_pct: bwp_v, ree_kcal: ree_v,
+      score: score_v,
     };
-  }, [bodyMeasurements, measures, height, weight]);
+  }, [bodyMeasurements, measures, height, weight, bodyProfile]);
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -482,7 +511,7 @@ export default function EditPersonalScreen({ navigation }) {
           {/* ── NovaQI Body Analysis (NovaQI brand only) ── */}
           {IS_NOVAQI && effectiveBa && (() => {
             const ba = effectiveBa;
-            const sex = bodyProfile?.sex || 'female';
+            const baSex = bodyProfile?.sex || sex || 'female';
             const dateStr = bodyMeasurements[0]?.recorded_at
               ? new Date(bodyMeasurements[0].recorded_at).toLocaleDateString(localeFor(language), { day: '2-digit', month: 'short', year: 'numeric' })
               : null;
@@ -548,7 +577,7 @@ export default function EditPersonalScreen({ navigation }) {
                         ['body_water_pct',ba.body_water_pct,'%'],
                         ['ree_kcal',      ba.ree_kcal,      'kcal'],
                       ].filter(([, v]) => v != null).map(([key, val, unit]) => {
-                        const cls = _baCls(key, val, sex);
+                        const cls = _baCls(key, val, baSex);
                         return (
                           <View key={key} style={styles.baCell}>
                             <Text style={styles.baCellVal}>{_baFmt(key, val)} <Text style={styles.baCellUnit}>{unit}</Text></Text>
@@ -574,7 +603,7 @@ export default function EditPersonalScreen({ navigation }) {
                         ['waist_to_hip',     ba.waist_to_hip,    ''],
                         ['conicity_index',   ba.conicity_index,  ''],
                       ].filter(([, v]) => v != null).map(([key, val, unit]) => {
-                        const cls = _baCls(key, val, sex);
+                        const cls = _baCls(key, val, baSex);
                         return (
                           <View key={key} style={styles.baCell}>
                             <Text style={styles.baCellVal}>{_baFmt(key, val)}{unit ? <Text style={styles.baCellUnit}> {unit}</Text> : null}</Text>
