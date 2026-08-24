@@ -278,87 +278,85 @@ CARD_ASPECT = CARD_W_MM / CARD_H_MM  # ≈ 1.586
 
 def detect_credit_card(img_np, mask=None):
     """
-    Detect a credit card (ISO 7810 ID-1, 85.60×53.98 mm) and return scale in cm/px.
+    Detect a credit card (ISO 7810 ID-1, 85.60×53.98 mm) using minAreaRect.
+    minAreaRect handles imperfect edges, slight rotation, and non-4-point contours.
     Returns (scale_cm_per_px, bbox_xywh) or (None, None).
-
-    Strict filters to avoid false positives:
-    - Aspect ratio within ±8 % of 1.586 (landscape or portrait)
-    - Card width 5–18 % of image width (too big = body/clothing, too small = noise)
-    - Quadrilateral must be nearly rectangular (all interior angles 80–100°)
-    - Solidity ≥ 0.88 (filled rectangle, not a skewed or partial shape)
-    - Centre of card must be on the body mask
+    False positives are caught upstream by the height sanity check.
     """
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     img_h, img_w = img_np.shape[:2]
 
-    best_area = 0
+    best_score = 0
     best_result = (None, None)
+    debug_candidates = []
 
-    for lo, hi in [(30, 100), (50, 150), (80, 220)]:
+    for lo, hi in [(25, 80), (40, 120), (60, 160), (90, 220)]:
         edges = cv2.Canny(blurred, lo, hi)
         edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         for cnt in contours:
-            peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.03 * peri, True)
-            if len(approx) != 4:
+            if len(cnt) < 4:
                 continue
 
-            x, y, w, h = cv2.boundingRect(approx)
-            if w == 0 or h == 0:
+            # Use minimum area rectangle — robust to rotation and blurry edges
+            rect = cv2.minAreaRect(cnt)
+            (rx, ry), (rw, rh), angle = rect
+            if rw < rh:
+                rw, rh = rh, rw   # ensure rw is always the longer dimension
+
+            if rw == 0 or rh == 0:
                 continue
 
-            # Solidity: contour area vs bounding rect — relaxed for body curvature
-            solidity = cv2.contourArea(cnt) / (w * h)
-            if solidity < 0.78:
+            # Aspect ratio: landscape 1.30–1.90 (portrait handled by swap above)
+            aspect = rw / rh
+            if not (1.30 < aspect < 1.90):
                 continue
 
-            # Interior angles: relaxed to 65–115° to tolerate perspective distortion
-            pts = approx.reshape(4, 2).astype(float)
-            angles_ok = True
-            for i in range(4):
-                p0 = pts[(i - 1) % 4]
-                p1 = pts[i]
-                p2 = pts[(i + 1) % 4]
-                v1 = p0 - p1
-                v2 = p2 - p1
-                cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
-                angle = math.degrees(math.acos(max(-1.0, min(1.0, cos_a))))
-                if not (65 < angle < 115):
-                    angles_ok = False
-                    break
-            if not angles_ok:
+            # Size: card long side 4–25 % of image width
+            if rw < img_w * 0.04 or rw > img_w * 0.25:
                 continue
 
-            aspect = w / h
-            # Aspect ratio: landscape 1.35–1.85, portrait 0.54–0.74
-            if 1.35 < aspect < 1.85:
-                card_w_px, card_h_px = w, h
-            elif 0.54 < aspect < 0.74:
-                card_w_px, card_h_px = h, w
-            else:
+            # Solidity: contour area vs min-area rect — rejects fragmented shapes
+            contour_area = cv2.contourArea(cnt)
+            rect_area = rw * rh
+            if rect_area < 1:
                 continue
-
-            # Size: card width 4–22 % of image width
-            if card_w_px < img_w * 0.04 or card_w_px > img_w * 0.22:
+            solidity = contour_area / rect_area
+            if solidity < 0.70:
                 continue
 
             # Centre must be on the body mask
+            cx_c, cy_c = int(rx), int(ry)
             if mask is not None:
-                cx_c, cy_c = x + w // 2, y + h // 2
                 if not (0 <= cy_c < mask.shape[0] and 0 <= cx_c < mask.shape[1]):
                     continue
                 if not mask[cy_c, cx_c]:
                     continue
 
-            area = cv2.contourArea(cnt)
-            if area > best_area:
-                best_area = area
-                s_w = (CARD_W_MM / card_w_px) / 10
-                s_h = (CARD_H_MM / card_h_px) / 10
-                best_result = ((s_w + s_h) / 2, (x, y, w, h))
+            # Score by how close aspect is to 1.586 × how large it is
+            aspect_score = 1.0 - abs(aspect - CARD_ASPECT) / CARD_ASPECT
+            score = contour_area * aspect_score
+
+            debug_candidates.append(
+                f'aspect={aspect:.3f} rw={rw:.0f}px ({rw/img_w*100:.1f}%) '
+                f'sol={solidity:.2f} score={score:.0f}'
+            )
+
+            if score > best_score:
+                best_score = score
+                s_w = (CARD_W_MM / rw) / 10         # cm/px from long side
+                s_h = (CARD_H_MM / rh) / 10         # cm/px from short side
+                x, y, bw, bh = cv2.boundingRect(cnt)
+                best_result = ((s_w + s_h) / 2, (x, y, bw, bh))
+
+    print(f'[card-detect] {len(debug_candidates)} candidates: '
+          f'{debug_candidates[:5]}', file=sys.stderr)
+    if best_result[0]:
+        print(f'[card-detect] accepted scale={best_result[0]:.5f} cm/px', file=sys.stderr)
+    else:
+        print('[card-detect] no card found', file=sys.stderr)
 
     return best_result
 
@@ -748,8 +746,20 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if not elbow_xy: return None, None
         ey, ex = int(elbow_xy[1]), int(elbow_xy[0])
         h_m, w_m = front_mask.shape
-        if not (0 <= ey < h_m and 0 <= ex < w_m) or not front_mask[ey, ex]:
-            return None, None
+        # Search a 12px neighbourhood in case landmark lands just outside mask
+        found_ex = None
+        for dy in range(-12, 13):
+            row_i = ey + dy
+            if not (0 <= row_i < h_m): continue
+            for dx in range(-12, 13):
+                col_i = ex + dx
+                if 0 <= col_i < w_m and front_mask[row_i, col_i]:
+                    found_ex = col_i
+                    ey = row_i
+                    break
+            if found_ex is not None: break
+        if found_ex is None: return None, None
+        ex = found_ex
         xl = ex
         for x in range(ex - 1, max(0, ex - 300), -1):
             if not front_mask[ey, x]: break

@@ -24,7 +24,8 @@ const STEPS = ['intro', 'front', 'side', 'confirm'];
 const TIPS = [
   { icon: '🧱', text: 'Encosta-te a uma parede BRANCA ou lisa — sem padrões, móveis ou sombras atrás de ti' },
   { icon: '👙', text: 'Roupa JUSTA: leggings, calções curtos ou roupa interior. Sem camisolas largas nem cintos' },
-  { icon: '💳', text: 'Cola um cartão de crédito com fita-cola no CENTRO DO PEITO (frente) e na LATERAL DA CINTURA (lado). O cartão deve ficar bem plano e totalmente visível' },
+  { icon: '💳', text: 'Cola um cartão de crédito com fita-cola no CENTRO DO PEITO (frente) e na LATERAL DA CINTURA (lado). Plano e totalmente visível' },
+  { icon: '🙋', text: 'Foto de lado: braço esquerdo levantado ACIMA DA CABEÇA (direito para cima). Braço direito ao longo do corpo. Nunca braços à frente do tronco' },
   { icon: '📱', text: 'Telemóvel fixo a ~2 m de distância, ao nível do peito — usa um suporte ou encosta-o a algo estável' },
   { icon: '💡', text: 'Boa iluminação frontal — evita luz atrás de ti (contra-luz) ou sombras no rosto' },
   { icon: '📏', text: 'Corpo INTEIRO visível da cabeça à planta do pé — não te cortes nos bordos da câmara' },
@@ -158,8 +159,8 @@ export default function VideoAnalysisScreen({ navigation }) {
     const isFront = step === 'front';
     const silhouette = SILHOUETTES[isFront ? 'front' : 'side'][sex === 'male' ? 'male' : 'female'];
     const instruction = isFront
-      ? 'Cartão no centro do peito · Braços afastados do tronco\nPernas abertas · Corpo inteiro visível'
-      : 'Cartão na lateral da cintura · Roda 90° para a esquerda\nOmbro esquerdo à frente · Corpo inteiro visível';
+      ? 'Cartão no centro do peito · Braços afastados do tronco\nPernas abertas · Palmas para a câmara'
+      : 'Cartão na lateral da cintura · Roda 90° para a esquerda\nBraço esquerdo levantado acima da cabeça · Braço direito ao longo do corpo';
     const stepLabel = isFront ? 'Passo 1 de 2 — Frente' : 'Passo 2 de 2 — Lado esquerdo';
 
     if (!permission?.granted) {
