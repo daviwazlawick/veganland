@@ -295,14 +295,14 @@ def detect_credit_card(img_np, mask=None):
     best_area = 0
     best_result = (None, None)
 
-    for lo, hi in [(40, 120), (60, 160), (90, 230)]:
+    for lo, hi in [(30, 100), (50, 150), (80, 220)]:
         edges = cv2.Canny(blurred, lo, hi)
         edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         for cnt in contours:
             peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.025 * peri, True)
+            approx = cv2.approxPolyDP(cnt, 0.03 * peri, True)
             if len(approx) != 4:
                 continue
 
@@ -310,12 +310,12 @@ def detect_credit_card(img_np, mask=None):
             if w == 0 or h == 0:
                 continue
 
-            # Solidity: contour area vs bounding rect — must be rectangle-like
+            # Solidity: contour area vs bounding rect — relaxed for body curvature
             solidity = cv2.contourArea(cnt) / (w * h)
-            if solidity < 0.88:
+            if solidity < 0.78:
                 continue
 
-            # All interior angles must be close to 90° (±10°)
+            # Interior angles: relaxed to 65–115° to tolerate perspective distortion
             pts = approx.reshape(4, 2).astype(float)
             angles_ok = True
             for i in range(4):
@@ -326,23 +326,23 @@ def detect_credit_card(img_np, mask=None):
                 v2 = p2 - p1
                 cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
                 angle = math.degrees(math.acos(max(-1.0, min(1.0, cos_a))))
-                if not (75 < angle < 105):
+                if not (65 < angle < 115):
                     angles_ok = False
                     break
             if not angles_ok:
                 continue
 
             aspect = w / h
-            # Strict: landscape ratio 1.46–1.72, portrait ratio 0.58–0.68
-            if 1.46 < aspect < 1.72:
+            # Aspect ratio: landscape 1.35–1.85, portrait 0.54–0.74
+            if 1.35 < aspect < 1.85:
                 card_w_px, card_h_px = w, h
-            elif 0.58 < aspect < 0.68:
+            elif 0.54 < aspect < 0.74:
                 card_w_px, card_h_px = h, w
             else:
                 continue
 
-            # Size: card width 5–18 % of image width
-            if card_w_px < img_w * 0.05 or card_w_px > img_w * 0.18:
+            # Size: card width 4–22 % of image width
+            if card_w_px < img_w * 0.04 or card_w_px > img_w * 0.22:
                 continue
 
             # Centre must be on the body mask
