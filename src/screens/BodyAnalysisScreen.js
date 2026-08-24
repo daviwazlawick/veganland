@@ -216,7 +216,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   }
 
   async function uriToBase64(uri) {
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
     return `data:image/jpeg;base64,${base64}`;
   }
 

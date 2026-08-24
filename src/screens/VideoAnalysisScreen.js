@@ -38,7 +38,7 @@ export default function VideoAnalysisScreen({ navigation }) {
   const [frontUri, setFrontUri]   = useState(null);
   const [sideUri, setSideUri]     = useState(null);
   const [countdown, setCountdown] = useState(null);
-  const [facing]                  = useState('back');
+  const [facing]                  = useState('front');
   const cameraRef = useRef(null);
   const countdownRef = useRef(null);
 

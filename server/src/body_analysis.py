@@ -494,16 +494,55 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
     overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
-    # Chest: bounded by shoulder landmarks to exclude arms that extend outward in A-pose
-    chest_w, chx0, chx1 = _meas_horiz(chest_y, shoulder_xl or 0, shoulder_xr or fw)
+    # Chest: max-width zone scan 10-30% of shoulder-to-hip (axilla level)
+    chest_w, chx0, chx1 = None, None, None
+    if shoulder_y is not None and hip_y is not None:
+        _span = hip_y - shoulder_y
+        _ch_top = int(shoulder_y + _span * 0.10)
+        _ch_bot = int(shoulder_y + _span * 0.30)
+        _ch_best_w, _ch_best_y = None, None
+        for _sy in range(_ch_top, _ch_bot, 2):
+            _w, _x0, _x1 = _meas_horiz(_sy, shoulder_xl or 0, shoulder_xr or fw)
+            if _w is not None and (_ch_best_w is None or _w > _ch_best_w):
+                _ch_best_w, _ch_best_y, chx0, chx1 = _w, _sy, _x0, _x1
+        if _ch_best_w is not None:
+            chest_w = _ch_best_w
+            chest_y = _ch_best_y
+            measure_ys_front['chest'] = _ch_best_y
     if chx0 is not None: measure_x_bounds_front['chest'] = (chx0, chx1)
 
-    waist_w, wx0, wx1 = _meas_horiz(waist_y, shoulder_xl or 0, shoulder_xr or fw)
+    # Waist: min-width zone scan 45-80% of shoulder-to-hip (true narrowest torso point)
+    waist_w, wx0, wx1 = None, None, None
+    if shoulder_y is not None and hip_y is not None:
+        _span = hip_y - shoulder_y
+        _wz_top = int(shoulder_y + _span * 0.45)
+        _wz_bot = int(shoulder_y + _span * 0.80)
+        _wz_best_w, _wz_best_y = None, None
+        for _sy in range(_wz_top, _wz_bot, 2):
+            _w, _x0, _x1 = _meas_horiz(_sy, shoulder_xl or 0, shoulder_xr or fw)
+            if _w is not None and (_wz_best_w is None or _w < _wz_best_w):
+                _wz_best_w, _wz_best_y, wx0, wx1 = _w, _sy, _x0, _x1
+        if _wz_best_w is not None:
+            waist_w = _wz_best_w
+            waist_y = _wz_best_y
+            measure_ys_front['waist'] = _wz_best_y
     if wx0 is not None: measure_x_bounds_front['waist'] = (wx0, wx1)
 
-    # Hip: use full-mask contiguous-body scan so glute width is not clipped by
-    # the hip joint landmarks (which sit inside the pelvis, not at the body edge).
-    hip_w, hx0, hx1 = _meas_horiz_body(hip_y)
+    # Hip: max-width zone scan from hip landmark to 30% towards knee (captures glute peak)
+    hip_w, hx0, hx1 = None, None, None
+    hip_scan_y = hip_y
+    if hip_y is not None:
+        _hp_top = int(hip_y)
+        _hp_bot = int(hip_y + (knee_y - hip_y) * 0.30) if knee_y else int(hip_y + 60)
+        _hp_best_w, _hp_best_y = None, None
+        for _sy in range(_hp_top, _hp_bot, 2):
+            _w, _x0, _x1 = _meas_horiz_body(_sy)
+            if _w is not None and (_hp_best_w is None or _w > _hp_best_w):
+                _hp_best_w, _hp_best_y, hx0, hx1 = _w, _sy, _x0, _x1
+        if _hp_best_w is not None:
+            hip_w = _hp_best_w
+            hip_scan_y = _hp_best_y
+            measure_ys_front['hip'] = _hp_best_y
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
     # Neck: find the minimum horizontal width between chin and shoulder level.
@@ -512,9 +551,9 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # Arms are at A-pose so they don't appear at neck level — _meas_horiz_body is clean here.
     neck_w = None
     if top_y is not None and shoulder_y is not None:
-        chin_approx_y = top_y + (shoulder_y - top_y) * 0.42
+        chin_approx_y = top_y + (shoulder_y - top_y) * 0.50
         _nk_top = int(chin_approx_y)
-        _nk_bot = int(shoulder_y) - 6
+        _nk_bot = int(shoulder_y) - 15
         _nk_min_px = None
         _nk_best_y = None
         _nkx0_f, _nkx1_f = None, None
@@ -577,7 +616,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
         front_mask, sh_xy, el_xy, scale,
         center_x_min=arm_xl, center_x_max=arm_xr,
-        ray_x_min=arm_xl,    ray_x_max=arm_xr) \
+        ray_x_min=arm_xl,    ray_x_max=arm_xr,
+        t_min=0.35, t_max=0.65) \
         if (sh_xy and el_xy and arm_xl is not None) else (None,)*6
     if bx0 is not None:
         overlay_lines_front['bicep'] = (bx0, by0, bx1, by1)
@@ -690,7 +730,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             x = _lm_x(side_lms, nm)
             if x is not None:
                 xs.append(x)
-        return (sum(xs) / len(xs)) if xs else None
+        if not xs: return None
+        return (sum(xs) / len(xs)) / sw  # normalise to [0,1] — _lm_x returns pixels
 
     _sbcx = _side_body_cx()  # fraction [0,1] of side image width
 
@@ -725,7 +766,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     chest_d   = _d(chest_y)
     waist_d   = _d(waist_y)
-    hip_d     = _d(hip_y)
+    hip_d     = _d(hip_scan_y)
     thigh_d   = _d(thigh_y)
     calf_d    = _d(calf_y)
     # neck depth not used — arm is at the same height in the side photo and
