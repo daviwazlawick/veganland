@@ -820,6 +820,29 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     _sbcx = _side_body_cx()  # fraction [0,1] of side image width
 
+    # ── Extended-arm exclusion (side photo) ────────────────────────────────
+    # Shaped protocol: one arm is stretched forward (not toward the camera),
+    # roughly at torso height. Because "depth" in a side photo is literally
+    # the horizontal mask span, an arm reaching forward fuses with the torso
+    # silhouette (no gap → the contiguous-segment heuristic can't exclude it)
+    # and inflates chest/waist/hip depth. The extended arm is unoccluded and
+    # visible; the resting/hidden arm has low visibility — pick by that.
+    def _side_extended_elbow_x():
+        cands = []
+        for side_nm in ('left', 'right'):
+            elbow = side_lms.get(f'{side_nm}_elbow') if side_lms else None
+            wrist = side_lms.get(f'{side_nm}_wrist') if side_lms else None
+            vis = max(elbow['visibility'] if elbow else 0, wrist['visibility'] if wrist else 0)
+            if vis > 0.5:
+                x = wrist['x'] if wrist and wrist['visibility'] > 0.5 else elbow['x']
+                cands.append((vis, x))
+        if not cands:
+            return None
+        # Highest-visibility arm = the one held out in clear view (extended forward)
+        return max(cands, key=lambda c: c[0])[1]
+
+    _arm_x = _side_extended_elbow_x()
+
     def _d(front_y_px):
         sy = side_y(front_y_px)
         if sy is None: return None
@@ -840,6 +863,16 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
                 while xl > 0 and row[xl - 1]: xl -= 1
                 xr = cx
                 while xr < w_s - 1 and row[xr + 1]: xr += 1
+                # Clip the edge closer to the extended-arm landmark: the arm
+                # attaches at the shoulder and fuses with the torso silhouette,
+                # so a plain gap-check can't isolate it — cut at the elbow/wrist
+                # x-position instead (with a small margin back toward the body).
+                if _arm_x is not None:
+                    margin = 6
+                    if abs(_arm_x - xr) < abs(_arm_x - xl) and xl < _arm_x < xr:
+                        xr = max(xl, int(_arm_x) - margin)
+                    elif xl < _arm_x < xr:
+                        xl = min(xr, int(_arm_x) + margin)
                 px = xr - xl + 1
             else:
                 # Body centre not in mask — use widest segment as fallback

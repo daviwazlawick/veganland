@@ -377,6 +377,15 @@ export default function BodyAnalysisScreen({ navigation, route }) {
           <View style={s.warnBox}><Text style={s.warnTxt}>⚠ {result.meta.warnings.join(' · ')}</Text></View>
         )}
 
+        {result?.meta?.height_cm_estimated != null && (
+          <View style={s.heightBox}>
+            <Text style={s.heightBoxTxt}>
+              📏 Altura calculada pela foto: {result.meta.height_cm_estimated} cm
+              {result.meta.input_height_cm ? ` (informada: ${result.meta.input_height_cm} cm)` : ''}
+            </Text>
+          </View>
+        )}
+
         {result && <>
 
           {/* Overlays */}
@@ -644,6 +653,9 @@ const s = StyleSheet.create({
 
   warnBox:    { backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#F59E0B' },
   warnTxt:    { fontSize: 12, color: '#92400E', fontWeight: '600' },
+
+  heightBox:  { backgroundColor: Colors.primaryLight, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: Colors.primary },
+  heightBoxTxt: { fontSize: 12, color: Colors.primaryDark, fontWeight: '600' },
 
   overlayRow: { flexDirection: 'row', gap: 10 },
   overlayWrap:{ flex: 1, alignItems: 'center', gap: 4 },

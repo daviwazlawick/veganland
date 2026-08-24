@@ -1631,6 +1631,9 @@ const server = http.createServer(async (req, res) => {
           });
         });
 
+        console.log('[body-analysis] ok user', claims.userId, JSON.stringify({
+          measurements: result.measurements, indices: result.indices, meta: result.meta,
+        }));
         sendJson(res, 200, result, origin);
       } finally {
         unlink(frontPath).catch(() => {});
