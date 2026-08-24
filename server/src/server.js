@@ -1619,11 +1619,16 @@ const server = http.createServer(async (req, res) => {
           py.stderr.on('data', d => { err += d; });
           py.on('close', code => {
             clearTimeout(timer);
+            // Always surface Python stderr — filter out MediaPipe/protobuf noise
+            const errLines = err.split('\n').filter(l =>
+              l && !l.includes('SymbolDatabase') && !l.includes('deprecated')
+              && !l.includes('WARNING') && !l.includes('TensorFlow')
+              && !l.match(/^\s*$/));
+            if (errLines.length) console.error('[body-analysis] stderr:\n' + errLines.join('\n'));
             if (code !== 0) {
-              // Python prints {"error": "..."} to stdout even on failure — surface it
               let msg = 'analysis failed';
               try { const p = JSON.parse(out); if (p?.error) msg = p.error; } catch {}
-              console.error('[body-analysis] exit', code, '| err:', err.slice(-500), '| out:', out.slice(-500));
+              console.error('[body-analysis] exit', code, '| out:', out.slice(-500));
               return reject(new Error(msg));
             }
             try { resolve(JSON.parse(out)); }

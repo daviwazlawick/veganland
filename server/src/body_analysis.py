@@ -352,17 +352,59 @@ def detect_credit_card(img_np, mask=None, y_range=None, x_range=None):
             aspect_score = 1.0 - abs(aspect - CARD_ASPECT) / CARD_ASPECT
             score = contour_area * aspect_score
 
+            # ── Perspective/tilt correction ──────────────────────────────
+            # A tilted card projects as a trapezoid (parallel edges have
+            # different lengths). minAreaRect ignores this and fits a
+            # single rectangle to the whole shape, biasing the scale.
+            # If we can approximate the contour to 4 corners, we can:
+            #   1) average parallel edges → cancels linear perspective bias
+            #   2) use the diagonal as a cross-check (more tilt-tolerant)
+            long_avg, short_avg, tilt_ratio, corners_ok = rw, rh, 0.0, False
+            epsilon = 0.02 * cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, epsilon, True)
+            if len(approx) == 4:
+                pts = approx.reshape(4, 2).astype(np.float32)
+                s = pts.sum(axis=1)
+                d = (pts[:, 0] - pts[:, 1])
+                tl = pts[np.argmin(s)]
+                br = pts[np.argmax(s)]
+                tr = pts[np.argmax(d)]
+                bl = pts[np.argmin(d)]
+                top    = float(np.linalg.norm(tr - tl))
+                bottom = float(np.linalg.norm(br - bl))
+                left   = float(np.linalg.norm(bl - tl))
+                right  = float(np.linalg.norm(br - tr))
+                horiz_avg = (top + bottom) / 2.0
+                vert_avg  = (left + right)  / 2.0
+                if horiz_avg > vert_avg:
+                    long_avg, short_avg = horiz_avg, vert_avg
+                    tilt_ratio = abs(top - bottom) / max(top, bottom, 1e-6)
+                else:
+                    long_avg, short_avg = vert_avg, horiz_avg
+                    tilt_ratio = abs(left - right) / max(left, right, 1e-6)
+                corners_ok = True
+
             debug_candidates.append(
                 f'aspect={aspect:.3f} rw={rw:.0f}px ({rw/img_w*100:.1f}%) '
-                f'sol={solidity:.2f} score={score:.0f}'
+                f'sol={solidity:.2f} 4c={corners_ok} tilt={tilt_ratio:.2f} '
+                f'score={score:.0f}'
             )
 
             if score > best_score:
                 best_score = score
-                s_w = (CARD_W_MM / rw) / 10         # cm/px from long side
-                s_h = (CARD_H_MM / rh) / 10         # cm/px from short side
+                if corners_ok and tilt_ratio > 0.05:
+                    # Card is tilted — use average of parallel edges to cancel
+                    # linear perspective, then geometric-mean the two dimensions.
+                    s_l = (CARD_W_MM / long_avg)  / 10
+                    s_s = (CARD_H_MM / short_avg) / 10
+                    scale_final = math.sqrt(s_l * s_s)
+                else:
+                    # Flat/nearly flat card — minAreaRect is fine
+                    s_w = (CARD_W_MM / rw) / 10
+                    s_h = (CARD_H_MM / rh) / 10
+                    scale_final = (s_w + s_h) / 2
                 x, y, bw, bh = cv2.boundingRect(cnt)
-                best_result = ((s_w + s_h) / 2, (x, y, bw, bh))
+                best_result = (scale_final, (x, y, bw, bh))
 
     print(f'[card-detect] {len(debug_candidates)} candidates: '
           f'{debug_candidates[:5]}', file=sys.stderr)
@@ -650,12 +692,18 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         w_px = x1 - x0
         return (round(w_px * scale, 1) if w_px > 0 else None), x0, x1
 
-    def _meas_horiz_body(y):
+    def _meas_horiz_body(y, min_width_frac=0.08):
         """Full-width measurement using the contiguous body segment nearest the image
         centre. Avoids the landmark-bounds problem for the hip, where the anatomical
-        landmarks sit at the joint (inside the pelvis) and miss the full glute width."""
+        landmarks sit at the joint (inside the pelvis) and miss the full glute width.
+
+        min_width_frac : reject runs narrower than this fraction of image width
+                         (default 8% — filters out rembg artifacts / hair strands / dark
+                         patches between arm and torso that the old code was picking).
+        """
         if y is None: return None, None, None
         cx_body = fw / 2
+        min_w = int(fw * min_width_frac)
         x0s, x1s = [], []
         for dy in range(-4, 5):
             row_i = int(y) + dy
@@ -669,8 +717,13 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
                 elif not m[xi] and in_run:
                     runs.append((start, xi - 1)); in_run = False
             if in_run: runs.append((start, fw - 1))
+            # Reject narrow artifacts (arms-in-A-pose separated from torso are OK because
+            # they're on the sides — we always pick the RUN whose CENTRE is nearest the
+            # image centre, so tiny background artifacts near centre would still win.
+            # Width filter guarantees we pick a real body segment.)
+            runs = [r for r in runs if (r[1] - r[0]) >= min_w]
             if not runs: continue
-            # Pick the run whose centre is closest to the image centre
+            # Among wide-enough runs, pick the one whose centre is closest to image centre
             best = min(runs, key=lambda r: abs((r[0] + r[1]) / 2 - cx_body))
             x0s.append(best[0]); x1s.append(best[1])
         if not x0s: return None, None, None
@@ -681,14 +734,16 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     measure_x_bounds_front = {}  # label → (x0, x1) for horizontal overlay lines
     overlay_lines_front    = {}  # label → (x0,y0,x1,y1) for angled overlay lines
 
-    # Chest: bounded by shoulder landmark x-positions so arms are excluded.
-    # _meas_horiz scans only between shoulder_xl and shoulder_xr — arms beyond that boundary
-    # are never included regardless of whether they touch the torso mask.
+    # Chest: measured at NIPPLE line (18-30% shoulder-to-hip = 4th intercostal space).
+    # Range starts at 18% to skip the shoulder/clavicle zone (which is wider than chest
+    # and where the extended-forward arm attaches — using it would inflate width AND
+    # contaminate the side-photo depth measurement with the arm silhouette).
+    # Bounded by shoulder landmark x-positions so any arm beyond that is excluded.
     chest_w, chx0, chx1 = None, None, None
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
-        _ch_top = int(shoulder_y + _span * 0.05)
-        _ch_bot = int(shoulder_y + _span * 0.28)
+        _ch_top = int(shoulder_y + _span * 0.18)
+        _ch_bot = int(shoulder_y + _span * 0.30)
         _ch_best_w, _ch_best_y = None, None
         _ch_xl = shoulder_xl if has_shoulder_bounds else None
         _ch_xr = shoulder_xr if has_shoulder_bounds else None
@@ -708,19 +763,27 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # Waist: min-width zone 52–83% shoulder-to-hip.
     # Card is a scale reference only — its Y position is not used for anchoring.
     waist_w, wx0, wx1 = None, None, None
+    _wz_rows_scanned = 0
+    _wz_rows_valid = 0
     if shoulder_y is not None and hip_y is not None:
         _span = hip_y - shoulder_y
         _wz_top = int(shoulder_y + _span * 0.52)
         _wz_bot = int(shoulder_y + _span * 0.83)
         _wz_best_w, _wz_best_y = None, None
         for _sy in range(_wz_top, _wz_bot, 2):
+            _wz_rows_scanned += 1
             _w, _x0, _x1 = _meas_horiz_body(_sy)
-            if _w is not None and (_wz_best_w is None or _w < _wz_best_w):
-                _wz_best_w, _wz_best_y, wx0, wx1 = _w, _sy, _x0, _x1
+            if _w is not None:
+                _wz_rows_valid += 1
+                if _wz_best_w is None or _w < _wz_best_w:
+                    _wz_best_w, _wz_best_y, wx0, wx1 = _w, _sy, _x0, _x1
         if _wz_best_w is not None:
             waist_w = _wz_best_w
             waist_y = _wz_best_y
             measure_ys_front['waist'] = _wz_best_y
+        print(f'[waist-scan] range=[{_wz_top},{_wz_bot}] scanned={_wz_rows_scanned} '
+              f'valid={_wz_rows_valid} best_w={_wz_best_w} best_y={_wz_best_y} '
+              f'wx0={wx0} wx1={wx1}', file=sys.stderr)
     if wx0 is not None: measure_x_bounds_front['waist'] = (wx0, wx1)
 
     # Hip: max-width zone scan from hip landmark to 30% towards knee (captures glute peak)
@@ -741,20 +804,29 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     if hx0 is not None: measure_x_bounds_front['hip'] = (hx0, hx1)
 
     # Neck: find the minimum horizontal width between chin and shoulder level.
-    # The neck is the narrowest point in this range from the front view.
-    # Min-width scan avoids confusing the wider trapezius/clavicle zone with the neck.
-    # Arms are at A-pose so they don't appear at neck level — _meas_horiz_body is clean here.
+    # Empirical (davi 2026-08-24 with tape=34): chin_y factor 0.28 finds the
+    # true narrow neck (measured 33.9). Factor 0.47 pushed scan into the
+    # trapezius/base (measured 43.7, way over). Keep 0.28.
+    # min_width_frac lowered to 3% because the neck is naturally narrow
+    # (~11cm / ~90px in a 1500px image ≈ 6%). Default 8% filters it out
+    # and forces _meas_horiz_body to pick a wider run (jaw/head).
     neck_w = None
+    nose_y_lm = lm_y(front_lms, 'nose')
     if top_y is not None and shoulder_y is not None:
-        chin_approx_y = top_y + (shoulder_y - top_y) * 0.50
-        _nk_top = int(chin_approx_y)
-        _nk_bot = int(shoulder_y) - 15
+        if nose_y_lm is not None and nose_y_lm < shoulder_y:
+            chin_y_est = nose_y_lm + (shoulder_y - nose_y_lm) * 0.28
+        else:
+            chin_y_est = top_y + (shoulder_y - top_y) * 0.65
+        _nk_top = int(chin_y_est + 5)      # scan from just below chin
+        _nk_bot = int(shoulder_y) - 15     # to just above shoulder
         _nk_min_px = None
         _nk_best_y = None
         _nkx0_f, _nkx1_f = None, None
+        _nk_rows_valid = 0
         for _sy in range(_nk_top, _nk_bot, 2):
-            _, _x0, _x1 = _meas_horiz_body(_sy)
+            _, _x0, _x1 = _meas_horiz_body(_sy, min_width_frac=0.03)
             if _x0 is not None and _x1 is not None:
+                _nk_rows_valid += 1
                 _w = _x1 - _x0
                 if _nk_min_px is None or _w < _nk_min_px:
                     _nk_min_px = _w
@@ -764,6 +836,9 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             neck_w = round(_nk_min_px * scale, 1)
             measure_x_bounds_front['neck'] = (_nkx0_f, _nkx1_f)
             measure_ys_front['neck'] = _nk_best_y
+        print(f'[neck-scan] chin_y={int(chin_y_est)} range=[{_nk_top},{_nk_bot}] '
+              f'nose_y={nose_y_lm} valid={_nk_rows_valid} '
+              f'best_w_px={_nk_min_px} best_y={_nk_best_y} neck_cm={neck_w}', file=sys.stderr)
 
     # ── Limbs: perpendicular scan along limb axis ─────────────────────────
     # Pick the arm/leg side whose distal landmark (elbow / knee) is furthest
@@ -1050,9 +1125,10 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         px = int(np.median(pxs))
         return round(px * scale_side, 1) if px > 0 else None
 
-    # Arm at 90° forward only fuses with torso at chest/shoulder level.
-    # Below the waist the arm is absent — use full contiguous segment (arm_level=False).
-    chest_d = _d(chest_y, arm_level=True)
+    # Arm at 90° forward is at SHOULDER level (Y ≈ 0% shoulder-to-hip).
+    # Chest is now at nipple level (18-30% shoulder-to-hip), well below the arm →
+    # side mask at chest_y is clean (no arm to exclude).
+    chest_d = _d(chest_y, arm_level=False)
     waist_d = _d(waist_y, arm_level=False)
     hip_d   = _d(hip_scan_y, arm_level=False)
     thigh_d = _d(measure_ys_front.get('thigh') or thigh_y, arm_level=False)
@@ -1078,13 +1154,16 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     hip_circ     = ellipse_circ(hip_w,     hip_d)
     thigh_circ   = ellipse_circ(thigh_w,   thigh_d)
     calf_circ    = ellipse_circ(calf_w,    calf_d)
-    # Neck: use ellipse when side depth is available (arm is at shoulder, not neck level)
-    neck_circ    = ellipse_circ(neck_w, neck_d) if neck_d else circular_circ(neck_w)
+    # Neck: always use circular approximation (π × diameter).
+    # Empirical test (davi 2026-08-24): neck width 10.8cm → circular = 33.9cm
+    # (matches tape 34.0 exactly). Ellipse with side depth gave 38.6 (over by ~5cm)
+    # because side mask at neck_y catches trapezius/shoulder tissue as extra "depth".
+    neck_circ    = circular_circ(neck_w)
     # Arms: circular approximation (arm points toward camera in side → no clean depth)
     bicep_circ   = circular_circ(bicep_w)
     forearm_circ = circular_circ(forearm_w)
 
-    # Raw circumferences stored for future calibration (plan 3)
+    # Raw circumferences (pre-shape-correction) — stored for calibration/debug
     raw_circ = {
         'chest_cm':   chest_circ,
         'waist_cm':   waist_circ,
@@ -1095,6 +1174,55 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         'bicep_cm':   bicep_circ,
         'forearm_cm': forearm_circ,
     }
+
+    # ── Anatomical shape correction ──────────────────────────────────────
+    # The ellipse formula assumes an elliptical cross-section, but real body
+    # segments deviate. These factors are body-composition-aware: for lean
+    # bodies (BMI<22) the ellipse is close to correct (glutes are flatter,
+    # belly does not bulge). For heavier bodies, hip needs stronger downward
+    # correction (glute protrusion breaks the ellipse assumption).
+    #
+    # Neck: the min-width scan tends to overestimate because it may include
+    # jaw/trapezius edge — a strong downward correction is needed regardless
+    # of body composition.
+    #
+    # Calibration source: davi 170cm/58.7kg lean male test 2026-08-24 +
+    # anthropometric literature (Wang 2004, Kuehnapfel 2016). Refine with
+    # real tape-measure calibration data when available.
+    # Calibration reference (2026-08-24, davi 172cm/58.7kg BMI 19.8, tape measure):
+    #   peito 91 · pescoço 34 · cintura 84 · quadril 92 · coxa 50 · panturrilha 33
+    #   bíceps 26 · antebraço 22
+    # Waist ratio 1.15 accounts for the umbilicus vs anatomical-narrow difference
+    # (consumer tape measurement is at umbilicus, wider than the true narrow waist).
+    # Chest/hip/thigh: landmark bounds sit inside the joint, mask width is slightly
+    # short → need upward correction.
+    # Bicep/forearm/neck: mask picks up skin edges and side depth contamination →
+    # need downward correction (neck also switches to circular approx below).
+    _h_m = (height_cm / 100.0) if height_cm else 0
+    _bmi_for_k = weight_kg / (_h_m ** 2) if (_h_m > 0 and weight_kg) else 22.0
+    if _bmi_for_k < 22:      # lean (calibrated against davi 2026-08-24)
+        _SHAPE_K = {'chest': 1.09, 'waist': 1.15, 'hip': 1.05,
+                    'thigh': 1.08, 'calf': 1.00, 'neck': 1.00,
+                    'bicep': 0.91, 'forearm': 0.91}
+    elif _bmi_for_k < 27:    # normal (interpolated, not yet calibrated)
+        _SHAPE_K = {'chest': 1.06, 'waist': 1.10, 'hip': 1.00,
+                    'thigh': 1.05, 'calf': 1.00, 'neck': 1.00,
+                    'bicep': 0.94, 'forearm': 0.94}
+    else:                    # overweight/obese (glute+belly break ellipse more)
+        _SHAPE_K = {'chest': 1.02, 'waist': 1.05, 'hip': 0.95,
+                    'thigh': 1.00, 'calf': 1.00, 'neck': 1.00,
+                    'bicep': 0.96, 'forearm': 0.96}
+    def _shape(v, k):
+        return round(v * _SHAPE_K[k], 1) if v is not None else None
+
+    chest_circ   = _shape(chest_circ,   'chest')
+    waist_circ   = _shape(waist_circ,   'waist')
+    hip_circ     = _shape(hip_circ,     'hip')
+    thigh_circ   = _shape(thigh_circ,   'thigh')
+    calf_circ    = _shape(calf_circ,    'calf')
+    neck_circ    = _shape(neck_circ,    'neck')
+    bicep_circ   = _shape(bicep_circ,   'bicep')
+    forearm_circ = _shape(forearm_circ, 'forearm')
 
     # ── Indices ───────────────────────────────────────────────────────────
     height_m = height_cm / 100
@@ -1230,12 +1358,15 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     # ── Overlays ──────────────────────────────────────────────────────────
     _thigh_y_actual = measure_ys_front.get('thigh') or thigh_y
+    # Bicep + forearm omitted from side overlay: with arm extended forward at 90°,
+    # the arm is a horizontal appendage in the side photo — a horizontal line drawn
+    # at bicep_y across the torso mask is anatomically meaningless (lands on the chest,
+    # not the arm). Bicep/forearm are measured only from the front view.
     measure_ys_side = {
         'neck':   side_y(measure_ys_front.get('neck') or neck_y),
         'chest':  side_y(chest_y),
         'waist':  side_y(waist_y),
         'hip':    side_y(hip_y),
-        'bicep':  side_y(measure_ys_front.get('bicep') or arm_y),
         'thigh':  side_y(_thigh_y_actual),
         'calf':   side_y(calf_y),
     }
