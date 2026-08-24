@@ -929,8 +929,6 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if len(mask_xs) == 0: return None
 
         if _sbcx is not None:
-            # Find the contiguous mask segment that contains the body centre.
-            # This excludes the hand if there is any gap between it and the body.
             cx = int(_sbcx * w_s)
             cx = max(0, min(w_s - 1, cx))
             if row[cx]:
@@ -938,19 +936,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
                 while xl > 0 and row[xl - 1]: xl -= 1
                 xr = cx
                 while xr < w_s - 1 and row[xr + 1]: xr += 1
-                # Clip the edge closer to the extended-arm landmark: the arm
-                # attaches at the shoulder and fuses with the torso silhouette,
-                # so a plain gap-check can't isolate it — cut at the elbow/wrist
-                # x-position instead (with a small margin back toward the body).
-                if _arm_x is not None:
-                    margin = 6
-                    if abs(_arm_x - xr) < abs(_arm_x - xl) and xl < _arm_x < xr:
-                        xr = max(xl, int(_arm_x) - margin)
-                    elif xl < _arm_x < xr:
-                        xl = min(xr, int(_arm_x) + margin)
-                px = xr - xl + 1
+                # One arm is extended at 90° in front and fuses with the torso
+                # silhouette — no gap means the contiguous segment includes the arm.
+                # Using 2 × the SHORTER half from centre gives the clean body depth:
+                # the arm inflates one half; the other half (back of torso) is clean.
+                half_l = cx - xl
+                half_r = xr - cx
+                px = 2 * min(half_l, half_r) + 1
             else:
-                # Body centre not in mask — use widest segment as fallback
                 px = int(mask_xs[-1]) - int(mask_xs[0]) + 1
         else:
             px = int(mask_xs[-1]) - int(mask_xs[0]) + 1

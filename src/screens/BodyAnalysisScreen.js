@@ -328,7 +328,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
             </View>
             <View style={s.poseTip}>
               <Text style={s.poseTipLabel}>Lado direito</Text>
-              <Text style={s.poseTipText}>Cartão na lateral da cintura{'\n'}Braço esq. levantado acima da cabeça{'\n'}Braço dir. ao longo do corpo{'\n'}Pernas alinhadas · Cabelo em coque</Text>
+              <Text style={s.poseTipText}>Cartão na lateral da cintura{'\n'}LADO DIREITO do corpo para a câmara{'\n'}Braço dir. a 90° à frente (horizontal){'\n'}Braço esq. atrás do corpo · Cabelo em coque</Text>
             </View>
           </View>
         </View>
