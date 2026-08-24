@@ -1358,12 +1358,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     # ── Overlays ──────────────────────────────────────────────────────────
     _thigh_y_actual = measure_ys_front.get('thigh') or thigh_y
-    # Bicep + forearm omitted from side overlay: with arm extended forward at 90°,
-    # the arm is a horizontal appendage in the side photo — a horizontal line drawn
-    # at bicep_y across the torso mask is anatomically meaningless (lands on the chest,
-    # not the arm). Bicep/forearm are measured only from the front view.
+    # Bicep + forearm + neck omitted from side overlay:
+    # - bicep/forearm: arm extended forward at 90° means the arm is a horizontal
+    #   appendage in the side photo; a horizontal line at bicep_y across the
+    #   torso mask is anatomically meaningless (lands on the chest, not the arm)
+    # - neck: uses circular approximation (front width only); side overlay would
+    #   draw a line through the chin because the chin protrudes forward at
+    #   neck_y level in a side view, making the line visually misleading
     measure_ys_side = {
-        'neck':   side_y(measure_ys_front.get('neck') or neck_y),
         'chest':  side_y(chest_y),
         'waist':  side_y(waist_y),
         'hip':    side_y(hip_y),
