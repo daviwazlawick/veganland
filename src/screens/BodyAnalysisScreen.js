@@ -190,9 +190,10 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   const [weightKg,   setWeightKg]   = useState(bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '');
   const [sex,        setSex]        = useState(bodyProfile?.sex || 'female');
   const [age,        setAge]        = useState(derivedAge);
-  const [analyzing,  setAnalyzing]  = useState(false);
-  const [result,     setResult]     = useState(null);
-  const [activeInfo, setActiveInfo] = useState(null);
+  const [analyzing,      setAnalyzing]      = useState(false);
+  const [result,         setResult]         = useState(null);
+  const [activeInfo,     setActiveInfo]     = useState(null);
+  const [zoomedOverlay,  setZoomedOverlay]  = useState(null);
 
   // Auto-analyze when photos arrive from VideoAnalysisScreen
   const autoTriggered = React.useRef(false);
@@ -297,6 +298,20 @@ export default function BodyAnalysisScreen({ navigation, route }) {
     <SafeAreaView style={s.container} edges={['top']}>
       <InfoModal info={activeInfo} onClose={() => setActiveInfo(null)} />
 
+      {/* ── Overlay zoom modal ── */}
+      <Modal visible={!!zoomedOverlay} transparent animationType="fade" onRequestClose={() => setZoomedOverlay(null)}>
+        <TouchableOpacity style={s.zoomOverlay} activeOpacity={1} onPress={() => setZoomedOverlay(null)}>
+          <Image
+            source={{ uri: zoomedOverlay ? `data:image/jpeg;base64,${zoomedOverlay}` : undefined }}
+            style={s.zoomImage}
+            resizeMode="contain"
+          />
+          <View style={s.zoomCloseBtn} pointerEvents="none">
+            <Text style={s.zoomCloseTxt}>✕ fechar</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backText}>←</Text>
@@ -390,14 +405,14 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
         {result && <>
 
-          {/* Overlays */}
+          {/* Overlays — tap para ampliar */}
           {result.overlays && (
             <View style={s.overlayRow}>
               {[['front','Frente'],['side','Lateral']].map(([k,l]) => result.overlays[k] ? (
-                <View key={k} style={s.overlayWrap}>
+                <TouchableOpacity key={k} style={s.overlayWrap} onPress={() => setZoomedOverlay(result.overlays[k])} activeOpacity={0.85}>
                   <Image source={{ uri: `data:image/jpeg;base64,${result.overlays[k]}` }} style={s.overlayImg} resizeMode="contain" />
-                  <Text style={s.overlayLabel}>{l}</Text>
-                </View>
+                  <Text style={s.overlayLabel}>{l} · toca para ampliar</Text>
+                </TouchableOpacity>
               ) : null)}
             </View>
           )}
@@ -737,4 +752,10 @@ const s = StyleSheet.create({
   disclaimerTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   disclaimerTxt:   { fontSize: 11, color: Colors.textMuted, lineHeight: 16 },
   disclaimerBold:  { fontWeight: '800', color: Colors.textLight },
+
+  // Overlay zoom
+  zoomOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center', alignItems: 'center' },
+  zoomImage:    { width: '100%', height: '100%' },
+  zoomCloseBtn: { position: 'absolute', top: 56, right: 20, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
+  zoomCloseTxt: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

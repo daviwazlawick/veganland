@@ -696,7 +696,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             _ch_bot = int(shoulder_y + _span * 0.30)
         _ch_best_w, _ch_best_y = None, None
         for _sy in range(_ch_top, _ch_bot, 2):
-            _w, _x0, _x1 = _meas_horiz(_sy, shoulder_xl or 0, shoulder_xr or fw)
+            _w, _x0, _x1 = _meas_horiz_body(_sy)
             if _w is not None and (_ch_best_w is None or _w > _ch_best_w):
                 _ch_best_w, _ch_best_y, chx0, chx1 = _w, _sy, _x0, _x1
         if _ch_best_w is not None:
@@ -721,7 +721,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             _wz_bot = int(shoulder_y + _span * 0.80)
         _wz_best_w, _wz_best_y = None, None
         for _sy in range(_wz_top, _wz_bot, 2):
-            _w, _x0, _x1 = _meas_horiz(_sy, shoulder_xl or 0, shoulder_xr or fw)
+            _w, _x0, _x1 = _meas_horiz_body(_sy)
             if _w is not None and (_wz_best_w is None or _w < _wz_best_w):
                 _wz_best_w, _wz_best_y, wx0, wx1 = _w, _sy, _x0, _x1
         if _wz_best_w is not None:
@@ -789,50 +789,35 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         if rp and rd: return 'right', rp, rd
         return None, None, None
 
-    # ── Arm x-bounds: anchor on elbow (definitively on the arm, not torso) ──
-    # At elbow level the mask shows only the arm. We scan along the mask row
-    # at elbow_y to find the arm's true x-extent, then expand by arm_expand_px
-    # to cover the bicep (which is wider). This avoids depending on shoulder
-    # landmarks whose mask edge differs from the joint position.
-    arm_expand_px = 80  # ≈ 7 cm at typical scale — enough for any bicep
+    # ── Arm x-bounds: derived from landmark x-range (shoulder→elbow / elbow→wrist) ──
+    # Using the mask at elbow level is unreliable when the arm touches the torso —
+    # the mask is one contiguous blob that spans arm + torso, causing the bounds to
+    # include the chest and the scan to measure the torso width instead of the arm.
+    # Instead, we use the proximal and distal landmark x coordinates directly:
+    #   center_x_min/max: narrow band around the landmark x-range (keeps scan on arm)
+    #   ray_x_min/max:    wider band (rays may extend to capture full arm girth)
+    _ARM_CTR_MARGIN  = 20   # px around landmark x-range for scan center constraint
+    _BICEP_RAY_MARGIN = 80  # px — covers ~14 cm arm diameter at typical scale
+    _FA_RAY_MARGIN    = 60  # forearm is narrower
 
-    def _arm_x_from_elbow(elbow_xy):
-        if not elbow_xy: return None, None
-        ey, ex = int(elbow_xy[1]), int(elbow_xy[0])
-        h_m, w_m = front_mask.shape
-        # Search a 12px neighbourhood in case landmark lands just outside mask
-        found_ex = None
-        for dy in range(-12, 13):
-            row_i = ey + dy
-            if not (0 <= row_i < h_m): continue
-            for dx in range(-12, 13):
-                col_i = ex + dx
-                if 0 <= col_i < w_m and front_mask[row_i, col_i]:
-                    found_ex = col_i
-                    ey = row_i
-                    break
-            if found_ex is not None: break
-        if found_ex is None: return None, None
-        ex = found_ex
-        xl = ex
-        for x in range(ex - 1, max(0, ex - 300), -1):
-            if not front_mask[ey, x]: break
-            xl = x
-        xr = ex
-        for x in range(ex + 1, min(w_m, ex + 300)):
-            if not front_mask[ey, x]: break
-            xr = x
-        return max(0, xl - arm_expand_px), min(w_m, xr + arm_expand_px)
+    def _arm_lm_bounds(prox_xy, dist_xy, ctr_margin, ray_margin):
+        if not prox_xy or not dist_xy: return None, None, None, None
+        px_x, dx_x = int(prox_xy[0]), int(dist_xy[0])
+        _, w_m = front_mask.shape
+        x_lo, x_hi = min(px_x, dx_x), max(px_x, dx_x)
+        return (max(0, x_lo - ctr_margin), min(w_m, x_hi + ctr_margin),
+                max(0, x_lo - ray_margin), min(w_m, x_hi + ray_margin))
 
     arm_side, sh_xy, el_xy = _far_side('left_shoulder','left_elbow','right_shoulder','right_elbow')
-    arm_xl, arm_xr = _arm_x_from_elbow(el_xy)
+    arm_cx_min, arm_cx_max, arm_rx_min, arm_rx_max = _arm_lm_bounds(
+        sh_xy, el_xy, _ARM_CTR_MARGIN, _BICEP_RAY_MARGIN)
 
     bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
         front_mask, sh_xy, el_xy, scale,
-        center_x_min=arm_xl, center_x_max=arm_xr,
-        ray_x_min=arm_xl,    ray_x_max=arm_xr,
-        t_min=0.35, t_max=0.65) \
-        if (sh_xy and el_xy and arm_xl is not None) else (None,)*6
+        center_x_min=arm_cx_min, center_x_max=arm_cx_max,
+        ray_x_min=arm_rx_min,    ray_x_max=arm_rx_max,
+        t_min=0.20, t_max=0.65) \
+        if (sh_xy and el_xy and arm_cx_min is not None) else (None,)*6
     if bx0 is not None:
         overlay_lines_front['bicep'] = (bx0, by0, bx1, by1)
         measure_ys_front['bicep']    = b_cy
@@ -840,33 +825,14 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
     # ── Forearm: elbow → wrist ────────────────────────────────────────────
     el2_xy = _lm_xy(front_lms, f'{arm_side}_elbow') if arm_side else None
     wr_xy  = _lm_xy(front_lms, f'{arm_side}_wrist') if arm_side else None
-    # Forearm is narrower than bicep — use wrist as anchor for tighter bounds
-    wr_expand_px = 60
-    def _arm_x_from_wrist(wrist_xy):
-        if not wrist_xy: return None, None
-        wy, wx = int(wrist_xy[1]), int(wrist_xy[0])
-        h_m, w_m = front_mask.shape
-        if not (0 <= wy < h_m and 0 <= wx < w_m) or not front_mask[wy, wx]:
-            return None, None
-        xl = wx
-        for x in range(wx - 1, max(0, wx - 200), -1):
-            if not front_mask[wy, x]: break
-            xl = x
-        xr = wx
-        for x in range(wx + 1, min(w_m, wx + 200)):
-            if not front_mask[wy, x]: break
-            xr = x
-        return max(0, xl - wr_expand_px), min(w_m, xr + wr_expand_px)
-
-    fa_xl, fa_xr = _arm_x_from_wrist(wr_xy)
-    # Fall back to elbow bounds if wrist not visible
-    if fa_xl is None: fa_xl, fa_xr = arm_xl, arm_xr
+    fa_cx_min, fa_cx_max, fa_rx_min, fa_rx_max = _arm_lm_bounds(
+        el2_xy, wr_xy, _ARM_CTR_MARGIN, _FA_RAY_MARGIN)
 
     forearm_w, fx0, fy0, fx1, fy1, f_cy = measure_limb_perp(
         front_mask, el2_xy, wr_xy, scale,
-        center_x_min=fa_xl, center_x_max=fa_xr,
-        ray_x_min=fa_xl,    ray_x_max=fa_xr) \
-        if (el2_xy and wr_xy and fa_xl is not None) else (None,)*6
+        center_x_min=fa_cx_min, center_x_max=fa_cx_max,
+        ray_x_min=fa_rx_min,    ray_x_max=fa_rx_max) \
+        if (el2_xy and wr_xy and fa_cx_min is not None) else (None,)*6
     if fx0 is not None:
         overlay_lines_front['forearm'] = (fx0, fy0, fx1, fy1)
         measure_ys_front['forearm']    = f_cy
