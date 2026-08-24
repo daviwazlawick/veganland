@@ -278,9 +278,15 @@ CARD_ASPECT = CARD_W_MM / CARD_H_MM  # ≈ 1.586
 
 def detect_credit_card(img_np, mask=None):
     """
-    Detect a credit card in the image by its ISO 7810 ID-1 aspect ratio (85.60×53.98 mm).
+    Detect a credit card (ISO 7810 ID-1, 85.60×53.98 mm) and return scale in cm/px.
     Returns (scale_cm_per_px, bbox_xywh) or (None, None).
-    Tries multiple Canny thresholds for robustness across lighting conditions.
+
+    Strict filters to avoid false positives:
+    - Aspect ratio within ±8 % of 1.586 (landscape or portrait)
+    - Card width 5–18 % of image width (too big = body/clothing, too small = noise)
+    - Quadrilateral must be nearly rectangular (all interior angles 80–100°)
+    - Solidity ≥ 0.88 (filled rectangle, not a skewed or partial shape)
+    - Centre of card must be on the body mask
     """
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -289,14 +295,14 @@ def detect_credit_card(img_np, mask=None):
     best_area = 0
     best_result = (None, None)
 
-    for lo, hi in [(30, 100), (50, 150), (80, 220)]:
+    for lo, hi in [(40, 120), (60, 160), (90, 230)]:
         edges = cv2.Canny(blurred, lo, hi)
         edges = cv2.dilate(edges, np.ones((2, 2), np.uint8), iterations=1)
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         for cnt in contours:
             peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.03 * peri, True)
+            approx = cv2.approxPolyDP(cnt, 0.025 * peri, True)
             if len(approx) != 4:
                 continue
 
@@ -304,20 +310,42 @@ def detect_credit_card(img_np, mask=None):
             if w == 0 or h == 0:
                 continue
 
+            # Solidity: contour area vs bounding rect — must be rectangle-like
+            solidity = cv2.contourArea(cnt) / (w * h)
+            if solidity < 0.88:
+                continue
+
+            # All interior angles must be close to 90° (±10°)
+            pts = approx.reshape(4, 2).astype(float)
+            angles_ok = True
+            for i in range(4):
+                p0 = pts[(i - 1) % 4]
+                p1 = pts[i]
+                p2 = pts[(i + 1) % 4]
+                v1 = p0 - p1
+                v2 = p2 - p1
+                cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
+                angle = math.degrees(math.acos(max(-1.0, min(1.0, cos_a))))
+                if not (75 < angle < 105):
+                    angles_ok = False
+                    break
+            if not angles_ok:
+                continue
+
             aspect = w / h
-            # Accept landscape (≈1.586) or portrait (≈0.630)
-            if 1.30 < aspect < 1.90:
+            # Strict: landscape ratio 1.46–1.72, portrait ratio 0.58–0.68
+            if 1.46 < aspect < 1.72:
                 card_w_px, card_h_px = w, h
-            elif 0.52 < aspect < 0.77:
+            elif 0.58 < aspect < 0.68:
                 card_w_px, card_h_px = h, w
             else:
                 continue
 
-            # Card width should be 4–35 % of image width
-            if card_w_px < img_w * 0.04 or card_w_px > img_w * 0.35:
+            # Size: card width 5–18 % of image width
+            if card_w_px < img_w * 0.05 or card_w_px > img_w * 0.18:
                 continue
 
-            # Card centre must be on the body mask
+            # Centre must be on the body mask
             if mask is not None:
                 cx_c, cy_c = x + w // 2, y + h // 2
                 if not (0 <= cy_c < mask.shape[0] and 0 <= cx_c < mask.shape[1]):
@@ -328,10 +356,9 @@ def detect_credit_card(img_np, mask=None):
             area = cv2.contourArea(cnt)
             if area > best_area:
                 best_area = area
-                s_w = (CARD_W_MM / card_w_px) / 10   # cm/px from width
-                s_h = (CARD_H_MM / card_h_px) / 10   # cm/px from height
-                scale_cm = (s_w + s_h) / 2
-                best_result = (scale_cm, (x, y, w, h))
+                s_w = (CARD_W_MM / card_w_px) / 10
+                s_h = (CARD_H_MM / card_h_px) / 10
+                best_result = ((s_w + s_h) / 2, (x, y, w, h))
 
     return best_result
 
@@ -397,24 +424,45 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
     top_y, bottom_y = mask_height_span(front_mask)
 
-    if card_scale_front is not None:
+    height_cm_estimated = None
+
+    def _height_scale(body_span_px):
+        return height_cm / body_span_px if body_span_px > 50 else None
+
+    def _validate_card_scale(card_scale, body_span_px):
+        """Reject card scale if the implied height differs >30 % from stated height."""
+        if card_scale is None or body_span_px is None or body_span_px < 50:
+            return False
+        estimated = body_span_px * card_scale
+        return abs(estimated - height_cm) / max(height_cm, 1) <= 0.30
+
+    body_span_front = (bottom_y - top_y) if (top_y is not None and bottom_y is not None) else None
+
+    if card_scale_front is not None and _validate_card_scale(card_scale_front, body_span_front):
         scale = card_scale_front
-        # Estimate height from card scale + body span (more accurate than user input)
-        if top_y is not None and bottom_y is not None and (bottom_y - top_y) > 50:
-            height_cm_estimated = round((bottom_y - top_y) * scale, 1)
-        else:
-            height_cm_estimated = None
-    elif top_y is None or bottom_y is None or (bottom_y - top_y) < 50:
+        height_cm_estimated = round(body_span_front * scale, 1)
+    elif card_scale_front is not None:
+        # Card detected but height sanity check failed — likely false positive
+        warnings.append('card_scale_rejected')
+        card_scale_front = None
+        scale = _height_scale(body_span_front) or 1.0
+        if scale == 1.0:
+            warnings.append('scale_calibration_failed')
+    elif body_span_front and body_span_front > 50:
+        scale = height_cm / body_span_front
+    else:
         warnings.append('scale_calibration_failed')
         scale = 1.0
-        height_cm_estimated = None
-    else:
-        scale = height_cm / (bottom_y - top_y)
-        height_cm_estimated = None
 
     top_y_s, bottom_y_s = mask_height_span(side_mask)
-    if card_scale_side is not None:
+    body_span_side = (bottom_y_s - top_y_s) if (top_y_s and bottom_y_s) else None
+
+    if card_scale_side is not None and _validate_card_scale(card_scale_side, body_span_side):
         scale_side = card_scale_side
+    elif card_scale_side is not None:
+        warnings.append('card_scale_side_rejected')
+        card_scale_side = None
+        scale_side = _height_scale(body_span_side) or scale
     elif top_y_s and bottom_y_s and (bottom_y_s - top_y_s) > 50:
         scale_side = height_cm / (bottom_y_s - top_y_s)
     else:
