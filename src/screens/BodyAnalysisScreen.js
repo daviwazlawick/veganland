@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import { apiBodyAnalyze, apiSaveBodyMeasurements } from '../services/apiService';
+import { t } from '../i18n';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function ageFromBirthDate(dateStr) {
@@ -25,40 +27,35 @@ function ageFromBirthDate(dateStr) {
 }
 
 // ── Info content ──────────────────────────────────────────────────────────────
-const INFO = {
-  chest_cm:    { title: 'Perímetro do peito',        desc: 'Circunferência do tórax ao nível das axilas, aproximada por elipse (largura frontal × profundidade lateral).', ref: 'Homens: 90–110 cm\nMulheres: 80–100 cm',                                                                           why: 'Indicador de volume do tórax e massa dos músculos peitorais.' },
-  neck_cm:     { title: 'Perímetro do pescoço',      desc: 'Circunferência do pescoço entre a cabeça e os ombros.',                                                     ref: 'Homens: 37–43 cm\nMulheres: 32–38 cm\n>43 cm (♂) / >41 cm (♀) associado a apneia do sono',                      why: 'Proxy de gordura visceral superior e factor de risco para apneia obstrutiva do sono.' },
-  bicep_cm:    { title: 'Bíceps',                     desc: 'Circunferência do braço no ponto mais largo, entre ombro e cotovelo.',                                      ref: 'Homens: 28–38 cm\nMulheres: 25–33 cm',                                                                             why: 'Indicador de massa muscular dos membros superiores.' },
-  forearm_cm:  { title: 'Perímetro do antebraço',   desc: 'Circunferência do antebraço entre cotovelo e pulso.',                                                       ref: 'Homens: 24–32 cm\nMulheres: 20–26 cm',                                                                             why: 'Reflete força de preensão e massa muscular periférica.' },
-  waist_cm:    { title: 'Perímetro da cintura',      desc: 'Circunferência na zona mais estreita do tronco, acima do umbigo.',                                         ref: 'Risco elevado: >94 cm (♂) / >80 cm (♀)\nRisco muito elevado: >102 cm (♂) / >88 cm (♀)',                         why: 'Melhor indicador simples de gordura visceral — associado a risco cardiovascular e metabólico.' },
-  hip_cm:      { title: 'Perímetro do quadril',      desc: 'Circunferência na zona mais larga das ancas/glúteos.',                                                     ref: 'Tipicamente 90–105 cm',                                                                                            why: 'Usado com a cintura para calcular RCQ. Quadril maior indica gordura subcutânea (menos nociva).' },
-  thigh_cm:    { title: 'Perímetro da coxa',         desc: 'Circunferência da coxa no terço superior, abaixo da virilha.',                                             ref: 'Homens: 50–65 cm\nMulheres: 52–65 cm',                                                                             why: 'Coxa maior está associada a menor risco cardiovascular.' },
-  calf_cm:     { title: 'Perímetro da panturrilha',  desc: 'Circunferência da zona mais larga da barriga da perna.',                                                   ref: 'Homens: 33–42 cm\nMulheres: 31–41 cm\n<31 cm em idosos = critério de sarcopenia',                               why: 'Proxy de massa muscular periférica e estado nutricional.' },
-  bmi:         { title: 'IMC',                        desc: 'Peso (kg) ÷ altura² (m²).',                                                                               ref: 'Abaixo do peso: <18,5\nNormal: 18,5–24,9\nExcesso: 25–29,9\nObesidade: ≥30',                                   why: 'Triagem rápida. Não distingue músculo de gordura — use com IMM, IMG e % gordura.' },
-  lean_mass_index: { title: 'Índice de Massa Magra (IMM)', desc: 'Massa magra (kg) ÷ altura² (m²).',                                                                  ref: 'Adequado: ≥14,6 kg/m² (♂) / ≥11,8 kg/m² (♀)',                                                                   why: 'Valores adequados associados a menor risco de diabetes e hipertensão.' },
-  fat_mass_index:  { title: 'Índice de Massa Gorda (IMG)',  desc: 'Massa gorda (kg) ÷ altura² (m²).',                                                                  ref: 'Adequado: <6,0 kg/m² (♂) / <9,0 kg/m² (♀)',                                                                     why: 'Mais sensível que IMC para detectar excesso de gordura em pessoas de baixa estatura.' },
-  waist_to_height: { title: 'Razão Cintura/Estatura (RCE)', desc: 'Cintura ÷ estatura. Independente do sexo.',                                                         ref: 'Baixo risco: <0,5\nRisco elevado: ≥0,5\n"Mantém a cintura abaixo de metade da estatura."',                      why: 'Preditor de risco cardiometabólico mais forte do que o IMC.' },
-  waist_to_hip:    { title: 'Razão Cintura/Quadril (RCQ)',  desc: 'Cintura ÷ quadril. Distribuição de gordura central vs. periférica.',                               ref: 'Adequado: <0,85 (♀) / <0,90 (♂)',                                                                               why: 'Gordura abdominal ("maçã") aumenta risco de diabetes e doença cardíaca.' },
-  conicity_index:  { title: 'Índice de Conicidade (IC)',    desc: 'Cintura ÷ (0,109 × √(peso/altura)). Quanto maior, mais acumulação central.',                       ref: 'Adequado: <1,18\nRisco elevado: ≥1,18',                                                                          why: 'Mais sensível que RCQ para detectar gordura visceral.' },
-  body_fat:        { title: '% Gordura Corporal',           desc: 'Fórmula de Deurenberg (1991): 1,20×IMC + 0,23×idade − 10,8×sexo − 5,4. Erro ±4–6% vs. DEXA.',   ref: 'Homens: Essencial 2–5% · Atlético 6–13% · Normal 14–24% · Obeso >25%\nMulheres: Essencial 10–13% · Atlético 14–20% · Normal 21–31% · Obeso >32%', why: 'Separa massa magra de gordura — permite acompanhar recomposição corporal.' },
-  body_water:      { title: 'Água Corporal',                desc: 'Estimada como 72,3% da massa magra (constante hídrica de mamíferos).',                              ref: 'Normal: 45–60% do peso (♀) / 50–65% (♂)',                                                                       why: 'Essencial para todas as funções metabólicas. Desidratação de 2% reduz performance.' },
-  ree:             { title: 'Gasto Energético de Repouso',  desc: 'Equação de Cunningham (1980): 500 + 22 × massa magra (kg).',                                        ref: 'Tipicamente 1200–2000 kcal/dia',                                                                                 why: 'Base para calcular necessidade calórica total (multiplicar por fator de atividade).' },
-  score:           { title: 'NovaQI Score',                 desc: 'Score 0–100 baseado em 6 indicadores: % gordura, IMM, IMG, RCE, RCQ e índice de conicidade.',      ref: '90–100: Excelente · 75–89: Bom · 60–74: Moderado · <60: Atenção',                                               why: 'Visão global da composição corporal. Útil para acompanhar evolução ao longo do tempo.' },
-};
+const INFO_KEYS = [
+  'chest_cm','neck_cm','bicep_cm','forearm_cm','waist_cm','hip_cm','thigh_cm','calf_cm',
+  'bmi','lean_mass_index','fat_mass_index','waist_to_height','waist_to_hip','conicity_index',
+  'body_fat','body_water','ree','score',
+];
+function buildInfo(language) {
+  const info = {};
+  for (const k of INFO_KEYS) {
+    info[k] = {
+      title: t(language, `body_analysis_screen.info.${k}.title`),
+      desc:  t(language, `body_analysis_screen.info.${k}.desc`),
+      ref:   t(language, `body_analysis_screen.info.${k}.ref`),
+      why:   t(language, `body_analysis_screen.info.${k}.why`),
+    };
+  }
+  return info;
+}
 
 // ── Classification helpers ────────────────────────────────────────────────────
-const CLS_LABEL = {
-  low_risk: 'Baixo risco', elevated_risk: 'Risco elevado', adequate: 'Adequado',
-  low: 'Baixo', underweight: 'Abaixo do peso', normal: 'Eutrofia',
-  overweight: 'Excesso', obese: 'Obesidade',
-};
 const CLS_COLOR = {
   low_risk: '#22C55E', adequate: '#22C55E', normal: '#22C55E',
   elevated_risk: '#EF4444', obese: '#EF4444',
   overweight: '#F59E0B', underweight: '#F59E0B', low: '#F59E0B',
 };
 
-function clsL(c) { return CLS_LABEL[c] || '—'; }
+function clsL(c, language) {
+  if (!c) return t(language, 'body_analysis_screen.cls_none');
+  return t(language, `body_analysis_screen.cls_${c}`);
+}
 function clsC(c) { return CLS_COLOR[c] || Colors.textMuted; }
 
 // ── Gauge (semicircle) ────────────────────────────────────────────────────────
@@ -99,26 +96,25 @@ function ProgressBar({ value, min, max, thresholds, color }) {
 }
 
 // ── Score badge grid ──────────────────────────────────────────────────────────
-function ScoreBadges({ cls, sex }) {
+function ScoreBadges({ cls, sex, language }) {
   const items = [
-    { key: 'body_fat',        label: '% Gordura' },
-    { key: 'lean_mass_index', label: 'IMM' },
-    { key: 'fat_mass_index',  label: 'IMG' },
-    { key: 'waist_to_height', label: 'RCE' },
-    { key: 'waist_to_hip',    label: 'RCQ' },
-    { key: 'conicity_index',  label: 'IC' },
+    { key: 'body_fat',        label: t(language, 'body_analysis_screen.badge_body_fat') },
+    { key: 'lean_mass_index', label: t(language, 'body_analysis_screen.badge_lean_mass_index') },
+    { key: 'fat_mass_index',  label: t(language, 'body_analysis_screen.badge_fat_mass_index') },
+    { key: 'waist_to_height', label: t(language, 'body_analysis_screen.badge_waist_to_height') },
+    { key: 'waist_to_hip',    label: t(language, 'body_analysis_screen.badge_waist_to_hip') },
+    { key: 'conicity_index',  label: t(language, 'body_analysis_screen.badge_conicity_index') },
   ];
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
       {items.map(({ key, label }) => {
         const c = cls?.[key];
         const color = clsC(c);
-        const isGood = c === 'low_risk' || c === 'adequate' || c === 'normal';
         return (
           <View key={key} style={[sbStyles.badge, { backgroundColor: color + '18', borderColor: color + '44' }]}>
             <View style={[sbStyles.dot, { backgroundColor: color }]} />
             <Text style={[sbStyles.label, { color }]}>{label}</Text>
-            <Text style={[sbStyles.sub, { color }]}>{clsL(c)}</Text>
+            <Text style={[sbStyles.sub, { color }]}>{clsL(c, language)}</Text>
           </View>
         );
       })}
@@ -152,7 +148,7 @@ function PoseSilhouette({ pose, sex }) {
 }
 
 // ── Info modal ────────────────────────────────────────────────────────────────
-function InfoModal({ info, onClose }) {
+function InfoModal({ info, onClose, language }) {
   if (!info) return null;
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -161,15 +157,15 @@ function InfoModal({ info, onClose }) {
           <Text style={s.modalTitle}>{info.title}</Text>
           <Text style={s.modalDesc}>{info.desc}</Text>
           <View style={s.modalSection}>
-            <Text style={s.modalSectionLabel}>Valores de referência</Text>
+            <Text style={s.modalSectionLabel}>{t(language, 'body_analysis_screen.modal_ref_label')}</Text>
             <Text style={s.modalRef}>{info.ref}</Text>
           </View>
           <View style={s.modalSection}>
-            <Text style={s.modalSectionLabel}>Porquê importa</Text>
+            <Text style={s.modalSectionLabel}>{t(language, 'body_analysis_screen.modal_why_label')}</Text>
             <Text style={s.modalRef}>{info.why}</Text>
           </View>
           <TouchableOpacity style={s.modalClose} onPress={onClose}>
-            <Text style={s.modalCloseText}>Fechar</Text>
+            <Text style={s.modalCloseText}>{t(language, 'body_analysis_screen.modal_close')}</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -180,8 +176,10 @@ function InfoModal({ info, onClose }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BodyAnalysisScreen({ navigation, route }) {
   const { token } = useAuth();
+  const { language } = useApp();
   const { saveBodyProfile, bodyProfile, refresh } = useNutrition();
 
+  const INFO = useMemo(() => buildInfo(language), [language]);
   const derivedAge = useMemo(() => ageFromBirthDate(bodyProfile?.birth_date), [bodyProfile?.birth_date]);
 
   const [frontUri,   setFrontUri]   = useState(route?.params?.frontUri || null);
@@ -210,7 +208,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
   async function pickPhoto(side) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permissão necessária', 'Preciso de acesso à galeria.'); return; }
+    if (status !== 'granted') { Alert.alert(t(language, 'body_analysis_screen.alert_permission_title'), t(language, 'body_analysis_screen.alert_permission_msg')); return; }
     // base64:true makes Expo transcode HEIC/HEIF/WebP → JPEG automatically on iOS
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -233,8 +231,8 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   }
 
   async function runAnalysis() {
-    if (!frontUri || !sideUri) { Alert.alert('Fotos em falta', 'Selecciona a foto frontal e a lateral.'); return; }
-    if (!weightKg) { Alert.alert('Dados em falta', 'Preenche o peso.'); return; }
+    if (!frontUri || !sideUri) { Alert.alert(t(language, 'body_analysis_screen.alert_photos_missing_title'), t(language, 'body_analysis_screen.alert_photos_missing_msg')); return; }
+    if (!weightKg) { Alert.alert(t(language, 'body_analysis_screen.alert_data_missing_title'), t(language, 'body_analysis_screen.alert_data_missing_msg')); return; }
     setAnalyzing(true); setResult(null);
     try {
       // Use pre-converted base64 from picker; fall back to FileSystem for camera URIs
@@ -248,7 +246,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         weightKg: parseFloat(weightKg),
         sex, age: age ? parseInt(age, 10) : 0,
       }));
-    } catch (e) { Alert.alert('Erro na análise', e.message || 'Tenta novamente.'); }
+    } catch (e) { Alert.alert(t(language, 'body_analysis_screen.alert_analysis_error'), e.message || t(language, 'body_analysis_screen.alert_try_again')); }
     finally { setAnalyzing(false); }
   }
 
@@ -265,15 +263,19 @@ export default function BodyAnalysisScreen({ navigation, route }) {
       });
       refresh();
     } catch {}
-    Alert.alert('Actualizar perfil?', `Altura: ${heightCm} cm · Peso: ${weightKg} kg`, [
-      { text: 'Não', style: 'cancel' },
-      { text: 'Actualizar', onPress: async () => {
-        try {
-          await saveBodyProfile({ height_cm: parseFloat(heightCm), weight_kg: parseFloat(weightKg), sex, birth_date: bodyProfile?.birth_date || null, activity_level: bodyProfile?.activity_level || 'moderate', goal: bodyProfile?.goal || 'maintain' });
-          Alert.alert('Perfil actualizado', 'Dados guardados com sucesso.');
-        } catch { Alert.alert('Erro', 'Não foi possível guardar.'); }
-      }},
-    ]);
+    Alert.alert(
+      t(language, 'body_analysis_screen.alert_update_profile_title'),
+      t(language, 'body_analysis_screen.alert_update_profile_msg', { h: heightCm, w: weightKg }),
+      [
+        { text: t(language, 'body_analysis_screen.alert_no'), style: 'cancel' },
+        { text: t(language, 'body_analysis_screen.alert_update'), onPress: async () => {
+          try {
+            await saveBodyProfile({ height_cm: parseFloat(heightCm), weight_kg: parseFloat(weightKg), sex, birth_date: bodyProfile?.birth_date || null, activity_level: bodyProfile?.activity_level || 'moderate', goal: bodyProfile?.goal || 'maintain' });
+            Alert.alert(t(language, 'body_analysis_screen.alert_profile_updated_title'), t(language, 'body_analysis_screen.alert_profile_updated_msg'));
+          } catch { Alert.alert(t(language, 'body_analysis_screen.alert_error'), t(language, 'body_analysis_screen.alert_save_failed')); }
+        }},
+      ]
+    );
   }
 
   const m   = result?.measurements;
@@ -284,16 +286,22 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
   function bfMeta(pct) {
     if (!pct) return null;
+    const L = {
+      essential: t(language, 'body_analysis_screen.bf_essential'),
+      athletic:  t(language, 'body_analysis_screen.bf_athletic'),
+      normal:    t(language, 'body_analysis_screen.bf_normal'),
+      obese:     t(language, 'body_analysis_screen.bf_obese'),
+    };
     if (sex === 'male') {
-      if (pct < 6)  return { label: 'Essencial', color: '#F59E0B', pctOfMax: pct / 35 * 100 };
-      if (pct < 14) return { label: 'Atlético',  color: '#22C55E', pctOfMax: pct / 35 * 100 };
-      if (pct < 25) return { label: 'Normal',    color: '#22C55E', pctOfMax: pct / 35 * 100 };
-      return             { label: 'Obeso',       color: '#EF4444', pctOfMax: Math.min(pct / 35 * 100, 100) };
+      if (pct < 6)  return { label: L.essential, color: '#F59E0B', pctOfMax: pct / 35 * 100 };
+      if (pct < 14) return { label: L.athletic,  color: '#22C55E', pctOfMax: pct / 35 * 100 };
+      if (pct < 25) return { label: L.normal,    color: '#22C55E', pctOfMax: pct / 35 * 100 };
+      return             { label: L.obese,       color: '#EF4444', pctOfMax: Math.min(pct / 35 * 100, 100) };
     }
-    if (pct < 14) return { label: 'Essencial', color: '#F59E0B', pctOfMax: pct / 45 * 100 };
-    if (pct < 21) return { label: 'Atlético',  color: '#22C55E', pctOfMax: pct / 45 * 100 };
-    if (pct < 32) return { label: 'Normal',    color: '#22C55E', pctOfMax: pct / 45 * 100 };
-    return             { label: 'Obeso',       color: '#EF4444', pctOfMax: Math.min(pct / 45 * 100, 100) };
+    if (pct < 14) return { label: L.essential, color: '#F59E0B', pctOfMax: pct / 45 * 100 };
+    if (pct < 21) return { label: L.athletic,  color: '#22C55E', pctOfMax: pct / 45 * 100 };
+    if (pct < 32) return { label: L.normal,    color: '#22C55E', pctOfMax: pct / 45 * 100 };
+    return             { label: L.obese,       color: '#EF4444', pctOfMax: Math.min(pct / 45 * 100, 100) };
   }
 
   function scoreColor(v) {
@@ -303,15 +311,17 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   }
   function scoreLabel(v) {
     if (!v) return '—';
-    if (v >= 90) return 'Excelente'; if (v >= 75) return 'Bom';
-    if (v >= 60) return 'Moderado';  return 'Atenção';
+    if (v >= 90) return t(language, 'body_analysis_screen.score_excellent');
+    if (v >= 75) return t(language, 'body_analysis_screen.score_good');
+    if (v >= 60) return t(language, 'body_analysis_screen.score_moderate');
+    return t(language, 'body_analysis_screen.score_attention');
   }
 
   const bf = bfMeta(bc?.body_fat_pct);
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <InfoModal info={activeInfo} onClose={() => setActiveInfo(null)} />
+      <InfoModal info={activeInfo} onClose={() => setActiveInfo(null)} language={language} />
 
       {/* ── Overlay zoom modal ── */}
       <Modal visible={!!zoomedOverlay} transparent animationType="fade" onRequestClose={() => setZoomedOverlay(null)}>
@@ -322,7 +332,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
             resizeMode="contain"
           />
           <View style={s.zoomCloseBtn} pointerEvents="none">
-            <Text style={s.zoomCloseTxt}>✕ fechar</Text>
+            <Text style={s.zoomCloseTxt}>{t(language, 'body_analysis_screen.zoom_close')}</Text>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -331,7 +341,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={s.title}>Análise corporal</Text>
+        <Text style={s.title}>{t(language, 'body_analysis_screen.header_title')}</Text>
         <View />
       </View>
 
@@ -339,26 +349,21 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
         {/* Pose guide */}
         <View style={s.poseGuide}>
-          <Text style={s.poseGuideTitle}>Como tirar as fotos</Text>
+          <Text style={s.poseGuideTitle}>{t(language, 'body_analysis_screen.pose_guide_title')}</Text>
 
           <View style={s.cardHint}>
             <Text style={s.cardHintIcon}>💳</Text>
-            <Text style={s.cardHintText}>
-              Cola um cartão de crédito com fita-cola PLANO no{' '}
-              <Text style={{ fontWeight: '800' }}>centro do peito</Text> (foto de frente) e na{' '}
-              <Text style={{ fontWeight: '800' }}>lateral da cintura</Text> (foto de lado).{' '}
-              Parede branca, roupa justa, corpo inteiro visível.
-            </Text>
+            <Text style={s.cardHintText}>{t(language, 'body_analysis_screen.card_hint')}</Text>
           </View>
 
           <View style={s.poseGuideRow}>
             <View style={s.poseTip}>
-              <Text style={s.poseTipLabel}>Frente</Text>
-              <Text style={s.poseTipText}>Cartão no centro do peito{'\n'}Braços afastados · Palmas para a câmera{'\n'}Pernas abertas</Text>
+              <Text style={s.poseTipLabel}>{t(language, 'body_analysis_screen.pose_front_label')}</Text>
+              <Text style={s.poseTipText}>{t(language, 'body_analysis_screen.pose_front_text')}</Text>
             </View>
             <View style={s.poseTip}>
-              <Text style={s.poseTipLabel}>Lado direito</Text>
-              <Text style={s.poseTipText}>Cartão na lateral da cintura{'\n'}LADO DIREITO do corpo para a câmara{'\n'}Braço dir. a 90° à frente (horizontal){'\n'}Braço esq. atrás do corpo · Cabelo em coque</Text>
+              <Text style={s.poseTipLabel}>{t(language, 'body_analysis_screen.pose_side_label')}</Text>
+              <Text style={s.poseTipText}>{t(language, 'body_analysis_screen.pose_side_text')}</Text>
             </View>
           </View>
         </View>
@@ -372,27 +377,27 @@ export default function BodyAnalysisScreen({ navigation, route }) {
                 : (
                   <View style={s.photoEmpty}>
                     <PoseSilhouette pose={side} sex={sex} />
-                    <Text style={s.photoEmptyPlus}>+ {side === 'front' ? 'Frente' : 'Lateral'}</Text>
+                    <Text style={s.photoEmptyPlus}>{t(language, side === 'front' ? 'body_analysis_screen.photo_add_front' : 'body_analysis_screen.photo_add_side')}</Text>
                   </View>
                 )}
-              <Text style={s.photoLabel}>{side === 'front' ? 'Frente' : 'Lateral'}</Text>
+              <Text style={s.photoLabel}>{t(language, side === 'front' ? 'body_analysis_screen.photo_front' : 'body_analysis_screen.photo_side')}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Demographics */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Dados de calibração</Text>
-          <Text style={s.sectionHint}>Altura é opcional se usares o cartão de crédito nas fotos.</Text>
+          <Text style={s.sectionLabel}>{t(language, 'body_analysis_screen.calibration_title')}</Text>
+          <Text style={s.sectionHint}>{t(language, 'body_analysis_screen.calibration_hint')}</Text>
           <View style={s.inputRow}>
-            <Field label="Altura (cm) — opcional" value={heightCm} onChange={setHeightCm} kbType="decimal-pad" />
-            <Field label="Peso (kg)"               value={weightKg} onChange={setWeightKg} kbType="decimal-pad" />
-            <Field label="Idade"       value={age}      onChange={setAge}       kbType="number-pad" />
+            <Field label={t(language, 'body_analysis_screen.field_height')} value={heightCm} onChange={setHeightCm} kbType="decimal-pad" />
+            <Field label={t(language, 'body_analysis_screen.field_weight')} value={weightKg} onChange={setWeightKg} kbType="decimal-pad" />
+            <Field label={t(language, 'body_analysis_screen.field_age')}    value={age}      onChange={setAge}      kbType="number-pad" />
           </View>
           <View style={s.sexRow}>
             {['female','male'].map(sv => (
               <TouchableOpacity key={sv} style={[s.sexBtn, sex === sv && s.sexBtnOn]} onPress={() => setSex(sv)}>
-                <Text style={[s.sexBtnTxt, sex === sv && s.sexBtnTxtOn]}>{sv === 'female' ? '♀ Feminino' : '♂ Masculino'}</Text>
+                <Text style={[s.sexBtnTxt, sex === sv && s.sexBtnTxtOn]}>{t(language, sv === 'female' ? 'body_analysis_screen.sex_female' : 'body_analysis_screen.sex_male')}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -401,8 +406,8 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         {/* Analyse */}
         <TouchableOpacity style={[s.analyzeBtn, (analyzing || !frontUri || !sideUri) && s.analyzeBtnOff]} onPress={runAnalysis} disabled={analyzing || !frontUri || !sideUri} activeOpacity={0.85}>
           {analyzing
-            ? <><ActivityIndicator color="#fff" /><Text style={s.analyzeBtnTxt}> A analisar…</Text></>
-            : <Text style={s.analyzeBtnTxt}>Analisar →</Text>}
+            ? <><ActivityIndicator color="#fff" /><Text style={s.analyzeBtnTxt}>{t(language, 'body_analysis_screen.analyzing')}</Text></>
+            : <Text style={s.analyzeBtnTxt}>{t(language, 'body_analysis_screen.analyze_btn')}</Text>}
         </TouchableOpacity>
 
         {result?.meta?.warnings?.length > 0 && (
@@ -412,8 +417,9 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         {result?.meta?.height_cm_estimated != null && (
           <View style={s.heightBox}>
             <Text style={s.heightBoxTxt}>
-              📏 Altura calculada pela foto: {result.meta.height_cm_estimated} cm
-              {result.meta.input_height_cm ? ` (informada: ${result.meta.input_height_cm} cm)` : ''}
+              {result.meta.input_height_cm
+                ? t(language, 'body_analysis_screen.height_estimated_full', { h: result.meta.height_cm_estimated, informed: result.meta.input_height_cm })
+                : t(language, 'body_analysis_screen.height_estimated_short', { h: result.meta.height_cm_estimated })}
             </Text>
           </View>
         )}
@@ -423,10 +429,10 @@ export default function BodyAnalysisScreen({ navigation, route }) {
           {/* Overlays — tap para ampliar */}
           {result.overlays && (
             <View style={s.overlayRow}>
-              {[['front','Frente'],['side','Lateral']].map(([k,l]) => result.overlays[k] ? (
+              {[['front','overlay_zoom_hint_front'],['side','overlay_zoom_hint_side']].map(([k, hintKey]) => result.overlays[k] ? (
                 <TouchableOpacity key={k} style={s.overlayWrap} onPress={() => setZoomedOverlay(result.overlays[k])} activeOpacity={0.85}>
                   <Image source={{ uri: `data:image/jpeg;base64,${result.overlays[k]}` }} style={s.overlayImg} resizeMode="contain" />
-                  <Text style={s.overlayLabel}>{l} · toca para ampliar</Text>
+                  <Text style={s.overlayLabel}>{t(language, `body_analysis_screen.${hintKey}`)}</Text>
                 </TouchableOpacity>
               ) : null)}
             </View>
@@ -441,7 +447,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
                   <Text style={s.scoreSlash}>/100</Text>
                 </View>
                 <View style={s.scoreInfo}>
-                  <Text style={s.scoreTitle}>NovaQI Score</Text>
+                  <Text style={s.scoreTitle}>{t(language, 'body_analysis_screen.score_title')}</Text>
                   <View style={[s.scorePill, { backgroundColor: scoreColor(sc) + '22' }]}>
                     <Text style={[s.scorePillTxt, { color: scoreColor(sc) }]}>{scoreLabel(sc)}</Text>
                   </View>
@@ -455,14 +461,14 @@ export default function BodyAnalysisScreen({ navigation, route }) {
                 <View style={[s.scoreBarFill, { width: `${sc}%`, backgroundColor: scoreColor(sc) }]} />
               </View>
               {/* Badge grid */}
-              <ScoreBadges cls={cls} sex={sex} />
+              <ScoreBadges cls={cls} sex={sex} language={language} />
             </View>
           )}
 
           {/* ── COMPOSIÇÃO CORPORAL ── */}
           {bc && (
             <View style={s.card}>
-              <Row2 title="Composição corporal" onInfo={() => showInfo('body_fat')} sub="Deurenberg ±4–6%" />
+              <Row2 title={t(language, 'body_analysis_screen.bc_title')} onInfo={() => showInfo('body_fat')} sub={t(language, 'body_analysis_screen.bc_sub')} />
 
               {/* Gauge + split */}
               <View style={s.bfMain}>
@@ -473,11 +479,11 @@ export default function BodyAnalysisScreen({ navigation, route }) {
                       <Text style={[s.bfPillTxt, { color: bf.color }]}>{bf.label}</Text>
                     </View>
                   )}
-                  <Text style={s.bfGaugeLabel}>gordura corporal</Text>
+                  <Text style={s.bfGaugeLabel}>{t(language, 'body_analysis_screen.bc_gauge_label')}</Text>
                 </View>
                 <View style={s.bfCards}>
-                  <MassCard label="Massa magra" kg={bc.lean_mass_kg} color="#22C55E" />
-                  <MassCard label="Massa gorda" kg={bc.fat_mass_kg}  color={bf?.color || '#F59E0B'} />
+                  <MassCard label={t(language, 'body_analysis_screen.bc_lean_mass')} kg={bc.lean_mass_kg} color="#22C55E" />
+                  <MassCard label={t(language, 'body_analysis_screen.bc_fat_mass')}  kg={bc.fat_mass_kg}  color={bf?.color || '#F59E0B'} />
                 </View>
               </View>
 
@@ -485,14 +491,14 @@ export default function BodyAnalysisScreen({ navigation, route }) {
               <View style={s.extraRow}>
                 <TouchableOpacity style={s.extraItem} onPress={() => showInfo('body_water')}>
                   <Text style={s.extraVal}>{bc.body_water_l} L</Text>
-                  <Text style={s.extraLabel}>Água corporal</Text>
-                  <Text style={s.extraSub}>{bc.body_water_pct}%  ·  ?</Text>
+                  <Text style={s.extraLabel}>{t(language, 'body_analysis_screen.bc_water_label')}</Text>
+                  <Text style={s.extraSub}>{t(language, 'body_analysis_screen.bc_water_sub', { pct: bc.body_water_pct })}</Text>
                 </TouchableOpacity>
                 <View style={s.extraDiv} />
                 <TouchableOpacity style={s.extraItem} onPress={() => showInfo('ree')}>
                   <Text style={s.extraVal}>{bc.ree_kcal} kcal</Text>
-                  <Text style={s.extraLabel}>Repouso / dia</Text>
-                  <Text style={s.extraSub}>Cunningham  ·  ?</Text>
+                  <Text style={s.extraLabel}>{t(language, 'body_analysis_screen.bc_ree_label')}</Text>
+                  <Text style={s.extraSub}>{t(language, 'body_analysis_screen.bc_ree_sub')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -500,16 +506,16 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
           {/* ── PERÍMETROS ── */}
           <View style={s.card}>
-            <Row2 title="Perímetros" sub="Precisão ±2–4 cm (modelo elíptico)" />
+            <Row2 title={t(language, 'body_analysis_screen.per_title')} sub={t(language, 'body_analysis_screen.per_sub')} />
             {[
-              ['Peito',       m?.chest_cm,   'chest_cm',   60, 140],
-              ['Pescoço',     m?.neck_cm,    'neck_cm',    25, 55],
-              ['Bíceps',      m?.bicep_cm,   'bicep_cm',   8, 50],
-              ['Antebraço',   m?.forearm_cm, 'forearm_cm', 8, 45],
-              ['Cintura',     m?.waist_cm,   'waist_cm',   50, 130],
-              ['Quadril',     m?.hip_cm,     'hip_cm',     60, 140],
-              ['Coxa',        m?.thigh_cm,   'thigh_cm',   30, 90],
-              ['Panturrilha', m?.calf_cm,    'calf_cm',    20, 60],
+              [t(language, 'body_analysis_screen.per_chest'),   m?.chest_cm,   'chest_cm',   60, 140],
+              [t(language, 'body_analysis_screen.per_neck'),    m?.neck_cm,    'neck_cm',    25, 55],
+              [t(language, 'body_analysis_screen.per_bicep'),   m?.bicep_cm,   'bicep_cm',   8, 50],
+              [t(language, 'body_analysis_screen.per_forearm'), m?.forearm_cm, 'forearm_cm', 8, 45],
+              [t(language, 'body_analysis_screen.per_waist'),   m?.waist_cm,   'waist_cm',   50, 130],
+              [t(language, 'body_analysis_screen.per_hip'),     m?.hip_cm,     'hip_cm',     60, 140],
+              [t(language, 'body_analysis_screen.per_thigh'),   m?.thigh_cm,   'thigh_cm',   30, 90],
+              [t(language, 'body_analysis_screen.per_calf'),    m?.calf_cm,    'calf_cm',    20, 60],
             ].map(([label, val, key, min, max]) => (
               <View key={key}>
                 <MetricRow label={label} value={val != null ? `${val} cm` : '—'} onInfo={() => showInfo(key)} />
@@ -520,14 +526,14 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
           {/* ── ÍNDICES ── */}
           <View style={s.card}>
-            <Row2 title="Índices" />
+            <Row2 title={t(language, 'body_analysis_screen.idx_title')} />
             {[
-              { label: 'IMC',                    val: idx?.bmi,             clsKey: 'bmi',             infoKey: 'bmi',             min: 15, max: 40, threshOk: [18.5, 25], higher: false },
-              { label: 'IMM (kg/m²)',            val: idx?.lean_mass_index, clsKey: 'lean_mass_index', infoKey: 'lean_mass_index', min: 8,  max: 25, threshOk: [sex==='male'?14.6:11.8, 25], higher: true },
-              { label: 'IMG (kg/m²)',            val: idx?.fat_mass_index,  clsKey: 'fat_mass_index',  infoKey: 'fat_mass_index',  min: 0,  max: 18, threshOk: [0, sex==='male'?6:9], higher: false },
-              { label: 'Razão cin./estatura',    val: idx?.waist_to_height, clsKey: 'waist_to_height', infoKey: 'waist_to_height', min: 0.3, max: 0.8, threshOk: [0.3, 0.5], higher: false },
-              { label: 'Razão cintura/quadril',  val: idx?.waist_to_hip,    clsKey: 'waist_to_hip',    infoKey: 'waist_to_hip',    min: 0.5, max: 1.2, threshOk: [0.5, sex==='male'?0.9:0.85], higher: false },
-              { label: 'Índice de conicidade',   val: idx?.conicity_index,  clsKey: 'conicity_index',  infoKey: 'conicity_index',  min: 0.9, max: 1.5, threshOk: [0.9, 1.18], higher: false },
+              { label: t(language, 'body_analysis_screen.idx_bmi'), val: idx?.bmi,             clsKey: 'bmi',             infoKey: 'bmi',             min: 15,  max: 40 },
+              { label: t(language, 'body_analysis_screen.idx_lmi'), val: idx?.lean_mass_index, clsKey: 'lean_mass_index', infoKey: 'lean_mass_index', min: 8,   max: 25 },
+              { label: t(language, 'body_analysis_screen.idx_fmi'), val: idx?.fat_mass_index,  clsKey: 'fat_mass_index',  infoKey: 'fat_mass_index',  min: 0,   max: 18 },
+              { label: t(language, 'body_analysis_screen.idx_wth'), val: idx?.waist_to_height, clsKey: 'waist_to_height', infoKey: 'waist_to_height', min: 0.3, max: 0.8 },
+              { label: t(language, 'body_analysis_screen.idx_whr'), val: idx?.waist_to_hip,    clsKey: 'waist_to_hip',    infoKey: 'waist_to_hip',    min: 0.5, max: 1.2 },
+              { label: t(language, 'body_analysis_screen.idx_ci'),  val: idx?.conicity_index,  clsKey: 'conicity_index',  infoKey: 'conicity_index',  min: 0.9, max: 1.5 },
             ].map(({ label, val, clsKey, infoKey, min, max }) => {
               const c = cls?.[clsKey];
               const barColor = clsC(c);
@@ -536,7 +542,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
                   <MetricRow
                     label={label}
                     value={val != null ? String(val) : '—'}
-                    tag={clsL(c)}
+                    tag={clsL(c, language)}
                     tagColor={clsC(c)}
                     onInfo={() => showInfo(infoKey)}
                   />
@@ -548,34 +554,34 @@ export default function BodyAnalysisScreen({ navigation, route }) {
 
           {/* ── TABELA DE REFERÊNCIAS ── */}
           <View style={s.card}>
-            <Row2 title="Referências" />
+            <Row2 title={t(language, 'body_analysis_screen.ref_title')} />
             {[
-              ['IMG',  idx?.fat_mass_index  != null ? `${idx.fat_mass_index} kg/m²`  : '—', sex==='male' ? '<6,0' : '<9,0', 'fat_mass_index'],
-              ['IMM',  idx?.lean_mass_index != null ? `${idx.lean_mass_index} kg/m²` : '—', sex==='male' ? '>14,6' : '>11,8', 'lean_mass_index'],
-              ['RCE',  idx?.waist_to_height != null ? String(idx.waist_to_height)    : '—', '<0,5',                           'waist_to_height'],
-              ['RCQ',  idx?.waist_to_hip    != null ? String(idx.waist_to_hip)       : '—', sex==='male' ? '<0,90' : '<0,85', 'waist_to_hip'],
-              ['IC',   idx?.conicity_index  != null ? String(idx.conicity_index)     : '—', '<1,18',                          'conicity_index'],
+              [t(language, 'body_analysis_screen.badge_fat_mass_index'),  idx?.fat_mass_index  != null ? `${idx.fat_mass_index} kg/m²`  : '—', sex==='male' ? '<6,0' : '<9,0', 'fat_mass_index'],
+              [t(language, 'body_analysis_screen.badge_lean_mass_index'), idx?.lean_mass_index != null ? `${idx.lean_mass_index} kg/m²` : '—', sex==='male' ? '>14,6' : '>11,8', 'lean_mass_index'],
+              [t(language, 'body_analysis_screen.badge_waist_to_height'), idx?.waist_to_height != null ? String(idx.waist_to_height)    : '—', '<0,5',                           'waist_to_height'],
+              [t(language, 'body_analysis_screen.badge_waist_to_hip'),    idx?.waist_to_hip    != null ? String(idx.waist_to_hip)       : '—', sex==='male' ? '<0,90' : '<0,85', 'waist_to_hip'],
+              [t(language, 'body_analysis_screen.badge_conicity_index'),  idx?.conicity_index  != null ? String(idx.conicity_index)     : '—', '<1,18',                          'conicity_index'],
             ].map(([label, val, ref, key]) => (
               <View key={key} style={s.refRow}>
                 <Text style={s.refLabel}>{label}</Text>
-                <Text style={s.refRef}>ref. {ref}</Text>
+                <Text style={s.refRef}>{t(language, 'body_analysis_screen.ref_prefix', { v: ref })}</Text>
                 <Text style={[s.refVal, { color: clsC(cls?.[key]) }]}>{val}</Text>
               </View>
             ))}
           </View>
 
           <TouchableOpacity style={s.saveBtn} onPress={saveResults} activeOpacity={0.85}>
-            <Text style={s.saveBtnTxt}>Guardar resultados</Text>
+            <Text style={s.saveBtnTxt}>{t(language, 'body_analysis_screen.save_btn')}</Text>
           </TouchableOpacity>
         </>}
 
         {/* Disclaimer */}
         <View style={s.disclaimerBox}>
-          <Text style={s.disclaimerTitle}>Aviso legal</Text>
+          <Text style={s.disclaimerTitle}>{t(language, 'body_analysis_screen.disclaimer_title')}</Text>
           <Text style={s.disclaimerTxt}>
-            Os dados gerados por esta análise <Text style={s.disclaimerBold}>não têm poder diagnóstico</Text> e não substituem avaliação clínica. A interpretação final é responsabilidade do profissional de saúde.{'\n\n'}
-            <Text style={s.disclaimerBold}>As fotos não são armazenadas pelo NovaQI.</Text> São eliminadas do servidor imediatamente após a análise. A gestão das imagens é responsabilidade exclusiva do utilizador.{'\n\n'}
-            Poses, vestuário e qualidade da imagem podem influenciar os resultados. Precisão dos perímetros: ±2–4 cm. Erro % gordura: ±4–6% vs. DEXA.
+            {t(language, 'body_analysis_screen.disclaimer_p1')}{'\n\n'}
+            {t(language, 'body_analysis_screen.disclaimer_p2')}{'\n\n'}
+            {t(language, 'body_analysis_screen.disclaimer_p3')}
           </Text>
         </View>
 

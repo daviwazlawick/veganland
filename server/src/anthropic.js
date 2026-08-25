@@ -1071,53 +1071,54 @@ export function buildMissingIngredientsResult(product, language) {
 
 export async function analyzePlate(imageBase64, language = 'en', profile = null) {
   const lang = responseLanguage(language);
-  const { diet, allergies } = profileDescription(profile, language);
+  const { diet } = profileDescription(profile, language);
   const isPt = language === 'pt' || language === 'pt-BR';
 
-  const dietRulesBlock = diet === 'none' ? '' : isPt ? `
-DIETA DO UTILIZADOR: ${diet}
-Alergias: ${allergies}
+  // Plate photos are user-prepared meals — we ASSUME every visible item is
+  // compliant with the user's chosen diet. Diet compatibility checks belong
+  // to packaged-product scanning (barcode / label photo), not to plate scans.
+  // The model is instructed to name ambiguous items with the diet-appropriate
+  // variant (e.g. "vegan cheese", "plant-based sausage", "halal chicken").
+  const DIET_HINTS = {
+    vegan:        { pt: 'É um prato vegan. Nomeia qualquer queijo/leite/iogurte/nata/manteiga/molho/proteína/hambúrguer/salsicha/pastel/carne/atum/frango/ovo visível como a versão vegetal correspondente ("queijo vegan", "hambúrguer de soja", "leite de aveia", "atum vegetal", "iogurte de coco", "molho de soja", etc.). Nunca assumas ovos, lacticínios, mel, peixe ou carne animal — se parece ovo mexido é tofu mexido, se parece leite é bebida vegetal.',
+                    en: 'This is a vegan plate. Any visible cheese/milk/yoghurt/cream/butter/sauce/protein/burger/sausage/nugget/meat/tuna/chicken/egg is the plant-based version ("vegan cheese", "soy burger", "oat milk", "vegan tuna", "coconut yoghurt", "soy sauce" etc.). Never assume eggs, dairy, honey, fish or animal meat — if it looks like scrambled eggs it is scrambled tofu, if it looks like milk it is a plant drink.' },
+    vegetarian:   { pt: 'É um prato vegetariano. Qualquer proteína "cárnea" visível (hambúrguer, salsicha, pastel, nuggets, "carne moída") é a versão vegetariana. Lacticínios e ovos são reais. Peixe/marisco nunca aparecem — se parece atum é atum vegetal.',
+                    en: 'This is a vegetarian plate. Any meat-like protein visible (burger, sausage, nuggets, "ground meat") is the vegetarian version. Dairy and eggs are real. Fish/seafood are never present — if it looks like tuna it is a plant tuna.' },
+    pescatarian:  { pt: 'É um prato pescetariano. Carne de mamíferos/aves nunca aparece — se parece frango é um substituto vegetal ou peixe. Peixe, marisco, lacticínios e ovos são reais.',
+                    en: 'This is a pescatarian plate. Mammal/poultry meat never appears — if it looks like chicken it is a plant substitute or fish. Fish, shellfish, dairy and eggs are real.' },
+    halal:        { pt: 'É um prato halal. Qualquer carne visível é halal (frango halal, borrego halal, bovino halal). Não há porco, presunto, bacon ou álcool — se parece bacon é bacon de peru halal, se parece vinho é sumo/vinagre sem álcool.',
+                    en: 'This is a halal plate. Any visible meat is halal (halal chicken, halal lamb, halal beef). No pork, ham, bacon or alcohol — if it looks like bacon it is halal turkey bacon, if it looks like wine it is non-alcoholic juice/vinegar.' },
+    kosher:       { pt: 'É um prato kosher. Não há porco nem marisco. Se o prato contém carne, não há lacticínios (e vice-versa) — nomeia queijo/leite visíveis como pareve/vegetal quando o prato tem carne.',
+                    en: 'This is a kosher plate. No pork or shellfish. If the plate has meat there is no dairy (and vice versa) — name any visible cheese/milk as pareve/plant-based when meat is present.' },
+    gluten_free:  { pt: 'É um prato sem glúten. Qualquer pão, massa, panado, molho ou cerveja visível é a versão sem glúten ("pão sem glúten", "massa de arroz", "panado sem glúten").',
+                    en: 'This is a gluten-free plate. Any visible bread, pasta, breading, sauce or beer is the gluten-free version ("gluten-free bread", "rice pasta", "gluten-free breading").' },
+    paleo:        { pt: 'É um prato paleo. Não há leguminosas, cereais nem lacticínios processados — se parece arroz é couve-flor, se parece pão é pão de coco/amêndoa.',
+                    en: 'This is a paleo plate. No legumes, grains or processed dairy — if it looks like rice it is cauliflower, if it looks like bread it is coconut/almond bread.' },
+    keto:         { pt: 'É um prato keto. Se parece pão/massa/arroz/batata é a versão low-carb (pão keto, "massa" de courgette, "arroz" de couve-flor, batata-doce em porção mínima).',
+                    en: 'This is a keto plate. If it looks like bread/pasta/rice/potato it is the low-carb version (keto bread, zucchini "pasta", cauliflower "rice", minimal sweet potato).' },
+  };
 
-Regras de compatibilidade:
-- "vegan": qualquer carne, peixe, frutos do mar, lacticínios, ovos, mel ou derivado animal = NOT_SAFE
-- "vegetarian": carne, peixe, frutos do mar = NOT_SAFE; lacticínios e ovos = SAFE
-- "pescatarian": apenas carne de mamíferos/aves = NOT_SAFE; peixe e marisco = SAFE
-- "halal": carne de porco, álcool, sangue = NOT_SAFE; carne cuja origem/abate seja desconhecida = CAUTION
-- "kosher": carne de porco, marisco, mistura carne+lacticínios no mesmo prato = NOT_SAFE
-- "gluten_free": trigo, centeio, cevada, aveia = NOT_SAFE
-- "paleo": leguminosas, grãos, produtos lácteos processados, açúcar refinado = CAUTION
-- "keto": qualquer alimento rico em hidratos de carbono (pão, massa, arroz, fruta, açúcar) = CAUTION
-- "onivore": tudo é SAFE a menos que contenha alergénios declarados
+  function dietHint(d) {
+    if (!d || d === 'none' || d === 'omnivore' || d === 'onivore') return '';
+    const h = DIET_HINTS[d];
+    if (!h) return '';
+    return isPt ? h.pt : h.en;
+  }
 
-Para alergias: qualquer alimento que contenha ou possa conter o alergénio = NOT_SAFE ou CAUTION.
+  const dietBlock = (() => {
+    const h = dietHint(diet);
+    if (!h) return '';
+    return isPt
+      ? `\nContexto do utilizador — dieta: ${diet}.\n${h}\n`
+      : `\nUser context — diet: ${diet}.\n${h}\n`;
+  })();
 
-Avalia CADA item individualmente e fornece um veredicto geral para o prato inteiro.` : `
-USER DIET: ${diet}
-Allergies: ${allergies}
-
-Compatibility rules:
-- "vegan": any meat, fish, seafood, dairy, eggs, honey, or animal derivative = NOT_SAFE
-- "vegetarian": meat, fish, seafood = NOT_SAFE; dairy and eggs = SAFE
-- "pescatarian": mammal/poultry meat only = NOT_SAFE; fish and shellfish = SAFE
-- "halal": pork, alcohol, blood = NOT_SAFE; meat of unknown origin/slaughter = CAUTION
-- "kosher": pork, shellfish, mixing meat+dairy on same plate = NOT_SAFE
-- "gluten_free": wheat, rye, barley, oats = NOT_SAFE
-- "paleo": legumes, grains, processed dairy, refined sugar = CAUTION
-- "keto": any high-carb food (bread, pasta, rice, fruit, sugar) = CAUTION
-- "omnivore": everything is SAFE unless it contains declared allergens
-
-For allergies: any food containing or likely containing the allergen = NOT_SAFE or CAUTION.
-
-Evaluate EACH item individually and provide an overall verdict for the whole plate.`;
-
-  const prompt = `You are a nutrition and dietary expert analyzing a photo of a meal or food plate.
-${dietRulesBlock}
-
+  const prompt = `You are a nutrition expert analyzing a photo of a home-served meal or food plate. The user prepared or ordered this meal within their own diet, so every visible item is by definition compatible with that diet — do NOT flag anything as non-compliant.
+${dietBlock}
 Identify every distinct food item visible. For each item estimate:
-- A clear name in ${lang}
+- A clear name in ${lang}, using the diet-appropriate qualifier when the item is ambiguous (e.g. "vegan cheese" instead of "cheese" for a vegan user, "halal chicken" for a halal user, "gluten-free pasta" for a gluten-free user).
 - Portion size in grams (realistic estimate)
-- Nutritional values for that portion
-${diet !== 'none' ? `- Whether it is compatible with the user's diet (item_status: "SAFE", "CAUTION", or "NOT_SAFE" and a brief item_concern if not SAFE)` : ''}
+- Nutritional values for that portion, using the values of the diet-appropriate version (e.g. use plant-based cheese macros for "vegan cheese").
 
 Return ONLY valid JSON:
 {
@@ -1131,16 +1132,9 @@ Return ONLY valid JSON:
       "carbs_g": 20.0,
       "fiber_g": 2.1,
       "sugar_g": 3.0,
-      "salt_g": 0.5${diet !== 'none' ? `,
-      "item_status": "SAFE",
-      "item_concern": null` : ''}
+      "salt_g": 0.5
     }
-  ]${diet !== 'none' ? `,
-  "diet_verdict": {
-    "status": "SAFE",
-    "concerns": [],
-    "explanation": "Brief explanation of the overall verdict in ${lang}"
-  }` : ''}
+  ]
 }
 
 Rules:
@@ -1149,7 +1143,7 @@ Rules:
 - If you cannot identify food return {"items": []}
 - Include ALL visible food items: sauces, sides, drinks
 - Do not include plate, cutlery, or non-food items
-- Be accurate and honest about diet compatibility — do not guess when in doubt, use CAUTION`;
+- Do NOT return any diet verdict, item_status, item_concern, or compatibility field — plate items are assumed compliant.`;
 
   // Detect actual image type from base64 magic bytes to avoid Anthropic rejection
   function detectMediaType(b64) {
@@ -1179,8 +1173,8 @@ Rules:
       fiber_g:       acc.fiber_g       + (Number(item.fiber_g)       || 0),
     }), { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 });
     Object.keys(total).forEach(k => { total[k] = Math.round(total[k] * 10) / 10; });
-    return { items, total, diet_verdict: parsed.diet_verdict || null };
+    return { items, total };
   } catch {
-    return { items: [], total: { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 }, diet_verdict: null };
+    return { items: [], total: { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 } };
   }
 }

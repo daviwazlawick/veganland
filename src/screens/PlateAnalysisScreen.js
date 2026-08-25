@@ -13,7 +13,6 @@ import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
-import { PremiumIcon } from '../components/ui';
 import { apiAnalyzePlate, apiSearchFood } from '../services/apiService';
 import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 
@@ -29,12 +28,6 @@ const FOOD_SUGGESTIONS = {
   fr: ['Riz blanc','Riz complet','Blanc de poulet','Poulet grillé','Saumon','Thon','Steak de bœuf','Œufs brouillés','Œuf au plat','Omelette','Pomme de terre bouillie','Pomme de terre rôtie','Frites','Patate douce','Brocoli','Épinards','Laitue','Tomate','Carotte','Courgette','Aubergine','Oignon','Pomme','Banane','Orange','Yaourt nature','Yaourt grec','Fromage','Beurre','Huile d\'olive','Pain complet','Pain blanc','Flocons d\'avoine','Granola','Pâtes','Pâtes complètes','Pizza','Burger','Salade','Soupe','Avocat','Quinoa','Lentilles','Pois chiches','Tofu'],
   it: ['Riso bianco','Riso integrale','Petto di pollo','Pollo alla griglia','Salmone','Tonno','Bistecca','Uova strapazzate','Uovo fritto','Frittata','Patata bollita','Patata arrosto','Patatine fritte','Patata dolce','Broccoli','Spinaci','Lattuga','Pomodoro','Carota','Zucchina','Melanzana','Cipolla','Mela','Banana','Arancia','Yogurt naturale','Yogurt greco','Formaggio','Burro','Olio d\'oliva','Pane integrale','Pane bianco','Avena','Granola','Pasta','Pasta integrale','Pizza','Hamburger','Insalata','Zuppa','Avocado','Quinoa','Lenticchie','Ceci','Tofu'],
   es: ['Arroz blanco','Arroz integral','Pechuga de pollo','Pollo a la plancha','Salmón','Atún','Filete de ternera','Huevos revueltos','Huevo frito','Tortilla','Patata cocida','Patata asada','Patatas fritas','Boniato','Brócoli','Espinacas','Lechuga','Tomate','Zanahoria','Calabacín','Berenjena','Cebolla','Manzana','Plátano','Naranja','Yogur natural','Yogur griego','Queso','Mantequilla','Aceite de oliva','Pan integral','Pan blanco','Avena','Granola','Pasta','Pasta integral','Pizza','Hamburguesa','Ensalada','Sopa','Aguacate','Quinoa','Lentejas','Garbanzos','Tofu'],
-};
-
-const STATUS_CONFIG = {
-  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe',    labelKey: 'result.safe' },
-  CAUTION:  { color: Colors.cautionDark, bg: Colors.cautionLight, strip: Colors.caution, icon: 'caution', labelKey: 'result.caution' },
-  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger',  labelKey: 'result.not_safe' },
 };
 
 const EMPTY_ITEM = () => ({ name: '', grams: '', calories_kcal: '', protein_g: '', fat_g: '', carbs_g: '', fiber_g: '', sugar_g: '', salt_g: '' });
@@ -67,6 +60,8 @@ export default function PlateAnalysisScreen({ navigation }) {
 
   const [burnExIds, setBurnExIds] = useState(DEFAULT_BURN_EXERCISES);
 
+  const [noticeOpen, setNoticeOpen] = useState(false);
+
   useEffect(() => {
     if (!isNovaQI) return;
     AsyncStorage.getItem('@exercise_favorites').then(v => {
@@ -80,6 +75,17 @@ export default function PlateAnalysisScreen({ navigation }) {
       } catch (_) {}
     });
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@plate_notice_dismissed').then(v => {
+      if (v !== '1') setNoticeOpen(true);
+    });
+  }, []);
+
+  function dismissNoticeForever() {
+    AsyncStorage.setItem('@plate_notice_dismissed', '1').catch(() => {});
+    setNoticeOpen(false);
+  }
 
   // Edit / add modal
   const [editModal, setEditModal] = useState(false);
@@ -192,8 +198,6 @@ export default function PlateAnalysisScreen({ navigation }) {
       Alert.alert('', 'O nome do alimento é obrigatório.');
       return;
     }
-    const prev = editIndex !== null ? editableItems[editIndex] : {};
-    const nameChanged = editDraft.name.trim() !== (prev.name || '');
     const item = {
       name:          editDraft.name.trim(),
       grams:         parseFloat(editDraft.grams)         || 0,
@@ -204,9 +208,6 @@ export default function PlateAnalysisScreen({ navigation }) {
       fiber_g:       parseFloat(editDraft.fiber_g)       || 0,
       sugar_g:       parseFloat(editDraft.sugar_g)       || 0,
       salt_g:        parseFloat(editDraft.salt_g)        || 0,
-      // clear diet classification when name changes — it belongs to the old food
-      item_status:   nameChanged ? null : (prev.item_status || null),
-      item_concern:  nameChanged ? null : (prev.item_concern || null),
     };
     setEditableItems(curr => {
       const next = [...curr];
@@ -214,14 +215,11 @@ export default function PlateAnalysisScreen({ navigation }) {
       next[editIndex] = item;
       return next;
     });
-    // any manual edit invalidates the overall plate verdict
-    setResult(r => r ? { ...r, diet_verdict: null } : r);
     setEditModal(false);
   }
 
   function deleteItem(index) {
     setEditableItems(prev => prev.filter((_, i) => i !== index));
-    setResult(r => r ? { ...r, diet_verdict: null } : r);
     setEditModal(false);
   }
 
@@ -318,8 +316,6 @@ export default function PlateAnalysisScreen({ navigation }) {
   }
 
   const liveTotal = calcTotal(editableItems);
-  const verdict = result?.diet_verdict;
-  const cfg = verdict?.status ? (STATUS_CONFIG[verdict.status] || STATUS_CONFIG.CAUTION) : null;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -328,8 +324,33 @@ export default function PlateAnalysisScreen({ navigation }) {
           <Text style={s.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t(language, 'nutrition.plate_title')}</Text>
-        <View style={{ width: 44 }} />
+        <TouchableOpacity
+          onPress={() => setNoticeOpen(true)}
+          style={s.headerInfoBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={t(language, 'nutrition.plate_notice_title')}
+        >
+          <Text style={s.headerInfoBtnText}>ⓘ</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* ── Info modal (auto-opens on first entry, reopens via header ⓘ) ── */}
+      <Modal visible={noticeOpen} transparent animationType="fade" onRequestClose={() => setNoticeOpen(false)}>
+        <TouchableOpacity style={s.noticeOverlay} activeOpacity={1} onPress={() => setNoticeOpen(false)}>
+          <TouchableOpacity activeOpacity={1} style={s.noticeCard}>
+            <Text style={s.noticeTitle}>{t(language, 'nutrition.plate_notice_title')}</Text>
+            <Text style={s.noticeBody}>{t(language, 'nutrition.plate_notice_body')}</Text>
+            <View style={s.noticeActions}>
+              <TouchableOpacity style={[s.noticeBtn, s.noticeBtnGhost]} onPress={dismissNoticeForever}>
+                <Text style={s.noticeBtnGhostText}>{t(language, 'nutrition.plate_notice_dismiss')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.noticeBtn, s.noticeBtnPrimary]} onPress={() => setNoticeOpen(false)}>
+                <Text style={s.noticeBtnPrimaryText}>{t(language, 'nutrition.plate_notice_close')}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 24 }]}>
 
@@ -382,61 +403,29 @@ export default function PlateAnalysisScreen({ navigation }) {
 
             {!analyzing && (result || editableItems.length > 0) && (
               <>
-                {cfg && (
-                  <View style={[s.verdictCard, { backgroundColor: cfg.bg, borderColor: cfg.strip }]}>
-                    <View style={[s.verdictIconWrap, { backgroundColor: cfg.strip + '30' }]}>
-                      <PremiumIcon name={cfg.icon} size={36} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.verdictStatus, { color: cfg.color }]}>{t(language, cfg.labelKey)}</Text>
-                      {verdict.explanation ? (
-                        <Text style={[s.verdictExplanation, { color: cfg.color }]}>{verdict.explanation}</Text>
-                      ) : null}
-                      {verdict.concerns?.length > 0 && (
-                        <View style={s.verdictConcerns}>
-                          {verdict.concerns.map((c, i) => (
-                            <Text key={i} style={[s.verdictConcernItem, { color: cfg.color }]}>• {c}</Text>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                )}
-
                 <View style={s.card}>
                   <Text style={s.sectionTitle}>
                     {t(language, 'nutrition.plate_items_found')} ({editableItems.length})
                   </Text>
 
-                  {editableItems.map((item, i) => {
-                    const itemCfg = item.item_status ? (STATUS_CONFIG[item.item_status] || null) : null;
-                    return (
-                      <TouchableOpacity
-                        key={i}
-                        style={[s.itemRow, itemCfg && { borderLeftWidth: 3, borderLeftColor: itemCfg.strip, paddingLeft: 10 }]}
-                        onPress={() => openEdit(i)}
-                        activeOpacity={0.75}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <View style={s.itemNameRow}>
-                            <Text style={s.itemName}>{item.name}</Text>
-                            {itemCfg && item.item_status !== 'SAFE' && (
-                              <View style={[s.itemStatusDot, { backgroundColor: itemCfg.strip }]} />
-                            )}
-                          </View>
-                          <Text style={s.itemMacros}>
-                            {Math.round(item.grams || 0)}g
-                            {item.calories_kcal ? `  ·  ${Math.round(item.calories_kcal)} kcal` : ''}
-                            {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
-                          </Text>
-                          {item.item_concern ? (
-                            <Text style={[s.itemConcern, { color: itemCfg?.color || '#94a3b8' }]}>{item.item_concern}</Text>
-                          ) : null}
-                        </View>
-                        <Text style={s.editChev}>✏️</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {editableItems.map((item, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={s.itemRow}
+                      onPress={() => openEdit(i)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.itemName}>{item.name}</Text>
+                        <Text style={s.itemMacros}>
+                          {Math.round(item.grams || 0)}g
+                          {item.calories_kcal ? `  ·  ${Math.round(item.calories_kcal)} kcal` : ''}
+                          {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
+                        </Text>
+                      </View>
+                      <Text style={s.editChev}>✏️</Text>
+                    </TouchableOpacity>
+                  ))}
 
                   <View style={s.totalRow}>
                     <Text style={s.totalLabel}>Total</Text>
@@ -616,6 +605,19 @@ const s = StyleSheet.create({
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 28, color: Colors.headerText, marginTop: -2 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.headerText, fontFamily: BrandFonts?.heading },
+  headerInfoBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerInfoBtnText: { fontSize: 22, color: Colors.headerText, fontWeight: '700' },
+
+  noticeOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  noticeCard: { backgroundColor: '#fff', borderRadius: 20, padding: 22, width: '100%', gap: 14, elevation: 12 },
+  noticeTitle: { fontSize: 17, fontWeight: '900', color: Colors.navy, fontFamily: BrandFonts?.heading },
+  noticeBody: { fontSize: 14, color: '#334155', lineHeight: 21, fontWeight: '500' },
+  noticeActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  noticeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  noticeBtnGhost: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+  noticeBtnGhostText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
+  noticeBtnPrimary: { backgroundColor: Colors.navy },
+  noticeBtnPrimaryText: { fontSize: 13, fontWeight: '800', color: '#fff' },
   content: { padding: 16, gap: 14 },
 
   pickCard: { backgroundColor: '#fff', borderRadius: 20, padding: 32, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#E5E7EB' },
@@ -637,21 +639,11 @@ const s = StyleSheet.create({
   analyzingCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#E5E7EB' },
   analyzingText: { fontSize: 14, color: '#64748b', fontWeight: '600' },
 
-  verdictCard: { borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: 2 },
-  verdictIconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  verdictStatus: { fontSize: 16, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
-  verdictExplanation: { fontSize: 13, fontWeight: '500', marginTop: 4, lineHeight: 18, opacity: 0.85 },
-  verdictConcerns: { marginTop: 6, gap: 2 },
-  verdictConcernItem: { fontSize: 12, fontWeight: '600', lineHeight: 17 },
-
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
   itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 8 },
-  itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemName: { fontSize: 14, fontWeight: '600', color: Colors.navy },
-  itemStatusDot: { width: 8, height: 8, borderRadius: 4 },
   itemMacros: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  itemConcern: { fontSize: 11, fontWeight: '600', marginTop: 3, fontStyle: 'italic' },
   editChev: { fontSize: 14, opacity: 0.5 },
 
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8 },

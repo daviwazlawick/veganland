@@ -18,6 +18,16 @@ const isNovaQI = Brand.id === 'novaqi';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 12) / 2;
 
+function buildBirthDate(year, month, day) {
+  const y = year.trim(), m = month.trim(), d = day.trim();
+  if (y.length !== 4) return null;
+  const yn = parseInt(y, 10), mn = parseInt(m, 10) || 1, dn = parseInt(d, 10) || 1;
+  if (!yn || mn < 1 || mn > 12 || dn < 1 || dn > 31) return null;
+  const dt = new Date(yn, mn - 1, dn);
+  if (dt.getFullYear() !== yn || dt.getMonth() !== mn - 1 || dt.getDate() !== dn) return null;
+  return `${y}-${String(mn).padStart(2, '0')}-${String(dn).padStart(2, '0')}`;
+}
+
 export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
   const { token, user, refreshUser } = useAuth();
@@ -31,6 +41,8 @@ export default function ProfileSetupScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   // Step 3 (first-time only): basic body info
   const [bodyName, setBodyName] = useState('');
+  const [bodyBirthDay, setBodyBirthDay] = useState('');
+  const [bodyBirthMonth, setBodyBirthMonth] = useState('');
   const [bodyBirthYear, setBodyBirthYear] = useState('');
   const [bodyHeight, setBodyHeight] = useState('');
   const [bodyWeight, setBodyWeight] = useState('');
@@ -62,10 +74,8 @@ export default function ProfileSetupScreen({ navigation }) {
         halalStrictness: selectedDiet === 'halal' ? halalStrictness : (profile?.halalStrictness || null),
         name: bodyName.trim() || profile?.name || null,
       });
-      if (isFirstTime && (bodyBirthYear || bodyHeight || bodyWeight)) {
-        const birthDate = bodyBirthYear.trim().length === 4
-          ? `${bodyBirthYear.trim()}-01-01`
-          : null;
+      if (isFirstTime && (bodyBirthYear || bodyBirthMonth || bodyBirthDay || bodyHeight || bodyWeight)) {
+        const birthDate = buildBirthDate(bodyBirthYear, bodyBirthMonth, bodyBirthDay);
         await saveBodyProfile({
           birth_date: birthDate,
           height_cm: bodyHeight ? parseFloat(bodyHeight) : null,
@@ -278,17 +288,42 @@ export default function ProfileSetupScreen({ navigation }) {
                 />
               </View>
               <View style={styles.bodyField}>
-                <Text style={styles.bodyFieldLabel}>{t(language, 'profile_setup.body_birth_year')}</Text>
-                <TextInput
-                  style={styles.bodyInput}
-                  placeholder={t(language, 'profile_setup.body_birth_year_placeholder')}
-                  placeholderTextColor={Colors.textMuted}
-                  value={bodyBirthYear}
-                  onChangeText={setBodyBirthYear}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  returnKeyType="next"
-                />
+                <Text style={styles.bodyFieldLabel}>{t(language, 'profile_setup.body_birth_date')}</Text>
+                <View style={styles.bodyRow}>
+                  <TextInput
+                    style={[styles.bodyInput, styles.bodyInputDate]}
+                    placeholder={t(language, 'profile_setup.body_birth_day_placeholder')}
+                    placeholderTextColor={Colors.textMuted}
+                    value={bodyBirthDay}
+                    onChangeText={(v) => setBodyBirthDay(v.replace(/\D/g, '').slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    returnKeyType="next"
+                    textAlign="center"
+                  />
+                  <TextInput
+                    style={[styles.bodyInput, styles.bodyInputDate]}
+                    placeholder={t(language, 'profile_setup.body_birth_month_placeholder')}
+                    placeholderTextColor={Colors.textMuted}
+                    value={bodyBirthMonth}
+                    onChangeText={(v) => setBodyBirthMonth(v.replace(/\D/g, '').slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    returnKeyType="next"
+                    textAlign="center"
+                  />
+                  <TextInput
+                    style={[styles.bodyInput, styles.bodyInputYear]}
+                    placeholder={t(language, 'profile_setup.body_birth_year_placeholder')}
+                    placeholderTextColor={Colors.textMuted}
+                    value={bodyBirthYear}
+                    onChangeText={(v) => setBodyBirthYear(v.replace(/\D/g, '').slice(0, 4))}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    returnKeyType="next"
+                    textAlign="center"
+                  />
+                </View>
               </View>
               <View style={styles.bodyRow}>
                 <View style={[styles.bodyField, { flex: 1 }]}>
@@ -629,4 +664,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   bodyRow: { flexDirection: 'row', gap: 12 },
+  bodyInputDate: { flex: 1 },
+  bodyInputYear: { flex: 1.5 },
 });
