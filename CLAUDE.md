@@ -1739,6 +1739,22 @@ Mudança de modelo: **a análise de prato NÃO faz verificação de dieta**. Pra
 - **`src/screens/PlateAnalysisScreen.js`**: removido `STATUS_CONFIG`, o verdict card, os dots/concerns por item, o helper de invalidação `setResult(r => ({...r, diet_verdict: null}))` nos edits/deletes, o import `PremiumIcon` (deixou de ser usado) e os styles órfãos `verdictCard/verdictIconWrap/verdictStatus/verdictExplanation/verdictConcerns/verdictConcernItem/itemNameRow/itemStatusDot/itemConcern`.
 - **Como aplicar**: qualquer nova dieta futura precisa de uma entrada em `DIET_HINTS` no `analyzePlate` (não em regras SAFE/UNSAFE). A verificação de compatibilidade continua a viver no fluxo de scan de produtos e não deve ser reintroduzida em plate scans.
 
+### v1.0.17 — deps nativas pré-instaladas para futuro automatic body scan
+Build nativo com **superconjunto de deps** para permitir que a feature futura seja shippable via OTA:
+- `react-native-vision-camera@^4.7` (câmara + frame processors)
+- `react-native-worklets-core@^1.6` (worklets para frame processors)
+- `react-native-fast-tflite@^3.0` (inferência TFLite on-device — CoreML delegate iOS + GPU delegate Android ambos activados)
+- `expo-speech@~14.0` (cues de áudio em qualquer idioma)
+
+Ficheiros afectados:
+- `package.json` — 4 deps novas + bloco `expo.doctor.reactNativeDirectoryCheck.exclude: ["react-native-fast-tflite"]` (untested-on-new-arch warning silenciado; v3+ funciona OK)
+- `babel.config.js` **criado** (não existia) — adiciona `react-native-worklets-core/plugin` (obrigatório para frame processors)
+- `app.config.js` — plugins novos: `react-native-vision-camera` (mic **off**, location **off**, frame processors **on**) e `react-native-fast-tflite` (CoreML + Android GPU); bump `version 1.0.16 → 1.0.17` e `versionCode 19 → 20`
+
+**Porquê:** o utilizador quer construir a feature "Automatic body scan" no futuro (câmara + pose detection real-time + countdown falado) purely como OTA. Como Expo OTAs não podem adicionar código nativo, TODAS as libs nativas que possam vir a ser precisas têm de estar presentes no binário desde já.
+
+**Como aplicar:** o próximo `eas build` (v1.0.17) tem tudo. Depois desse build submetido/instalado, novas UIs que importem estas libs saem via `eas update` sem novo build. Nenhum JS foi adicionado nesta versão para consumir estas libs — a feature será construída depois.
+
 ### PlateAnalysisScreen — aviso "Como funciona a análise do prato"
 Explica ao user por que os items não são verificados contra a dieta (é impossível distinguir por foto leite animal vs vegetal, queijo vegan vs normal, etc.) e aponta o scan de produto industrializado como o caminho para verificação rigorosa. UI:
 - Modal auto-aberto **na 1ª entrada** no ecrã. Persiste dismiss via `AsyncStorage.getItem('@plate_notice_dismissed') === '1'`.

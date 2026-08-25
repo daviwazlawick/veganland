@@ -74,7 +74,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.16', // NEVER bump without a new native build — runtimeVersion = appVersion
+    version: '1.0.17', // NEVER bump without a new native build — runtimeVersion = appVersion
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -114,7 +114,7 @@ export default {
       // Without this, the ID is zeroed and Meta Ads attribution breaks.
       permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
       edgeToEdgeEnabled: true,
-      versionCode: 19,
+      versionCode: 20,
       // Firebase config — required for FCM (push) and Firebase Analytics.
       // The file is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './google-services.json' : undefined,
@@ -130,6 +130,30 @@ export default {
     plugins: [
       'expo-font',
       ['expo-camera', { cameraPermission: `${B} needs camera access to scan products.` }],
+      // Vision Camera bundled into the native build (v1.0.17) so a future automatic
+      // body-scan flow can ship purely via OTA. Frame processors enabled (worklets),
+      // location & microphone disabled — we only need silent video frames for
+      // on-device pose detection via react-native-fast-tflite. Do NOT rely on this
+      // library from JS yet: the feature that uses it will be added later via OTA.
+      [
+        'react-native-vision-camera',
+        {
+          cameraPermissionText: `${B} needs camera access for the automatic body scan.`,
+          enableMicrophonePermission: false,
+          enableLocation: false,
+          enableFrameProcessors: true,
+        },
+      ],
+      // Fast TFLite bundled so we can load MoveNet / MediaPipe / any .tflite model
+      // via OTA. CoreML delegate (Apple Neural Engine) and Android GPU delegate
+      // are enabled — both add native code that must be present in the binary.
+      [
+        'react-native-fast-tflite',
+        {
+          enableCoreMLDelegate: true,
+          enableAndroidGpuLibraries: true,
+        },
+      ],
       ['expo-image-picker', { photosPermission: `${B} needs photo access to analyze product images.` }],
       [
         'expo-tracking-transparency',
