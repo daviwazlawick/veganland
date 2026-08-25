@@ -72,6 +72,9 @@
     "react-native-web": "^0.21.0",
     "react-native-worklets-core": "^1.6.3"
   },
+  "devDependencies": {
+    "babel-preset-expo": "~54.0.12"
+  },
   "private": true,
   "expo": {
     "doctor": {
