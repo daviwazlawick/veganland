@@ -14,6 +14,15 @@ import cv2
 import mediapipe as mp
 import rembg
 
+# Register HEIC/HEIF support so iPhone photos taken in HEIF format load
+# natively without needing a client-side transcode. Silently skipped if
+# pillow-heif is not installed.
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
+
 # ── MediaPipe pose ──────────────────────────────────────────────────────────
 mp_pose = mp.solutions.pose
 
@@ -39,8 +48,39 @@ THRESHOLDS = {
 }
 
 
+def _sniff_format(path):
+    """Return a short label for what the first bytes of `path` look like."""
+    try:
+        with open(path, 'rb') as f:
+            head = f.read(16)
+    except Exception:
+        return 'unreadable'
+    if head[:3] == b'\xff\xd8\xff': return 'JPEG'
+    if head[:8] == b'\x89PNG\r\n\x1a\n': return 'PNG'
+    if head[:4] == b'RIFF' and head[8:12] == b'WEBP': return 'WEBP'
+    if head[:4] == b'GIF8': return 'GIF'
+    if head[:2] == b'BM': return 'BMP'
+    if head[4:8] == b'ftyp':
+        brand = head[8:12]
+        return f'HEIF/{brand.decode("ascii", errors="replace")}'
+    return f'unknown ({head.hex()})'
+
+
 def load_image(path):
-    img = Image.open(path)
+    fmt = _sniff_format(path)
+    try:
+        img = Image.open(path)
+        img.load()  # force decode so we catch truncated files here, not later
+    except Exception as e:
+        # Last-resort fallback via OpenCV — handles some edge cases PIL rejects
+        # (e.g. certain JPEG variants). If that also fails, re-raise with the
+        # sniffed format so the server logs are actionable.
+        arr = cv2.imread(path, cv2.IMREAD_COLOR)
+        if arr is None:
+            print(f'[load-image] PIL failed on {fmt} file: {e}', file=sys.stderr)
+            raise ValueError(f'{e} (detected format: {fmt})')
+        print(f'[load-image] PIL failed on {fmt}, OpenCV fallback ok', file=sys.stderr)
+        img = Image.fromarray(cv2.cvtColor(arr, cv2.COLOR_BGR2RGB))
     # Honour EXIF orientation so portrait phone photos are not sideways
     img = ImageOps.exif_transpose(img)
     img = img.convert('RGB')

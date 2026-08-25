@@ -1755,6 +1755,14 @@ Ficheiros afectados:
 
 **Como aplicar:** o próximo `eas build` (v1.0.17) tem tudo. Depois desse build submetido/instalado, novas UIs que importem estas libs saem via `eas update` sem novo build. Nenhum JS foi adicionado nesta versão para consumir estas libs — a feature será construída depois.
 
+### body_analysis.py — HEIC/HEIF support + robust load + sniff logging
+User 297 (lumozini) apanhou repetidamente `cannot identify image file '/tmp/ba_front_297_*.jpg'` do PIL — causa raiz: iPhone com "High Efficiency" (default) devolve HEIC via `expo-camera` mesmo com o URI a acabar em `.jpg`. PIL nativo não conhece HEIC/HEIF.
+
+- **Server:** `pillow-heif@1.5` instalada em `/opt/body-analysis-env` e `register_heif_opener()` chamada no import de `body_analysis.py` (silencioso se lib ausente).
+- **Server:** `load_image()` reescrita: (1) `_sniff_format()` lê magic bytes e devolve label (`JPEG/PNG/WEBP/HEIF/ftypheic/...`); (2) tenta PIL com `img.load()` para forçar decode; (3) fallback OpenCV se PIL falhar; (4) na falha final, mensagem de erro inclui o formato detectado — logs futuros ficam accionáveis.
+- **Client `BodyAnalysisScreen.uriToBase64`:** já não fixa `data:image/jpeg` cegamente — deriva mime da extensão do URI (`png/heic/heif/webp/jpeg`). Fluxo do picker já usava `asset.mimeType` desde 2026-06; agora o fluxo da câmara via `VideoAnalysisScreen` também está correcto.
+- **How to apply:** se voltar a aparecer erro de load, procurar `[load-image]` no `pm2 logs veganland-api --err` para ver o formato real. Se for um formato exótico ainda sem suporte, considerar acrescentar `pillow-avif-plugin` ou transcode client-side com `expo-image-manipulator`.
+
 ### PlateAnalysisScreen — aviso "Como funciona a análise do prato"
 Explica ao user por que os items não são verificados contra a dieta (é impossível distinguir por foto leite animal vs vegetal, queijo vegan vs normal, etc.) e aponta o scan de produto industrializado como o caminho para verificação rigorosa. UI:
 - Modal auto-aberto **na 1ª entrada** no ecrã. Persiste dismiss via `AsyncStorage.getItem('@plate_notice_dismissed') === '1'`.

@@ -224,10 +224,19 @@ export default function BodyAnalysisScreen({ navigation, route }) {
     }
   }
 
-  // Fallback for URIs from VideoAnalysisScreen (always JPEG from camera)
+  // Fallback for URIs coming from VideoAnalysisScreen. iPhones set to "High
+  // Efficiency" (default on iOS) return HEIC even from expo-camera despite it
+  // claiming JPEG, so derive the mime from the file extension instead of
+  // hard-coding image/jpeg — the server accepts HEIC/HEIF/PNG/WebP too.
   async function uriToBase64(uri) {
     const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-    return `data:image/jpeg;base64,${base64}`;
+    const ext = (uri.split('?')[0].split('.').pop() || '').toLowerCase();
+    const mime =
+      ext === 'png'                       ? 'image/png'  :
+      ext === 'heic' || ext === 'heif'    ? 'image/heic' :
+      ext === 'webp'                      ? 'image/webp' :
+                                            'image/jpeg';
+    return `data:${mime};base64,${base64}`;
   }
 
   async function runAnalysis() {
