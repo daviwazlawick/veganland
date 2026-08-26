@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -9,19 +9,36 @@ import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { EXERCISES, CATEGORY_CONFIG } from '../constants/exercises';
-import { apiGetExerciseHistory } from '../services/apiService';
+import { apiGetExerciseHistory, apiGetLogRange } from '../services/apiService';
 
 const isNovaQI = Brand.id === 'novaqi';
 
-const PERIODS = ['today', 'week', 'month'];
+const PERIODS = ['today', 'week', 'month', 'custom'];
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function dateRange(period) {
+function dateRange(period, custom) {
   const to = new Date().toISOString().slice(0, 10);
   if (period === 'today') return { from: to, to };
+  if (period === 'custom') {
+    // Guard: fall back to last 7 days if the user hasn't typed valid ISO yet
+    const from = ISO_DATE.test(custom.from) ? custom.from : to;
+    const toC  = ISO_DATE.test(custom.to)   ? custom.to   : to;
+    return from > toC ? { from: toC, to: from } : { from, to: toC };
+  }
   const d = new Date();
   d.setDate(d.getDate() - (period === 'week' ? 6 : 29));
   return { from: d.toISOString().slice(0, 10), to };
 }
+
+function formatEntryTime(iso, language) {
+  const d = new Date(iso);
+  return d.toLocaleString(localeFor(language), {
+    day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+const SOURCE_ICON = { scan: '📷', plate_photo: '🍽', manual: '✏️' };
 
 function formatDay(dateStr, language) {
   const d = new Date(dateStr + 'T12:00:00');
@@ -34,27 +51,42 @@ export default function NutritionReportScreen({ navigation }) {
   const { getReport, goals, todayExercise, todayBurned } = useNutrition();
   const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState('week');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo]     = useState('');
   const [rows, setRows] = useState([]);
+  const [entries, setEntries] = useState([]);
   const [exerciseHistory, setExerciseHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  const load = useCallback(async (p) => {
+  const load = useCallback(async (p, custom) => {
     setLoading(true);
-    const { from, to } = dateRange(p);
-    const [res, exHistory] = await Promise.all([
+    const { from, to } = dateRange(p, custom);
+    const [res, exHistory, rawEntries] = await Promise.all([
       getReport(from, to).catch(() => ({ rows: [] })),
       p !== 'today'
         ? apiGetExerciseHistory(token, from, to).catch(() => [])
         : Promise.resolve(todayExercise),
+      apiGetLogRange(token, from, to).catch(() => []),
     ]);
     setRows(Array.isArray(res?.rows) ? res.rows : Array.isArray(res) ? res : []);
     setExerciseHistory(Array.isArray(exHistory) ? exHistory : []);
+    setEntries(Array.isArray(rawEntries) ? rawEntries : []);
     setLoading(false);
     setLoaded(true);
   }, [getReport, token, todayExercise]);
 
-  React.useEffect(() => { load(period); }, [period]);
+  // Auto-refetch when period changes; for custom, only refetch when both
+  // dates are valid ISO YYYY-MM-DD (avoids spamming the API every keystroke).
+  React.useEffect(() => {
+    if (period === 'custom') {
+      if (ISO_DATE.test(customFrom) && ISO_DATE.test(customTo)) {
+        load(period, { from: customFrom, to: customTo });
+      }
+    } else {
+      load(period, null);
+    }
+  }, [period, customFrom, customTo]);
 
   // Build per-day maps
   const nutritionByDate = rows.reduce((acc, r) => {
@@ -108,12 +140,50 @@ export default function NutritionReportScreen({ navigation }) {
             onPress={() => setPeriod(p)}
             style={[s.periodBtn, period === p && s.periodBtnActive]}
           >
-            <Text style={[s.periodText, period === p && s.periodTextActive]}>
-              {t(language, `exercise.period_${p}`)}
+            <Text
+              style={[s.periodText, period === p && s.periodTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {p === 'custom'
+                ? (t(language, 'exercise.period_custom') || 'Personalizado')
+                : t(language, `exercise.period_${p}`)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+
+      {period === 'custom' && (
+        <View style={s.customRow}>
+          <View style={s.customField}>
+            <Text style={s.customLabel}>{t(language, 'exercise.period_custom_from') || 'De'}</Text>
+            <TextInput
+              style={s.customInput}
+              value={customFrom}
+              onChangeText={setCustomFrom}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              autoCapitalize="none"
+            />
+          </View>
+          <View style={s.customField}>
+            <Text style={s.customLabel}>{t(language, 'exercise.period_custom_to') || 'Até'}</Text>
+            <TextInput
+              style={s.customInput}
+              value={customTo}
+              onChangeText={setCustomTo}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 24 }]}>
 
@@ -236,6 +306,44 @@ export default function NutritionReportScreen({ navigation }) {
                 </View>
               );
             })}
+
+            {/* Chronological log — every consumption entry in the selected
+                range, ordered by time. Complements the per-day aggregates
+                above so users can see exactly what/when they logged. */}
+            {entries.length > 0 && (
+              <View style={s.entriesCard}>
+                <Text style={s.cardTitle}>
+                  {t(language, 'nutrition.entries_title') || 'Registros'}
+                  {' '}<Text style={s.entriesCount}>({entries.length})</Text>
+                </Text>
+                {entries.map(e => {
+                  const macros = [];
+                  if (Number(e.calories_kcal) > 0) macros.push(`${Math.round(e.calories_kcal)} kcal`);
+                  if (Number(e.protein_g) > 0)    macros.push(`P ${Math.round(e.protein_g)}g`);
+                  if (Number(e.carbs_g) > 0)      macros.push(`C ${Math.round(e.carbs_g)}g`);
+                  if (Number(e.fat_g) > 0)        macros.push(`G ${Math.round(e.fat_g)}g`);
+                  const water = Number(e.water_ml) || 0;
+                  const title = e.product_name
+                    || (water > 0 ? `${water} ml ${t(language, 'nutrition.water') || 'água'}` : '—');
+                  return (
+                    <View key={e.id} style={s.entryRow}>
+                      <Text style={s.entryIcon}>{SOURCE_ICON[e.source] || '•'}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.entryTitle} numberOfLines={2}>{title}</Text>
+                        <Text style={s.entryMeta}>
+                          {formatEntryTime(e.consumed_at, language)}
+                          {e.meal_type ? ` · ${e.meal_type}` : ''}
+                          {e.grams ? ` · ${Math.round(e.grams)}g` : ''}
+                        </Text>
+                        {macros.length > 0 && (
+                          <Text style={s.entryMacros}>{macros.join('  ·  ')}</Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -258,13 +366,25 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: Colors.border || '#E5E7EB',
   },
   periodBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: 20,
+    flex: 1, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 20,
     backgroundColor: Colors.backgroundSecondary || '#F1F5F9',
-    alignItems: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   periodBtnActive: { backgroundColor: Colors.navy },
-  periodText: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  periodText: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textAlign: 'center' },
   periodTextActive: { color: '#fff' },
+  customRow: {
+    flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1, borderBottomColor: Colors.border || '#E5E7EB',
+  },
+  customField: { flex: 1 },
+  customLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
+  customInput: {
+    borderWidth: 1.5, borderColor: Colors.border || '#E5E7EB',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    fontSize: 14, color: Colors.text, backgroundColor: Colors.card,
+  },
   content: { padding: 16, gap: 14 },
   emptyCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
   emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
@@ -307,4 +427,19 @@ const s = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   dayExChipTxt: { fontSize: 11, fontWeight: '600', color: Colors.text },
+
+  // Chronological entries list
+  entriesCard: {
+    backgroundColor: Colors.card, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: Colors.border || '#E5E7EB', gap: 10,
+  },
+  entriesCount: { color: Colors.textMuted, fontWeight: '600', fontSize: 12 },
+  entryRow: {
+    flexDirection: 'row', gap: 12, paddingVertical: 8,
+    borderTopWidth: 1, borderTopColor: Colors.border || '#EEF2F7',
+  },
+  entryIcon: { fontSize: 20, width: 24, textAlign: 'center' },
+  entryTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  entryMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  entryMacros: { fontSize: 12, fontWeight: '600', color: Colors.navy, marginTop: 4 },
 });

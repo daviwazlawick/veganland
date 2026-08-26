@@ -1608,6 +1608,23 @@ export async function getDayLog(userId, date) {
   return res.rows;
 }
 
+export async function getConsumptionRange(userId, fromDate, toDate) {
+  const db = await getPool();
+  if (!db) return [];
+  const res = await db.query(`
+    select id, product_name, barcode, source, grams, meal_type,
+           calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g,
+           water_ml, consumed_at, notes
+    from consumption_log
+    where user_id=$1
+      and consumed_at >= ($2::date)
+      and consumed_at <  ($3::date + interval '1 day')
+    order by consumed_at desc`,
+    [userId, fromDate, toDate]
+  );
+  return res.rows;
+}
+
 export async function getRecentPlateLogs(userId, limit = 10) {
   const db = await getPool();
   if (!db) return [];

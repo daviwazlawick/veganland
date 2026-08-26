@@ -672,7 +672,12 @@ export default function ResultScreen({ navigation, route }) {
                 onPress={() => setConsumeModal(true)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.consumeBtnText}>{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
+                <Text
+                  style={styles.consumeBtnText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -680,12 +685,20 @@ export default function ResultScreen({ navigation, route }) {
               onPress={() => navigation.navigate('Scan')}
               activeOpacity={0.9}
             >
-              <Text style={[styles.scanAgainText, isNovaQI && styles.scanAgainTextOutline]}>{t(language, 'result.scan_again')}</Text>
+              <Text
+                style={[styles.scanAgainText, isNovaQI && styles.scanAgainTextOutline]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >{t(language, 'result.scan_again')}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
             style={styles.wrongProductBtn}
-            onPress={() => navigation.navigate('Scan', { photoMode: true, wrongProductBarcode: result.barcode || null })}
+            onPress={() => navigation.navigate('ReportProduct', {
+              productName: result.title || result.product_name || '',
+              barcode: result.barcode || '',
+            })}
             activeOpacity={0.7}
           >
             <Text style={styles.wrongProductText}>{t(language, 'result.wrong_product')}</Text>
@@ -1129,8 +1142,8 @@ const styles = StyleSheet.create({
   },
   scanAgainBtn: {
     backgroundColor: Colors.primaryDark,
-    borderRadius: 18, paddingVertical: 18,
-    alignItems: 'center',
+    borderRadius: 18, paddingVertical: 18, paddingHorizontal: 14,
+    alignItems: 'center', justifyContent: 'center',
     shadowColor: Colors.darkSurface,
     shadowOpacity: 0.16,
     shadowRadius: 22,
@@ -1142,14 +1155,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.text,
     shadowOpacity: 0,
   },
-  scanAgainText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  scanAgainText: { color: Colors.white, fontSize: 16, fontWeight: '900', textAlign: 'center' },
   scanAgainTextOutline: { color: Colors.text },
   wrongProductBtn: { alignItems: 'center', paddingTop: 14 },
   wrongProductText: { color: Colors.textLight, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
   consumeRow: { flexDirection: 'row', gap: 10 },
-  consumeBtn: { flex: 1, backgroundColor: Colors.safe, borderRadius: 18, paddingVertical: 18, alignItems: 'center' },
+  consumeBtn: { flex: 1, backgroundColor: Colors.safe, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   consumeBtnNovaqi: { backgroundColor: Colors.primary },
-  consumeBtnText: { color: Colors.white, fontSize: 15, fontWeight: '900' },
+  consumeBtnText: { color: Colors.white, fontSize: 15, fontWeight: '900', textAlign: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   consumeModalCard: { backgroundColor: Colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 36, gap: 10 },
   consumeModalTitle: { fontSize: 17, fontWeight: '800', color: Colors.navy, textAlign: 'center', marginBottom: 2 },

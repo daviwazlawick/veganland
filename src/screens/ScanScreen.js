@@ -263,7 +263,7 @@ export default function ScanScreen({ navigation, route }) {
         </View>
         <Text style={styles.permissionText}>{t(language, 'scan.camera_permission')}</Text>
         <TouchableOpacity style={[styles.allowButton, !isNovaQI && styles.allowButtonSkeuo]} onPress={requestPermission} activeOpacity={0.9}>
-          <Text style={styles.allowButtonText}>{t(language, 'scan.allow')}</Text>
+          <Text style={styles.allowButtonText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'scan.allow')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.galleryOnlyButton} onPress={handleGallery}>
           <Text style={styles.galleryOnlyText}>{t(language, 'scan.gallery')}</Text>
@@ -430,7 +430,7 @@ export default function ScanScreen({ navigation, route }) {
               onPress={() => { setNoIngredientsPrompt(false); setScanStep('ingredients'); }}
               activeOpacity={0.85}
             >
-              <Text style={styles.errorBtnText}>{t(language, 'scan.take_ingredients_photo')}</Text>
+              <Text style={styles.errorBtnText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'scan.take_ingredients_photo')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => { setNoIngredientsPrompt(false); navigateToResult(pendingResult); }}
@@ -459,7 +459,7 @@ export default function ScanScreen({ navigation, route }) {
               onPress={() => { setScanError(null); setIsLimitError(false); resetBarcodeScanner(); }}
               activeOpacity={0.85}
             >
-              <Text style={styles.errorBtnText}>{t(language, 'scan.dismiss')}</Text>
+              <Text style={styles.errorBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'scan.dismiss')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -333,7 +333,7 @@ export default function PaywallScreen({ navigation, route }) {
         >
           {purchasing
             ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.btnText}>{t(language, hasTrial(selected) ? 'plans.start_trial' : 'plans.subscribe')}</Text>
+            : <Text style={styles.btnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, hasTrial(selected) ? 'plans.start_trial' : 'plans.subscribe')}</Text>
           }
         </TouchableOpacity>
         {hasTrial(selected) && (

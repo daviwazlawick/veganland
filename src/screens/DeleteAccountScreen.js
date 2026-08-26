@@ -71,11 +71,11 @@ export default function DeleteAccountScreen({ navigation }) {
         >
           {loading
             ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.deleteBtnText}>{t(language, 'delete_account.confirm_btn')}</Text>
+            : <Text style={styles.deleteBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'delete_account.confirm_btn')}</Text>
           }
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.cancelBtnText}>{t(language, 'delete_account.cancel')}</Text>
+          <Text style={styles.cancelBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'delete_account.cancel')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

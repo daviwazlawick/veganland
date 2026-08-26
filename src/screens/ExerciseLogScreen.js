@@ -323,7 +323,7 @@ export default function ExerciseLogScreen({ navigation }) {
                     onPress={confirmLog}
                     disabled={logging || effectiveDuration <= 0}
                   >
-                    <Text style={styles.confirmBtnTxt}>{t(language, 'exercise.confirm_log')}</Text>
+                    <Text style={styles.confirmBtnTxt} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'exercise.confirm_log')}</Text>
                   </TouchableOpacity>
                 </>
               )}

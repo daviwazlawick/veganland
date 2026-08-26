@@ -383,7 +383,7 @@ export default function ProfileSetupScreen({ navigation }) {
                 onPress={() => navigation.navigate('Paywall', { currentPlan: currentPlanForPaywall })}
                 activeOpacity={0.85}
               >
-                <Text style={styles.upgradeBtnText}>{t(language, 'plans.change')}</Text>
+                <Text style={styles.upgradeBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'plans.change')}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -400,13 +400,13 @@ export default function ProfileSetupScreen({ navigation }) {
             }}
             activeOpacity={0.9}
           >
-            <Text style={styles.btnText}>{t(language, 'profile_setup.next')} →</Text>
+            <Text style={styles.btnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'profile_setup.next')} →</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.btn} onPress={handleSave} activeOpacity={0.9} disabled={saving}>
             {saving
               ? <ActivityIndicator color={Colors.white} />
-              : <Text style={styles.btnText}>{t(language, 'profile_setup.save')}</Text>
+              : <Text style={styles.btnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'profile_setup.save')}</Text>
             }
           </TouchableOpacity>
         )}

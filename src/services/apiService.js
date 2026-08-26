@@ -341,6 +341,30 @@ export async function apiGetNutritionReport(token, from, to) {
   return r.json().catch(() => ({ rows: [] }));
 }
 
+export async function apiReportProduct(token, { productName, barcode, description, categories, language, photos }) {
+  const r = await fetch(`${baseUrl()}/product/report`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({
+      product_name: productName || '',
+      barcode:      barcode || '',
+      description:  description || '',
+      categories:   categories || [],
+      language:     language || null,
+      photos:       photos || [],
+    }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'report_failed');
+  return data;
+}
+
+export async function apiGetLogRange(token, from, to) {
+  const r = await fetch(`${baseUrl()}/nutrition/log-range?from=${from}&to=${to}`, { headers: appHeaders(token) });
+  const j = await r.json().catch(() => []);
+  return Array.isArray(j) ? j : [];
+}
+
 export async function apiLogWeight(token, weight_kg) {
   const r = await fetch(`${baseUrl()}/nutrition/weight`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify({ weight_kg }) });
   const body = await r.json().catch(() => ({}));

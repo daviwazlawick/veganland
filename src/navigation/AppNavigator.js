@@ -26,6 +26,7 @@ import ReferralScreen from '../screens/ReferralScreen';
 import BodyProfileScreen from '../screens/BodyProfileScreen';
 import BodyAnalysisScreen from '../screens/BodyAnalysisScreen';
 import VideoAnalysisScreen from '../screens/VideoAnalysisScreen';
+import ReportProductScreen from '../screens/ReportProductScreen';
 import NutritionGoalsScreen from '../screens/NutritionGoalsScreen';
 import NutritionDashboardScreen from '../screens/NutritionDashboardScreen';
 import NutritionReportScreen from '../screens/NutritionReportScreen';
@@ -187,6 +188,7 @@ export default function AppNavigator() {
             <Stack.Screen name="NutritionReport" component={NutritionReportScreen} />
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
             <Stack.Screen name="ExerciseLog" component={ExerciseLogScreen} />
+            <Stack.Screen name="ReportProduct" component={ReportProductScreen} />
           </>
         ) : (
           <>
@@ -211,6 +213,7 @@ export default function AppNavigator() {
             <Stack.Screen name="NutritionReport" component={NutritionReportScreen} />
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
             <Stack.Screen name="ExerciseLog" component={ExerciseLogScreen} />
+            <Stack.Screen name="ReportProduct" component={ReportProductScreen} />
           </>
         )}
       </Stack.Navigator>

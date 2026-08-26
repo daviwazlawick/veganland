@@ -195,7 +195,7 @@ export default function EditPersonalScreen({ navigation }) {
     const h   = parseFloat(height);
     const w   = parseFloat(weight);
     const hm  = h > 50 ? h / 100 : null;
-    const sx  = bodyProfile?.sex || 'female';
+    const sx  = bodyProfile?.sex || sex || 'female';
 
     // Manual values win; photo analysis fills gaps
     const chest   = parseFloat(measures.chest_cm)     || ba.chest_cm     || null;
@@ -206,10 +206,53 @@ export default function EditPersonalScreen({ navigation }) {
     const hip     = parseFloat(measures.hips_cm)      || ba.hip_cm       || null;
     const thigh   = parseFloat(measures.thigh_cm)     || ba.thigh_cm     || null;
     const calf    = parseFloat(measures.calf_cm)      || ba.calf_cm      || null;
-    const bf      = parseFloat(measures.body_fat_pct) || ba.body_fat_pct || null;
 
     // Indices — fully recomputed from current values
     const bmi_v = hm && w > 0         ? +(w / (hm * hm)).toFixed(1)                                      : (ba.bmi             || null);
+
+    // Body fat: (1) manual override, (2) US Navy from perimeters + height,
+    // (3) Deurenberg BMI+age fallback, (4) last photo analysis. Mirrors the
+    // server-side pipeline in body_analysis.py:1352-1395 so a user who only
+    // tapes waist/neck (+hip for female) gets full body composition without
+    // needing a photo. bf_source is exposed so the UI can label the value.
+    let bf = parseFloat(measures.body_fat_pct);
+    let bf_source = null;
+    if (!isNaN(bf) && bf > 0) {
+      bf_source = 'manual';
+    } else {
+      bf = null;
+      if (waist && neck && h > 0) {
+        let calc = null;
+        try {
+          if (sx === 'male') {
+            const diff = waist - neck;
+            if (diff > 0) calc = 86.01 * Math.log10(diff) - 70.041 * Math.log10(h) + 36.76;
+          } else if (hip) {
+            const diff = waist + hip - neck;
+            if (diff > 0) calc = 163.205 * Math.log10(diff) - 97.684 * Math.log10(h) - 78.387;
+          }
+        } catch {}
+        if (calc != null && isFinite(calc)) {
+          bf = Math.max(3, Math.min(60, +calc.toFixed(1)));
+          bf_source = 'navy';
+        }
+      }
+      if (bf == null && bmi_v && birthDate) {
+        const age = Math.floor((Date.now() - new Date(birthDate)) / (365.25 * 86400000));
+        if (age > 0 && age < 120) {
+          const calc = 1.20 * bmi_v + 0.23 * age - 10.8 * (sx === 'male' ? 1 : 0) - 5.4;
+          if (isFinite(calc)) {
+            bf = Math.max(3, Math.min(60, +calc.toFixed(1)));
+            bf_source = 'deurenberg';
+          }
+        }
+      }
+      if (bf == null && ba.body_fat_pct != null) {
+        bf = Number(ba.body_fat_pct);
+        bf_source = 'photo';
+      }
+    }
+
     const wth_v = h > 0 && waist      ? +(waist / h).toFixed(2)                                           : (ba.waist_to_height || null);
     const whi_v = waist && hip        ? +(waist / hip).toFixed(2)                                         : (ba.waist_to_hip    || null);
     const ci_v  = hm && w > 0 && waist? +((waist / 100) / (0.109 * Math.sqrt(w / hm))).toFixed(2)        : (ba.conicity_index  || null);
@@ -243,13 +286,14 @@ export default function EditPersonalScreen({ navigation }) {
       chest_cm: chest, neck_cm: neck, bicep_cm: bicep, forearm_cm: forearm,
       waist_cm: waist, hip_cm: hip, thigh_cm: thigh, calf_cm: calf,
       body_fat_pct: bf,
+      bf_source,
       bmi: bmi_v, waist_to_height: wth_v, waist_to_hip: whi_v, conicity_index: ci_v,
       fat_mass_kg: fmk_v, lean_mass_kg: lmk_v,
       fat_mass_index: fmi_v, lean_mass_index: lmi_v,
       body_water_pct: bwp_v, ree_kcal: ree_v,
       score: score_v,
     };
-  }, [bodyMeasurements, measures, height, weight, bodyProfile]);
+  }, [bodyMeasurements, measures, height, weight, birthDate, sex, bodyProfile]);
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -481,6 +525,26 @@ export default function EditPersonalScreen({ navigation }) {
           {/* ── Body Measurements ── */}
           <Text style={styles.sectionDivider}>{t(language, 'measurements.title')}</Text>
 
+          {/* Photo-analysis suggestion — pushes users to the automatic pipeline
+              before they type 9 fields manually. Any measure they don't like
+              is still editable one-by-one below. */}
+          {IS_NOVAQI && (
+            <TouchableOpacity
+              style={styles.baSuggest}
+              onPress={() => navigation.navigate('VideoAnalysis')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.baSuggestIcon}>📐</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.baSuggestTitle}>Análise corporal por foto</Text>
+                <Text style={styles.baSuggestText}>
+                  Preenche automaticamente as medidas por foto — depois podes corrigir cada uma abaixo.
+                </Text>
+              </View>
+              <Text style={styles.baSuggestArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.measureSubtitleRow}>
             <Text style={styles.measureSubtitle}>{t(language, 'measurements.subtitle')}</Text>
             {latest && (
@@ -569,6 +633,15 @@ export default function EditPersonalScreen({ navigation }) {
                 {[ba.body_fat_pct, ba.lean_mass_kg, ba.fat_mass_kg, ba.body_water_pct, ba.ree_kcal].some(v => v != null) && (
                   <View style={styles.baCard}>
                     <Text style={styles.baCardTitle}>Composição Corporal</Text>
+                    {ba.bf_source && ba.bf_source !== 'manual' && (
+                      <Text style={styles.baBfSource}>
+                        {ba.bf_source === 'navy'       ? '⓵ % de gordura calculado por perímetros (US Navy)'
+                       : ba.bf_source === 'deurenberg' ? '⓵ % de gordura estimado por BMI + idade (Deurenberg)'
+                       : ba.bf_source === 'photo'      ? '⓵ % de gordura da última análise por foto'
+                       : ''}
+                        {'  '}Digita o valor manualmente para mais precisão.
+                      </Text>
+                    )}
                     <View style={styles.baGrid}>
                       {[
                         ['body_fat_pct',  ba.body_fat_pct,  '%'],
@@ -798,6 +871,17 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   baCardTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  baBfSource: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic', lineHeight: 15, marginTop: -6 },
+  baSuggest: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: (Colors.primary || '#7CB518') + '14',
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.primary || '#7CB518',
+    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 12,
+  },
+  baSuggestIcon: { fontSize: 26 },
+  baSuggestTitle: { fontSize: 14, fontWeight: '800', color: Colors.text, marginBottom: 2 },
+  baSuggestText: { fontSize: 12, color: Colors.textMuted, lineHeight: 16 },
+  baSuggestArrow: { fontSize: 24, color: Colors.primary || '#7CB518', fontWeight: '700' },
   baScoreRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   baScoreNum: { fontSize: 48, fontWeight: '900', lineHeight: 52 },
   baScoreDen: { fontSize: 18, color: Colors.textMuted, fontWeight: '600', paddingBottom: 6 },

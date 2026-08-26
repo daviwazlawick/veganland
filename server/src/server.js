@@ -4,14 +4,14 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
 import { hashPassword, verifyPassword, generateToken, verifyToken, extractToken, generateAdminSession, generateAdminToken } from './auth.js';
-import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail, sendOnboardingFeedbackEmail, sendAppSurveyEmail } from './email.js';
+import { emailsEnabled, sendConfirmationEmail, sendPasswordResetEmail, sendSupportEmail, sendOnboardingFeedbackEmail, sendAppSurveyEmail, sendProductReviewEmail } from './email.js';
 import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
 import { htmlAboutPage } from './about.js';
@@ -1418,6 +1418,45 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // POST /product/report — user reports a scanned product's data as wrong
+    // (barcode↔product mismatch, ingredient list off, etc). Accepts up to 5
+    // photos (barcode/ingredients/label + 2 optional) as base64 and emails
+    // contact@novaqi.app with them attached. Does NOT count as a scan — no
+    // increment to the counter, no rate limit beyond the 30 MB body cap.
+    if (req.method === 'POST' && req.url === '/product/report') {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const user = await getUserById(claims.userId);
+      if (!user) { sendJson(res, 404, { error: 'User not found' }, origin); return; }
+      const body = await readJsonBody(req, 30 * 1024 * 1024);
+      const productName = typeof body.product_name === 'string' ? body.product_name.slice(0, 300) : '';
+      const barcode     = typeof body.barcode === 'string'      ? body.barcode.slice(0, 60)      : '';
+      const description = typeof body.description === 'string'  ? body.description.trim().slice(0, 3000) : '';
+      const language    = typeof body.language === 'string'     ? body.language.slice(0, 10)      : null;
+      const categories  = Array.isArray(body.categories) ? body.categories.filter(c => typeof c === 'string').slice(0, 8) : [];
+      const rawPhotos   = Array.isArray(body.photos) ? body.photos : [];
+      // At least ONE photo required so the review has something visual to act on.
+      if (rawPhotos.length === 0 || !rawPhotos.some(p => p?.base64)) {
+        sendJson(res, 400, { error: 'at least one photo required' }, origin); return;
+      }
+      const photos = rawPhotos.filter(p => p?.base64).slice(0, 5).map((p, i) => ({
+        name: typeof p.name === 'string' ? p.name.replace(/[^\w-]/g, '_').slice(0, 40) : `photo_${i + 1}`,
+        mime: typeof p.mime === 'string' ? p.mime.slice(0, 40) : 'image/jpeg',
+        base64: p.base64,
+      }));
+      try {
+        await sendProductReviewEmail({
+          userEmail: user.email, userId: user.id,
+          productName, barcode, categories, description, language, photos,
+        }, req.headers.host);
+      } catch (e) {
+        console.warn('[product-report] email failed', e?.message);
+        sendJson(res, 500, { error: 'email_send_failed' }, origin); return;
+      }
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
     // POST /push/click — user tapped a broadcast notification.
     // Idempotent per (broadcast_id, user_id); anonymous taps are rejected
     // because attribution needs a user. Response is 200/no-op.
@@ -1867,6 +1906,21 @@ const server = http.createServer(async (req, res) => {
       const u = new URL(req.url, 'http://x');
       const date = u.searchParams.get('date') || new Date().toISOString().slice(0, 10);
       const entries = await getDayLog(claims.userId, date);
+      sendJson(res, 200, entries, origin);
+      return;
+    }
+
+    // GET /nutrition/log-range?from=YYYY-MM-DD&to=YYYY-MM-DD
+    //   Returns raw consumption_log entries in the range (not aggregated),
+    //   ordered by consumed_at desc. Used by the report screen to render a
+    //   chronological list under the daily aggregates.
+    if (req.method === 'GET' && req.url.startsWith('/nutrition/log-range')) {
+      const claims = getAuthUser(req);
+      if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
+      const u = new URL(req.url, 'http://x');
+      const to = u.searchParams.get('to') || new Date().toISOString().slice(0, 10);
+      const from = u.searchParams.get('from') || to;
+      const entries = await getConsumptionRange(claims.userId, from, to);
       sendJson(res, 200, entries, origin);
       return;
     }

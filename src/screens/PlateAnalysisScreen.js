@@ -475,7 +475,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                   onPress={handleLog}
                   disabled={logging || logged || !editableItems.length}
                 >
-                  <Text style={s.logBtnText}>
+                  <Text style={s.logBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                     {logged ? `✓ ${t(language, 'nutrition.plate_logged')}` : logging ? '…' : t(language, 'nutrition.plate_log_btn')}
                   </Text>
                 </TouchableOpacity>

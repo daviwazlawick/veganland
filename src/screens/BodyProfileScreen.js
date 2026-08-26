@@ -136,7 +136,7 @@ export default function BodyProfileScreen({ navigation }) {
           />
 
           <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-            <Text style={styles.saveBtnText}>{saving ? '…' : t(language, 'nutrition.body_save')}</Text>
+            <Text style={styles.saveBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{saving ? '…' : t(language, 'nutrition.body_save')}</Text>
           </TouchableOpacity>
 
         </ScrollView>
