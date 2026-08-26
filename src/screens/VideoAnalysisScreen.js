@@ -8,6 +8,17 @@ import { useNutrition } from '../context/NutritionContext';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 
+// expo-sensors is a native module — guard the require so OTAs to old native
+// builds (before 1.0.15) don't crash. Pitch capture just silently no-ops there.
+let DeviceMotion = null;
+try { DeviceMotion = require('expo-sensors').DeviceMotion; } catch {}
+
+// Pitch (degrees from vertical) at the moment of capture, extracted from
+// DeviceMotion.rotation.beta. beta is in radians: 0 = phone upright/screen
+// facing forward, positive = phone tilted top-back (camera looking down),
+// negative = tilted top-forward (camera looking up).
+const PITCH_WARN_DEG = 12;
+
 const SILHOUETTES = {
   front: {
     female: require('../../assets/novaqi/silhouette-front-female.png'),
@@ -39,12 +50,42 @@ export default function VideoAnalysisScreen({ navigation }) {
   const [step, setStep]           = useState('intro');
   const [frontUri, setFrontUri]   = useState(null);
   const [sideUri, setSideUri]     = useState(null);
+  const [frontPitch, setFrontPitch] = useState(null);
+  const [sidePitch, setSidePitch]   = useState(null);
+  const [livePitch, setLivePitch]   = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [facing]                  = useState('front');
   const cameraRef = useRef(null);
   const countdownRef = useRef(null);
+  const pitchRef = useRef(null);
+  const motionSubRef = useRef(null);
 
-  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+  useEffect(() => () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (motionSubRef.current) motionSubRef.current.remove();
+  }, []);
+
+  // Subscribe to DeviceMotion whenever the camera view is active
+  useEffect(() => {
+    if (!DeviceMotion) return;
+    if (step !== 'front' && step !== 'side') {
+      if (motionSubRef.current) { motionSubRef.current.remove(); motionSubRef.current = null; }
+      setLivePitch(null);
+      return;
+    }
+    let cancelled = false;
+    DeviceMotion.isAvailableAsync().then(avail => {
+      if (cancelled || !avail) return;
+      DeviceMotion.setUpdateInterval(150);
+      motionSubRef.current = DeviceMotion.addListener(({ rotation }) => {
+        if (!rotation || rotation.beta == null) return;
+        const deg = (rotation.beta * 180) / Math.PI;
+        pitchRef.current = deg;
+        setLivePitch(deg);
+      });
+    }).catch(() => {});
+    return () => { cancelled = true; if (motionSubRef.current) { motionSubRef.current.remove(); motionSubRef.current = null; } };
+  }, [step]);
 
   const startCountdown = useCallback(() => {
     setCountdown(3);
@@ -64,11 +105,14 @@ export default function VideoAnalysisScreen({ navigation }) {
     if (!cameraRef.current) return;
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, skipProcessing: false });
+      const capturedPitch = pitchRef.current;
       if (step === 'front') {
         setFrontUri(photo.uri);
+        setFrontPitch(capturedPitch);
         setStep('side');
       } else if (step === 'side') {
         setSideUri(photo.uri);
+        setSidePitch(capturedPitch);
         setStep('confirm');
       }
     } catch {
@@ -81,14 +125,17 @@ export default function VideoAnalysisScreen({ navigation }) {
     setCountdown(null);
     if (step === 'confirm' && !sideUri) setStep('side');
     else if (step === 'confirm') setStep('front');
-    else if (step === 'side') { setSideUri(null); setStep('side'); }
-    else { setFrontUri(null); setStep('front'); }
+    else if (step === 'side') { setSideUri(null); setSidePitch(null); setStep('side'); }
+    else { setFrontUri(null); setFrontPitch(null); setStep('front'); }
   }, [step, sideUri]);
 
   const goToAnalysis = useCallback(() => {
     if (!frontUri || !sideUri) return;
-    navigation.navigate('BodyAnalysis', { frontUri, sideUri });
-  }, [frontUri, sideUri, navigation]);
+    navigation.navigate('BodyAnalysis', {
+      frontUri, sideUri,
+      frontPitchDeg: frontPitch, sidePitchDeg: sidePitch,
+    });
+  }, [frontUri, sideUri, frontPitch, sidePitch, navigation]);
 
   // ── Intro ──────────────────────────────────────────────────────────────────
 
@@ -174,6 +221,17 @@ export default function VideoAnalysisScreen({ navigation }) {
       );
     }
 
+    const pitchAbs = livePitch != null ? Math.abs(livePitch) : null;
+    const pitchColor = pitchAbs == null ? 'rgba(255,255,255,0.6)'
+                    : pitchAbs <= 5  ? '#22C55E'
+                    : pitchAbs <= PITCH_WARN_DEG ? '#F59E0B'
+                    : '#EF4444';
+    const pitchLabel = pitchAbs == null
+      ? 'Nível: —'
+      : pitchAbs <= 5  ? `Nível OK (${livePitch.toFixed(0)}°)`
+      : pitchAbs <= PITCH_WARN_DEG ? `Endireita o telemóvel (${livePitch.toFixed(0)}°)`
+      : `Telemóvel muito inclinado (${livePitch.toFixed(0)}°)`;
+
     return (
       <View style={s.cameraContainer}>
         <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
@@ -187,6 +245,11 @@ export default function VideoAnalysisScreen({ navigation }) {
         <SafeAreaView style={s.cameraTopBar} pointerEvents="box-none">
           <Text style={s.stepLabel}>{stepLabel}</Text>
           <Text style={s.instructionText}>{instruction}</Text>
+          {DeviceMotion && (
+            <View style={[s.pitchPill, { backgroundColor: pitchColor + 'CC' }]}>
+              <Text style={s.pitchPillText}>📱 {pitchLabel}</Text>
+            </View>
+          )}
         </SafeAreaView>
 
         {/* Countdown overlay */}
@@ -297,6 +360,8 @@ const s = StyleSheet.create({
   cameraTopBar:      { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 0 },
   stepLabel:         { color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5, alignSelf: 'center', marginBottom: 8, overflow: 'hidden' },
   instructionText:   { color: '#fff', fontSize: 14, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, lineHeight: 20 },
+  pitchPill:         { alignSelf: 'center', marginTop: 8, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
+  pitchPillText:     { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   countdownOverlay:  { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
   countdownText:     { fontSize: 120, fontWeight: '900', color: '#fff', opacity: 0.9 },

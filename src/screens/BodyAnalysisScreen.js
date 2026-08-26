@@ -186,6 +186,8 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   const [sideUri,    setSideUri]    = useState(route?.params?.sideUri  || null);
   const [frontB64,   setFrontB64]   = useState(null);
   const [sideB64,    setSideB64]    = useState(null);
+  const frontPitchDeg = route?.params?.frontPitchDeg ?? null;
+  const sidePitchDeg  = route?.params?.sidePitchDeg  ?? null;
   const [heightCm,   setHeightCm]   = useState(bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '');
   const [weightKg,   setWeightKg]   = useState(bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '');
   const [sex,        setSex]        = useState(bodyProfile?.sex || 'female');
@@ -254,6 +256,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         heightCm: heightCm ? parseFloat(heightCm) : 0,
         weightKg: parseFloat(weightKg),
         sex, age: age ? parseInt(age, 10) : 0,
+        frontPitchDeg, sidePitchDeg,
       }));
     } catch (e) { Alert.alert(t(language, 'body_analysis_screen.alert_analysis_error'), e.message || t(language, 'body_analysis_screen.alert_try_again')); }
     finally { setAnalyzing(false); }
@@ -423,15 +426,34 @@ export default function BodyAnalysisScreen({ navigation, route }) {
           <View style={s.warnBox}><Text style={s.warnTxt}>⚠ {result.meta.warnings.join(' · ')}</Text></View>
         )}
 
-        {result?.meta?.height_cm_estimated != null && (
-          <View style={s.heightBox}>
-            <Text style={s.heightBoxTxt}>
-              {result.meta.input_height_cm
-                ? t(language, 'body_analysis_screen.height_estimated_full', { h: result.meta.height_cm_estimated, informed: result.meta.input_height_cm })
-                : t(language, 'body_analysis_screen.height_estimated_short', { h: result.meta.height_cm_estimated })}
-            </Text>
-          </View>
-        )}
+        {(() => {
+          // Only surface the mask-derived height estimate when it's plausibly
+          // close to the informed height. When the mask span is short (bad
+          // segmentation, cropped feet, camera tilt) the estimate is often 15+ %
+          // off — showing "estimada 151 cm vs informada 175 cm" just alarms the
+          // user without explaining anything actionable. Threshold: 8 %.
+          const est = result?.meta?.height_cm_estimated;
+          const inp = result?.meta?.input_height_cm;
+          if (est == null) return null;
+          if (inp) {
+            const diffPct = Math.abs(est - inp) / inp;
+            if (diffPct > 0.08) return null;
+            return (
+              <View style={s.heightBox}>
+                <Text style={s.heightBoxTxt}>
+                  {t(language, 'body_analysis_screen.height_estimated_full', { h: est, informed: inp })}
+                </Text>
+              </View>
+            );
+          }
+          return (
+            <View style={s.heightBox}>
+              <Text style={s.heightBoxTxt}>
+                {t(language, 'body_analysis_screen.height_estimated_short', { h: est })}
+              </Text>
+            </View>
+          );
+        })()}
 
         {result && <>
 

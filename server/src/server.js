@@ -1588,7 +1588,8 @@ const server = http.createServer(async (req, res) => {
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
 
       const body = await readJsonBody(req, 30 * 1024 * 1024);
-      const { front_image, side_image, height_cm, weight_kg, sex, age } = body;
+      const { front_image, side_image, height_cm, weight_kg, sex, age,
+              front_pitch_deg, side_pitch_deg } = body;
       if (!front_image || !side_image || !weight_kg) {
         sendJson(res, 400, { error: 'front_image, side_image, weight_kg required' }, origin);
         return;
@@ -1604,12 +1605,14 @@ const server = http.createServer(async (req, res) => {
         await writeFile(frontPath, frontBuf);
         await writeFile(sidePath, sideBuf);
 
+        const pitchArg = (v) => (Number.isFinite(Number(v)) ? String(Number(v)) : '');
         const result = await new Promise((resolve, reject) => {
           const py = spawn('/opt/body-analysis-env/bin/python3', [
             '/opt/veganland/server/src/body_analysis.py',
             frontPath, sidePath,
             String(height_cm), String(weight_kg),
             sex || 'unknown', String(age || 0),
+            pitchArg(front_pitch_deg), pitchArg(side_pitch_deg),
           ]);
           let out = '';
           let err = '';

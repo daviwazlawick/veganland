@@ -183,12 +183,32 @@ async function sendPushMessages(messages) {
   const valid = messages.filter(m => m?.to?.startsWith('ExponentPushToken'));
   if (valid.length === 0) return;
   for (let i = 0; i < valid.length; i += 100) {
+    const chunk = valid.slice(i, i + 100);
     try {
-      await fetch('https://exp.host/--/api/v2/push/send', {
+      const r = await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(valid.slice(i, i + 100)),
+        body: JSON.stringify(chunk),
       });
+      const j = await r.json().catch(() => null);
+      const tickets = j?.data || [];
+      const errs = {};
+      tickets.forEach((t, idx) => {
+        if (t?.status === 'error') {
+          const code = t?.details?.error || t?.message || 'unknown';
+          errs[code] = (errs[code] || 0) + 1;
+          // Log first offending token per error code — enough to diagnose,
+          // avoids spamming logs when e.g. every Android token fails with the
+          // same InvalidCredentials.
+          if (errs[code] === 1) {
+            console.warn(`[notif] ticket error "${code}" e.g. token=${chunk[idx]?.to} msg=${t?.message}`);
+          }
+        }
+      });
+      const okCount = tickets.filter(t => t?.status === 'ok').length;
+      if (Object.keys(errs).length) {
+        console.warn(`[notif] batch of ${chunk.length}: ${okCount} ok, errors=${JSON.stringify(errs)}`);
+      }
     } catch (e) {
       console.warn('[notif] push batch failed:', e.message);
     }

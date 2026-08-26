@@ -456,8 +456,26 @@ def detect_credit_card(img_np, mask=None, y_range=None, x_range=None):
     return best_result
 
 
-def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
+def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
+            front_pitch_deg=None, side_pitch_deg=None):
     warnings = []
+
+    # ── Camera-tilt check ────────────────────────────────────────────────
+    # Pitch is the phone's angle from vertical at the moment of capture (0 =
+    # phone held perfectly upright, screen facing subject). A tilted phone
+    # foreshortens the body vertically and breaks the "pixels-per-cm at card
+    # plane applies at every y" assumption. We warn beyond ±12°; below that
+    # the linear-scale approximation stays within ~2 % of true.
+    _TILT_WARN_DEG = 12.0
+    def _pitch_num(p):
+        try: return float(p) if p is not None and p != '' else None
+        except (TypeError, ValueError): return None
+    front_pitch_deg = _pitch_num(front_pitch_deg)
+    side_pitch_deg  = _pitch_num(side_pitch_deg)
+    if front_pitch_deg is not None and abs(front_pitch_deg) > _TILT_WARN_DEG:
+        warnings.append('camera_tilted_front')
+    if side_pitch_deg is not None and abs(side_pitch_deg) > _TILT_WARN_DEG:
+        warnings.append('camera_tilted_side')
 
     # ── Load images ──────────────────────────────────────────────────────
     try:
@@ -1013,6 +1031,44 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         overlay_lines_front['forearm'] = (fx0, fy0, fx1, fy1)
         measure_ys_front['forearm']    = f_cy
 
+    # ── Bicep sanity check + anthropometric fallback ─────────────────────
+    # The fallback landmark-bounds scan can leak into the torso when the arm
+    # touches the trunk (Fabricio's photos routinely returned bicep ~53 cm ≈
+    # width of mid-chest). Reject implausible readings using three guards:
+    #  • bicep diameter > 40 % of shoulder-to-shoulder width (elite BB is ~30 %)
+    #  • bicep diameter > 2× forearm diameter (real ratio is ~1.15×)
+    #  • absolute cap of 18 cm diameter (~56 cm circumference)
+    # When a rejection fires, don't drop the measurement — estimate the bicep
+    # from the forearm using an anthropometric ratio (bicep_circ ≈ 1.20 ×
+    # forearm_circ for adults; sex-adjusted). Better a ±5 % estimate than a
+    # blank field.
+    _bicep_estimated_from_forearm = False
+    if bicep_w is not None:
+        _shoulder_w_cm = ((shoulder_xr - shoulder_xl) * scale
+                          if (shoulder_xl is not None and shoulder_xr is not None)
+                          else None)
+        _reject_reason = None
+        if _shoulder_w_cm and bicep_w > 0.40 * _shoulder_w_cm:
+            _reject_reason = f'>40% shoulder ({bicep_w:.1f}cm vs {0.40*_shoulder_w_cm:.1f}cm)'
+        elif forearm_w is not None and bicep_w > 2.0 * forearm_w:
+            _reject_reason = f'>2x forearm ({bicep_w:.1f}cm vs {2*forearm_w:.1f}cm)'
+        elif bicep_w > 18.0:
+            _reject_reason = f'>18cm absolute ({bicep_w:.1f}cm)'
+        if _reject_reason:
+            print(f'[bicep-reject] {_reject_reason}', file=sys.stderr)
+            overlay_lines_front.pop('bicep', None)
+            measure_ys_front.pop('bicep', None)
+            if forearm_w is not None:
+                # Anthropometric: male ~1.22, female ~1.15 (relaxed arm)
+                _ratio = 1.22 if sex == 'male' else 1.15
+                bicep_w = round(forearm_w * _ratio, 1)
+                _bicep_estimated_from_forearm = True
+                warnings.append('bicep_estimated_from_forearm')
+                print(f'[bicep-estimate] forearm {forearm_w:.1f}cm × {_ratio} = {bicep_w:.1f}cm', file=sys.stderr)
+            else:
+                bicep_w = None
+                warnings.append('bicep_measurement_rejected')
+
     # ── Thigh / Calf: interpolated medial separator ───────────────────────
     # The inner boundary between thighs moves from hip_mid (at hip level) to
     # knee_mid (at knee level). Interpolate at each measurement y-level.
@@ -1424,7 +1480,7 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
         'neck_cm':    0.65 if (front_lms and neck_circ)    else 0.40,
         'waist_cm':   0.80 if (front_lms and waist_circ)   else 0.50,
         'hip_cm':     0.85 if (front_lms and hip_circ)     else 0.50,
-        'bicep_cm':   0.70 if (front_lms and bicep_circ)   else 0.40,
+        'bicep_cm':   (0.50 if _bicep_estimated_from_forearm else 0.70) if (front_lms and bicep_circ) else 0.40,
         'forearm_cm': 0.65 if (front_lms and forearm_circ) else 0.40,
         'thigh_cm':   0.72 if (front_lms and thigh_circ)   else 0.45,
         'calf_cm':    0.68 if (front_lms and calf_circ)    else 0.40,
@@ -1509,6 +1565,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
             'card_side_cy_px':    round(card_side_cy, 1)    if card_side_cy    else None,
             'neck_depth_cm':      neck_d,
             'height_cm_estimated': height_cm_estimated,
+            'front_pitch_deg':    round(front_pitch_deg, 1) if front_pitch_deg is not None else None,
+            'side_pitch_deg':     round(side_pitch_deg, 1)  if side_pitch_deg  is not None else None,
         },
         'overlays': {
             'front': front_overlay,
@@ -1519,11 +1577,15 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age):
 
 if __name__ == '__main__':
     if len(sys.argv) < 7:
-        print(json.dumps({'error': 'usage: body_analysis.py front.jpg side.jpg height_cm weight_kg sex age'}))
+        print(json.dumps({'error': 'usage: body_analysis.py front.jpg side.jpg height_cm weight_kg sex age [front_pitch] [side_pitch]'}))
         sys.exit(1)
-    _, front, side, height_cm, weight_kg, sex, age = sys.argv[:8]
+    args = sys.argv[1:]
+    front, side, height_cm, weight_kg, sex, age = args[:6]
+    front_pitch = args[6] if len(args) > 6 else None
+    side_pitch  = args[7] if len(args) > 7 else None
     try:
-        result = analyze(front, side, float(height_cm), float(weight_kg), sex, int(age))
+        result = analyze(front, side, float(height_cm), float(weight_kg), sex, int(age),
+                         front_pitch_deg=front_pitch, side_pitch_deg=side_pitch)
         print(json.dumps(result))
     except Exception as e:
         print(json.dumps({'error': str(e)}))

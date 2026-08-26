@@ -1763,6 +1763,24 @@ User 297 (lumozini) apanhou repetidamente `cannot identify image file '/tmp/ba_f
 - **Client `BodyAnalysisScreen.uriToBase64`:** já não fixa `data:image/jpeg` cegamente — deriva mime da extensão do URI (`png/heic/heif/webp/jpeg`). Fluxo do picker já usava `asset.mimeType` desde 2026-06; agora o fluxo da câmara via `VideoAnalysisScreen` também está correcto.
 - **How to apply:** se voltar a aparecer erro de load, procurar `[load-image]` no `pm2 logs veganland-api --err` para ver o formato real. Se for um formato exótico ainda sem suporte, considerar acrescentar `pillow-avif-plugin` ou transcode client-side com `expo-image-manipulator`.
 
+### Body analysis — bicep sanity check + camera pitch capture (2026-08-26)
+
+**Bicep leak fix** (`server/src/body_analysis.py` ~l.1014):
+- Regressão observada em Fabricio (user 3, análise id 29): bicep 52.8cm circ (≈18.5cm diâmetro), medindo até ao meio do peito. Causa: `_bicep_separated` retornou None (braço colado ao tronco), fallback `measure_limb_perp` com landmark bounds mediu largura da máscara que engloba torso.
+- Guarda pós-fallback: rejeita `bicep_w` se (a) > 40 % da largura ombro-a-ombro, (b) > 2× diâmetro do antebraço, ou (c) > 18 cm absoluto. Ao rejeitar: `bicep_w=None`, remove overlay, adiciona warning `bicep_measurement_rejected`. Confidence cai automaticamente para 0.40 (ramo do `else` já existente).
+
+**Camera pitch capture** (novo — precisa **build nativo** para expo-sensors):
+- `expo-sensors@~15.0.8` adicionado ao `package.json`. Import guardado com `try/require` — OTA para builds anteriores (≤1.0.14) não crasha, apenas o indicador de nível não aparece.
+- `VideoAnalysisScreen.js`: subscreve `DeviceMotion` no step `front`/`side`, mostra pill de estado (verde ≤5°, amarelo ≤12°, vermelho >12°) e captura `rotation.beta` (radianos → graus) no momento do disparo. Persiste `frontPitch`/`sidePitch` em state e passa via route params `frontPitchDeg`/`sidePitchDeg` para `BodyAnalysisScreen`.
+- `BodyAnalysisScreen.js` → `apiBodyAnalyze` envia `frontPitchDeg`/`sidePitchDeg` em `body.front_pitch_deg`/`side_pitch_deg`.
+- `server/src/server.js` (POST `/body/analyze`): lê os campos e passa como 7º/8º arg posicional ao script Python (string vazia se ausente).
+- `body_analysis.py`: `analyze(..., front_pitch_deg=None, side_pitch_deg=None)`. `|pitch| > 12°` → warnings `camera_tilted_front`/`camera_tilted_side`. Meta expõe `front_pitch_deg`/`side_pitch_deg` para debug. Nenhuma correcção trigonométrica de scale aplicada ainda — só rejeição/aviso.
+
+**How to apply:** 
+- OTA imediato distribui a mudança do bicep (pura Python + JS já wrapped). O indicador de pitch só aparece em builds ≥1.0.15 com `expo-sensors` linkado nativamente. Correr `npm run build:ios:novaqi` e `npm run build:android:novaqi` para novo build nativo antes de anunciar a feature.
+- Se a rejeição do bicep começar a disparar em fotos boas, relaxar `> 0.40 * shoulder_w` para `0.45` (bodybuilders extremos podem estar perto de 0.35–0.40).
+- Para adicionar correcção real de perspectiva no futuro: com `pitch` e `card_scale_front`/`card_front_cy_px` já se pode calcular scale gradient (distância a cada linha y), aplicando `scale_at_y = card_scale_front / (1 - (y - card_y) / card_y * sin(pitch))` — deixado para segunda iteração após ver dados reais.
+
 ### PlateAnalysisScreen — aviso "Como funciona a análise do prato"
 Explica ao user por que os items não são verificados contra a dieta (é impossível distinguir por foto leite animal vs vegetal, queijo vegan vs normal, etc.) e aponta o scan de produto industrializado como o caminho para verificação rigorosa. UI:
 - Modal auto-aberto **na 1ª entrada** no ecrã. Persiste dismiss via `AsyncStorage.getItem('@plate_notice_dismissed') === '1'`.

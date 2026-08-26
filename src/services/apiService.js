@@ -448,7 +448,7 @@ export async function apiAnalyzePlate(token, imageBase64, language, profile) {
   return r.json();
 }
 
-export async function apiBodyAnalyze(token, { frontImage, sideImage, heightCm, weightKg, sex, age }) {
+export async function apiBodyAnalyze(token, { frontImage, sideImage, heightCm, weightKg, sex, age, frontPitchDeg, sidePitchDeg }) {
   const r = await fetch(`${baseUrl()}/body/analyze`, {
     method: 'POST',
     headers: appHeaders(token),
@@ -459,6 +459,8 @@ export async function apiBodyAnalyze(token, { frontImage, sideImage, heightCm, w
       weight_kg: weightKg,
       sex,
       age,
+      front_pitch_deg: frontPitchDeg ?? null,
+      side_pitch_deg:  sidePitchDeg  ?? null,
     }),
   });
   const data = await r.json().catch(() => ({}));
