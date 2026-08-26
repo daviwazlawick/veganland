@@ -1,5 +1,49 @@
 import nodemailer from 'nodemailer';
+import { spawn } from 'child_process';
 import './env.js';
+
+// Detect image format from magic bytes. Returns one of:
+// 'jpeg' | 'png' | 'webp' | 'heic' | 'heif' | 'unknown'.
+// Needed because iOS launchCameraAsync returns raw HEIC even when base64
+// is requested — that lands as .heic in the email and Gmail/Apple Mail
+// won't preview it. We detect and transcode via Python before attaching.
+function sniffImageFormat(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 12) return 'unknown';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+  if (buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP') return 'webp';
+  // ISOBMFF: bytes 4-7 = 'ftyp', 8-11 = brand (heic, heix, hevc, hevx, mif1, msf1)
+  if (buf.slice(4, 8).toString() === 'ftyp') {
+    const brand = buf.slice(8, 12).toString();
+    if (brand === 'heic' || brand === 'heix' || brand === 'hevc' || brand === 'hevx') return 'heic';
+    if (brand === 'mif1' || brand === 'msf1' || brand === 'heim' || brand === 'heis') return 'heif';
+  }
+  return 'unknown';
+}
+
+// Spawn Python to transcode HEIC/HEIF → JPEG. Cheap: ~200ms per call.
+// Returns { buf, mime, ext }. On failure, returns original buffer as-is.
+function transcodeToJpeg(buf) {
+  return new Promise((resolve) => {
+    const py = spawn('/opt/body-analysis-env/bin/python3',
+      ['/opt/veganland/server/src/heic_to_jpg.py']);
+    const chunks = [];
+    let err = '';
+    const timer = setTimeout(() => { py.kill(); resolve({ buf, mime: 'image/heic', ext: 'heic', failed: true }); }, 8000);
+    py.stdout.on('data', d => chunks.push(d));
+    py.stderr.on('data', d => { err += d; });
+    py.on('close', code => {
+      clearTimeout(timer);
+      if (code === 0 && chunks.length > 0) {
+        resolve({ buf: Buffer.concat(chunks), mime: 'image/jpeg', ext: 'jpg' });
+      } else {
+        console.warn('[email-transcode] failed code=%s err=%s', code, err.slice(-200));
+        resolve({ buf, mime: 'image/heic', ext: 'heic', failed: true });
+      }
+    });
+    py.stdin.end(buf);
+  });
+}
 
 const APP_URL = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -175,18 +219,59 @@ export async function sendProductReviewEmail({ userEmail, userId, productName, b
 
   // photos: array of { name, mime, base64 } — up to 5. Converted to nodemailer
   // attachments so the reviewer can open barcode/ingredients/label directly.
-  const attachments = (Array.isArray(photos) ? photos : [])
+  // Sniff magic bytes: iPhone launchCameraAsync frequently sends HEIC even
+  // when the client tags it as image/jpeg. Transcode HEIC/HEIF → JPEG via
+  // Python + pillow-heif (already installed at /opt/body-analysis-env) so
+  // Gmail/Apple Mail can preview inline.
+  const rawList = (Array.isArray(photos) ? photos : [])
     .filter(p => p && p.base64)
-    .slice(0, 5)
-    .map((p, i) => {
-      const mime = p.mime || 'image/jpeg';
-      const ext = mime.split('/')[1] || 'jpg';
-      return {
-        filename: `${p.name || `photo_${i + 1}`}.${ext}`,
-        content: Buffer.from(p.base64.replace(/^data:[^,]+,/, ''), 'base64'),
-        contentType: mime,
-      };
+    .slice(0, 5);
+  const attachments = [];
+  for (let i = 0; i < rawList.length; i++) {
+    const p = rawList[i];
+    let buf = Buffer.from(p.base64.replace(/^data:[^,]+,/, ''), 'base64');
+    const origLen = buf.length;
+    const fmt = sniffImageFormat(buf);
+    const firstBytesHex = buf.slice(0, 16).toString('hex');
+    console.log(`[product-review] photo ${i} name=${p.name} client_mime=${p.mime} sniffed=${fmt} bytes=${origLen} magic=${firstBytesHex}`);
+    let mime = 'image/jpeg';
+    let ext = 'jpg';
+    if (fmt === 'heic' || fmt === 'heif') {
+      const r = await transcodeToJpeg(buf);
+      buf = r.buf; mime = r.mime; ext = r.ext;
+      console.log(`[product-review] photo ${i} transcode heic→jpeg: ${origLen} → ${buf.length} bytes${r.failed ? ' (FAILED, kept original)' : ''}`);
+    } else if (fmt === 'png')  { mime = 'image/png';  ext = 'png';  }
+    else if (fmt === 'webp')   { mime = 'image/webp'; ext = 'webp'; }
+    else if (fmt === 'jpeg')   { /* already jpeg */ }
+    else {
+      // Unknown format: attempt transcode anyway — Pillow supports many formats
+      // Pillow can decode. Fall back to sending raw with client-supplied mime.
+      const r = await transcodeToJpeg(buf);
+      if (!r.failed) {
+        buf = r.buf; mime = r.mime; ext = r.ext;
+        console.log(`[product-review] photo ${i} unknown format transcoded → jpeg (${buf.length}b)`);
+      } else {
+        mime = p.mime || 'application/octet-stream';
+        ext = (p.mime || '').split('/')[1] || 'bin';
+        console.warn(`[product-review] photo ${i} kept as ${mime} (transcode failed)`);
+      }
+    }
+    const baseName = (typeof p.name === 'string' && p.name) ? p.name : `photo_${i + 1}`;
+    const filename = `${baseName}.${ext}`;
+    attachments.push({
+      filename,
+      content: buf,
+      contentType: mime,
+      // Force base64 output — some Hostinger relays flip to quoted-printable
+      // and corrupt binary.
+      contentTransferEncoding: 'base64',
+      // Explicit Content-Disposition: attachment. Without it, Gmail iOS
+      // treats image attachments as inline and hides them from the message
+      // view when they aren't referenced by cid in the HTML body.
+      contentDisposition: 'attachment',
     });
+  }
+  console.log(`[product-review] sending email with ${attachments.length} attachments, total ${attachments.reduce((s,a)=>s+a.content.length,0)} bytes`);
 
   const escBarcode = (barcode || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const escName    = (productName || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
