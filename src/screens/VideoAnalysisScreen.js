@@ -355,11 +355,10 @@ const s = StyleSheet.create({
   // Camera
   cameraContainer:   { flex: 1, backgroundColor: '#000' },
   silhouetteOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
-  // Silhouette fills the viewfinder vertically (100 % height) with
-  // resizeMode "cover" — for the square 1254×1254 pose art on a
-  // portrait phone this crops some of the horizontal margin, which is
-  // fine: the user cares about aligning body proportions vertically.
-  silhouetteImg:     { width: '100%', height: '100%', opacity: 0.4 },
+  // Silhouette fills 80 % of the viewfinder height (leaves a bit of
+  // breathing room top/bottom so the user's frame isn't cut off).
+  // resizeMode "cover" crops horizontal margin from the square art.
+  silhouetteImg:     { width: '100%', height: '80%', opacity: 0.4 },
 
   cameraTopBar:      { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 0 },
   stepLabel:         { color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5, alignSelf: 'center', marginBottom: 8, overflow: 'hidden' },
