@@ -397,6 +397,21 @@ export default function BodyAnalysisScreen({ navigation, route }) {
           ))}
         </View>
 
+        {/* Guided-camera entry point. VideoAnalysisScreen captures the phone's
+            pitch at shutter time and passes it back here via route params —
+            unlocks the tilted-camera warning + future perspective correction.
+            Only useful when the current build has expo-sensors linked. */}
+        <TouchableOpacity
+          style={s.cameraBtn}
+          onPress={() => navigation.navigate('VideoAnalysis')}
+          activeOpacity={0.85}
+        >
+          <Text style={s.cameraBtnIcon}>📸</Text>
+          <Text style={s.cameraBtnTxt} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            {t(language, 'body_analysis_screen.take_with_camera') || 'Tirar agora com câmara guiada'}
+          </Text>
+        </TouchableOpacity>
+
         {/* Demographics */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>{t(language, 'body_analysis_screen.calibration_title')}</Text>
@@ -718,6 +733,9 @@ const s = StyleSheet.create({
   poseTipText:    { fontSize: 12, color: Colors.textMuted, lineHeight: 17 },
 
   photoRow:        { flexDirection: 'row', gap: 12 },
+  cameraBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: (Colors.primary || '#7CB518') + '14', borderRadius: 14, borderWidth: 1.5, borderColor: Colors.primary || '#7CB518', paddingVertical: 12, paddingHorizontal: 16, marginTop: 12 },
+  cameraBtnIcon:   { fontSize: 22 },
+  cameraBtnTxt:    { flexShrink: 1, fontSize: 14, fontWeight: '800', color: Colors.primary || '#7CB518', textAlign: 'center' },
   photoPicker:     { flex: 1, aspectRatio: 0.75, borderRadius: 16, backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   photoPreview:    { width: '100%', height: '100%' },
   photoEmpty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },

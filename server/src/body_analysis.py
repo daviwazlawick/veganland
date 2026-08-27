@@ -1035,17 +1035,19 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
                       f'(+{_corr}px correction), bicep_w={bicep_w}cm', file=sys.stderr)
             break
 
-    # Attempt 2: landmark-outer-edge scan. When the arm never separates even
-    # after 40px erosion, use anatomical prior: MediaPipe places the arm
-    # landmarks on the bone centerline (humerus). Scan OUTWARD from the
-    # landmark x at each y until mask edge → that's the arm's outer skin.
-    # Half-width × 2 = arm diameter. Only trusts the outward direction (the
-    # inward direction sits in the torso blob, so meaningless).
+    # Attempt 2: landmark-outer-edge scan with anatomical cap.
+    # This assumes the arm's outer skin is the nearest mask edge going away
+    # from the torso centerline. Works only if the arm sticks OUT of the
+    # torso silhouette — for tight-against-body poses (Eugenia, Davi), the
+    # mask is one big blob and the "outer edge" is actually the far side of
+    # the person, not the arm. We cap half_w ≤ 60 px (~7 cm diameter at
+    # typical scale, well below any plausible arm) to reject those runaway
+    # scans quickly. Passing scans give a real anatomical width.
+    _MAX_OUTER_HALF_W_PX = 60
     if bicep_w is None and sh_xy and el_xy:
         sy_i, ey_i = int(sh_xy[1]), int(el_xy[1])
         span = ey_i - sy_i
         if span > 0:
-            cx_mid = fw / 2.0
             best_w, best_res = 0, (None,)*6
             for yi in range(int(sy_i + span * 0.40), int(sy_i + span * 0.75), 2):
                 if not (0 <= yi < front_mask.shape[0]): continue
@@ -1053,18 +1055,20 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
                 lm_x = int(sh_xy[0] + t * (el_xy[0] - sh_xy[0]))
                 if lm_x < 0 or lm_x >= fw: continue
                 row = front_mask[yi]
-                if not row[lm_x]: continue  # landmark not inside mask
+                if not row[lm_x]: continue
                 if arm_side == 'left':
                     x = lm_x
                     while x > 0 and row[x]: x -= 1
-                    outer_x = x + 1  # last True index
+                    outer_x = x + 1
                     half_w = lm_x - outer_x
                 else:
                     x = lm_x
                     while x < fw - 1 and row[x]: x += 1
                     outer_x = x - 1
                     half_w = outer_x - lm_x
-                if half_w < 5: continue
+                # Reject: too small (spurious), or larger than plausible
+                # (mask leaks into torso — arm not really sticking out).
+                if half_w < 5 or half_w > _MAX_OUTER_HALF_W_PX: continue
                 w_px = 2 * half_w
                 if w_px > best_w:
                     best_w = w_px
@@ -1076,8 +1080,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
                                     lm_x - half_w, yi, outer_x, yi, yi)
             if best_res[0] is not None:
                 bicep_w, bx0, by0, bx1, by1, b_cy = best_res
-                print(f'[bicep-outer-edge] anatomical estimate {bicep_w}cm '
-                      f'(landmark → outer skin × 2)', file=sys.stderr)
+                print(f'[bicep-outer-edge] {bicep_w}cm (landmark → outer skin × 2)',
+                      file=sys.stderr)
 
     if bicep_w is None and sh_xy and el_xy:
         # Last-resort: landmark-bounds scan. Both erosion and outer-edge failed
@@ -1138,8 +1142,16 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
             overlay_lines_front.pop('bicep', None)
             measure_ys_front.pop('bicep', None)
             if forearm_w is not None:
-                # Anthropometric: male ~1.22, female ~1.15 (relaxed arm)
-                _ratio = 1.22 if sex == 'male' else 1.15
+                # Anthropometric ratio, BMI-bracketed. Calibrated against the
+                # davi 2026-08-27 pair (male, BMI 19.8, tape: bicep 26 cm /
+                # forearm 22 cm → ratio 1.18). Higher BMI carries more muscle
+                # / fat volume proportional to arm, so ratio grows slightly.
+                if _bmi_for_k < 22:      # lean
+                    _ratio = 1.18 if sex == 'male' else 1.12
+                elif _bmi_for_k < 27:    # normal
+                    _ratio = 1.22 if sex == 'male' else 1.15
+                else:                    # heavier
+                    _ratio = 1.26 if sex == 'male' else 1.18
                 bicep_w = round(forearm_w * _ratio, 1)
                 _bicep_estimated_from_forearm = True
                 warnings.append('bicep_estimated_from_forearm')
