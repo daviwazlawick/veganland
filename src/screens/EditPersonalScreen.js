@@ -532,7 +532,7 @@ export default function EditPersonalScreen({ navigation }) {
           {IS_NOVAQI && (
             <TouchableOpacity
               style={styles.baSuggest}
-              onPress={() => navigation.navigate('BodyAnalysis')}
+              onPress={() => navigation.navigate('VideoAnalysis')}
               activeOpacity={0.85}
             >
               <Text style={styles.baSuggestIcon}>📐</Text>

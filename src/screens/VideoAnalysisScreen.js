@@ -143,7 +143,7 @@ export default function VideoAnalysisScreen({ navigation }) {
     return (
       <SafeAreaView style={s.safe}>
         <ScrollView contentContainerStyle={s.introContainer} showsVerticalScrollIndicator={false}>
-          <Text style={s.title}>Vídeo Análise</Text>
+          <Text style={s.title}>Análise Corporal por Câmara</Text>
           <Text style={s.subtitle}>
             O app guia-te passo a passo. Segue as instruções para obter as medições mais precisas possível.
           </Text>
@@ -238,7 +238,7 @@ export default function VideoAnalysisScreen({ navigation }) {
 
         {/* Silhouette overlay */}
         <View style={s.silhouetteOverlay} pointerEvents="none">
-          <Image source={silhouette} style={s.silhouetteImg} resizeMode="contain" />
+          <Image source={silhouette} style={s.silhouetteImg} resizeMode="cover" />
         </View>
 
         {/* Top bar */}
@@ -355,9 +355,10 @@ const s = StyleSheet.create({
   // Camera
   cameraContainer:   { flex: 1, backgroundColor: '#000' },
   silhouetteOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
-  // Silhouette fills the whole viewfinder so the user can literally line
-  // themselves up inside the outline. resizeMode "contain" on the Image
-  // keeps aspect ratio and letterboxes if the screen is a different shape.
+  // Silhouette fills the viewfinder vertically (100 % height) with
+  // resizeMode "cover" — for the square 1254×1254 pose art on a
+  // portrait phone this crops some of the horizontal margin, which is
+  // fine: the user cares about aligning body proportions vertically.
   silhouetteImg:     { width: '100%', height: '100%', opacity: 0.4 },
 
   cameraTopBar:      { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 0 },
