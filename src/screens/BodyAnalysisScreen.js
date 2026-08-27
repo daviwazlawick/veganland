@@ -665,12 +665,33 @@ function MetricRow({ label, value, tag, tagColor, onInfo }) {
   );
 }
 
+// Sanitise numeric input at typing time:
+//  - convert comma to dot (PT/DE/FR keyboards default to comma on decimal-pad)
+//  - allow only digits + a single dot
+//  - trim to 6 chars so a runaway type can't produce e.g. "10000" that then
+//    overflows the numeric(5,1) columns server-side (max 9999.9)
+function _sanitizeDecimal(v, maxLen = 6) {
+  if (v == null) return '';
+  let s = String(v).replace(',', '.').replace(/[^0-9.]/g, '');
+  const firstDot = s.indexOf('.');
+  if (firstDot !== -1) s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+  return s.slice(0, maxLen);
+}
+
 function Field({ label, value, onChange, kbType }) {
+  const isDecimal = kbType === 'decimal-pad';
   return (
     <View style={{ flex: 1, gap: 4 }}>
       <Text style={s.fieldLabel}>{label}</Text>
       <View style={s.fieldBox}>
-        <TextInput style={s.fieldTxt} value={value} onChangeText={onChange} keyboardType={kbType} placeholder="—" placeholderTextColor={Colors.textMuted} />
+        <TextInput
+          style={s.fieldTxt}
+          value={value}
+          onChangeText={raw => onChange(isDecimal ? _sanitizeDecimal(raw) : String(raw).replace(/[^0-9]/g, '').slice(0, 3))}
+          keyboardType={kbType}
+          placeholder="—"
+          placeholderTextColor={Colors.textMuted}
+        />
       </View>
     </View>
   );

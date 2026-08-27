@@ -1019,7 +1019,7 @@ const server = http.createServer(async (req, res) => {
       const androidStore = brand.androidUrl || novaqi.androidUrl;
       sendJson(res, 200, {
         ios:     { min: '1.0.16', store_url: iosStore },
-        android: { min: '1.0.16', store_url: androidStore },
+        android: { min: '1.0.18', store_url: androidStore },
         web:     { min: '1.0.0' },
       }, origin);
       return;

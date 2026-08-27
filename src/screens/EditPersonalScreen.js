@@ -322,8 +322,9 @@ export default function EditPersonalScreen({ navigation }) {
   }
 
   async function handleSave() {
-    const heightNum = parseFloat(height);
-    const weightNum = parseFloat(weight);
+    // Locale-safe: accept both comma and dot as decimal separator.
+    const heightNum = parseFloat(String(height).replace(',', '.'));
+    const weightNum = parseFloat(String(weight).replace(',', '.'));
     if (height && (isNaN(heightNum) || heightNum < 50 || heightNum > 300)) {
       Alert.alert('', t(language, 'nutrition.body_height_error') || 'Height must be between 50 and 300 cm.'); return;
     }

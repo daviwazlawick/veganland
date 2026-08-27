@@ -1463,6 +1463,23 @@ export async function saveBodyProfile(userId, data) {
   const db = await getPool();
   if (!db) return null;
   const { sex, birth_date, height_cm, weight_kg, activity_level, goal } = data;
+  // Range-clamp numeric fields BEFORE the insert. height_cm and weight_kg
+  // columns are numeric(5,1) — anything above 9999.9 raises a Postgres
+  // 22003 overflow, which used to 500 the whole call and leave the client
+  // in a bad state (form showed the crash then went back to empty).
+  // Silently clamping to null when out of realistic human range is safer
+  // than exploding, and it surfaces the bug via the log for follow-up.
+  function _numOrNull(v, lo, hi, name) {
+    if (v == null) return null;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < lo || n > hi) {
+      console.warn(`[saveBodyProfile] user ${userId} rejected ${name}=${v} (out of range ${lo}..${hi})`);
+      return null;
+    }
+    return n;
+  }
+  const h = _numOrNull(height_cm, 50,  300, 'height_cm');
+  const w = _numOrNull(weight_kg, 20,  500, 'weight_kg');
   await db.query(`
     insert into user_body_profile (user_id, sex, birth_date, height_cm, weight_kg, activity_level, goal, updated_at)
     values ($1,$2,$3,$4,$5,$6,$7,now())
@@ -1470,7 +1487,7 @@ export async function saveBodyProfile(userId, data) {
       sex = excluded.sex, birth_date = excluded.birth_date, height_cm = excluded.height_cm,
       weight_kg = excluded.weight_kg, activity_level = excluded.activity_level,
       goal = excluded.goal, updated_at = now()`,
-    [userId, sex || null, birth_date || null, height_cm || null, weight_kg || null, activity_level || null, goal || null]
+    [userId, sex || null, birth_date || null, h, w, activity_level || null, goal || null]
   );
   return true;
 }

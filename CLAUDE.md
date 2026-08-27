@@ -1781,6 +1781,55 @@ User 297 (lumozini) apanhou repetidamente `cannot identify image file '/tmp/ba_f
 - Se a rejeição do bicep começar a disparar em fotos boas, relaxar `> 0.40 * shoulder_w` para `0.45` (bodybuilders extremos podem estar perto de 0.35–0.40).
 - Para adicionar correcção real de perspectiva no futuro: com `pitch` e `card_scale_front`/`card_front_cy_px` já se pode calcular scale gradient (distância a cada linha y), aplicando `scale_at_y = card_scale_front / (1 - (y - card_y) / card_y * sin(pitch))` — deixado para segunda iteração após ver dados reais.
 
+### 2026-08-26 → 27 — Sprint pré 1.0.18 (bicep, report produto, relatório, i18n fit, email, defensivas)
+
+**Bicep detection — três-tier**
+- `body_analysis.py` `_bicep_separated`: agora aceita `mask` override + `width_correction_px` para retry sobre máscaras erodidas.
+- Loop de erosão progressivo: 0 → 2 → 4 → 6 → 8 → 12 → 16 → 20 iters (kernel 3×3), cada tentativa aplica `cv2.erode` na máscara e adiciona 2×iters de correcção à largura. Braços encostados ao tronco separam-se em algum destes níveis.
+- `_bicep_outer_edge` (novo): se a erosão falhar, estima diâmetro anatomicamente — MediaPipe põe o landmark do braço no centro do humerus; scan outward do landmark até à borda da máscara → half-width × 2 = diâmetro. Log `[bicep-outer-edge] anatomical estimate Xcm`.
+- Último recurso: o `measure_limb_perp` original (leaky). Se sobreviver aos guards `bicep_measurement_rejected` / anthropometric fallback ainda entra em jogo.
+- **Alerta conhecido:** para fotos onde MediaPipe põe os shoulder landmarks muito próximos (mulheres com braços cruzados / pose torcida), `shoulder_w_cm` chega em ~12 cm e dispara o guard `>40% shoulder` cedo demais. Não é crítico porque o guard de antebraço também pega, mas se precisares afinar: só usar `shoulder_w_cm` como threshold quando estiver na faixa 25-55 cm.
+
+**Report Product review flow (novo)**
+- Cliente: `src/screens/ReportProductScreen.js` — 3 fotos obrigatórias (barcode + ingredientes + frente) + 2 opcionais, 4 categorias (produto errado / ingredientes / nutrição / outro), descrição livre. Não conta como scan.
+- Server: `POST /product/report` em `server.js` — accepta até 30 MB (nginx location `~ ^/(body|product)/` estendida em ambos os hosts). Envia email para `contact@novaqi.app` com subject `Product review request`. Não incrementa scan counter.
+- Email pipeline (`server/src/email.js sendProductReviewEmail`):
+  - `sniffImageFormat` por magic bytes (JPEG/PNG/WebP/HEIC/HEIF)
+  - HEIC/HEIF → JPEG via `heic_to_jpg.py` (novo helper, reutiliza `/opt/body-analysis-env` + pillow-heif já instalado)
+  - Attachments com `contentTransferEncoding: 'base64'` + `contentDisposition: 'attachment'` — sem isto o Gmail iOS escondia as fotos como se fossem inline sem CID
+- `ResultScreen.js`: botão antigo "Not my product" (que fazia re-scan) rewired para navigate('ReportProduct') — label mudado para "Reportar informação errada" em 6 idiomas
+- **NOVAQI_SMTP_PASS estava stale**: password no `.env` era `NovaQI2026!`, real é `VeganLand2026!` (mesma do VeganLand). Actualizado. Isto explica também por que emails de confirmação/reset para users NovaQI falhavam silenciosamente há semanas.
+- **DKIM em falta**: `novaqi.app` e `veganland.app` têm SPF + DMARC `p=quarantine` mas ZERO DKIM. Gmail quarantina automaticamente. Fix requer Davi no Hostinger hPanel → habilitar DKIM + adicionar TXT record.
+
+**Body-fat auto-calc (client-only, EditPersonalScreen)**
+- `effectiveBa` useMemo: precedência manual → Navy circumference (waist+neck+height, +hip female) → Deurenberg (bmi+idade+sexo) → última análise por foto → null. Fórmulas espelham `body_analysis.py`. Fonte marcada em `bf_source`; label acima do painel diz "calculado por perímetros" / "estimado por BMI+idade" / "última análise por foto"; confidence 0.50 quando estimado, 0.70 manual.
+- Callout no topo da secção "Medidas Corporais" (NovaQI only) sugere fazer análise por foto antes de digitar 9 campos.
+
+**Report screen — range personalizada + lista cronológica**
+- `NutritionReportScreen.js`: 4º tab 'custom' com dois inputs YYYY-MM-DD; refetch apenas quando ambos ISO válidos (regex `/^\d{4}-\d{2}-\d{2}$/`).
+- Novo endpoint `GET /nutrition/log-range?from=&to=` + `getConsumptionRange` em `db.js` — devolve raw consumption_log entries ordenadas por `consumed_at DESC`.
+- Card "Registros" abaixo dos day-sections mostra cada entry com ícone por source (📷 scan · 🍽 plate_photo · ✏️ manual), horário formatado por locale, meal_type, grams e macros.
+- i18n em 6 línguas: `exercise.period_custom` / `period_custom_from` / `period_custom_to` + `nutrition.entries_title`.
+
+**Font-fit em CTAs (i18n DE/FR/IT overflow)**
+- `numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}` em: Scan Another + Consume/Logged (ResultScreen), Subscribe/Start trial (PaywallScreen), Next/Save/Change plan (ProfileSetupScreen), Save body profile (BodyProfileScreen), Confirm delete + Cancel (DeleteAccountScreen), Allow camera / Take ingredients photo / Dismiss (ScanScreen), Confirm log exercise (ExerciseLogScreen), Log plate (PlateAnalysisScreen).
+
+**Defensivas contra numeric overflow em body profile**
+- `saveBodyProfile` em `db.js`: clamp de `height_cm` (50-300) e `weight_kg` (20-500) antes do INSERT. Fora do range → `null` + log `[saveBodyProfile] user X rejected ...`. Antes o Postgres devolvia 22003 (numeric field overflow) e a 500 corrompia o state do NutritionContext no cliente — user via perfil "vazio". A causa raiz era `parseFloat("54,3")` em BodyAnalysisScreen (comma em locales PT/DE/FR) ou input runaway.
+- `BodyAnalysisScreen.Field`: novo `_sanitizeDecimal` — vírgula → ponto, só dígitos+ponto, cap 6 chars. Idade limitada a 3 dígitos.
+- `EditPersonalScreen.handleSave`: `String(h).replace(',', '.')` antes de parseFloat (como o `BodyProfileScreen` já fazia).
+
+**Camera pitch capture (foi entregue na 1.0.18)**
+- `expo-sensors@~15.0.8` adicionado. `VideoAnalysisScreen` subscreve `DeviceMotion.rotation.beta`, mostra pill verde/amarelo/vermelho (≤5°/≤12°/>12°) e captura pitch no snapshot. Threaded route params → `BodyAnalysisScreen` → `apiBodyAnalyze` → server → Python 7º/8º arg. `|pitch|>12°` gera warnings `camera_tilted_front/_side`. Sem correcção real de scale ainda — só rejeição/aviso.
+
+**Force update Android 1.0.18**
+- `/app/version` bumpado: `android.min: '1.0.18'` (iOS mantido em 1.0.16). Play Store já lista 1.0.18 para `app.novaqi`, portanto rollout activo — users em ≤1.0.17 caem no `ForceUpdateScreen`.
+
+**How to apply:**
+- Bicep: se a rejeição continuar a disparar em fotos boas por causa do shoulder_w_cm=12cm irrealista, adicionar `if 25 <= shoulder_w_cm <= 55: check` — só usar aquela regra quando o shoulder detection é plausível.
+- Se aparecer bug de overflow noutra tabela numeric(5,1), aplicar o mesmo padrão de clamp+log de `saveBodyProfile`.
+- Report Product: emails chegam ao webmail Hostinger correctamente. Se ainda caírem em spam no Gmail, é DKIM — activa no Hostinger hPanel.
+
 ### PlateAnalysisScreen — aviso "Como funciona a análise do prato"
 Explica ao user por que os items não são verificados contra a dieta (é impossível distinguir por foto leite animal vs vegetal, queijo vegan vs normal, etc.) e aponta o scan de produto industrializado como o caminho para verificação rigorosa. UI:
 - Modal auto-aberto **na 1ª entrada** no ecrã. Persiste dismiss via `AsyncStorage.getItem('@plate_notice_dismissed') === '1'`.

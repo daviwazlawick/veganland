@@ -953,14 +953,19 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
 
     arm_side, sh_xy, el_xy = _far_side('left_shoulder','left_elbow','right_shoulder','right_elbow')
 
-    def _bicep_separated(sh, el, side_nm):
+    def _bicep_separated(sh, el, side_nm, mask=None, width_correction_px=0):
         """
         Find bicep by scanning only rows where the arm has SEPARATED from the torso
         (two distinct contiguous runs). This is the only way to measure the arm
         without including the chest — stop exactly at the arm's green contour edge.
         Falls back gracefully: if arm never separates in the scan range, returns None.
+
+        `mask` overrides `front_mask` — used to try eroded copies when the arm
+        touches the torso. `width_correction_px` is added back to the measured
+        width to compensate for that erosion.
         """
         if not sh or not el: return (None,)*6
+        if mask is None: mask = front_mask
         sy_i = int(sh[1]); ey_i = int(el[1])
         if ey_i <= sy_i: return (None,)*6
         span = ey_i - sy_i
@@ -971,8 +976,8 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
         arm_x_hi = int(max(sh[0], el[0])) + 30
         # Start at 40% so we are clearly past the chest/axilla junction.
         for yi in range(int(sy_i + span * 0.40), int(sy_i + span * 0.75), 2):
-            if not (0 <= yi < front_mask.shape[0]): continue
-            row = front_mask[yi]
+            if not (0 <= yi < mask.shape[0]): continue
+            row = mask[yi]
             runs, in_run = [], False
             for xi in range(fw):
                 if row[xi] and not in_run:
@@ -993,17 +998,91 @@ def analyze(front_path, side_path, height_cm, weight_kg, sex, age,
             # Verify run is within expected arm x-range (landmark-anchored)
             arm_cx = (arm[0] + arm[1]) / 2
             if not (arm_x_lo <= arm_cx <= arm_x_hi): continue
-            w_px = arm[1] - arm[0]
+            w_px = arm[1] - arm[0] + width_correction_px
             if w_px < 5: continue
             if w_px > best_w:
                 best_w = w_px
-                best_res = (round(w_px * scale, 1), arm[0], yi, arm[1], yi, yi)
+                # Expand overlay bounds by the correction so the yellow line
+                # in the debug overlay lands on the anatomical edges, not the
+                # eroded ones.
+                pad = width_correction_px // 2
+                best_res = (round(w_px * scale, 1),
+                            max(0, arm[0] - pad), yi,
+                            min(fw - 1, arm[1] + pad), yi, yi)
         return best_res
 
-    bicep_w, bx0, by0, bx1, by1, b_cy = _bicep_separated(sh_xy, el_xy, arm_side)
+    # Attempt 1: progressive erosion of the mask until arm separates from torso.
+    # Erode kernel 3x3 shrinks 1 px per iteration on each side, so `iters`
+    # iterations remove `2*iters` px from the row width. Add that back.
+    # Ranges from 0 (original) through 20 iters (~40px shrink each side) —
+    # enough for tight-arms photos like Eugenia's.
+    bicep_w, bx0, by0, bx1, by1, b_cy = (None,)*6
+    for _erode_iters in [0, 2, 4, 6, 8, 12, 16, 20]:
+        if _erode_iters == 0:
+            _mask = None
+            _corr = 0
+        else:
+            _kernel = np.ones((3, 3), np.uint8)
+            _mask = cv2.erode(front_mask.astype(np.uint8), _kernel,
+                              iterations=_erode_iters).astype(bool)
+            _corr = 2 * _erode_iters
+        _res = _bicep_separated(sh_xy, el_xy, arm_side,
+                                mask=_mask, width_correction_px=_corr)
+        if _res[0] is not None:
+            bicep_w, bx0, by0, bx1, by1, b_cy = _res
+            if _erode_iters > 0:
+                print(f'[bicep-erosion] found separation after {_erode_iters} iters '
+                      f'(+{_corr}px correction), bicep_w={bicep_w}cm', file=sys.stderr)
+            break
+
+    # Attempt 2: landmark-outer-edge scan. When the arm never separates even
+    # after 40px erosion, use anatomical prior: MediaPipe places the arm
+    # landmarks on the bone centerline (humerus). Scan OUTWARD from the
+    # landmark x at each y until mask edge → that's the arm's outer skin.
+    # Half-width × 2 = arm diameter. Only trusts the outward direction (the
+    # inward direction sits in the torso blob, so meaningless).
+    if bicep_w is None and sh_xy and el_xy:
+        sy_i, ey_i = int(sh_xy[1]), int(el_xy[1])
+        span = ey_i - sy_i
+        if span > 0:
+            cx_mid = fw / 2.0
+            best_w, best_res = 0, (None,)*6
+            for yi in range(int(sy_i + span * 0.40), int(sy_i + span * 0.75), 2):
+                if not (0 <= yi < front_mask.shape[0]): continue
+                t = (yi - sy_i) / max(span, 1)
+                lm_x = int(sh_xy[0] + t * (el_xy[0] - sh_xy[0]))
+                if lm_x < 0 or lm_x >= fw: continue
+                row = front_mask[yi]
+                if not row[lm_x]: continue  # landmark not inside mask
+                if arm_side == 'left':
+                    x = lm_x
+                    while x > 0 and row[x]: x -= 1
+                    outer_x = x + 1  # last True index
+                    half_w = lm_x - outer_x
+                else:
+                    x = lm_x
+                    while x < fw - 1 and row[x]: x += 1
+                    outer_x = x - 1
+                    half_w = outer_x - lm_x
+                if half_w < 5: continue
+                w_px = 2 * half_w
+                if w_px > best_w:
+                    best_w = w_px
+                    if arm_side == 'left':
+                        best_res = (round(w_px * scale, 1),
+                                    outer_x, yi, lm_x + half_w, yi, yi)
+                    else:
+                        best_res = (round(w_px * scale, 1),
+                                    lm_x - half_w, yi, outer_x, yi, yi)
+            if best_res[0] is not None:
+                bicep_w, bx0, by0, bx1, by1, b_cy = best_res
+                print(f'[bicep-outer-edge] anatomical estimate {bicep_w}cm '
+                      f'(landmark → outer skin × 2)', file=sys.stderr)
 
     if bicep_w is None and sh_xy and el_xy:
-        # Fallback: landmark-bounds scan (used when arm never separates from torso)
+        # Last-resort: landmark-bounds scan. Both erosion and outer-edge failed
+        # — pathological photo. This is the leaky one that picks up torso;
+        # results are guarded by the sanity check below.
         arm_cx_min, arm_cx_max, arm_rx_min, arm_rx_max = _arm_lm_bounds(
             sh_xy, el_xy, _ARM_CTR_MARGIN, _BICEP_RAY_MARGIN)
         bicep_w, bx0, by0, bx1, by1, b_cy = measure_limb_perp(
