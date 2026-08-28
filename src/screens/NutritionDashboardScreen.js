@@ -573,7 +573,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       {/* Weight modal */}
       <Modal visible={weightModal} transparent animationType="slide">
         <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={s.modalCard}>
+          <View style={[s.modalCard, { paddingBottom: 24 + insets.bottom }]}>
             <Text style={s.modalTitle}>{t(language, 'nutrition.weight_today')}</Text>
             <View style={s.weightInputRow}>
               <TextInput
@@ -601,7 +601,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       <Modal visible={addModal} transparent animationType="slide" onRequestClose={() => setAddModal(false)}>
         <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setAddModal(false); }} />
-          <View style={s.modalCard}>
+          <View style={[s.modalCard, { paddingBottom: 24 + insets.bottom }]}>
             <Text style={s.modalTitle}>{t(language, editingId ? 'nutrition.edit_food' : 'nutrition.add_food')}</Text>
 
             <TextInput

@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Modal, Pressable, FlatList, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
@@ -55,6 +55,7 @@ function ActivityCard({ entry, onDelete, language }) {
 export default function ExerciseLogScreen({ navigation }) {
   const { language } = useApp();
   const { todayExercise, todayBurned, logExercise, deleteExercise, bodyProfile } = useNutrition();
+  const insets = useSafeAreaInsets();
 
   const [favorites, setFavorites] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
@@ -262,7 +263,7 @@ export default function ExerciseLogScreen({ navigation }) {
       <Modal visible={!!logModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <Pressable style={styles.modalBackdrop} onPress={() => setLogModal(null)}>
-            <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <View style={[styles.modalCard, { paddingBottom: 24 + insets.bottom }]} onStartShouldSetResponder={() => true}>
               {logModal && (
                 <>
                   <View style={[styles.modalStrip, { backgroundColor: catCfg?.color || Colors.primary }]}>

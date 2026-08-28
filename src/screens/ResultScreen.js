@@ -739,7 +739,7 @@ export default function ResultScreen({ navigation, route }) {
           <TouchableWithoutFeedback onPress={() => setConsumeModal(false)}>
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
-          <View style={styles.consumeModalCard}>
+          <View style={[styles.consumeModalCard, { paddingBottom: 20 + insets.bottom }]}>
             <Text style={styles.consumeModalTitle}>{t(language, 'nutrition.consume_modal_title')}</Text>
             <Text style={styles.consumeProductName} numberOfLines={1}>{result?.title || ''}</Text>
             <Text style={styles.consumeFieldLabel}>{t(language, 'nutrition.meal_label')}</Text>

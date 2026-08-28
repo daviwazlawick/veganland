@@ -489,7 +489,7 @@ export default function PlateAnalysisScreen({ navigation }) {
       <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setEditModal(false); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Pressable style={{ flex: 1 }} onPress={() => { Keyboard.dismiss(); setEditModal(false); }} />
-          <View style={s.modalCard}>
+          <View style={[s.modalCard, { paddingBottom: 24 + insets.bottom }]}>
               <View style={s.modalHeaderRow}>
                 <Text style={s.modalTitle}>
                   {editIndex === null ? t(language, 'nutrition.plate_add_item') : t(language, 'nutrition.plate_edit_item')}
