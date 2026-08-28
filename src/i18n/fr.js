@@ -257,6 +257,7 @@ export default {
     feedback_headline: 'Alors, ça t\'a plu ?',
     feedback_sub: 'Ton avis affine notre moteur d\'analyse.',
     feedback_up: 'J\'adore !',
+    feedback_skip: 'Passer',
     feedback_down: 'Pas ça',
     feedback_up_cta: 'Continuer',
     feedback_down_title: 'Dis-nous ce qui a raté',

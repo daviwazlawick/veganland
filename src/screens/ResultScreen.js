@@ -551,7 +551,12 @@ export default function ResultScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
 
-        {isOnboarding && (
+        {/* Feedback card — visible for every tier now. Onboarding users still
+            get routed to Paywall after a rating; paid users just see a "thanks"
+            state so the card collapses. Skip button lets anyone move on
+            without leaving feedback (Paywall for onboarding, nothing for paid
+            users — they can just tap "Scan another" below). */}
+        {feedbackState !== 'done' && (
           <View style={fbStyles.card}>
             <Text style={fbStyles.headline}>{t(language, 'onboarding.feedback_headline')}</Text>
             <Text style={fbStyles.sub}>{t(language, 'onboarding.feedback_sub')}</Text>
@@ -567,10 +572,12 @@ export default function ResultScreen({ navigation, route }) {
                   try {
                     if (scanId) await apiSubmitFeedback(token, { scanId, rating: 'up' });
                     setFeedbackState('done');
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
-                    });
+                    if (isOnboarding) {
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                      });
+                    }
                   } catch (e) {
                     setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
                     setFeedbackState('idle');
@@ -601,6 +608,24 @@ export default function ResultScreen({ navigation, route }) {
             {feedbackError && (
               <Text style={fbStyles.error}>{feedbackError}</Text>
             )}
+            <TouchableOpacity
+              style={fbStyles.skip}
+              activeOpacity={0.7}
+              disabled={feedbackState === 'sending'}
+              onPress={() => {
+                setFeedbackState('done');
+                if (isOnboarding) {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                  });
+                }
+              }}
+            >
+              <Text style={fbStyles.skipTxt}>
+                {t(language, 'onboarding.feedback_skip') || 'Saltar'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1241,6 +1266,8 @@ const fbStyles = StyleSheet.create({
   },
   thumbEmoji: { fontSize: 34 },
   thumbLabel: { fontSize: 14, fontWeight: '800', color: Colors.text },
+  skip:      { marginTop: 14, alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 12 },
+  skipTxt:   { fontSize: 13, fontWeight: '600', color: Colors.textMuted, textDecorationLine: 'underline' },
   error: {
     marginTop: 12,
     fontSize: 12,

@@ -257,6 +257,7 @@ export default {
     feedback_headline: 'So, how did we do?',
     feedback_sub: 'Your take helps us sharpen the analysis engine.',
     feedback_up: 'Loved it!',
+    feedback_skip: 'Skip',
     feedback_down: 'Missed the mark',
     feedback_up_cta: 'Continue',
     feedback_down_title: 'Tell us what went wrong',

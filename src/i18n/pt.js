@@ -257,6 +257,7 @@ export default {
     feedback_headline: 'E aí, o que você achou?',
     feedback_sub: 'Sua opinião nos ajuda a aprimorar o motor de análise.',
     feedback_up: 'Adorei!',
+    feedback_skip: 'Saltar',
     feedback_down: 'Não foi bem',
     feedback_up_cta: 'Continuar',
     feedback_down_title: 'Nos conte o que falhou',

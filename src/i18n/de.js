@@ -257,6 +257,7 @@ export default {
     feedback_headline: 'Und? Wie war\'s?',
     feedback_sub: 'Dein Feedback macht unsere Analyse besser.',
     feedback_up: 'Klasse!',
+    feedback_skip: 'Überspringen',
     feedback_down: 'Nicht ganz richtig',
     feedback_up_cta: 'Weiter',
     feedback_down_title: 'Was lief schief?',

@@ -257,6 +257,7 @@ export default {
     feedback_headline: 'Allora, com\'è andata?',
     feedback_sub: 'La tua opinione affina il nostro motore di analisi.',
     feedback_up: 'Fantastico!',
+    feedback_skip: 'Salta',
     feedback_down: 'Non ci siamo',
     feedback_up_cta: 'Continua',
     feedback_down_title: 'Dicci cosa è andato storto',

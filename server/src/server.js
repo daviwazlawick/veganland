@@ -1345,20 +1345,15 @@ const server = http.createServer(async (req, res) => {
 
     // POST /feedback — thumbs up/down on a scan result.
     //
-    // Phase 1: guarded to null-tier users (onboarding flow only). Paid/legacy
-    // users get 403 here so we can add UI-side thumbs later without accidental
-    // writes. Removing the guard is a one-line change once the phase 2
-    // rollout is ready.
+    // Open to all authenticated tiers. `is_onboarding` on the row is derived
+    // from user_type being null at insert time so we can still segment new
+    // vs paid users' feedback in analytics.
     if (req.method === 'POST' && req.url === '/feedback') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const user = await getUserById(claims.userId);
       if (!user) { sendJson(res, 404, { error: 'User not found' }, origin); return; }
       const isOnboarding = user.user_type === null || user.user_type === undefined;
-      if (!isOnboarding) {
-        sendJson(res, 403, { error: 'Feedback not enabled for your tier yet' }, origin);
-        return;
-      }
       const body = await readJsonBody(req);
       const scanId = String(body.scanId || '').trim();
       const rating = body.rating === 'up' || body.rating === 'down' ? body.rating : null;

@@ -257,6 +257,7 @@ export default {
     feedback_headline: '¿Qué te ha parecido?',
     feedback_sub: 'Tu opinión afina nuestro motor de análisis.',
     feedback_up: '¡Me encantó!',
+    feedback_skip: 'Omitir',
     feedback_down: 'No acertó',
     feedback_up_cta: 'Continuar',
     feedback_down_title: 'Cuéntanos qué falló',
