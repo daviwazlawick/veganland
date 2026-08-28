@@ -487,7 +487,7 @@ export default function PlateAnalysisScreen({ navigation }) {
 
       {/* ── Edit / Add Item Modal ── */}
       <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setEditModal(false); }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={{ flex: 1 }} onPress={() => { Keyboard.dismiss(); setEditModal(false); }} />
           <View style={[s.modalCard, { paddingBottom: 24 + insets.bottom }]}>
               <View style={s.modalHeaderRow}>

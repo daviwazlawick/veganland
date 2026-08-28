@@ -269,7 +269,7 @@ export default function ProfileSetupScreen({ navigation }) {
 
         {step === 3 && isFirstTime && (
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ width: '100%', alignItems: 'center' }}
           >
             <PremiumIcon name="profile" size={72} />

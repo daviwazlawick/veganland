@@ -735,7 +735,7 @@ export default function ResultScreen({ navigation, route }) {
       )}
 
       <Modal visible={consumeModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableWithoutFeedback onPress={() => setConsumeModal(false)}>
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>

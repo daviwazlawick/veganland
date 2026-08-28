@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { localeFor, t } from '../i18n';
@@ -77,6 +77,7 @@ export default function HomeScreen({ navigation }) {
   const { stats: referralStats } = useReferral();
   const { goals, todayTotals, logConsumption, todayBurned } = useNutrition();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
   const [loggingWater, setLoggingWater] = useState(false);
   const [showWaterModal, setShowWaterModal] = useState(false);
   const [customWaterMl, setCustomWaterMl] = useState('');
@@ -409,7 +410,7 @@ export default function HomeScreen({ navigation }) {
       {/* Water picker modal */}
       <Modal visible={showWaterModal} transparent animationType="slide" onRequestClose={() => setShowWaterModal(false)}>
         <Pressable style={waterStyles.backdrop} onPress={() => setShowWaterModal(false)}>
-          <View style={waterStyles.sheet} onStartShouldSetResponder={() => true}>
+          <View style={[waterStyles.sheet, { paddingBottom: 20 + insets.bottom }]} onStartShouldSetResponder={() => true}>
             <View style={waterStyles.handle} />
             <View style={waterStyles.titleRow}>
               <Ionicons name="water" size={20} color="#0891B2" />

@@ -95,7 +95,7 @@ export default function NutritionGoalsScreen({ navigation, route }) {
         <Text style={styles.headerTitle}>{t(language, 'nutrition.goals_title')}</Text>
         <View style={{ width: 44 }} />
       </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
 
           <View style={styles.badge}>

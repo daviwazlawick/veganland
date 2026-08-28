@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, Platform, Modal, TouchableWithoutFeedback,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
@@ -23,6 +23,7 @@ const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'];
 export default function ScanScreen({ navigation, route }) {
   const { language, profile, addScanToHistory } = useApp();
   const { token, refreshUser, markOnboardingScanUsed } = useAuth();
+  const insets = useSafeAreaInsets();
   const isOnboarding = route?.params?.onboarding === true;
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
@@ -474,7 +475,7 @@ export default function ScanScreen({ navigation, route }) {
         <TouchableWithoutFeedback onPress={() => setShowCameraChoice(false)}>
           <View style={{ flex: 1 }} />
         </TouchableWithoutFeedback>
-        <View style={cameraChoiceStyles.sheet}>
+        <View style={[cameraChoiceStyles.sheet, { paddingBottom: 24 + insets.bottom }]}>
           <View style={cameraChoiceStyles.handle} />
           <Text style={cameraChoiceStyles.title}>{t(language, 'scan.camera_choice_title')}</Text>
           <TouchableOpacity

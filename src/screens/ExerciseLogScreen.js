@@ -261,7 +261,7 @@ export default function ExerciseLogScreen({ navigation }) {
 
       {/* Log modal */}
       <Modal visible={!!logModal} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <Pressable style={styles.modalBackdrop} onPress={() => setLogModal(null)}>
             <View style={[styles.modalCard, { paddingBottom: 24 + insets.bottom }]} onStartShouldSetResponder={() => true}>
               {logModal && (
