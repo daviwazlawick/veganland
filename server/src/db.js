@@ -1772,14 +1772,33 @@ export async function getBodyMeasurementsHistory(userId, limit = 30) {
 export async function searchFoodProducts(query, userId, extraTerms = []) {
   const db = await getPool();
   if (!db || !query) return [];
-  const terms = [query, ...extraTerms]
-    .map(t => String(t || '').trim())
-    .filter(Boolean);
-  if (terms.length === 0) return [];
-  const patterns = [...new Set(terms.map(t => `%${t}%`))];
+
+  // Tokenize the query — every whitespace-separated word ≥2 chars becomes a
+  // required match. "ALPRO CHOCOLATE DRINK" → ['alpro','chocolate','drink'].
+  // We require ALL tokens to be present in the searchable text so we don't
+  // return "Chocolate Cake" for someone looking for "Alpro Chocolate Drink".
+  // extraTerms (from AI query expansion, e.g. "condensed milk" for "leite
+  // condensado") is tried as a secondary all-tokens set.
+  const tokenize = (s) => String(s || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')  // strip punctuation, keep letters/digits/apostrophes/hyphens
+    .split(/\s+/)
+    .filter(t => t.length >= 2);
+
+  const primary = tokenize(query);
+  if (primary.length === 0) return [];
+  const primaryPatterns = primary.map(t => `%${t}%`);
+
+  // Alternate token sets from AI expansion. Each set is a full "all-tokens
+  // must match" candidate. We UNION over them so a product matching any set
+  // qualifies.
+  const alternateSets = (extraTerms || [])
+    .map(t => tokenize(t))
+    .filter(arr => arr.length > 0);
+
   const res = await db.query(`
     with
-    -- 1. User's own consumption history (highest priority, exact macros as logged)
+    -- 1. User's own consumption history (highest priority).
     user_hist as (
       select
         product_name,
@@ -1792,15 +1811,16 @@ export async function searchFoodProducts(query, userId, extraTerms = []) {
         round(avg(salt_g)::numeric,     2) as salt_g,
         round(avg(grams)::numeric,      0) as grams,
         count(*) as freq,
-        1 as priority
+        1 as priority,
+        similarity(unaccent(lower(product_name)), unaccent(lower($3::text))) as sim
       from consumption_log
       where user_id = $2
-        and unaccent(product_name) ilike ANY (select unaccent(p) from unnest($1::text[]) as p)
+        and unaccent(lower(product_name)) ilike ALL (select unaccent(lower(p)) from unnest($1::text[]) as p)
         and product_name != 'Water'
         and calories_kcal is not null
       group by product_name
     ),
-    -- 2. Global consumption history (avg macros from all users)
+    -- 2. Global consumption history (avg macros from all users).
     global_hist as (
       select
         product_name,
@@ -1813,19 +1833,18 @@ export async function searchFoodProducts(query, userId, extraTerms = []) {
         round(avg(salt_g)::numeric,     2) as salt_g,
         round(avg(grams)::numeric,      0) as grams,
         count(*) as freq,
-        2 as priority
+        2 as priority,
+        similarity(unaccent(lower(product_name)), unaccent(lower($3::text))) as sim
       from consumption_log
-      where unaccent(product_name) ilike ANY (select unaccent(p) from unnest($1::text[]) as p)
+      where unaccent(lower(product_name)) ilike ALL (select unaccent(lower(p)) from unnest($1::text[]) as p)
         and product_name != 'Water'
         and calories_kcal is not null
       group by product_name
     ),
     -- 3. Products table + scan_events nutrition JSON (OFF database).
-    -- Prefer, per product, the most recent scan that actually HAS nutrition
-    -- data (fall back to an older scan, or to no macros at all) instead of
-    -- excluding the product outright just because its latest scan lacks it —
-    -- a product name match should still surface so the user can fill macros
-    -- in manually rather than the search silently pretending it doesn't exist.
+    -- Searchable text combines brand + product_name so a query like "alpro
+    -- chocolate drink" matches a row with brand='Alpro' and product_name=
+    -- 'Chocolate Drink 1L'.
     scanned_products as (
       select distinct on (p.id)
         nullif(trim(coalesce(p.brand, '') || ' ' || coalesce(p.product_name, '')), '') as product_name,
@@ -1838,11 +1857,15 @@ export async function searchFoodProducts(query, userId, extraTerms = []) {
         round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'salt')::numeric, 2)        as salt_g,
         100::numeric as grams,
         1 as freq,
-        3 as priority
+        3 as priority,
+        similarity(
+          unaccent(lower(coalesce(p.brand,'') || ' ' || coalesce(p.product_name,''))),
+          unaccent(lower($3::text))
+        ) as sim
       from products p
       join scan_events se on se.product_id = p.id
-      where (unaccent(p.product_name) ilike ANY (select unaccent(pt) from unnest($1::text[]) as pt)
-             or unaccent(p.brand) ilike ANY (select unaccent(pt) from unnest($1::text[]) as pt))
+      where unaccent(lower(coalesce(p.brand,'') || ' ' || coalesce(p.product_name,'')))
+            ilike ALL (select unaccent(lower(pt)) from unnest($1::text[]) as pt)
       order by p.id,
         (se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal' is not null) desc,
         se.created_at desc
@@ -1858,11 +1881,41 @@ export async function searchFoodProducts(query, userId, extraTerms = []) {
           and product_name not in (select product_name from user_hist)
           and product_name not in (select product_name from global_hist)
     )
+    -- Rank by (a) source priority, (b) trigram similarity to the raw query so
+    -- closer name matches rise above broader ones, (c) frequency.
     select product_name, calories_kcal, protein_g, fat_g, carbs_g, fiber_g, sugar_g, salt_g, grams
     from combined
-    order by priority asc, (calories_kcal is not null) desc, freq desc
+    order by priority asc, sim desc nulls last, (calories_kcal is not null) desc, freq desc
     limit 15`,
-    [patterns, userId]
+    [primaryPatterns, userId, query]
   );
+
+  // If primary tokens returned nothing but we have AI-expanded alternate
+  // token sets (e.g. translated terms), retry with each set individually.
+  if (res.rows.length === 0 && alternateSets.length > 0) {
+    for (const altTokens of alternateSets) {
+      const altPatterns = altTokens.map(t => `%${t}%`);
+      const altRes = await db.query(
+        `select p.id, nullif(trim(coalesce(p.brand,'') || ' ' || coalesce(p.product_name,'')), '') as product_name,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal')::numeric, 1) as calories_kcal,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'proteins')::numeric, 1)    as protein_g,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'fat')::numeric, 1)         as fat_g,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'carbohydrates')::numeric, 1) as carbs_g,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'fiber')::numeric, 1)       as fiber_g,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'sugars')::numeric, 1)      as sugar_g,
+                round((se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'salt')::numeric, 2)        as salt_g,
+                100::numeric as grams
+         from products p
+         join scan_events se on se.product_id = p.id
+         where unaccent(lower(coalesce(p.brand,'') || ' ' || coalesce(p.product_name,'')))
+               ilike ALL (select unaccent(lower(pt)) from unnest($1::text[]) as pt)
+         order by (se.result->'productInfo'->'offMeta'->'nutrition_100g'->>'energy_kcal' is not null) desc,
+                  se.created_at desc
+         limit 10`,
+        [altPatterns]
+      );
+      if (altRes.rows.length > 0) return altRes.rows.map(({ id, ...r }) => r);
+    }
+  }
   return res.rows;
 }

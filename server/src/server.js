@@ -1805,7 +1805,7 @@ const server = http.createServer(async (req, res) => {
 
       const [dbResults, offResults] = await Promise.all([
         searchFoodProducts(q, claims.userId),
-        searchOffProducts(q, 10),
+        searchOffProducts(q, 10, lang),
       ]);
       let merged = mergeSearchResults([dbResults, offResults]);
 
@@ -1823,7 +1823,7 @@ const server = http.createServer(async (req, res) => {
           // re-search the DB with English translations because broad ILIKE
           // patterns (e.g. %beans%) return unrelated products (jelly beans,
           // coffee beans, etc.) and drown out the actual results.
-          const offResults2 = await searchOffProducts(offQuery, 10);
+          const offResults2 = await searchOffProducts(offQuery, 10, lang);
           merged = mergeSearchResults([merged, offResults2]);
         }
         // Prepend generic AI result so plain foods appear before branded variants.

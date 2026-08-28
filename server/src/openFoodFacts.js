@@ -162,33 +162,55 @@ async function fetchByQuery(query) {
   return products.map(mapOpenFoodFactsProduct).find(Boolean) || null;
 }
 
-export async function searchOffProducts(query, limit = 10) {
+export async function searchOffProducts(query, limit = 10, lang = 'en') {
   try {
+    const lc = String(lang || 'en').slice(0, 2).toLowerCase();
+    // Ask OFF for the localized product name field so results are in the user's
+    // language when possible. Fall back to generic product_name.
     const fields = [
       'code', 'product_name', 'generic_name', 'brands',
       'nutriments',
+      `product_name_${lc}`,
+      'lang',
     ].join(',');
     const params = new URLSearchParams({
       search_terms: query,
       search_simple: '1',
       action: 'process',
       json: '1',
-      page_size: String(limit),
+      page_size: String(limit * 2),  // over-fetch so we can filter/re-rank
+      lc,                             // OFF's language preference for names
+      sort_by: 'popularity_key',      // popular products first (Alpro > obscure brand)
       fields,
     });
     const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?${params}`, {
-      headers: { 'User-Agent': 'VeganLand/1.0 (https://veganland.app)' },
+      headers: { 'User-Agent': 'NovaQI/1.0 (https://novaqi.app)' },
       signal: AbortSignal.timeout(4000),
     });
     if (!r.ok) return [];
     const data = await r.json();
+
+    // Tokenize the query so we can enforce "all tokens must appear" on the OFF
+    // side too — OFF's search returns some fuzzy hits that share only one word
+    // with the query.
+    const tokens = String(query || '')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
+      .split(/\s+/)
+      .filter(t => t.length >= 2);
+
     return (data.products || [])
-      .filter(p => p.product_name)
+      .filter(p => p.product_name || p[`product_name_${lc}`])
       .map(p => {
         const n = p.nutriments || {};
         const kcal = n['energy-kcal_100g'] || n['energy-kcal'] || (n['energy_100g'] ? n['energy_100g'] / 4.184 : null);
+        // Prefer localized name → generic → fallback to English tag.
+        const localName = p[`product_name_${lc}`] || p.product_name || '';
         return {
-          product_name: [p.brands, p.product_name].filter(Boolean).join(' '),
+          product_name: [p.brands, localName].filter(Boolean).join(' '),
+          _rawName: localName,
+          _brands: p.brands || '',
+          _lang: p.lang || null,
           calories_kcal: kcal ? Math.round(kcal * 10) / 10 : null,
           protein_g:     n.proteins_100g     != null ? Math.round(n.proteins_100g * 10) / 10     : null,
           fat_g:         n.fat_100g           != null ? Math.round(n.fat_100g * 10) / 10           : null,
@@ -201,6 +223,23 @@ export async function searchOffProducts(query, limit = 10) {
           code: p.code || null,
         };
       })
+      // Score each candidate against the tokens: how many are present in the
+      // combined brand+name text, and does the OFF-reported language match
+      // the user's language.
+      .map(p => {
+        const hay = `${p._brands} ${p._rawName}`.toLowerCase();
+        const matched = tokens.filter(t => hay.includes(t)).length;
+        const langMatch = p._lang && p._lang.toLowerCase() === lc ? 1 : 0;
+        return { ...p, _matched: matched, _langMatch: langMatch };
+      })
+      // Require at least half the tokens to appear so we don't ship "coffee
+      // beans" for someone searching "chocolate drink beans".
+      .filter(p => tokens.length === 0 || p._matched >= Math.ceil(tokens.length / 2))
+      // Rank: full-token matches > language-matched > partial.
+      .sort((a, b) => (b._matched - a._matched) || (b._langMatch - a._langMatch))
+      .slice(0, limit)
+      // Strip the private scoring fields before returning.
+      .map(({ _rawName, _brands, _lang, _matched, _langMatch, ...rest }) => rest);
   } catch {
     return [];
   }
