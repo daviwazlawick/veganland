@@ -399,7 +399,7 @@ function publicUser(user) {
   };
 }
 
-export async function createUser(email, passwordHash, disclaimerVersion = null, referralCodeInput = null) {
+export async function createUser(email, passwordHash, disclaimerVersion = null, referralCodeInput = null, attribution = null) {
   const db = await getPool();
   const normalizedEmail = email.toLowerCase().trim();
   const disclaimerAt = disclaimerVersion ? new Date() : null;
@@ -436,11 +436,18 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
     if (taken.rowCount === 0) { newCode = candidate; break; }
   }
 
+  // Attribution: utm_* comes from a deferred-deep-link handler or from
+  // AsyncStorage stashed at the landing-page visit; platform_os is
+  // Platform.OS at signup time. Any missing field stays NULL.
+  const a = attribution || {};
   const result = await db.query(
-    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version, referral_code, referred_by_user_id, user_type, email_confirmed)
-     values ($1, $2, $3, $4, $5, $6, 'free', true)
+    `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version,
+                        referral_code, referred_by_user_id, user_type, email_confirmed,
+                        utm_source, utm_medium, utm_campaign, platform_os)
+     values ($1, $2, $3, $4, $5, $6, 'free', true, $7, $8, $9, $10)
      returning id, email, user_type, onboarding_scan_used, created_at, email_confirmed`,
-    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId]
+    [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId,
+     a.utm_source || null, a.utm_medium || null, a.utm_campaign || null, a.platform_os || null]
   );
 
   const user = result.rows[0];
@@ -492,7 +499,7 @@ export async function linkOAuthToUser(userId, provider, sub) {
   );
 }
 
-export async function createOAuthUser({ email, provider, sub, disclaimerVersion, referralCodeInput = null }) {
+export async function createOAuthUser({ email, provider, sub, disclaimerVersion, referralCodeInput = null, attribution = null }) {
   const db = await getPool();
   if (!db) throw new Error('No database');
   const normalizedEmail = email.toLowerCase().trim();
@@ -513,13 +520,16 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
     if (taken.rowCount === 0) { newCode = candidate; break; }
   }
 
+  const a = attribution || {};
   const result = await db.query(
     `insert into users (email, ${col}, oauth_provider, email_confirmed,
                         disclaimer_accepted_at, disclaimer_version,
-                        referral_code, referred_by_user_id, user_type)
-     values ($1, $2, $3, true, $4, $5, $6, $7, 'free')
+                        referral_code, referred_by_user_id, user_type,
+                        utm_source, utm_medium, utm_campaign, platform_os)
+     values ($1, $2, $3, true, $4, $5, $6, $7, 'free', $8, $9, $10, $11)
      returning id, email, user_type, onboarding_scan_used, created_at`,
-    [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId]
+    [normalizedEmail, sub, provider, disclaimerAt, disclaimerVersion, newCode, referrerId,
+     a.utm_source || null, a.utm_medium || null, a.utm_campaign || null, a.platform_os || null]
   );
   const user = result.rows[0];
   if (referrerId) {
@@ -673,6 +683,25 @@ export async function setUserDisclaimerAccepted(userId, version) {
   await db.query(
     `update users set disclaimer_accepted_at = now(), disclaimer_version = $2 where id = $1`,
     [userId, version]
+  );
+}
+
+// Fill utm_* / platform_os for existing users on first fresh login after
+// the migration ships. Only sets a field if it's currently NULL so we
+// don't overwrite the original signup attribution on subsequent logins.
+export async function backfillAttributionIfMissing(userId, attribution) {
+  const db = await getPool();
+  if (!db || !attribution) return;
+  const { utm_source, utm_medium, utm_campaign, platform_os } = attribution;
+  if (!utm_source && !utm_medium && !utm_campaign && !platform_os) return;
+  await db.query(
+    `update users set
+       utm_source   = coalesce(utm_source,   $2),
+       utm_medium   = coalesce(utm_medium,   $3),
+       utm_campaign = coalesce(utm_campaign, $4),
+       platform_os  = coalesce(platform_os,  $5)
+     where id = $1`,
+    [userId, utm_source || null, utm_medium || null, utm_campaign || null, platform_os || null]
   );
 }
 
@@ -1153,11 +1182,21 @@ export async function logApiUsage(model, inputTokens, outputTokens) {
   );
 }
 
-export async function getAdminStats() {
+export async function getAdminStats({ from = null, to = null } = {}) {
   const db = await getPool();
   if (!db) return null;
 
   const month = new Date().toISOString().slice(0, 7);
+  // Optional date-range filter applied to the users list. When either param
+  // is missing we fall back to "no bound" so callers can pass only one side.
+  const validFrom = /^\d{4}-\d{2}-\d{2}$/.test(from || '') ? from : null;
+  const validTo   = /^\d{4}-\d{2}-\d{2}$/.test(to   || '') ? to   : null;
+  const dateFilter = (validFrom || validTo)
+    ? `WHERE ${[
+        validFrom ? `u.created_at >= '${validFrom}'::date` : null,
+        validTo   ? `u.created_at <  ('${validTo}'::date + interval '1 day')` : null,
+      ].filter(Boolean).join(' AND ')}`
+    : '';
 
   const [
     usersRes, totalScansRes, monthScansRes, recentScansRes, userStatsRes, costRes,
@@ -1173,14 +1212,16 @@ export async function getAdminStats() {
     db.query(`
       SELECT
         u.id, u.email, u.diet_id, u.user_type, u.onboarding_scan_used, u.created_at, u.email_confirmed,
+        u.utm_source, u.utm_medium, u.utm_campaign, u.platform_os,
         COUNT(se.id)::int AS total_scans,
         MAX(se.created_at) AS last_scan,
         COUNT(se.id) FILTER (WHERE date_trunc('month', se.created_at) = date_trunc('month', now()))::int AS scans_this_month
       FROM users u
       LEFT JOIN scan_events se ON se.user_id = u.id
-      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.onboarding_scan_used, u.created_at, u.email_confirmed
+      ${dateFilter}
+      GROUP BY u.id, u.email, u.diet_id, u.user_type, u.onboarding_scan_used, u.created_at, u.email_confirmed, u.utm_source, u.utm_medium, u.utm_campaign, u.platform_os
       ORDER BY u.created_at DESC
-      LIMIT 200
+      LIMIT 500
     `),
     db.query(`SELECT COALESCE(SUM(cost_usd), 0) AS total FROM api_usage WHERE date_trunc('month', created_at) = date_trunc('month', now())`),
     db.query(`SELECT COUNT(*) AS total FROM users WHERE created_at > now() - interval '24 hours'`),

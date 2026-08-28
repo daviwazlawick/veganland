@@ -17,9 +17,15 @@ import Brand from './src/brand';
 import useForceUpdate from './src/hooks/useForceUpdate';
 import { initPurchases } from './src/services/purchasesService';
 import { initAnalytics } from './src/services/analyticsService';
+import { bootAttribution, captureUtmFromUrl } from './src/services/attributionService';
+import * as Linking from 'expo-linking';
 
 initPurchases();
 initAnalytics();
+bootAttribution();
+// Keep listening: a link opened while the app is warm should still stamp
+// utm_* onto storage so a subsequent register call carries the campaign.
+Linking.addEventListener('url', ({ url }) => captureUtmFromUrl(url));
 
 const BRAND_FONTS = Brand.fonts
   ? { Manrope_700Bold, Manrope_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, SpaceMono_400Regular, SpaceMono_700Bold }

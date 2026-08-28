@@ -4,7 +4,7 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -38,6 +38,24 @@ function authUserPayload(user) {
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
+// Marketing attribution: pull utm_* + platform_os out of an auth request
+// body and normalize/trim to safe values before writing to users table.
+function extractAttribution(body) {
+  const clean = (v, max = 100) => {
+    if (v == null) return null;
+    const s = String(v).trim().slice(0, max);
+    return s || null;
+  };
+  const os = clean(body?.platform_os, 20);
+  const validOs = os && ['ios', 'android', 'web'].includes(os.toLowerCase()) ? os.toLowerCase() : null;
+  return {
+    utm_source:   clean(body?.utm_source),
+    utm_medium:   clean(body?.utm_medium),
+    utm_campaign: clean(body?.utm_campaign),
+    platform_os:  validOs,
+  };
 }
 
 // Merges several food-search result lists (DB-sourced + OFF-live-sourced,
@@ -159,7 +177,7 @@ function planBadge(userType) {
   return `<span style="background:${cfg.bg};color:${cfg.color};font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap">${cfg.label}</span>`;
 }
 
-function htmlAdminPage(stats, token) {
+function htmlAdminPage(stats, token, dateRange = {}) {
   const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
 
   // Build 28-day signup sparkline — fill gaps with 0
@@ -235,6 +253,11 @@ function htmlAdminPage(stats, token) {
     const confirmedDot = u.email_confirmed
       ? `<span title="Email confirmado" style="color:#7CB518;font-size:10px">✔</span>`
       : `<span title="Email não confirmado" style="color:#D4A843;font-size:10px">!</span>`;
+    // Platform pill + attribution — dashes when unknown so we can spot
+    // legacy accounts that predate the attribution capture.
+    const osLabel = { ios: '🍎 iOS', android: '🤖 Android', web: '🌐 Web' }[u.platform_os] || '—';
+    const utmSrc = u.utm_source || '—';
+    const utmCmp = u.utm_campaign || '—';
     return `<tr style="cursor:pointer" onclick="location.href='/admin/user/${esc(u.id)}'">
       <td>
         ${isNew ? `<span style="display:inline-block;background:#7CB518;color:#fff;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;margin-right:4px;vertical-align:middle">NEW</span>` : ''}
@@ -242,6 +265,11 @@ function htmlAdminPage(stats, token) {
         ${confirmedDot}
       </td>
       <td>${esc(diet)}</td>
+      <td style="font-size:12px;font-weight:600;color:#555">${osLabel}</td>
+      <td style="font-size:11px;color:#555" title="medium: ${esc(u.utm_medium || '—')}">
+        <div style="font-weight:700">${esc(utmSrc)}</div>
+        ${utmCmp !== '—' ? `<div style="color:#888;font-size:10px">${esc(utmCmp)}</div>` : ''}
+      </td>
       <td>${planBadge(userType)}${userType === null || userType === undefined ? (u.onboarding_scan_used ? '<div style="font-size:9px;color:#dc2626;font-weight:800;margin-top:2px">scan usado</div>' : '<div style="font-size:9px;color:#16a34a;font-weight:800;margin-top:2px">scan livre</div>') : ''}</td>
       <td style="text-align:center;font-weight:700">${u.total_scans}</td>
       <td>
@@ -256,6 +284,11 @@ function htmlAdminPage(stats, token) {
       <td style="color:#888;font-size:13px" title="${esc(joinedFull)}">${joined}</td>
     </tr>`;
   }).join('');
+  const dateFromVal = esc(dateRange.from || '');
+  const dateToVal   = esc(dateRange.to   || '');
+  const rangeLabel  = (dateRange.from || dateRange.to)
+    ? `${esc(dateRange.from || '…')} → ${esc(dateRange.to || '…')}`
+    : 'todos os cadastros';
 
   return `<!DOCTYPE html><html lang="pt"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -397,20 +430,34 @@ function htmlAdminPage(stats, token) {
     <div class="section">
       <h2>
         Utilizadores
-        <span class="sub">mostrando ${stats.users.length} mais recentes</span>
+        <span class="sub">mostrando ${stats.users.length} · ${rangeLabel}</span>
       </h2>
+      <form method="GET" action="/admin" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;padding:12px 14px;background:#eef2e5;border-radius:10px">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:10px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px">De</label>
+          <input type="date" name="from" value="${dateFromVal}" style="padding:6px 8px;border:1px solid #cbd5b8;border-radius:6px;font-size:13px;background:#fff">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:10px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:0.5px">Até</label>
+          <input type="date" name="to" value="${dateToVal}" style="padding:6px 8px;border:1px solid #cbd5b8;border-radius:6px;font-size:13px;background:#fff">
+        </div>
+        <button type="submit" style="padding:8px 16px;background:#1C2B22;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">Filtrar</button>
+        <a href="/admin" style="padding:8px 12px;color:#666;font-size:12px;text-decoration:none">Limpar</a>
+      </form>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#888;margin-bottom:14px;padding:10px 14px;background:#fafcf7;border-radius:10px">
         <span><span style="display:inline-block;background:#7CB518;color:#fff;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;vertical-align:middle">NEW</span> cadastro nos últimos 7 dias</span>
         <span><span style="color:#7CB518;font-weight:900">✔</span> email confirmado</span>
         <span><span style="color:#D4A843;font-weight:900">!</span> email não confirmado</span>
-        <span>— na coluna Dieta = utilizador ainda não escolheu dieta</span>
+        <span>— na coluna Dieta / OS / Origem = ainda sem dado (users pré-1.0.19)</span>
       </div>
+      <div style="overflow-x:auto">
       <table>
         <thead><tr>
-          <th>Email</th><th>Dieta</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
+          <th>Email</th><th>Dieta</th><th>OS</th><th>Origem</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
         </tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">Nenhum utilizador ainda</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">Nenhum utilizador no período</td></tr>'}</tbody>
       </table>
+      </div>
     </div>
 
   </main>
@@ -1027,7 +1074,8 @@ const server = http.createServer(async (req, res) => {
 
     // POST /auth/register
     if (req.method === 'POST' && req.url === '/auth/register') {
-      const { email, password, disclaimer_version, referral_code } = await readJsonBody(req);
+      const body = await readJsonBody(req);
+      const { email, password, disclaimer_version, referral_code } = body;
       if (!email || !password) {
         sendJson(res, 400, { error: 'email and password are required' }, origin);
         return;
@@ -1047,7 +1095,8 @@ const server = http.createServer(async (req, res) => {
       }
       const passwordHash = await hashPassword(password);
       const validCode = referral_code && isValidCodeShape(referral_code) ? normalizeCode(referral_code) : null;
-      const user = await createUser(email, passwordHash, disclaimer_version, validCode);
+      const attribution = extractAttribution(body);
+      const user = await createUser(email, passwordHash, disclaimer_version, validCode, attribution);
       const token = generateToken(user.id, user.email);
       sendJson(res, 201, { token, user: authUserPayload(user), emailConfirmationSent: false }, origin);
       return;
@@ -1112,8 +1161,14 @@ const server = http.createServer(async (req, res) => {
           email, provider, sub,
           disclaimerVersion,
           referralCodeInput: referralCode,
+          attribution: extractAttribution(body),
         });
         isNewUser = true;
+      } else {
+        // Existing user logging back in — backfill utm/platform if we
+        // didn't have it yet (e.g. account existed before the migration
+        // or before we added client-side capture).
+        await backfillAttributionIfMissing(user.id, extractAttribution(body)).catch(() => {});
       }
 
       const token = generateToken(user.id, user.email);
@@ -1222,7 +1277,8 @@ const server = http.createServer(async (req, res) => {
 
     // POST /auth/login
     if (req.method === 'POST' && req.url === '/auth/login') {
-      const { email, password } = await readJsonBody(req);
+      const body = await readJsonBody(req);
+      const { email, password } = body;
       if (!email || !password) {
         sendJson(res, 400, { error: 'email and password are required' }, origin);
         return;
@@ -1237,6 +1293,8 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 401, { error: 'Invalid email or password' }, origin);
         return;
       }
+      // Backfill attribution if the account predates the utm/os columns.
+      await backfillAttributionIfMissing(user.id, extractAttribution(body)).catch(() => {});
       const token = generateToken(user.id, user.email);
       sendJson(res, 200, { token, user: authUserPayload(user) }, origin);
       return;
@@ -2238,14 +2296,17 @@ const server = http.createServer(async (req, res) => {
         res.end(htmlAdminDenied());
         return;
       }
-      const stats = await getAdminStats();
+      const adminUrl = new URL(req.url, 'http://x');
+      const dateFrom = adminUrl.searchParams.get('from') || null;
+      const dateTo   = adminUrl.searchParams.get('to')   || null;
+      const stats = await getAdminStats({ from: dateFrom, to: dateTo });
       if (!stats) {
         res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(htmlPage('Admin', '<p>Base de dados não configurada.</p>', '#FF4B4B'));
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPage(stats, ''));
+      res.end(htmlAdminPage(stats, '', { from: dateFrom, to: dateTo }));
       return;
     }
 

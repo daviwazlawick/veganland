@@ -69,11 +69,16 @@ export async function apiUpdateProfile(profileData, token) {
   return data;
 }
 
+// Marketing attribution: captured once at cold-start (see attributionService)
+// and passed through every auth call. Server backfills missing values on
+// login so old accounts get their OS/UTM stamped on first fresh sign-in.
+import { getAttributionPayload } from './attributionService';
+
 export async function apiLogin(email, password) {
   const response = await fetch(`${baseUrl()}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, ...getAttributionPayload() }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -89,7 +94,12 @@ export async function apiRegister(email, password, disclaimerVersion, referralCo
   const response = await fetch(`${baseUrl()}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, disclaimer_version: disclaimerVersion, referral_code: referralCode || undefined }),
+    body: JSON.stringify({
+      email, password,
+      disclaimer_version: disclaimerVersion,
+      referral_code: referralCode || undefined,
+      ...getAttributionPayload(),
+    }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Registration failed`);
@@ -100,7 +110,7 @@ export async function apiOAuthSignIn(provider, payload) {
   const response = await fetch(`${baseUrl()}/auth/${provider}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, ...getAttributionPayload() }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `${provider}_sign_in_failed`);

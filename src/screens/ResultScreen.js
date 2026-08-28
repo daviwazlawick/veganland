@@ -787,13 +787,13 @@ export default function ResultScreen({ navigation, route }) {
         }}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={fbStyles.modalBackdrop}
         >
           <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
-          <View style={fbStyles.modalCard}>
+          <View style={[fbStyles.modalCard, { paddingBottom: 24 + insets.bottom }]}>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ flexGrow: 0 }}
@@ -831,10 +831,15 @@ export default function ResultScreen({ navigation, route }) {
                       });
                     }
                     setFeedbackState('done');
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
-                    });
+                    // Only route onboarding users to the Paywall after a
+                    // rating — paid users stay on Result so they can keep
+                    // browsing scan history / hit "Scan another".
+                    if (isOnboarding) {
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                      });
+                    }
                   } catch (e) {
                     setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
                     setFeedbackState('commenting');
