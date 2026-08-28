@@ -18,14 +18,18 @@ import useForceUpdate from './src/hooks/useForceUpdate';
 import { initPurchases } from './src/services/purchasesService';
 import { initAnalytics } from './src/services/analyticsService';
 import { bootAttribution, captureUtmFromUrl } from './src/services/attributionService';
-import * as Linking from 'expo-linking';
+
+// expo-linking has a native module — guard so OTAs stay safe on native
+// builds that don't have it linked yet (see attributionService.js).
+let Linking = null;
+try { Linking = require('expo-linking'); } catch {}
 
 initPurchases();
 initAnalytics();
 bootAttribution();
 // Keep listening: a link opened while the app is warm should still stamp
 // utm_* onto storage so a subsequent register call carries the campaign.
-Linking.addEventListener('url', ({ url }) => captureUtmFromUrl(url));
+try { Linking?.addEventListener('url', ({ url }) => captureUtmFromUrl(url)); } catch {}
 
 const BRAND_FONTS = Brand.fonts
   ? { Manrope_700Bold, Manrope_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, SpaceMono_400Regular, SpaceMono_700Bold }

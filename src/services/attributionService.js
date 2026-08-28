@@ -17,7 +17,13 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as Linking from 'expo-linking';
+
+// expo-linking has a native module (requireNativeModule runs at import time) —
+// guard the require so OTAs can ship safely to native builds that don't have
+// it linked yet. Every call site below already wraps Linking usage in
+// try/catch, so a null Linking here just means attribution silently no-ops.
+let Linking = null;
+try { Linking = require('expo-linking'); } catch {}
 
 const STORAGE_KEY = '@attribution';
 
