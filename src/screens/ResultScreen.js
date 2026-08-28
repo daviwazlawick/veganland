@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useReferral } from '../context/ReferralContext';
@@ -103,6 +103,7 @@ export default function ResultScreen({ navigation, route }) {
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
   const { logConsumption, bodyProfile } = useNutrition();
+  const insets = useSafeAreaInsets();
   const isOnboarding = route?.params?.onboarding === true;
   const showReferralBanner = !HIDE_REFERRAL
     && !isOnboarding
@@ -629,7 +630,9 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         )}
 
-        <View style={{ height: 110 }} />
+        {/* Bottom spacer so scroll content doesn't hide behind the sticky
+            footer + Android nav bar / gesture area / iOS home indicator. */}
+        <View style={{ height: 110 + insets.bottom }} />
       </ScrollView>
 
       <Modal
@@ -689,7 +692,7 @@ export default function ResultScreen({ navigation, route }) {
       </Modal>
 
       {!isOnboarding && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
           <View style={styles.consumeRow}>
             {isFood && (
               <TouchableOpacity

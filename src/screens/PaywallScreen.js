@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
@@ -41,6 +41,7 @@ const PLANS = [
 export default function PaywallScreen({ navigation, route }) {
   const { language } = useApp();
   const { token, user, updateUserType } = useAuth();
+  const insets = useSafeAreaInsets();
   const currentPlan = route?.params?.currentPlan || 'free';
   const [selected, setSelected] = useState(currentPlan === 'free' ? 'starter' : currentPlan);
   const [offering, setOffering] = useState(null);
@@ -324,7 +325,7 @@ export default function PaywallScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity
           style={[styles.btn, (purchasing || restoring) && styles.btnDisabled]}
           onPress={() => handleSelect(PLANS.find(p => p.id === selected) || PLANS[0])}

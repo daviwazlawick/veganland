@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
@@ -10,6 +10,7 @@ import { apiDeleteAccount } from '../services/apiService';
 export default function DeleteAccountScreen({ navigation }) {
   const { language } = useApp();
   const { user, token, logout } = useAuth();
+  const insets = useSafeAreaInsets();
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -62,7 +63,7 @@ export default function DeleteAccountScreen({ navigation }) {
         {error && <Text style={styles.errorText}>{error}</Text>}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity
           style={[styles.deleteBtn, !confirmed && styles.deleteBtnDisabled]}
           onPress={handleDelete}

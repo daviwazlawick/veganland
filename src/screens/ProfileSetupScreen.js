@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
@@ -32,6 +32,7 @@ export default function ProfileSetupScreen({ navigation }) {
   const { language, saveProfile, profile } = useApp();
   const { token, user, refreshUser } = useAuth();
   const { saveBodyProfile } = useNutrition();
+  const insets = useSafeAreaInsets();
   const isFirstTime = !profile?.dietId;
   const [step, setStep] = useState(1);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
@@ -390,7 +391,7 @@ export default function ProfileSetupScreen({ navigation }) {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         {step < finalStep ? (
           <TouchableOpacity
             style={[styles.btn, step === 1 && !selectedDiet && styles.btnDisabled]}

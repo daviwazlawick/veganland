@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -99,6 +99,7 @@ function formatDate(iso, language) {
 export default function EditPersonalScreen({ navigation }) {
   const { language, token, profile, saveProfile } = useApp();
   const { bodyProfile, saveBodyProfile, measurementsHistory, logMeasurements, goals, saveGoals, bodyMeasurements } = useNutrition();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState(profile?.name || '');
   const [bio, setBio] = useState(profile?.bio || '');
@@ -277,9 +278,17 @@ export default function EditPersonalScreen({ navigation }) {
     if (ci_v  != null) { n_avail++; score_pts += _pts(ci_v < 1.18, ci_v >= 1.18 && ci_v < 1.30); }
     const score_v = n_avail > 0 ? Math.round(score_pts / n_avail * 6) : (ba.score || null);
 
-    // Only render the analysis panel if there is at least some data to show
-    const hasData = [chest, neck, bicep, waist, hip, bf, bmi_v, wth_v].some(v => v != null);
-    if (!hasData) return null;
+    // Only render the analysis panel if the user actually did a body scan or
+    // typed at least one perimeter / body-fat number. Having just a BMI
+    // (computed automatically from height+weight entered at onboarding)
+    // isn't enough — otherwise every new user sees a "Body Analysis" panel
+    // populated with Deurenberg-estimated body fat and waist-to-height
+    // ratios that come from nowhere real, which is misleading.
+    const hasPerimeterMeasurement = [chest, neck, bicep, forearm, waist, hip, thigh, calf]
+      .some(v => v != null && Number(v) > 0);
+    const hasManualBodyFat = parseFloat(measures.body_fat_pct) > 0;
+    const hasPhotoScan = bodyMeasurements[0] != null;
+    if (!hasPerimeterMeasurement && !hasManualBodyFat && !hasPhotoScan) return null;
 
     return {
       ...ba,
@@ -749,7 +758,7 @@ export default function EditPersonalScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.9}>
           <Text style={styles.saveBtnText}>{t(language, 'personal.save')}</Text>
         </TouchableOpacity>
