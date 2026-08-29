@@ -315,6 +315,35 @@ export async function updateProductIngredients(productId, ingredientsText, opts 
   await db.query(`delete from product_analyses where product_id = $1`, [productId]);
 }
 
+// Admin panel: list crowd-contributed products (rows that carry a user photo
+// or came from the user_label / image / user_ingredients paths). Skips the
+// 4.3M OFF snapshot rows to keep the page cheap.
+export async function listContributedProducts({ limit = 100, filter = 'all' } = {}) {
+  const db = await getPool();
+  if (!db) return [];
+
+  const where = filter === 'needs_ingredients'
+    ? 'p.needs_ingredients = true'
+    : filter === 'completed'
+      ? 'p.needs_ingredients = false and (p.label_photo_path is not null or p.ingredients_photo_path is not null)'
+      : '(p.label_photo_path is not null or p.ingredients_photo_path is not null or p.contributor_user_id is not null)';
+
+  const { rows } = await db.query(
+    `select p.id, p.barcode, p.brand, p.product_name,
+            p.label_photo_path, p.ingredients_photo_path, p.barcode_photo_path,
+            p.contributor_user_id, p.needs_ingredients, p.source,
+            p.ingredients_text, p.created_at, p.updated_at,
+            u.email as contributor_email
+       from products p
+       left join users u on u.id = p.contributor_user_id
+      where ${where}
+      order by p.updated_at desc
+      limit $1`,
+    [Math.min(500, Math.max(1, limit))]
+  );
+  return rows;
+}
+
 export async function disassociateBarcode(barcode) {
   const db = await getPool();
   if (!db || !barcode) return;

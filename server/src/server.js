@@ -4,9 +4,10 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
+import { resolvePhotoPath } from './photoStorage.js';
 import { spawn } from 'node:child_process';
-import { writeFile, unlink } from 'node:fs/promises';
+import { writeFile, unlink, stat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { verifyGoogleIdToken, verifyAppleIdentityToken } from './oauth.js';
 import { isValidCodeShape, normalizeCode } from './referralCode.js';
@@ -332,6 +333,7 @@ function htmlAdminPage(stats, token, dateRange = {}) {
     <h1>NovaQI</h1>
     <span>ADMIN</span>
     <a class="refresh" href="/admin/push" style="background:#FFCB3B;color:#0B1E3F;margin-right:6px">📢 Push</a>
+    <a class="refresh" href="/admin/photos" style="background:#22C55E;color:#fff;margin-right:6px">📸 Fotos</a>
     <a class="refresh" href="/admin">↻ Atualizar</a>
     <form method="POST" action="/admin/logout" style="display:inline;margin-left:6px"><button class="refresh" style="background:#FF4B4B;color:#fff;border:none;cursor:pointer">↩ Sair</button></form>
   </header>
@@ -1011,6 +1013,85 @@ function readCookie(req, name) {
   return null;
 }
 
+function htmlAdminPhotosPage(rows, filter = 'all') {
+  const filterPill = (id, label) => `<a href="/admin/photos?filter=${id}" style="padding:6px 12px;border-radius:14px;background:${filter===id?'#0B1E3F':'#eef1f7'};color:${filter===id?'#fff':'#0B1E3F'};text-decoration:none;font-weight:700;font-size:13px">${label}</a>`;
+
+  const thumb = (relPath, label) => {
+    if (!relPath) return `<span style="color:#999;font-size:12px">—</span>`;
+    const url = `/admin/scan-photo/${encodeURIComponent(relPath)}`;
+    return `<a href="${url}" target="_blank" title="${label}"><img src="${url}" alt="${label}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd" /></a>`;
+  };
+
+  const rowsHtml = rows.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;padding:32px;color:#666">Nenhum produto encontrado.</td></tr>`
+    : rows.map(p => {
+        const created = new Date(p.updated_at).toISOString().slice(0, 16).replace('T', ' ');
+        const badge = p.needs_ingredients
+          ? `<span style="background:#FFE4A0;color:#8B5A00;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">precisa ingredientes</span>`
+          : `<span style="background:#D4F4D4;color:#1A5A1A;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">completo</span>`;
+        const contributor = p.contributor_email
+          ? `<a href="/admin/user/${esc(p.contributor_user_id)}" style="color:#1C2B22;text-decoration:none">${esc(p.contributor_email)}</a>`
+          : `<span style="color:#999;font-size:12px">—</span>`;
+        return `<tr>
+          <td style="font-family:monospace;font-size:12px">${esc(p.barcode || '—')}</td>
+          <td>
+            <div style="font-weight:700">${esc(p.product_name || '—')}</div>
+            <div style="font-size:12px;color:#666">${esc(p.brand || '')}</div>
+          </td>
+          <td style="text-align:center">${thumb(p.label_photo_path, 'rótulo')}</td>
+          <td style="text-align:center">${thumb(p.ingredients_photo_path, 'ingredientes')}</td>
+          <td style="text-align:center">${badge}</td>
+          <td style="font-size:12px">${contributor}</td>
+          <td style="font-size:12px;color:#666">${created}</td>
+        </tr>`;
+      }).join('');
+
+  return `<!doctype html>
+<html><head>
+  <meta charset="utf-8" />
+  <title>Fotos de produtos — Admin</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; margin: 0; background: #f5f6fa; color: #0B1E3F; }
+    header { background: #0B1E3F; color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { margin: 0; font-size: 20px; font-weight: 900; }
+    header a { color: #fff; text-decoration: none; font-weight: 700; margin-left: auto; }
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    th { background: #eef1f7; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
+    td { padding: 10px 12px; border-top: 1px solid #eef1f7; vertical-align: middle; }
+    tbody tr:hover { background: #fafbff; }
+  </style>
+</head><body>
+  <header>
+    <h1>📸 Fotos de produtos</h1>
+    <a href="/admin">← Admin</a>
+  </header>
+  <main>
+    <div class="filters">
+      ${filterPill('all', 'Todos')}
+      ${filterPill('needs_ingredients', 'Aguardam ingredientes')}
+      ${filterPill('completed', 'Completos')}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Barcode</th>
+          <th>Produto</th>
+          <th style="text-align:center">Rótulo</th>
+          <th style="text-align:center">Ingredientes</th>
+          <th style="text-align:center">Estado</th>
+          <th>Contribuidor</th>
+          <th>Última alteração</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <p style="margin-top:18px;color:#666;font-size:13px">Mostrando até 100 registos. As fotos são servidas apenas com sessão de admin activa.</p>
+  </main>
+</body></html>`;
+}
+
 // Read admin session token from HttpOnly cookie first, then fall back to
 // ?token= query for backwards compatibility with old bookmarks / one-off
 // admin URLs. New links generated by the admin pages use clean URLs and
@@ -1560,6 +1641,50 @@ const server = http.createServer(async (req, res) => {
       const { token: pushToken } = await readJsonBody(req);
       if (pushToken) await deletePushToken(pushToken);
       sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // GET /admin/photos — crowd-contributed product photos (admin only)
+    if (req.method === 'GET' && req.url.startsWith('/admin/photos')) {
+      if (!(await isAdminRequest(req))) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<p>Forbidden</p>');
+        return;
+      }
+      const filter = new URL(req.url, 'http://x').searchParams.get('filter') || 'all';
+      const rows = await listContributedProducts({ limit: 100, filter });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAdminPhotosPage(rows, filter));
+      return;
+    }
+
+    // GET /admin/scan-photo/<relpath> — stream a stored scan photo (admin only)
+    if (req.method === 'GET' && req.url.startsWith('/admin/scan-photo/')) {
+      if (!(await isAdminRequest(req))) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+      }
+      const raw = req.url.slice('/admin/scan-photo/'.length).split('?')[0];
+      const relPath = decodeURIComponent(raw);
+      const abs = resolvePhotoPath(relPath);
+      if (!abs) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad path');
+        return;
+      }
+      try {
+        const buf = await readFile(abs);
+        res.writeHead(200, {
+          'Content-Type': 'image/jpeg',
+          'Content-Length': buf.length,
+          'Cache-Control': 'private, max-age=3600',
+        });
+        res.end(buf);
+      } catch {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not found');
+      }
       return;
     }
 
