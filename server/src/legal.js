@@ -1,4 +1,4 @@
-const LAST_UPDATED = '20 May 2026';
+const LAST_UPDATED = '29 August 2026';
 
 const BRANDS = {
   veganland: {
@@ -181,7 +181,8 @@ export function htmlPrivacy(host) {
   <li>Anonymised server logs (IP address, timestamp, HTTP method — retained max 7 days)</li>
 </ul>
 <h3>Product Images</h3>
-<p>Photos you take or upload are sent to <strong>Anthropic's API</strong> for AI analysis and are <strong>not stored</strong> on our servers after the analysis is complete. Anthropic's data handling is governed by their <a href="https://www.anthropic.com/privacy" target="_blank">Privacy Policy</a>.</p>
+<p>Photos you take or upload are sent to <strong>Anthropic's API</strong> for AI analysis. Anthropic's data handling is governed by their <a href="https://www.anthropic.com/privacy" target="_blank">Privacy Policy</a>.</p>
+<p>When a product is not found in our database or in Open Food Facts, your photos of the product label and ingredients list may be <strong>stored on our servers and incorporated into our public product database</strong> so that other users scanning the same barcode do not have to repeat the process. Only the images themselves and the barcode/product identity are stored — never your personal profile, dietary preferences, or account details. You may request deletion of your contributed photos at any time (see Section 7).</p>
 
 <h2>3. How We Use Your Data</h2>
 <ul>
@@ -213,7 +214,8 @@ export function htmlPrivacy(host) {
   <li><strong>Account data</strong>: retained until you delete your account, plus up to 30 days for backup purposes.</li>
   <li><strong>Scan history</strong>: retained as long as your account is active, or until you request deletion.</li>
   <li><strong>Server logs</strong>: maximum 7 days, then automatically deleted.</li>
-  <li><strong>Product images</strong>: not retained after AI analysis (processed in memory only).</li>
+  <li><strong>Product images (contributed to database)</strong>: retained indefinitely as part of our crowdsourced product database when the barcode was previously unknown. Deleted on user request.</li>
+  <li><strong>Product images (analysis-only)</strong>: not retained after AI analysis when the product was already in our database (processed in memory only).</li>
 </ul>
 
 <h2>7. Your Rights Under GDPR</h2>

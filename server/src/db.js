@@ -151,27 +151,54 @@ export async function upsertProduct(product) {
 
   const barcode = product?.barcode?.replace(/\D/g, '') || null;
   const identityKey = getIdentityKey(product);
+  const hasIngredients = !!product?.ingredients_text?.trim();
+  const hasLabelPhoto = !!product?.label_photo_path;
 
-  if (!identityKey || !product?.ingredients_text) return null;
+  // Persist when we have real ingredients OR at least a label photo we can
+  // link to the barcode for the next scanner to complete. Reject if we have
+  // neither — nothing useful to save.
+  if (!identityKey) return null;
+  if (!hasIngredients && !hasLabelPhoto) return null;
+
+  const needsIngredients = !hasIngredients && hasLabelPhoto;
 
   const result = await db.query(
     `insert into products (
        identity_key, barcode, brand, product_name, lookup_query,
-       ingredients_text, source, source_url, raw
+       ingredients_text, source, source_url, raw,
+       label_photo_path, ingredients_photo_path, barcode_photo_path,
+       contributor_user_id, needs_ingredients
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      on conflict (identity_key) do update set
        barcode = coalesce(excluded.barcode, products.barcode),
        brand = coalesce(excluded.brand, products.brand),
        product_name = coalesce(excluded.product_name, products.product_name),
        lookup_query = coalesce(excluded.lookup_query, products.lookup_query),
-       ingredients_text = excluded.ingredients_text,
-       source = excluded.source,
-       source_url = excluded.source_url,
+       -- Only overwrite ingredients_text when we have real ingredients this
+       -- time. A stub upsert (label-only) must never wipe existing ingredients.
+       ingredients_text = case
+         when trim(coalesce(excluded.ingredients_text, '')) <> ''
+           then excluded.ingredients_text
+         else products.ingredients_text
+       end,
+       source = case
+         when trim(coalesce(excluded.ingredients_text, '')) <> '' then excluded.source
+         else products.source
+       end,
+       source_url = coalesce(excluded.source_url, products.source_url),
        -- Preserve existing OFF raw jsonb (211 cols of nutrition etc.); only
        -- write raw on first insert. Image-extracted upserts should never
        -- overwrite OFF data.
        raw = coalesce(products.raw, excluded.raw),
+       label_photo_path       = coalesce(products.label_photo_path,       excluded.label_photo_path),
+       ingredients_photo_path = coalesce(excluded.ingredients_photo_path, products.ingredients_photo_path),
+       barcode_photo_path     = coalesce(products.barcode_photo_path,     excluded.barcode_photo_path),
+       contributor_user_id    = coalesce(products.contributor_user_id,    excluded.contributor_user_id),
+       needs_ingredients      = case
+         when trim(coalesce(excluded.ingredients_text, '')) <> '' then false
+         else products.needs_ingredients
+       end,
        updated_at = now()
      returning *`,
     [
@@ -180,10 +207,18 @@ export async function upsertProduct(product) {
       product.brand || null,
       product.product_name || null,
       product.lookup_query || null,
-      product.ingredients_text,
-      product.source || 'unknown',
+      // ingredients_text is NOT NULL in the table — store empty string when
+      // we're only saving identity + label photo. Callers that care check
+      // needs_ingredients or the trim(...) below.
+      hasIngredients ? product.ingredients_text.trim() : '',
+      product.source || (needsIngredients ? 'user_label' : 'unknown'),
       product.source_url || null,
       product,
+      product.label_photo_path || null,
+      product.ingredients_photo_path || null,
+      product.barcode_photo_path || null,
+      product.contributor_user_id || null,
+      needsIngredients,
     ]
   );
 
@@ -258,15 +293,26 @@ export async function enrichProductFromOff(productId, off) {
   return res.rows[0] || null;
 }
 
-export async function updateProductIngredients(productId, ingredientsText) {
+export async function updateProductIngredients(productId, ingredientsText, opts = {}) {
   const db = await getPool();
   if (!db || !productId || !ingredientsText?.trim()) return;
 
+  const { ingredientsPhotoPath = null, contributorUserId = null, source = null } = opts;
+
   await db.query(
-    `update products set ingredients_text = $1, updated_at = now()
+    `update products set
+       ingredients_text = $1,
+       ingredients_photo_path = coalesce($3, ingredients_photo_path),
+       contributor_user_id    = coalesce(contributor_user_id, $4),
+       source = coalesce($5, source),
+       needs_ingredients = false,
+       updated_at = now()
      where id = $2 and trim(coalesce(ingredients_text, '')) = ''`,
-    [ingredientsText.trim(), productId]
+    [ingredientsText.trim(), productId, ingredientsPhotoPath, contributorUserId, source]
   );
+
+  // Clear any cached analysis so the next scan re-evaluates with real data.
+  await db.query(`delete from product_analyses where product_id = $1`, [productId]);
 }
 
 export async function disassociateBarcode(barcode) {

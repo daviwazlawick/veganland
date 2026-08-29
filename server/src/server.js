@@ -1801,6 +1801,7 @@ const server = http.createServer(async (req, res) => {
       const u = new URL(req.url, 'http://x');
       const q = (u.searchParams.get('q') || '').trim();
       const lang = (u.searchParams.get('lang') || 'en').trim();
+      console.log(`[search] user=${claims.userId} q="${q}" lang=${lang}`);
       if (q.length < 2) { sendJson(res, 200, [], origin); return; }
 
       const [dbResults, offResults] = await Promise.all([
@@ -1808,6 +1809,7 @@ const server = http.createServer(async (req, res) => {
         searchOffProducts(q, 10, lang),
       ]);
       let merged = mergeSearchResults([dbResults, offResults]);
+      console.log(`[search] q="${q}" db=${dbResults.length} off=${offResults.length} merged=${merged.length}`);
 
       const SPARSE_THRESHOLD = 5;
       if (merged.length < SPARSE_THRESHOLD) {
@@ -2223,8 +2225,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       const body = await readJsonBody(req);
-      if (!body.imageBase64 && !body.barcode) {
-        sendJson(res, 400, { error: 'imageBase64 or barcode is required' }, origin);
+      if (!body.imageBase64 && !body.labelPhotoBase64 && !body.ingredientsPhotoBase64 && !body.barcode) {
+        sendJson(res, 400, { error: 'imageBase64, labelPhotoBase64, ingredientsPhotoBase64 or barcode is required' }, origin);
         return;
       }
 
@@ -2258,6 +2260,8 @@ const server = http.createServer(async (req, res) => {
 
       const result = await analyzeProduct({
         imageBase64: body.imageBase64 || null,
+        labelPhotoBase64: body.labelPhotoBase64 || null,
+        ingredientsPhotoBase64: body.ingredientsPhotoBase64 || null,
         mediaType: body.mediaType || 'image/jpeg',
         profile,
         language: body.language || 'pt',

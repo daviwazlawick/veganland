@@ -21,7 +21,33 @@ export async function analyzeProductWithApi(imageBase64, profile, language, toke
   const response = await fetch(`${baseUrl()}/analyze-product`, {
     method: 'POST',
     headers: appHeaders(token),
-    body: JSON.stringify({ imageBase64, mediaType: 'image/jpeg', profile, language, barcode, skipBarcodeCache }),
+    body: JSON.stringify({
+      labelPhotoBase64: imageBase64,
+      mediaType: 'image/jpeg',
+      profile, language, barcode, skipBarcodeCache,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(data.error || `API error ${response.status}`);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+// Second-step call: the user already identified the product with a label
+// photo and is now sending the ingredients photo to complete the record.
+export async function analyzeIngredientsPhotoWithApi(imageBase64, profile, language, token, barcode) {
+  const response = await fetch(`${baseUrl()}/analyze-product`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({
+      ingredientsPhotoBase64: imageBase64,
+      mediaType: 'image/jpeg',
+      profile, language, barcode,
+    }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

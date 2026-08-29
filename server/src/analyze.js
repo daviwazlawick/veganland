@@ -1,7 +1,6 @@
 import {
   analyzeFreshProduce,
   analyzeIngredients,
-  analyzeProductByKnowledge,
   buildInvalidImageResult,
   buildMissingIngredientsResult,
   evaluateProductIngredients,
@@ -15,10 +14,12 @@ import {
   saveScanEvent,
   disassociateBarcode,
   stampBarcode,
+  updateProductIngredients,
   upsertFreshProduct,
   upsertProduct,
 } from './db.js';
 import { buildSlimProductInfo, fetchOffEnrichment, findProductIdentity, findProductIngredients } from './openFoodFacts.js';
+import { saveScanPhoto } from './photoStorage.js';
 
 // A row is "OFF-enriched" if any of the OFF-only columns are populated or the
 // raw blob carries the OFF shape (raw.code is the OFF barcode field).
@@ -41,13 +42,18 @@ async function enrichKnownRowIfNeeded(row) {
   }
 }
 
-async function resolveProductIngredients(imageInspection) {
+async function resolveProductIngredients(imageInspection, { contributorUserId = null } = {}) {
   const visibleIngredients = imageInspection.ingredients_visible && imageInspection.ingredients_text?.trim();
   if (visibleIngredients) {
     return upsertProduct({
       ...imageInspection,
       ingredients_text: imageInspection.ingredients_text.trim(),
       source: 'image',
+      // Label photo shows the front (and often ingredients on the back). Same
+      // photo covers both roles — persist under label_photo_path so future
+      // scans of this barcode see a real photo.
+      label_photo_path: imageInspection.label_photo_path || null,
+      contributor_user_id: contributorUserId,
     });
   }
 
@@ -74,9 +80,51 @@ async function resolveProductIngredients(imageInspection) {
     brand: searchedProduct.brand || imageInspection.brand,
     barcode: searchedProduct.barcode || imageInspection.barcode,
     lookup_query: imageInspection.lookup_query,
+    label_photo_path: imageInspection.label_photo_path || null,
+    contributor_user_id: contributorUserId,
   };
 
   return upsertProduct(productForCurrentImage);
+}
+
+// The user identified a product (via barcode or label photo) but we couldn't
+// find ingredients anywhere. Persist whatever identity + label photo we have
+// so the next scanner can pick up where this one left off, then signal the
+// client to prompt for a dedicated ingredients photo.
+async function buildNeedsIngredientsResponse(imageInspection, lang, opts = {}) {
+  const { contributorUserId = null, knownProduct = null } = opts;
+
+  // Try to persist a stub row — barcode + name + label photo. Skip if we're
+  // already looking at a DB row (knownProduct exists) since it's already
+  // flagged needs_ingredients=true.
+  let stub = knownProduct;
+  if (!stub && (imageInspection.product_name || imageInspection.brand) && imageInspection.label_photo_path) {
+    stub = await upsertProduct({
+      ...imageInspection,
+      ingredients_text: null,
+      source: 'user_label',
+      label_photo_path: imageInspection.label_photo_path,
+      contributor_user_id: contributorUserId,
+    });
+  }
+
+  const productName = [imageInspection.brand, imageInspection.product_name].filter(Boolean).join(' ')
+    || stub?.product_name
+    || null;
+
+  return {
+    status: 'NEEDS_INGREDIENTS_PHOTO',
+    product_name: productName,
+    brand: imageInspection.brand || stub?.brand || null,
+    barcode: imageInspection.barcode || stub?.barcode || null,
+    product_id: stub?.id || null,
+    productInfo: buildSlimProductInfo(stub || imageInspection),
+    // Give the client a friendly title/explanation to display while the user
+    // decides whether to confirm the product and take the ingredients photo.
+    title: productName || 'Ingredients needed',
+    // Reuse missing-ingredients copy for the explanation — same intent.
+    explanation: buildMissingIngredientsResult(imageInspection, lang).explanation,
+  };
 }
 
 const NON_FOOD_TYPES = ['cosmetic', 'clothing', 'cleaning', 'other'];
@@ -273,8 +321,22 @@ function applyProfileToAnalysis(analysis, profile, language, productLabels = [])
 
 const NON_FOOD_SOURCES = new Set(['cosmetic', 'clothing', 'cleaning', 'other']);
 
-export async function analyzeProduct({ imageBase64, mediaType, profile, language, userId, barcode, skipBarcodeCache = false }) {
+export async function analyzeProduct({
+  imageBase64,           // legacy — treated as label photo
+  labelPhotoBase64,      // new: front of product / brand+name
+  ingredientsPhotoBase64,// new: back label with ingredients (second step)
+  mediaType,
+  profile,
+  language,
+  userId,
+  barcode,
+  skipBarcodeCache = false,
+}) {
   const lang = language || 'pt';
+  const contributorUserId = userId || null;
+  // Prefer the explicit label field; fall back to imageBase64 for
+  // pre-v1.0.19 clients that still send only imageBase64.
+  const labelPhoto = labelPhotoBase64 || imageBase64 || null;
 
   // Barcode shortcut: skip image inspection for known products
   // skipBarcodeCache: user said "wrong product" — disassociate barcode from wrong product first
@@ -286,7 +348,59 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     await disassociateBarcode(clientBarcode);
   }
 
-  if (clientBarcode && !skipBarcodeCache) {
+  // Ingredients photo path: user is completing a previously identified product.
+  // Extract ingredients from the photo, write them back to the existing row,
+  // then fall through to the normal analysis for that product.
+  if (ingredientsPhotoBase64 && clientBarcode) {
+    const ingredientsInspection = await inspectProductImage(ingredientsPhotoBase64, lang, mediaType);
+    const extracted = ingredientsInspection?.ingredients_text?.trim();
+    if (!ingredientsInspection?.ingredients_visible || !extracted) {
+      // The user tried but the ingredients aren't legible. Ask again with a
+      // clearer explanation — never invent ingredients.
+      const stub = await findProduct({ barcode: clientBarcode });
+      return {
+        status: 'NEEDS_INGREDIENTS_PHOTO',
+        product_name: stub?.product_name || null,
+        brand: stub?.brand || null,
+        barcode: clientBarcode,
+        product_id: stub?.id || null,
+        productInfo: buildSlimProductInfo(stub),
+        title: stub?.product_name || 'Ingredients needed',
+        explanation: buildMissingIngredientsResult(stub || {}, lang).explanation,
+        ingredients_unreadable: true,
+      };
+    }
+    const stubProduct = await findProduct({ barcode: clientBarcode });
+    if (stubProduct?.id) {
+      const ingredientsPath = await saveScanPhoto('ingredients', ingredientsPhotoBase64).catch(() => null);
+      await updateProductIngredients(stubProduct.id, extracted, {
+        ingredientsPhotoPath: ingredientsPath,
+        contributorUserId,
+        source: 'user_ingredients',
+      });
+      // Re-fetch so the analysis below sees the freshly written ingredients.
+      const refreshed = await findProduct({ barcode: clientBarcode });
+      if (refreshed) {
+        knownDbRow = refreshed;
+        const src = refreshed.source || 'processed_food';
+        const catType = productTypeFromCategories(refreshed.categories_tags);
+        imageInspection = {
+          product_type: catType || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
+          product_name: refreshed.product_name,
+          brand: refreshed.brand,
+          barcode: refreshed.barcode,
+          lookup_query: refreshed.lookup_query
+            || [refreshed.brand, refreshed.product_name].filter(Boolean).join(' ')
+            || null,
+          ingredients_visible: false,
+          ingredients_text: refreshed.ingredients_text || null,
+          confidence: 1.0,
+        };
+      }
+    }
+  }
+
+  if (!imageInspection && clientBarcode && !skipBarcodeCache) {
     // products table contains both our scans and the full OFF dump (~4.3M).
     // Use whatever we know locally — name/brand alone is enough to skip the
     // online OFF identity lookup further down. If ingredients are missing and
@@ -295,6 +409,24 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
     if (known) {
       known = await enrichKnownRowIfNeeded(known);
       knownDbRow = known;
+
+      // Row exists but is a stub (needs_ingredients=true) and the client
+      // didn't send an ingredients photo — bounce them straight to the
+      // ingredients step. Skip the label inspection entirely; we already
+      // know the identity.
+      if (known.needs_ingredients && !ingredientsPhotoBase64) {
+        return await buildNeedsIngredientsResponse(
+          {
+            product_name: known.product_name,
+            brand: known.brand,
+            barcode: known.barcode,
+            label_photo_path: known.label_photo_path,
+          },
+          lang,
+          { knownProduct: known }
+        );
+      }
+
       const src = known.source || 'processed_food';
       const catType = productTypeFromCategories(known.categories_tags);
       imageInspection = {
@@ -316,7 +448,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
   }
 
   // Nothing local AND no image → last resort: hit OFF web API for name/brand
-  if (!imageInspection && !imageBase64) {
+  if (!imageInspection && !labelPhoto) {
     if (clientBarcode) {
       const offIdentity = await findProductIdentity(clientBarcode);
       if (offIdentity) {
@@ -333,17 +465,25 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       }
     }
     if (!imageInspection) {
+      // Legacy status kept for pre-v1.0.19 clients (they still handle NEEDS_PHOTO
+      // by switching to the photo step). New clients treat NEEDS_LABEL_PHOTO
+      // and NEEDS_PHOTO as equivalent — the semantic is the same.
       return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
     }
   }
 
   if (!imageInspection) {
-    imageInspection = await inspectProductImage(imageBase64, lang, mediaType);
+    imageInspection = await inspectProductImage(labelPhoto, lang, mediaType);
 
     // Reject non-product images immediately — no further AI calls, no scan event logged
     if (imageInspection.product_type === 'invalid') {
       return { ...buildInvalidImageResult(lang), productInfo: null };
     }
+
+    // Persist the label photo to disk right after successful inspection so
+    // downstream upserts can link it to the product.
+    const labelPath = await saveScanPhoto('label', labelPhoto).catch(() => null);
+    if (labelPath) imageInspection.label_photo_path = labelPath;
 
     // If Haiku extracted a barcode from the image that the client didn't detect,
     // try a DB lookup before running the full analysis pipeline
@@ -418,7 +558,7 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
 
   } else {
     // processed_food e supplement: cache global por produto+idioma, perfil aplicado localmente
-    product = await resolveProductIngredients(imageInspection);
+    product = await resolveProductIngredients(imageInspection, { contributorUserId });
 
     if (product?.ingredients_text) {
       let neutralAnalysis = await findAnalysis(product.id, lang);
@@ -434,10 +574,14 @@ export async function analyzeProduct({ imageBase64, mediaType, profile, language
       }
       result = applyProfileToAnalysis(neutralAnalysis, profile, lang, product?.labels_tags);
     } else if (imageInspection.product_name || imageInspection.brand) {
-      // We identified the product but couldn't find its ingredient list anywhere.
-      // Ask Claude to reason from its own knowledge rather than bouncing the
-      // user back to take another photo — profile is applied inside the prompt.
-      result = await analyzeProductByKnowledge(imageInspection, profile, lang);
+      // We identified the product but couldn't find its ingredient list
+      // anywhere. NEVER invent ingredients — we persist the label photo +
+      // identity so the next scan can pick up where this one left off, and
+      // ask the user to photograph the ingredients label.
+      return await buildNeedsIngredientsResponse(imageInspection, lang, {
+        contributorUserId,
+        knownProduct: knownDbRow,
+      });
     } else {
       result = buildMissingIngredientsResult(imageInspection, lang);
     }

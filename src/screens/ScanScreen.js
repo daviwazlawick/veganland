@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
-import { analyzeProductWithApi, analyzeBarcodeWithApi, hasApiConfig } from '../services/apiService';
+import { analyzeProductWithApi, analyzeBarcodeWithApi, analyzeIngredientsPhotoWithApi, hasApiConfig } from '../services/apiService';
 import { PremiumIcon } from '../components/ui';
 
 const isNovaQI = Brand.id === 'novaqi';
@@ -92,10 +92,20 @@ export default function ScanScreen({ navigation, route }) {
     try {
       const result = await analyzeBarcodeWithApi(data, profile, language, token);
 
-      if (result.status === 'NEEDS_PHOTO') {
+      if (result.status === 'NEEDS_PHOTO' || result.status === 'NEEDS_LABEL_PHOTO') {
         setPendingBarcode(data);
         setScanStep('photo');
         setScanError(t(language, 'scan.barcode_not_found'));
+        return;
+      }
+
+      // Product identity known (barcode matched a DB stub) but no ingredients
+      // yet — show the identified name for confirmation, then let the user
+      // take the ingredients photo. Never analyze without real ingredients.
+      if (result.status === 'NEEDS_INGREDIENTS_PHOTO') {
+        setPendingBarcode(data);
+        setPendingResult({ ...result, date: new Date().toISOString() });
+        setNoIngredientsPrompt(true);
         return;
       }
 
@@ -211,19 +221,29 @@ export default function ScanScreen({ navigation, route }) {
     setSearchingText(null);
     try {
       const skipBarcodeCache = !!wrongProductBarcode;
-      const result = await analyzeProductWithApi(base64, profile, language, token, pendingBarcode, skipBarcodeCache);
-      if (!result.status || !VALID_STATUSES.has(result.status)) {
-        setScanError(t(language, 'errors.not_a_product'));
-        return;
-      }
-      // Only ask for an ingredients photo when the server truly couldn't identify
-      // the product at all — knowledge-based results (server used Claude's
-      // built-in knowledge) go straight through even without a visible label.
-      if (scanStep === 'photo' && result.ingredients_source === 'missing' && !result.normalized_ingredients?.length) {
+      // Two distinct call shapes:
+      //   - ingredients step → dedicated endpoint that only extracts ingredients
+      //     and writes them back to the previously-identified product row.
+      //   - photo step (label) → full identify+analyze path.
+      const result = scanStep === 'ingredients'
+        ? await analyzeIngredientsPhotoWithApi(base64, profile, language, token, pendingBarcode)
+        : await analyzeProductWithApi(base64, profile, language, token, pendingBarcode, skipBarcodeCache);
+
+      // Server identified the product but has no ingredients yet — bounce the
+      // user to the ingredients step. Never fall through to an analysis
+      // without ingredients (would be inventing them).
+      if (result.status === 'NEEDS_INGREDIENTS_PHOTO') {
+        setPendingBarcode(result.barcode || pendingBarcode);
         setPendingResult({ ...result, date: new Date().toISOString(), imageUri });
         setNoIngredientsPrompt(true);
         return;
       }
+
+      if (!result.status || !VALID_STATUSES.has(result.status)) {
+        setScanError(t(language, 'errors.not_a_product'));
+        return;
+      }
+
       const scan = { ...result, date: new Date().toISOString(), imageUri };
       await addScanToHistory(scan);
       if (isOnboarding) {
@@ -290,7 +310,18 @@ export default function ScanScreen({ navigation, route }) {
 
   function handleBackFromPhoto() {
     if (isIngredientsStep) {
-      setScanStep('photo');
+      // If the product was identified from a DB stub (barcode-first flow), the
+      // user never took a label photo — going back should return to the barcode
+      // scanner, not the photo step.
+      const cameFromStub = !!pendingResult?.product_id;
+      if (cameFromStub) {
+        setScanStep('barcode');
+        setPendingBarcode(null);
+        setPendingResult(null);
+        resetBarcodeScanner();
+      } else {
+        setScanStep('photo');
+      }
       setNoIngredientsPrompt(false);
     } else {
       setScanStep('barcode');
@@ -425,7 +456,19 @@ export default function ScanScreen({ navigation, route }) {
       {noIngredientsPrompt && (
         <View style={styles.errorOverlay}>
           <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{t(language, 'scan.no_ingredients_prompt')}</Text>
+            {pendingResult?.product_name ? (
+              <>
+                <Text style={styles.errorText}>{t(language, 'scan.confirm_product_title')}</Text>
+                <Text style={[styles.errorText, { fontSize: 20, fontWeight: '800', marginTop: 4 }]}>
+                  {pendingResult.product_name}
+                </Text>
+                <Text style={[styles.errorText, { fontSize: 14, marginTop: 8, opacity: 0.85 }]}>
+                  {t(language, 'scan.confirm_product_ingredients_needed')}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.errorText}>{t(language, 'scan.no_ingredients_prompt')}</Text>
+            )}
             <TouchableOpacity
               style={[styles.errorBtn, !isNovaQI && styles.errorBtnSkeuo]}
               onPress={() => { setNoIngredientsPrompt(false); setScanStep('ingredients'); }}
@@ -434,10 +477,16 @@ export default function ScanScreen({ navigation, route }) {
               <Text style={styles.errorBtnText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'scan.take_ingredients_photo')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => { setNoIngredientsPrompt(false); navigateToResult(pendingResult); }}
+              onPress={() => {
+                setNoIngredientsPrompt(false);
+                setPendingResult(null);
+                setPendingBarcode(null);
+                setScanStep('barcode');
+                resetBarcodeScanner();
+              }}
               activeOpacity={0.75}
             >
-              <Text style={styles.errorLinkText}>{t(language, 'scan.show_result_anyway')}</Text>
+              <Text style={styles.errorLinkText}>{t(language, 'scan.wrong_product')}</Text>
             </TouchableOpacity>
           </View>
         </View>
