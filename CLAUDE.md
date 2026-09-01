@@ -1846,6 +1846,26 @@ Contexto: 0 conversões RC reais desde Jul/2026; 79% dos users nunca fazem um sc
   - Funil por dia: `SELECT DATE(created_at), event_type, COUNT(*) FROM funnel_events GROUP BY 1,2 ORDER BY 1 DESC, 2;`
   - Conversion scan_started → scan_completed: `SELECT COUNT(*) FILTER (WHERE event_type='scan_started') AS started, COUNT(*) FILTER (WHERE event_type='scan_completed') AS completed FROM funnel_events WHERE created_at > now() - interval '7 days';`
 
+### Scan-limit card + ingredients photo sem barcode (2026-09-01)
+Sequência no mesmo dia, OTA 1.0.18.
+
+**Scan-limit card (`src/components/ScanLimitCard.js`)** — substitui o `Alert.alert("OK")` do PlateAnalysisScreen e o card genérico do ScanScreen. Título + body ("You've used all 7 scans this month" · "You can still log your meals — just search by name" · "Or upgrade for more scans"), botão primário **Upgrade** → Paywall com `source: 'scan_limit'|'plate_limit'`, botão secundário **Log manually** → NutritionDashboard com `openAddFood: true`. Funnel events novos: `scan_limit_shown`, `scan_limit_log_manually_click`. Também instrumentou `scan_started/completed/failed` no PlateAnalysisScreen.
+
+**Ingredients photo sem barcode (`server/src/analyze.js`)** — o fluxo "não consigo ler o barcode → foto da frente → foto do verso" caía num "Could not identify a packaged product" porque a gate era `if (ingredientsPhotoBase64 && clientBarcode)`. Sem barcode a foto do verso era silenciosamente ignorada e a resposta caía no fallback `NEEDS_PHOTO`. Relaxada a condição para `if (ingredientsPhotoBase64)`:
+- **Com barcode** → path antigo intacto (extrair → gravar em `products` → análise em cache partilhada, para futuros scanners herdarem)
+- **Sem barcode** → one-shot: `evaluateProductIngredients(extracted, {...}, profile, lang, 'image', productType)` directamente. Não escreve em `products` (sem chave para de-dupe), mas grava em `scan_events` para aparecer no histórico
+- Cliente (`ScanScreen.js`, `apiService.js`) passa `pendingResult.product_name/brand` como `hintProductName/hintBrand` para o resultado exibir o nome capturado na foto da frente
+
+### Broadcast freemium (2026-09-01)
+Anúncio a todos os users NovaQI: "All basic features are now free" (6 línguas). Push (191 tokens) + email (315 users).
+
+- **Scripts:** `server/src/scripts/broadcast-freemium.mjs` (push, per-locale) e `broadcast-freemium-email.mjs` (email, locale via LEFT JOIN LATERAL a `push_tokens.locale`, EN fallback). Ambos aceitam `--dry-run`; email aceita `--limit N` para smoke test.
+- **CTA no email:** botão "Abrir App" (traduzido) → `https://novaqi.app/get`
+- **Push:** 191/191 ok, registado em `push_broadcasts`. Distribuição: en 165 · pt 11 · fr 7 · de 4 · it 2 · es 2.
+- **Email:** 310/315 ok. **5 falhas com `554 5.7.1 Outbound sending is disabled for this account`** — Hostinger cortou o SMTP após ~310 emails seguidos.
+
+**⚠️ Hostinger SMTP rate limit — impacto amplo:** o bloqueio afecta **todos** os emails saintes (confirmações, resets, report product), não só broadcasts. Se o desbloqueio automático não acontecer em algumas horas, abrir ticket ao suporte Hostinger. Para broadcasts futuros: aumentar pausa entre envios (120ms → 500-1000ms), dividir em lotes com backoff longo, ou mudar para provedor dedicado (Resend/Postmark/SES).
+
 ### PlateAnalysisScreen — aviso "Como funciona a análise do prato"
 Explica ao user por que os items não são verificados contra a dieta (é impossível distinguir por foto leite animal vs vegetal, queijo vegan vs normal, etc.) e aponta o scan de produto industrializado como o caminho para verificação rigorosa. UI:
 - Modal auto-aberto **na 1ª entrada** no ecrã. Persiste dismiss via `AsyncStorage.getItem('@plate_notice_dismissed') === '1'`.
