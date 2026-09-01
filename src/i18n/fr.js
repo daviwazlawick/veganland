@@ -209,7 +209,7 @@ export default {
     not_safe_subtitle: 'Non recommandé pour votre profil',
     concerns: 'Ingrédients à surveiller',
     no_concerns: 'Aucun ingrédient problématique identifié',
-    ai_disclaimer: "Ces informations ne remplacent pas la lecture de l'étiquette ni les conseils professionnels. Confirmez toujours les ingrédients sur l'emballage physique avant de consommer.",
+    ai_disclaimer: "Ces informations ne remplacent pas la lecture de l'étiquette ni un avis médical. Confirmez toujours les ingrédients sur l'emballage physique avant de consommer, et consultez un professionnel de santé pour tout avis médical, diagnostic ou traitement.",
     ai_source: "Analyse générée par Claude AI (Anthropic) · anthropic.com",
     wrong_product: "Signaler une info incorrecte",
     scan_again: 'Scanner un autre',
