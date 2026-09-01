@@ -14,6 +14,7 @@ import Brand, { BrandFonts } from '../brand';
 import { analyzeProductWithApi, analyzeBarcodeWithApi, analyzeIngredientsPhotoWithApi, hasApiConfig } from '../services/apiService';
 import { logFunnelEvent } from '../services/funnelService';
 import { PremiumIcon } from '../components/ui';
+import ScanLimitCard from '../components/ScanLimitCard';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -518,58 +519,28 @@ export default function ScanScreen({ navigation, route }) {
         </View>
       )}
 
-      {scanError && (
+      {scanError && !isLimitError && (
         <View style={styles.errorOverlay}>
-          {isLimitError ? (
-            <View style={styles.limitCard}>
-              <Text style={styles.limitTitle} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
-                {t(language, 'limits.limit_reached_title', { limit: 7 })}
-              </Text>
-              <Text style={styles.limitBody}>
-                {t(language, 'limits.log_manually_hint')}
-              </Text>
-              <Text style={styles.limitBodyBold}>
-                {t(language, 'limits.or_upgrade')}
-              </Text>
-              <TouchableOpacity
-                style={[styles.upgradeBtn, !isNovaQI && styles.errorBtnSkeuo]}
-                onPress={() => {
-                  setScanError(null); setIsLimitError(false);
-                  navigation.navigate('Paywall', { source: 'scan_limit' });
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.upgradeBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                  {t(language, 'limits.upgrade_btn')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => {
-                  setScanError(null); setIsLimitError(false);
-                  logFunnelEvent('scan_limit_log_manually_click', {}, token);
-                  navigation.navigate('NutritionDashboard', { openAddFood: true });
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.secondaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                  {t(language, 'limits.log_manually_btn')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{scanError}</Text>
-              <TouchableOpacity
-                style={[styles.errorBtn, !isNovaQI && styles.errorBtnSkeuo]}
-                onPress={() => { setScanError(null); setIsLimitError(false); resetBarcodeScanner(); }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.errorBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'scan.dismiss')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{scanError}</Text>
+            <TouchableOpacity
+              style={[styles.errorBtn, !isNovaQI && styles.errorBtnSkeuo]}
+              onPress={() => { setScanError(null); setIsLimitError(false); resetBarcodeScanner(); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.errorBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(language, 'scan.dismiss')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      )}
+
+      {isLimitError && (
+        <ScanLimitCard
+          navigation={navigation}
+          source="scan_limit"
+          token={token}
+          onDismiss={() => { setScanError(null); setIsLimitError(false); resetBarcodeScanner(); }}
+        />
       )}
 
       <Modal
@@ -809,59 +780,6 @@ const styles = StyleSheet.create({
   },
   errorBtnSkeuo: { borderBottomWidth: 3, borderBottomColor: Colors.primaryDark },
   errorBtnText: { color: Colors.white, fontSize: 15, fontWeight: '800' },
-  limitCard: {
-    backgroundColor: Colors.glass,
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 22,
-    alignItems: 'stretch',
-    width: '88%',
-    gap: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
-  },
-  limitTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.text,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  limitBody: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.text,
-    textAlign: 'center',
-    lineHeight: 20,
-    opacity: 0.85,
-  },
-  limitBodyBold: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 2,
-  },
-  upgradeBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    marginTop: 6,
-    alignItems: 'center',
-  },
-  upgradeBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
-  secondaryBtn: {
-    backgroundColor: 'transparent',
-    borderRadius: 14,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-  },
-  secondaryBtnText: { color: Colors.primary, fontSize: 15, fontWeight: '700' },
   permissionContainer: {
     flex: 1,
     backgroundColor: Colors.background,

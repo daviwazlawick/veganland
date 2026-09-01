@@ -14,6 +14,8 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { apiAnalyzePlate, apiSearchFood } from '../services/apiService';
+import { logFunnelEvent } from '../services/funnelService';
+import ScanLimitCard from '../components/ScanLimitCard';
 import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 
 const isNovaQI = Brand.id === 'novaqi';
@@ -52,6 +54,7 @@ export default function PlateAnalysisScreen({ navigation }) {
 
   const [image, setImage] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [result, setResult] = useState(null);
   const [editableItems, setEditableItems] = useState([]);
   const [meal, setMeal] = useState('lunch');
@@ -269,18 +272,22 @@ export default function PlateAnalysisScreen({ navigation }) {
 
   async function analyzeImage(base64) {
     setAnalyzing(true);
+    logFunnelEvent('scan_started', { method: 'plate' }, token);
     try {
       const data = await apiAnalyzePlate(token, base64, language, profile);
       setResult(data);
       setMonthlyScanCount(c => c + 1);
+      logFunnelEvent('scan_completed', { method: 'plate', items: data?.items?.length || 0 }, token);
       if (!data.items || data.items.length === 0) {
         Alert.alert('', t(language, 'nutrition.plate_no_food'));
       }
     } catch (e) {
       if (e?.message === 'scan_limit_reached') {
-        Alert.alert(t(language, 'limits.monthly_reached', { limit: '' }).trim(), t(language, 'limits.change_subscription'));
+        setLimitReached(true);
+        logFunnelEvent('scan_failed', { method: 'plate', reason: 'limit' }, token);
       } else {
         Alert.alert('Erro', 'Análise falhou. Tenta com outra foto.');
+        logFunnelEvent('scan_failed', { method: 'plate', reason: (e?.message || 'error').slice(0, 120) }, token);
       }
     } finally {
       setAnalyzing(false);
@@ -595,6 +602,15 @@ export default function PlateAnalysisScreen({ navigation }) {
             </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {limitReached && (
+        <ScanLimitCard
+          navigation={navigation}
+          source="plate_limit"
+          token={token}
+          onDismiss={() => setLimitReached(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
