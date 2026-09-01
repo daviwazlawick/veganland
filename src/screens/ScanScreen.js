@@ -12,6 +12,7 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { analyzeProductWithApi, analyzeBarcodeWithApi, analyzeIngredientsPhotoWithApi, hasApiConfig } from '../services/apiService';
+import { logFunnelEvent } from '../services/funnelService';
 import { PremiumIcon } from '../components/ui';
 
 const isNovaQI = Brand.id === 'novaqi';
@@ -51,11 +52,11 @@ export default function ScanScreen({ navigation, route }) {
     clearTimeout(lockRef.current.timer);
     setCameraActive(false);
     if (isOnboarding) {
-      // No previous screen to pop back to — reset to Paywall so users can
-      // still upgrade even if they bail on the guided scan.
+      // No previous screen to pop back to — land the user on Main so they
+      // can explore the app even if they bail on the guided scan.
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+        routes: [{ name: 'Main' }],
       });
       return;
     }
@@ -89,6 +90,7 @@ export default function ScanScreen({ navigation, route }) {
     setAnalyzing(true);
     setSearchingText(t(language, 'scan.barcode_searching'));
 
+    logFunnelEvent('scan_started', { method: 'barcode', onboarding: isOnboarding }, token);
     try {
       const result = await analyzeBarcodeWithApi(data, profile, language, token);
 
@@ -120,11 +122,21 @@ export default function ScanScreen({ navigation, route }) {
         await markOnboardingScanUsed();
         refreshUser().catch(() => {});
       }
+      logFunnelEvent('scan_completed', {
+        method: 'barcode',
+        onboarding: isOnboarding,
+        status: result.status,
+      }, token);
       setCameraActive(false);
       navigation.replace('Result', { result: scan, onboarding: isOnboarding });
     } catch (e) {
       setScanError(buildErrorMessage(e, language));
       setIsLimitError(e.status === 429);
+      logFunnelEvent('scan_failed', {
+        method: 'barcode',
+        onboarding: isOnboarding,
+        reason: e.status === 429 ? 'limit' : (e.message || 'error').slice(0, 120),
+      }, token);
     } finally {
       setAnalyzing(false);
       setSearchingText(null);
@@ -219,6 +231,10 @@ export default function ScanScreen({ navigation, route }) {
     setNoIngredientsPrompt(false);
     setAnalyzing(true);
     setSearchingText(null);
+    logFunnelEvent('scan_started', {
+      method: scanStep === 'ingredients' ? 'ingredients' : 'photo',
+      onboarding: isOnboarding,
+    }, token);
     try {
       const skipBarcodeCache = !!wrongProductBarcode;
       // Two distinct call shapes:
@@ -250,11 +266,21 @@ export default function ScanScreen({ navigation, route }) {
         await markOnboardingScanUsed();
         refreshUser().catch(() => {});
       }
+      logFunnelEvent('scan_completed', {
+        method: scanStep === 'ingredients' ? 'ingredients' : 'photo',
+        onboarding: isOnboarding,
+        status: result.status,
+      }, token);
       setCameraActive(false);
       navigation.replace('Result', { result: scan, onboarding: isOnboarding });
     } catch (e) {
       setScanError(buildErrorMessage(e, language));
       setIsLimitError(e.status === 429);
+      logFunnelEvent('scan_failed', {
+        method: scanStep === 'ingredients' ? 'ingredients' : 'photo',
+        onboarding: isOnboarding,
+        reason: e.status === 429 ? 'limit' : (e.message || 'error').slice(0, 120),
+      }, token);
     } finally {
       setAnalyzing(false);
     }

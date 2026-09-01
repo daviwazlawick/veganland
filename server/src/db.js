@@ -1033,6 +1033,19 @@ export async function deletePushToken(token) {
   return res.rowCount > 0;
 }
 
+export async function insertFunnelEvent({ userId, type, brand, platform, appVersion, metadata }) {
+  const db = await getPool();
+  if (!db || !type) return null;
+  const res = await db.query(
+    `insert into funnel_events (user_id, event_type, brand, platform, app_version, metadata)
+     values ($1, $2, $3, $4, $5, $6)
+     returning id`,
+    [userId || null, String(type).slice(0, 64), brand || null, platform || null,
+     appVersion || null, metadata && typeof metadata === 'object' ? metadata : {}]
+  );
+  return res.rows[0]?.id || null;
+}
+
 export async function listPushTokens({ locale, userType, onboardingScanUsed, dietIds, includeAnonymous = false } = {}) {
   const db = await getPool();
   if (!db) return [];

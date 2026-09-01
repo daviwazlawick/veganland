@@ -17,6 +17,7 @@ import {
   ENTITLEMENT_PRO,
 } from '../services/purchasesService';
 import { logStartTrial, logSubscribe } from '../services/analyticsService';
+import { logFunnelEvent } from '../services/funnelService';
 
 const PLANS = [
   {
@@ -55,9 +56,23 @@ export default function PaywallScreen({ navigation, route }) {
 
   function handleClose() {
     if (isLocked) return;
+    logFunnelEvent('paywall_dismissed', {
+      source: route?.params?.source || 'unknown',
+      current_plan: currentPlan,
+    }, token);
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('Main');
   }
+
+  useEffect(() => {
+    logFunnelEvent('paywall_shown', {
+      source: route?.params?.source || 'unknown',
+      current_plan: currentPlan,
+      locked: isLocked,
+    }, token);
+    // Only fire once per mount — deps intentionally empty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!isLocked) return;

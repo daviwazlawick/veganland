@@ -4,7 +4,7 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
 import { resolvePhotoPath } from './photoStorage.js';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink, stat, readFile } from 'node:fs/promises';
@@ -1478,6 +1478,29 @@ const server = http.createServer(async (req, res) => {
       }
       const brand = host?.includes('novaqi') ? 'novaqi' : 'veganland';
       await upsertPushToken({ userId: claims.userId, token: pushToken, platform, locale, timezone, brand });
+      sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // POST /events — generic funnel event ingest. Auth optional so we can
+    // also log anonymous pre-signup events later. Body: { type, metadata? }.
+    // We stamp brand from host and pull platform/appVersion from the client
+    // via metadata (source of truth is the client's Platform.OS + build).
+    if (req.method === 'POST' && req.url === '/events') {
+      const claims = getAuthUser(req);
+      const body = await readJsonBody(req);
+      const type = String(body?.type || '').trim();
+      if (!type) { sendJson(res, 400, { error: 'type required' }, origin); return; }
+      const metadata = body?.metadata && typeof body.metadata === 'object' ? body.metadata : {};
+      const brand = host?.includes('novaqi') ? 'novaqi' : 'veganland';
+      await insertFunnelEvent({
+        userId: claims?.userId || null,
+        type,
+        brand,
+        platform: typeof metadata.platform === 'string' ? metadata.platform.slice(0, 16) : null,
+        appVersion: typeof metadata.app_version === 'string' ? metadata.app_version.slice(0, 32) : null,
+        metadata,
+      });
       sendJson(res, 200, { ok: true }, origin);
       return;
     }

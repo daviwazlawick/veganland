@@ -96,7 +96,7 @@ export default function ProfileSetupScreen({ navigation }) {
         } else {
           navigation.reset({
             index: 0,
-            routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+            routes: [{ name: 'Main' }],
           });
         }
       } else {

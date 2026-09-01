@@ -1830,6 +1830,20 @@ User 297 (lumozini) apanhou repetidamente `cannot identify image file '/tmp/ba_f
 - Se aparecer bug de overflow noutra tabela numeric(5,1), aplicar o mesmo padrão de clamp+log de `saveBodyProfile`.
 - Report Product: emails chegam ao webmail Hostinger correctamente. Se ainda caírem em spam no Gmail, é DKIM — activa no Hostinger hPanel.
 
+### Funnel events + paywall off no onboarding (2026-09-01, OTA na 1.0.18)
+Contexto: 0 conversões RC reais desde Jul/2026; 79% dos users nunca fazem um scan. Objectivo: parar de mostrar paywall no onboarding (não há value ainda) e ganhar telemetria para localizar drop-off.
+
+- **Server:** migração `037_funnel_events.sql` cria `funnel_events(user_id, event_type, brand, platform, app_version, metadata jsonb, created_at)`. Helper `insertFunnelEvent` em `db.js`. Endpoint `POST /events` (auth opcional) em `server.js`. nginx sites `/etc/nginx/sites-enabled/{veganland,novaqi}.app` — regex proxy actualizada com `|events|`.
+- **Client:** `src/services/funnelService.js` — `logFunnelEvent(type, metadata, token)` fire-and-forget. Auto-stampa `platform` + `app_version`.
+- **Eventos disparados:**
+  - `scan_started` / `scan_completed` / `scan_failed` em `ScanScreen.triggerBarcodeSearch` e `runPhotoAnalysis` (metadata: `method` barcode|photo|ingredients, `onboarding`, `status`|`reason`).
+  - `paywall_shown` (useEffect mount) e `paywall_dismissed` (handleClose) em `PaywallScreen` (metadata: `source`, `current_plan`, `locked`).
+- **Paywall removido do onboarding:** `ProfileSetupScreen.js` (após save quando não precisa onboarding scan), `ResultScreen.js` (3 pontos: feedback 👍, skip, comment submit), `ScanScreen.handleClose` (bail durante onboarding). Todos passam a `navigation.reset({routes:[{name:'Main'}]})`. O paywall só aparece agora se: user clicar Upgrade em Profile, ou esgotar 7 scans/mês (ScanScreen isLimitError → navigate('Paywall')).
+- **Deploy:** só JS → OTA via `eas update` (runtime = appVersion 1.0.18).
+- **Queries úteis:**
+  - Funil por dia: `SELECT DATE(created_at), event_type, COUNT(*) FROM funnel_events GROUP BY 1,2 ORDER BY 1 DESC, 2;`
+  - Conversion scan_started → scan_completed: `SELECT COUNT(*) FILTER (WHERE event_type='scan_started') AS started, COUNT(*) FILTER (WHERE event_type='scan_completed') AS completed FROM funnel_events WHERE created_at > now() - interval '7 days';`
+
 ### PlateAnalysisScreen — aviso "Como funciona a análise do prato"
 Explica ao user por que os items não são verificados contra a dieta (é impossível distinguir por foto leite animal vs vegetal, queijo vegan vs normal, etc.) e aponta o scan de produto industrializado como o caminho para verificação rigorosa. UI:
 - Modal auto-aberto **na 1ª entrada** no ecrã. Persiste dismiss via `AsyncStorage.getItem('@plate_notice_dismissed') === '1'`.

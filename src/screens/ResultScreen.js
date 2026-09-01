@@ -552,11 +552,9 @@ export default function ResultScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
 
-        {/* Feedback card — visible for every tier now. Onboarding users still
-            get routed to Paywall after a rating; paid users just see a "thanks"
-            state so the card collapses. Skip button lets anyone move on
-            without leaving feedback (Paywall for onboarding, nothing for paid
-            users — they can just tap "Scan another" below). */}
+        {/* Feedback card — visible for every tier. Onboarding users get
+            routed to Main after a rating so they land inside the app;
+            paid users see a "thanks" state and can tap "Scan another". */}
         {feedbackState !== 'done' && (
           <View style={fbStyles.card}>
             <Text style={fbStyles.headline}>{t(language, 'onboarding.feedback_headline')}</Text>
@@ -576,7 +574,7 @@ export default function ResultScreen({ navigation, route }) {
                     if (isOnboarding) {
                       navigation.reset({
                         index: 0,
-                        routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                        routes: [{ name: 'Main' }],
                       });
                     }
                   } catch (e) {
@@ -618,7 +616,7 @@ export default function ResultScreen({ navigation, route }) {
                 if (isOnboarding) {
                   navigation.reset({
                     index: 0,
-                    routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                    routes: [{ name: 'Main' }],
                   });
                 }
               }}
@@ -831,13 +829,10 @@ export default function ResultScreen({ navigation, route }) {
                       });
                     }
                     setFeedbackState('done');
-                    // Only route onboarding users to the Paywall after a
-                    // rating — paid users stay on Result so they can keep
-                    // browsing scan history / hit "Scan another".
                     if (isOnboarding) {
                       navigation.reset({
                         index: 0,
-                        routes: [{ name: 'Paywall', params: { currentPlan: 'free' } }],
+                        routes: [{ name: 'Main' }],
                       });
                     }
                   } catch (e) {
