@@ -312,6 +312,11 @@ export default {
     resets_tomorrow: 'Seus scans serão renovados amanhã.',
     credits_exhausted: 'Os créditos da sua subscrição acabaram.',
     change_subscription: 'Clique aqui para mudar a sua subscrição',
+    limit_reached_title: 'Usaste os {{limit}} scans deste mês',
+    log_manually_hint: 'Podes continuar a registar refeições — procura por nome e mantém os macros em dia.',
+    or_upgrade: 'Ou faz upgrade para mais scans por mês. A partir de apenas €2,99.',
+    log_manually_btn: 'Registar manualmente',
+    upgrade_btn: 'Fazer upgrade',
   },
   personal: {
     title: 'Informações Pessoais',

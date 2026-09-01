@@ -312,6 +312,11 @@ export default {
     resets_tomorrow: 'Deine Scans werden morgen erneuert.',
     credits_exhausted: 'Deine Scan-Credits sind aufgebraucht.',
     change_subscription: 'Hier tippen um dein Abo zu ändern',
+    limit_reached_title: 'Du hast alle {{limit}} Scans diesen Monat verbraucht',
+    log_manually_hint: 'Du kannst deine Mahlzeiten weiter erfassen — such nach dem Namen und halte deine Makros im Blick.',
+    or_upgrade: 'Oder upgrade für mehr Scans pro Monat. Ab nur 2,99 €.',
+    log_manually_btn: 'Manuell erfassen',
+    upgrade_btn: 'Upgrade',
   },
   personal: {
     title: 'Persönliche Informationen',

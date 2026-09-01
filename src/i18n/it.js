@@ -312,6 +312,11 @@ export default {
     resets_tomorrow: 'I tuoi scan si rinnoveranno domani.',
     credits_exhausted: "I tuoi crediti di scansione sono esauriti.",
     change_subscription: "Tocca qui per cambiare il tuo abbonamento",
+    limit_reached_title: 'Hai usato tutti i {{limit}} scan di questo mese',
+    log_manually_hint: 'Puoi continuare a registrare i pasti — cerca per nome e tieni i macros sotto controllo.',
+    or_upgrade: 'O passa a un piano superiore per più scan al mese. A partire da soli 2,99 €.',
+    log_manually_btn: 'Registra manualmente',
+    upgrade_btn: 'Aggiorna',
   },
   personal: {
     title: 'Informazioni personali',

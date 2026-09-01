@@ -312,6 +312,11 @@ export default {
     resets_tomorrow: 'Tus escaneos se renovarán mañana.',
     credits_exhausted: 'Tus créditos de suscripción se han agotado.',
     change_subscription: 'Toca aquí para cambiar tu suscripción',
+    limit_reached_title: 'Has usado los {{limit}} escaneos de este mes',
+    log_manually_hint: 'Puedes seguir registrando tus comidas — busca por nombre y mantén tus macros al día.',
+    or_upgrade: 'O actualiza para tener más escaneos al mes. Desde solo 2,99 €.',
+    log_manually_btn: 'Registrar manualmente',
+    upgrade_btn: 'Actualizar',
   },
   personal: {
     title: 'Información personal',

@@ -312,6 +312,11 @@ export default {
     resets_tomorrow: 'Vos scans seront renouvelés demain.',
     credits_exhausted: "Vos crédits de scan sont épuisés.",
     change_subscription: "Appuyez ici pour changer votre abonnement",
+    limit_reached_title: 'Vous avez utilisé vos {{limit}} scans ce mois-ci',
+    log_manually_hint: 'Vous pouvez continuer à enregistrer vos repas — cherchez par nom et gardez vos macros à jour.',
+    or_upgrade: 'Ou passez à un plan supérieur pour plus de scans par mois. À partir de 2,99 € seulement.',
+    log_manually_btn: 'Ajouter manuellement',
+    upgrade_btn: 'Mettre à niveau',
   },
   personal: {
     title: 'Informations personnelles',

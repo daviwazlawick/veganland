@@ -312,6 +312,11 @@ export default {
     resets_tomorrow: "Your scans will renew tomorrow.",
     credits_exhausted: 'Your subscription credits are exhausted.',
     change_subscription: 'Tap here to change your subscription',
+    limit_reached_title: 'You’ve used all {{limit}} scans this month',
+    log_manually_hint: 'You can still log your meals — just search by name and keep your macros on track.',
+    or_upgrade: 'Or upgrade for more scans every month. Starting at just €2.99.',
+    log_manually_btn: 'Log manually',
+    upgrade_btn: 'Upgrade',
   },
   personal: {
     title: 'Personal Info',
