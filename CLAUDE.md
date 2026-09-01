@@ -313,9 +313,11 @@ EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_YnmIYLSJyriFzhvfSSnypZCFibv \
 EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_yitutMbhXnSxJFnCqDqkNunlogI \
 EXPO_PUBLIC_FB_APP_ID=1717962282965252 \
 EXPO_PUBLIC_FB_CLIENT_TOKEN=0217ebfebacd37d56743ae72d0faa08b \
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=529528181342-k25vds3r9sr0fon0rvs0i4ni3q8utsjd.apps.googleusercontent.com \
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=529528181342-vms6qe7ue4d3d1unoentfgvcjrqbtnpd.apps.googleusercontent.com \
 eas update --branch production --message "descrição"
 ```
-`npm run update:novaqi` no `package.json` já espelha este comando completo (RC key e FB vars foram corrigidas em 1.0.12), mas historicamente falhava em modo non-interactive — preferir correr o comando manual acima directamente. **Cuidado ao editar esse script:** se faltarem `EXPO_PUBLIC_FB_APP_ID`/`EXPO_PUBLIC_FB_CLIENT_TOKEN`, o OTA desliga o SDK do Meta silenciosamente (`fbConfigured` fica `false`).
+**⚠️ Rodar sempre com TODOS os env vars acima — faltar `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`/`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` faz `isGoogleAuthAvailable()` (`socialAuthService.native.js`) devolver `false` e o botão "Continue with Google" desaparece silenciosamente do Login/Register — bug real que aconteceu em 2026-09-01 (uma OTA publicada só com o bloco RC+FB, sem os vars Google, matou o botão até a OTA seguinte corrigir). Preferir sempre `npm run update:novaqi`, que já inclui a lista completa — só copiar o comando manual se o script falhar em non-interactive.
 
 ---
 
