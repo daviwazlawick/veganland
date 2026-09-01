@@ -243,7 +243,11 @@ export default function ScanScreen({ navigation, route }) {
       //     and writes them back to the previously-identified product row.
       //   - photo step (label) → full identify+analyze path.
       const result = scanStep === 'ingredients'
-        ? await analyzeIngredientsPhotoWithApi(base64, profile, language, token, pendingBarcode)
+        ? await analyzeIngredientsPhotoWithApi(
+            base64, profile, language, token, pendingBarcode,
+            pendingResult?.product_name || null,
+            pendingResult?.brand || null,
+          )
         : await analyzeProductWithApi(base64, profile, language, token, pendingBarcode, skipBarcodeCache);
 
       // Server identified the product but has no ingredients yet — bounce the

@@ -39,7 +39,10 @@ export async function analyzeProductWithApi(imageBase64, profile, language, toke
 
 // Second-step call: the user already identified the product with a label
 // photo and is now sending the ingredients photo to complete the record.
-export async function analyzeIngredientsPhotoWithApi(imageBase64, profile, language, token, barcode) {
+// hintProductName/hintBrand keep the identity from step 1 when no barcode
+// was ever scanned — the server uses them for display since the ingredients
+// photo alone rarely carries branding.
+export async function analyzeIngredientsPhotoWithApi(imageBase64, profile, language, token, barcode, hintProductName = null, hintBrand = null) {
   const response = await fetch(`${baseUrl()}/analyze-product`, {
     method: 'POST',
     headers: appHeaders(token),
@@ -47,6 +50,7 @@ export async function analyzeIngredientsPhotoWithApi(imageBase64, profile, langu
       ingredientsPhotoBase64: imageBase64,
       mediaType: 'image/jpeg',
       profile, language, barcode,
+      hintProductName, hintBrand,
     }),
   });
   const data = await response.json().catch(() => ({}));

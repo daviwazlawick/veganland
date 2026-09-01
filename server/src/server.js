@@ -2416,6 +2416,8 @@ const server = http.createServer(async (req, res) => {
         userId,
         barcode: body.barcode || null,
         skipBarcodeCache: !!body.skipBarcodeCache,
+        hintProductName: body.hintProductName || null,
+        hintBrand: body.hintBrand || null,
       });
 
       sendJson(res, 200, result, origin);

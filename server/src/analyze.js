@@ -331,6 +331,8 @@ export async function analyzeProduct({
   userId,
   barcode,
   skipBarcodeCache = false,
+  hintProductName = null,// carried from front-photo step so anonymous ingredients scans keep the identity
+  hintBrand = null,
 }) {
   const lang = language || 'pt';
   const contributorUserId = userId || null;
@@ -349,54 +351,93 @@ export async function analyzeProduct({
   }
 
   // Ingredients photo path: user is completing a previously identified product.
-  // Extract ingredients from the photo, write them back to the existing row,
-  // then fall through to the normal analysis for that product.
-  if (ingredientsPhotoBase64 && clientBarcode) {
+  // Two branches — with barcode we can persist the extracted ingredients to the
+  // shared products row so future scanners inherit them. Without a barcode we
+  // still analyse and return a result to the client, but skip the shared write
+  // (no key to de-dupe on).
+  if (ingredientsPhotoBase64) {
     const ingredientsInspection = await inspectProductImage(ingredientsPhotoBase64, lang, mediaType);
     const extracted = ingredientsInspection?.ingredients_text?.trim();
     if (!ingredientsInspection?.ingredients_visible || !extracted) {
       // The user tried but the ingredients aren't legible. Ask again with a
       // clearer explanation — never invent ingredients.
-      const stub = await findProduct({ barcode: clientBarcode });
+      const stub = clientBarcode ? await findProduct({ barcode: clientBarcode }) : null;
+      const displayName = stub?.product_name || hintProductName || null;
       return {
         status: 'NEEDS_INGREDIENTS_PHOTO',
-        product_name: stub?.product_name || null,
-        brand: stub?.brand || null,
-        barcode: clientBarcode,
+        product_name: displayName,
+        brand: stub?.brand || hintBrand || null,
+        barcode: clientBarcode || null,
         product_id: stub?.id || null,
-        productInfo: buildSlimProductInfo(stub),
-        title: stub?.product_name || 'Ingredients needed',
-        explanation: buildMissingIngredientsResult(stub || {}, lang).explanation,
+        productInfo: buildSlimProductInfo(stub || { product_name: displayName, brand: hintBrand }),
+        title: displayName || 'Ingredients needed',
+        explanation: buildMissingIngredientsResult(stub || { product_name: displayName, brand: hintBrand }, lang).explanation,
         ingredients_unreadable: true,
       };
     }
-    const stubProduct = await findProduct({ barcode: clientBarcode });
-    if (stubProduct?.id) {
-      const ingredientsPath = await saveScanPhoto('ingredients', ingredientsPhotoBase64).catch(() => null);
-      await updateProductIngredients(stubProduct.id, extracted, {
-        ingredientsPhotoPath: ingredientsPath,
-        contributorUserId,
-        source: 'user_ingredients',
-      });
-      // Re-fetch so the analysis below sees the freshly written ingredients.
-      const refreshed = await findProduct({ barcode: clientBarcode });
-      if (refreshed) {
-        knownDbRow = refreshed;
-        const src = refreshed.source || 'processed_food';
-        const catType = productTypeFromCategories(refreshed.categories_tags);
-        imageInspection = {
-          product_type: catType || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
-          product_name: refreshed.product_name,
-          brand: refreshed.brand,
-          barcode: refreshed.barcode,
-          lookup_query: refreshed.lookup_query
-            || [refreshed.brand, refreshed.product_name].filter(Boolean).join(' ')
-            || null,
-          ingredients_visible: false,
-          ingredients_text: refreshed.ingredients_text || null,
-          confidence: 1.0,
-        };
+    if (clientBarcode) {
+      const stubProduct = await findProduct({ barcode: clientBarcode });
+      if (stubProduct?.id) {
+        const ingredientsPath = await saveScanPhoto('ingredients', ingredientsPhotoBase64).catch(() => null);
+        await updateProductIngredients(stubProduct.id, extracted, {
+          ingredientsPhotoPath: ingredientsPath,
+          contributorUserId,
+          source: 'user_ingredients',
+        });
+        // Re-fetch so the analysis below sees the freshly written ingredients.
+        const refreshed = await findProduct({ barcode: clientBarcode });
+        if (refreshed) {
+          knownDbRow = refreshed;
+          const src = refreshed.source || 'processed_food';
+          const catType = productTypeFromCategories(refreshed.categories_tags);
+          imageInspection = {
+            product_type: catType || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
+            product_name: refreshed.product_name,
+            brand: refreshed.brand,
+            barcode: refreshed.barcode,
+            lookup_query: refreshed.lookup_query
+              || [refreshed.brand, refreshed.product_name].filter(Boolean).join(' ')
+              || null,
+            ingredients_visible: false,
+            ingredients_text: refreshed.ingredients_text || null,
+            confidence: 1.0,
+          };
+        }
       }
+    } else {
+      // No barcode → one-shot: analyse the extracted ingredients against the
+      // profile and return. Skip the shared products write (no key), but do
+      // log the scan_event so it lands in the user's history + feedback loop.
+      const productType = (ingredientsInspection.product_type && ingredientsInspection.product_type !== 'invalid')
+        ? ingredientsInspection.product_type
+        : 'processed_food';
+      const anonProduct = {
+        product_name: hintProductName || ingredientsInspection.product_name || null,
+        brand: hintBrand || ingredientsInspection.brand || null,
+        barcode: null,
+        ingredients_text: extracted,
+      };
+      const result = await evaluateProductIngredients(extracted, anonProduct, profile, lang, 'image', productType);
+
+      const fullResult = {
+        ...result,
+        product_type: productType,
+        ingredients_source: 'image',
+        productInfo: buildSlimProductInfo(anonProduct),
+      };
+
+      const scanId = await saveScanEvent({
+        productId: null,
+        userId: userId || null,
+        profile,
+        language: lang,
+        status: fullResult.status,
+        source: 'image',
+        title: fullResult.title || null,
+        result: fullResult,
+      });
+      if (scanId) fullResult.scan_id = scanId;
+      return fullResult;
     }
   }
 
