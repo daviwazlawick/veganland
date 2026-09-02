@@ -7,7 +7,16 @@ import { useNutrition } from '../context/NutritionContext';
 import { useAuth } from '../context/AuthContext';
 import { apiSearchFood, apiGetProductInfo } from '../services/apiService';
 import { Ionicons } from '@expo/vector-icons';
-import { t } from '../i18n';
+import { t, localeFor } from '../i18n';
+
+function formatTime(iso, language) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString(localeFor(language), { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { EXERCISES, CATEGORY_CONFIG, getExerciseName } from '../constants/exercises';
@@ -180,6 +189,9 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   }, [refresh, route?.params?.openAddFood]));
 
   const byMeal = MEALS.reduce((acc, m) => { acc[m] = todayLog.filter(e => e.meal_type === m); return acc; }, {});
+  const waterEntries = todayLog
+    .filter(e => e.product_name === 'Water' && (Number(e.water_ml) || 0) > 0)
+    .sort((a, b) => new Date(b.consumed_at) - new Date(a.consumed_at));
   const noGoals = !goals || !goals.calories_kcal;
   const latestWeight = weightHistory[0];
 
@@ -517,6 +529,19 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                   </TouchableOpacity>
                 ))}
               </View>
+              {waterEntries.length > 0 && (
+                <View style={s.waterEntries}>
+                  {waterEntries.map(e => (
+                    <View key={e.id} style={s.waterEntryRow}>
+                      <Text style={s.waterEntryTime}>{formatTime(e.consumed_at, language)}</Text>
+                      <Text style={s.waterEntryMl}>{e.water_ml} ml</Text>
+                      <TouchableOpacity onPress={() => handleDelete(e.id, `${e.water_ml} ml`)} style={s.waterDeleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="close" size={14} color="#94a3b8" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Weight */}
@@ -763,6 +788,11 @@ const s = StyleSheet.create({
   waterBtns: { flexDirection: 'row', gap: 8 },
   waterBtn: { flex: 1, backgroundColor: '#EFF6FF', borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
   waterBtnText: { fontSize: 13, fontWeight: '700', color: '#2563EB' },
+  waterEntries: { marginTop: 4, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 8, gap: 4 },
+  waterEntryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  waterEntryTime: { fontSize: 12, color: '#94a3b8', width: 56 },
+  waterEntryMl: { fontSize: 13, fontWeight: '600', color: '#0891B2', flex: 1 },
+  waterDeleteBtn: { padding: 4 },
   mealSection: { gap: 6 },
   mealTitle: { fontSize: 12, fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 },
   entryRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E5E7EB' },
