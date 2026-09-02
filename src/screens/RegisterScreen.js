@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
@@ -128,7 +129,7 @@ export default function RegisterScreen({ navigation }) {
         >
           <View style={styles.hero}>
             <View style={[styles.logoCircle, { backgroundColor: Colors.primaryBg }]}>
-              <Text style={{ fontSize: 48 }}>📧</Text>
+              <Ionicons name="mail-outline" size={48} color={Colors.primary} />
             </View>
             <Text style={styles.checkTitle}>{t(language, 'auth.check_email_title')}</Text>
             <Text style={styles.checkSubtitle}>
@@ -167,7 +168,7 @@ export default function RegisterScreen({ navigation }) {
 
           <View style={styles.disclaimerTopWrap}>
             <View style={styles.disclaimerIconCircle}>
-              <Text style={styles.disclaimerTopIcon}>⚠️</Text>
+              <Ionicons name="warning-outline" size={32} color="#dc2626" style={styles.disclaimerTopIcon} />
             </View>
             <Text style={styles.disclaimerPageTitle}>{t(language, 'disclaimer.title')}</Text>
             <Text style={styles.disclaimerPageSubtitle}>{t(language, 'disclaimer.subtitle')}</Text>
@@ -191,14 +192,14 @@ export default function RegisterScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <View style={[styles.checkboxLarge, disclaimerAccepted && styles.checkboxLargeChecked]}>
-              {disclaimerAccepted && <Text style={styles.checkmarkLarge}>✓</Text>}
+              {disclaimerAccepted && <Ionicons name="checkmark" size={15} color={Colors.white} />}
             </View>
             <Text style={styles.checkRowLabel}>{t(language, 'disclaimer.checkbox')}</Text>
           </TouchableOpacity>
 
           {!!error && (
             <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>⚠ {error}</Text>
+              <Text style={styles.errorBannerText}><Ionicons name="warning-outline" size={13} color="#dc2626" /> {error}</Text>
             </View>
           )}
 
@@ -305,7 +306,7 @@ export default function RegisterScreen({ navigation }) {
               activeOpacity={0.7}
             >
               <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-                {termsAccepted && <Text style={styles.checkmark}>✓</Text>}
+                {termsAccepted && <Ionicons name="checkmark" size={13} color={Colors.white} />}
               </View>
               <Text style={styles.termsText}>
                 <Text>{t(language, 'auth.terms_agree_prefix')}</Text>
@@ -321,7 +322,7 @@ export default function RegisterScreen({ navigation }) {
 
             {!!error && (
               <View style={styles.errorBanner}>
-                <Text style={styles.errorBannerText}>⚠ {error}</Text>
+                <Text style={styles.errorBannerText}><Ionicons name="warning-outline" size={13} color="#dc2626" /> {error}</Text>
               </View>
             )}
 

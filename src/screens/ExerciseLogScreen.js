@@ -37,7 +37,7 @@ function ActivityCard({ entry, onDelete, language }) {
           {Math.round(entry.duration_min)} {t(language, 'exercise.minutes_short')}
           {'  ·  '}
           <Text style={{ color: '#E8450A', fontWeight: '700' }}>
-            🔥 {Math.round(entry.calories_burned)} kcal
+            <Ionicons name="flame-outline" size={12} color="#E8450A" /> {Math.round(entry.calories_burned)} kcal
           </Text>
         </Text>
       </View>

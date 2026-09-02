@@ -12,6 +12,7 @@ import { Colors } from '../constants/colors';
 import { PremiumIcon } from '../components/ui';
 import { ALLERGIES } from '../constants/allergies';
 import { apiSubmitFeedback, apiSubmitAppSurvey } from '../services/apiService';
+import { Ionicons } from '@expo/vector-icons';
 import { HIDE_REFERRAL } from '../constants/features';
 import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
@@ -485,7 +486,7 @@ export default function ResultScreen({ navigation, route }) {
         {traces && (
           <View style={styles.tracesCard}>
             <View style={styles.tracesHeader}>
-              <Text style={styles.tracesIcon}>⚠️</Text>
+              <Ionicons name="warning-outline" size={20} color="#f59e0b" style={styles.tracesIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.tracesTitle}>{t(language, 'result.traces_title')}</Text>
                 <Text style={styles.tracesSubtitle}>{t(language, 'result.traces_subtitle')}</Text>
@@ -527,7 +528,7 @@ export default function ResultScreen({ navigation, route }) {
         )}
 
         <View style={styles.disclaimerBox}>
-          <Text style={styles.disclaimerIcon}>⚠️</Text>
+          <Ionicons name="warning-outline" size={16} color={Colors.textMuted} style={styles.disclaimerIcon} />
           <View style={{ flex: 1 }}>
             <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
             {isHalal && (

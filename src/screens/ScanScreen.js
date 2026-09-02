@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -335,9 +336,9 @@ export default function ScanScreen({ navigation, route }) {
       ? t(language, 'scan.photo_ingredients_hint')
       : t(language, 'scan.photo_product_hint');
 
-  const stepLabel = isIngredientsStep
-    ? `📷 ${t(language, 'scan.photo_ingredients_hint')}`
-    : `📷 ${t(language, 'scan.photo_product_hint')}`;
+  const stepLabelText = isIngredientsStep
+    ? t(language, 'scan.photo_ingredients_hint')
+    : t(language, 'scan.photo_product_hint');
 
   function handleBackFromPhoto() {
     if (isIngredientsStep) {
@@ -383,7 +384,7 @@ export default function ScanScreen({ navigation, route }) {
               disabled={analyzing}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Text style={styles.closeBtnText}>✕</Text>
+              <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.scanTitle}>{t(language, 'scan.title')}</Text>
             <View style={{ width: 52 }} />
@@ -420,7 +421,7 @@ export default function ScanScreen({ navigation, route }) {
           {!isBarcodeStep && (
             <View style={styles.stepRow} pointerEvents="none">
               <View style={styles.stepPill}>
-                <Text style={styles.stepText}>{stepLabel}</Text>
+                <Text style={styles.stepText}><Ionicons name="camera-outline" size={14} color="#fff" /> {stepLabelText}</Text>
               </View>
             </View>
           )}
@@ -432,7 +433,7 @@ export default function ScanScreen({ navigation, route }) {
                 onPress={() => setShowCameraChoice(true)}
                 disabled={analyzing}
               >
-                <Text style={styles.switchBtnText}>📷 {t(language, 'scan.take_photo')}</Text>
+                <Text style={styles.switchBtnText}><Ionicons name="camera-outline" size={16} color="#fff" /> {t(language, 'scan.take_photo')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -564,7 +565,7 @@ export default function ScanScreen({ navigation, route }) {
             activeOpacity={0.85}
             onPress={() => { setShowCameraChoice(false); setScanStep('photo'); }}
           >
-            <Text style={cameraChoiceStyles.optionIcon}>📷</Text>
+            <Ionicons name="camera-outline" size={28} color={Colors.navy} />
             <View style={{ flex: 1 }}>
               <Text style={cameraChoiceStyles.optionLabel}>{t(language, 'scan.camera_choice_product')}</Text>
               <Text style={cameraChoiceStyles.optionSub}>{t(language, 'scan.camera_choice_product_sub')}</Text>

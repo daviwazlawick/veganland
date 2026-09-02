@@ -12,6 +12,7 @@ import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { HALAL_STRICTNESS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
 import { PremiumIcon } from '../components/ui';
+import { Ionicons } from '@expo/vector-icons';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -188,7 +189,7 @@ export default function ProfileSetupScreen({ navigation }) {
                   >
                     {sel && (
                       <View style={styles.dietCheckCircle}>
-                        <Text style={styles.dietCheckText}>✓</Text>
+                        <Ionicons name="checkmark" size={13} color={Colors.white} />
                       </View>
                     )}
                     <View style={[styles.dietEmojiWrap, sel && styles.dietEmojiWrapSel]}>
@@ -257,7 +258,7 @@ export default function ProfileSetupScreen({ navigation }) {
                     </Text>
                     {sel && (
                       <View style={[styles.allergyCheck, isNovaQI && styles.allergyCheckNovaqi]}>
-                        <Text style={styles.allergyCheckText}>✓</Text>
+                        <Ionicons name="checkmark" size={11} color={Colors.white} />
                       </View>
                     )}
                   </TouchableOpacity>

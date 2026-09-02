@@ -318,7 +318,7 @@ export default function ProfileScreen({ navigation }) {
               >
                 <Text style={s.langFlag}>{item.flag}</Text>
                 <Text style={[s.langName, language === item.code && s.langNameActive]}>{item.name}</Text>
-                {language === item.code && <Text style={s.langCheck}>✓</Text>}
+                {language === item.code && <Ionicons name="checkmark" size={14} color={Colors.primary} />}
               </TouchableOpacity>
             ))}
           </View>

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
+import { Ionicons } from '@expo/vector-icons';
 import {
   isPurchasesAvailable,
   fetchCurrentOffering,
@@ -227,7 +228,7 @@ export default function PaywallScreen({ navigation, route }) {
         <View style={styles.trustStrip}>
           {['trust_no_charge', 'trust_full_access', 'trust_cancel'].map(key => (
             <View key={key} style={styles.trustItem}>
-              <Text style={styles.trustIcon}>✓</Text>
+              <Ionicons name="checkmark" size={14} color={Colors.safe} style={{ width: 18 }} />
               <Text style={styles.trustText}>{t(language, `plans.${key}`)}</Text>
             </View>
           ))}

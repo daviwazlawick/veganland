@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { apiDeleteAccount } from '../services/apiService';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function DeleteAccountScreen({ navigation }) {
   const { language } = useApp();
@@ -40,7 +41,7 @@ export default function DeleteAccountScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.warningCard}>
-          <Text style={styles.warningIcon}>⚠️</Text>
+          <Ionicons name="warning-outline" size={36} color="#dc2626" style={styles.warningIcon} />
           <Text style={styles.warningText}>{t(language, 'delete_account.warning')}</Text>
         </View>
 
@@ -55,7 +56,7 @@ export default function DeleteAccountScreen({ navigation }) {
           activeOpacity={0.8}
         >
           <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
-            {confirmed && <Text style={styles.checkmark}>✓</Text>}
+            {confirmed && <Ionicons name="checkmark" size={14} color={Colors.white} />}
           </View>
           <Text style={styles.checkLabel}>{t(language, 'delete_account.confirm_label')}</Text>
         </TouchableOpacity>

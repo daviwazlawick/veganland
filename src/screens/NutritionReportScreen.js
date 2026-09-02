@@ -38,7 +38,7 @@ function formatEntryTime(iso, language) {
   });
 }
 
-const SOURCE_ICON = { scan: '📷', plate_photo: '🍽', manual: '✏️' };
+const SOURCE_ICON = { scan: 'camera-outline', plate_photo: 'restaurant-outline', manual: 'pencil-outline' };
 
 function formatDay(dateStr, language) {
   const d = new Date(dateStr + 'T12:00:00');
@@ -266,7 +266,7 @@ export default function NutritionReportScreen({ navigation }) {
                     )}
                     {dayBurned > 0 && (
                       <View style={s.dayStat}>
-                        <Text style={s.dayStatIcon}>🔥</Text>
+                        <Ionicons name="flame-outline" size={13} color="#E8450A" style={s.dayStatIcon} />
                         <Text style={[s.dayStatTxt, { color: '#E8450A' }]}>{Math.round(dayBurned)} kcal</Text>
                       </View>
                     )}
@@ -327,7 +327,7 @@ export default function NutritionReportScreen({ navigation }) {
                     || (water > 0 ? `${water} ml ${t(language, 'nutrition.water') || 'água'}` : '—');
                   return (
                     <View key={e.id} style={s.entryRow}>
-                      <Text style={s.entryIcon}>{SOURCE_ICON[e.source] || '•'}</Text>
+                      <Ionicons name={SOURCE_ICON[e.source] || 'ellipse-outline'} size={14} color="#94a3b8" style={s.entryIcon} />
                       <View style={{ flex: 1 }}>
                         <Text style={s.entryTitle} numberOfLines={2}>{title}</Text>
                         <Text style={s.entryMeta}>

@@ -9,16 +9,17 @@ import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { apiAcceptDisclaimer } from '../services/apiService';
+import { Ionicons } from '@expo/vector-icons';
 
 const isNovaQI = Brand.id === 'novaqi';
 
 const DISCLAIMER_VERSION = '1.0';
 
 const BLOCKS = [
-  { icon: '🚫', key: 'block1' },
-  { icon: '⚠️', key: 'block2' },
-  { icon: '🤖', key: 'block3' },
-  { icon: 'ℹ️', key: 'block4' },
+  { icon: 'ban-outline',                   key: 'block1' },
+  { icon: 'warning-outline',               key: 'block2' },
+  { icon: 'hardware-chip-outline',         key: 'block3' },
+  { icon: 'information-circle-outline',    key: 'block4' },
 ];
 
 export default function DisclaimerScreen() {
@@ -40,7 +41,7 @@ export default function DisclaimerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.iconWrap}>
-          <Text style={styles.topIcon}>⚠️</Text>
+          <Ionicons name="warning-outline" size={36} color="#dc2626" style={styles.topIcon} />
         </View>
 
         <Text style={styles.title}>{t(language, 'disclaimer.title')}</Text>
@@ -49,7 +50,7 @@ export default function DisclaimerScreen() {
         <View style={styles.blocks}>
           {BLOCKS.map(({ icon, key }) => (
             <View key={key} style={styles.block}>
-              <Text style={styles.blockIcon}>{icon}</Text>
+              <Ionicons name={icon} size={22} color={Colors.navy} style={styles.blockIcon} />
               <View style={styles.blockText}>
                 <Text style={styles.blockTitle}>{t(language, `disclaimer.${key}_title`)}</Text>
                 <Text style={styles.blockBody}>{t(language, `disclaimer.${key}_body`)}</Text>
@@ -68,7 +69,7 @@ export default function DisclaimerScreen() {
             isNovaQI && styles.checkboxNovaqi,
             checked && (isNovaQI ? styles.checkboxCheckedNovaqi : styles.checkboxChecked),
           ]}>
-            {checked && <Text style={styles.checkmark}>✓</Text>}
+            {checked && <Ionicons name="checkmark" size={14} color={Colors.white} />}
           </View>
           <Text style={styles.checkLabel}>{t(language, 'disclaimer.checkbox')}</Text>
         </TouchableOpacity>

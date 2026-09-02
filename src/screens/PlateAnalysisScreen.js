@@ -7,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
@@ -370,7 +371,7 @@ export default function PlateAnalysisScreen({ navigation }) {
               {Platform.OS === 'web' ? (
                 <>
                   <TouchableOpacity style={s.pickBtn} onPress={() => pickImageWeb(true)}>
-                    <Text style={s.pickBtnIcon}>📷</Text>
+                    <Ionicons name="camera-outline" size={24} color="#fff" />
                     <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImageWeb(false)}>
@@ -381,7 +382,7 @@ export default function PlateAnalysisScreen({ navigation }) {
               ) : (
                 <>
                   <TouchableOpacity style={s.pickBtn} onPress={() => pickImage(true)}>
-                    <Text style={s.pickBtnIcon}>📷</Text>
+                    <Ionicons name="camera-outline" size={24} color="#fff" />
                     <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImage(false)}>
@@ -430,7 +431,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                           {item.protein_g ? `  ·  ${Math.round(item.protein_g)}g prot` : ''}
                         </Text>
                       </View>
-                      <Text style={s.editChev}>✏️</Text>
+                      <Ionicons name="pencil-outline" size={14} color="#94a3b8" />
                     </TouchableOpacity>
                   ))}
 
@@ -483,7 +484,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                   disabled={logging || logged || !editableItems.length}
                 >
                   <Text style={s.logBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                    {logged ? `✓ ${t(language, 'nutrition.plate_logged')}` : logging ? '…' : t(language, 'nutrition.plate_log_btn')}
+                    {logged ? <><Ionicons name="checkmark" size={16} color="#fff" /> {t(language, 'nutrition.plate_logged')}</> : logging ? '…' : t(language, 'nutrition.plate_log_btn')}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -504,7 +505,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                 <View style={s.modalHeaderActions}>
                   {editIndex !== null && (
                     <TouchableOpacity onPress={() => deleteItem(editIndex)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.modalDeleteIcon}>
-                      <Text style={s.modalDeleteIconText}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={20} color="#dc2626" />
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={() => { Keyboard.dismiss(); setEditModal(false); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>

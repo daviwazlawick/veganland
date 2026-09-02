@@ -7,6 +7,7 @@ import { Colors } from '../constants/colors';
 import { Brand } from '../brand';
 import { t } from '../i18n';
 import { apiParsePlan } from '../services/apiService';
+import { Ionicons } from '@expo/vector-icons';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -120,7 +121,7 @@ export default function ImportPlanButton({ language, token, onExtracted, style }
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <TouchableOpacity style={styles.option} onPress={pickCamera}>
-            <Text style={styles.optionText}>📷  {t(language, 'nutrition.import_plan_camera')}</Text>
+            <Text style={styles.optionText}><Ionicons name="camera-outline" size={16} color={Colors.navy} />  {t(language, 'nutrition.import_plan_camera')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.option} onPress={pickGallery}>
             <Text style={styles.optionText}>🖼️  {t(language, 'nutrition.import_plan_gallery')}</Text>

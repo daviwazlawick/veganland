@@ -465,7 +465,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                     <Text style={s.sectionTitle}>{t(language, 'exercise.title')}</Text>
                   </View>
                   {todayBurned > 0 && (
-                    <Text style={s.burnBadge}>🔥 {Math.round(todayBurned)} kcal</Text>
+                    <Text style={s.burnBadge}><Ionicons name="flame-outline" size={13} color="#E8450A" /> {Math.round(todayBurned)} kcal</Text>
                   )}
                 </View>
                 {todayExercise.length === 0 ? (
@@ -484,7 +484,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                           <Text style={s.exEntryMeta}>
                             {Math.round(entry.duration_min)} min
                             {'  ·  '}
-                            <Text style={{ color: '#E8450A' }}>🔥 {Math.round(entry.calories_burned)} kcal</Text>
+                            <Text style={{ color: '#E8450A' }}><Ionicons name="flame-outline" size={12} color="#E8450A" /> {Math.round(entry.calories_burned)} kcal</Text>
                           </Text>
                         </View>
                         <TouchableOpacity
@@ -545,7 +545,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                       </Text>
                     </View>
                     <TouchableOpacity onPress={() => handleDelete(e.id, e.product_name || '')} style={s.deleteBtn}>
-                      <Text style={s.deleteText}>✕</Text>
+                      <Ionicons name="close" size={16} color="#94a3b8" />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
@@ -564,7 +564,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             </TouchableOpacity>
 
             <TouchableOpacity style={s.goalsBtn} onPress={() => navigation.navigate('NutritionGoals')}>
-              <Text style={s.goalsBtnText}>⚙️ {t(language, 'nutrition.goals_title')}</Text>
+              <Text style={s.goalsBtnText}><Ionicons name="settings-outline" size={13} color={Colors.navy} /> {t(language, 'nutrition.goals_title')}</Text>
             </TouchableOpacity>
         </>
 
@@ -623,7 +623,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
               >
                 {searching && (
                   <View style={s.suggestLoading}>
-                    <Text style={s.suggestLoadingText}>🔍 {t(language, 'nutrition.searching') || 'Searching…'}</Text>
+                    <Text style={s.suggestLoadingText}><Ionicons name="search-outline" size={13} color="#94a3b8" /> {t(language, 'nutrition.searching') || 'Searching…'}</Text>
                   </View>
                 )}
                 {suggestions.map((item, i) => (

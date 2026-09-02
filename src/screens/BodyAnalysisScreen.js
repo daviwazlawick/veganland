@@ -12,6 +12,7 @@ import { useNutrition } from '../context/NutritionContext';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import { apiBodyAnalyze, apiSaveBodyMeasurements } from '../services/apiService';
+import { Ionicons } from '@expo/vector-icons';
 import { t } from '../i18n';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -424,7 +425,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
         </TouchableOpacity>
 
         {result?.meta?.warnings?.length > 0 && (
-          <View style={s.warnBox}><Text style={s.warnTxt}>⚠ {result.meta.warnings.join(' · ')}</Text></View>
+          <View style={s.warnBox}><Text style={s.warnTxt}><Ionicons name="warning-outline" size={12} color="#92400E" /> {result.meta.warnings.join(' · ')}</Text></View>
         )}
 
         {(() => {

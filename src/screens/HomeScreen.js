@@ -124,7 +124,7 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity onPress={() => setBadgeTooltip(true)} activeOpacity={0.75}>
             <View style={styles.splitBadge}>
               <View style={styles.splitBadgeCol}>
-                <Text style={styles.splitBadgeNum}>🔥{streak || 0}</Text>
+                <Text style={styles.splitBadgeNum}><Ionicons name="flame-outline" size={14} color={Colors.primary} />{streak || 0}</Text>
                 <Text style={styles.splitBadgeLabel}>{t(language, 'home.streak_label')}</Text>
               </View>
               <View style={styles.splitBadgeDivider} />
@@ -175,7 +175,7 @@ export default function HomeScreen({ navigation }) {
                       activeOpacity={0.8}
                     >
                       <Text style={homeNutritionStyles.burnedPillTxt}>
-                        🔥 {Math.round(todayBurned)} kcal
+                        <Ionicons name="flame-outline" size={13} color="#E8450A" /> {Math.round(todayBurned)} kcal
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -293,7 +293,7 @@ export default function HomeScreen({ navigation }) {
             {/* VeganLand: original layout */}
             <View style={styles.actionRow}>
               <TouchableOpacity style={styles.scanBtnHalf} onPress={() => navigation.navigate('Scan')} activeOpacity={0.85}>
-                <Text style={styles.actionIcon}>📷</Text>
+                <Ionicons name="camera-outline" size={30} color="#FFF" />
                 <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_scan_btn')}</Text>
                 <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
               </TouchableOpacity>
@@ -466,7 +466,7 @@ export default function HomeScreen({ navigation }) {
             {isNovaQI && (
               <>
                 <View style={styles.tooltipRow}>
-                  <Text style={styles.tooltipEmoji}>🔥</Text>
+                  <Ionicons name="flame-outline" size={22} color={Colors.primary} style={styles.tooltipEmoji} />
                   <View style={styles.tooltipTexts}>
                     <Text style={styles.tooltipNum}>{streak || 0}</Text>
                     <Text style={styles.tooltipDesc}>{t(language, 'home.badge_streak_desc')}</Text>
