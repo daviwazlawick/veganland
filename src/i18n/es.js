@@ -270,6 +270,10 @@ export default {
     feedback_skip_send: 'Enviar sin comentario',
     feedback_error: 'No pudimos enviar ahora. Inténtalo otra vez.',
     feedback_thanks: '¡Gracias! Recibido.',
+    body_offer_title: 'Una cosa más',
+    body_offer_message: 'Añade tus datos corporales (sexo, nivel de actividad, objetivo) para recibir metas de calorías e IMC personalizadas.',
+    body_offer_add: 'Añadir datos corporales',
+    body_offer_skip: 'Ahora no',
   },
   profile: {
     title: 'Mi perfil',

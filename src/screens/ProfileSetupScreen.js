@@ -34,7 +34,12 @@ export default function ProfileSetupScreen({ navigation }) {
   const { token, user, refreshUser } = useAuth();
   const { saveBodyProfile } = useNutrition();
   const insets = useSafeAreaInsets();
-  const isFirstTime = !profile?.dietId;
+  // Locked at mount time — must not flip mid-flow. saveProfile() inside
+  // handleSave() updates context.profile (dietId becomes set) before
+  // navigation.reset() unmounts this screen; a reactive `!profile?.dietId`
+  // would briefly re-render step 3 as the plan-picker (Paywall-ish UI)
+  // instead of staying on the onboarding body-info form.
+  const [isFirstTime] = useState(() => !profile?.dietId);
   const [step, setStep] = useState(1);
   const [selectedDiet, setSelectedDiet] = useState(profile?.dietId || null);
   const [selectedAllergies, setSelectedAllergies] = useState(profile?.allergyIds || []);

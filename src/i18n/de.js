@@ -270,6 +270,10 @@ export default {
     feedback_skip_send: 'Ohne Kommentar senden',
     feedback_error: 'Senden nicht möglich. Bitte erneut versuchen.',
     feedback_thanks: 'Danke! Angekommen.',
+    body_offer_title: 'Noch eine Sache',
+    body_offer_message: 'Füge deine Körperdaten hinzu (Geschlecht, Aktivitätslevel, Ziel), um personalisierte Kalorien- und BMI-Ziele zu erhalten.',
+    body_offer_add: 'Körperdaten hinzufügen',
+    body_offer_skip: 'Jetzt nicht',
   },
   profile: {
     title: 'Mein Profil',

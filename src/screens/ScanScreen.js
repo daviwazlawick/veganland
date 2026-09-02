@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Platform, Modal, TouchableWithoutFeedback,
+  ActivityIndicator, Platform, Modal, TouchableWithoutFeedback, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -50,16 +50,42 @@ export default function ScanScreen({ navigation, route }) {
 
   const LOCK_DELAY = 900; // ms the same barcode must be held to trigger
 
+  // Main becomes the root of the stack (nothing to pop back to from Scan),
+  // with EditPersonal pushed on top when the user accepts — so its own
+  // back button / save flow lands them on Main, not stuck with no way out.
+  function goToMain() {
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+  }
+
+  function goToBodyInfo() {
+    navigation.reset({
+      index: 1,
+      routes: [{ name: 'Main' }, { name: 'EditPersonal', params: { fromOnboarding: true } }],
+    });
+  }
+
+  function offerBodyInfoThenMain() {
+    const title = t(language, 'onboarding.body_offer_title');
+    const message = t(language, 'onboarding.body_offer_message');
+    const addLabel = t(language, 'onboarding.body_offer_add');
+    const skipLabel = t(language, 'onboarding.body_offer_skip');
+    if (isWeb) {
+      if (window.confirm(`${title}\n\n${message}`)) goToBodyInfo(); else goToMain();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: skipLabel, style: 'cancel', onPress: goToMain },
+      { text: addLabel, onPress: goToBodyInfo },
+    ]);
+  }
+
   function handleClose() {
     clearTimeout(lockRef.current.timer);
     setCameraActive(false);
     if (isOnboarding) {
-      // No previous screen to pop back to — land the user on Main so they
-      // can explore the app even if they bail on the guided scan.
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
+      // No previous screen to pop back to — offer body info (for BMI/BMR)
+      // before landing the user on Main, even if they bail on the guided scan.
+      offerBodyInfoThenMain();
       return;
     }
     navigation.goBack();

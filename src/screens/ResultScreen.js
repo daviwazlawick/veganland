@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -112,6 +112,35 @@ export default function ResultScreen({ navigation, route }) {
     && scanHistory.length > 0 && scanHistory.length % 5 === 0;
   const { result } = route.params;
   const scanId = result?.scan_id || null;
+
+  // Onboarding's first scan has no previous screen to pop back to — Main
+  // becomes the root, with EditPersonal pushed on top when the user accepts
+  // the body-info offer, so its back button / save flow lands on Main too.
+  function goToMainAfterOnboarding() {
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+  }
+
+  function goToBodyInfoAfterOnboarding() {
+    navigation.reset({
+      index: 1,
+      routes: [{ name: 'Main' }, { name: 'EditPersonal', params: { fromOnboarding: true } }],
+    });
+  }
+
+  function offerBodyInfoThenMain() {
+    const title = t(language, 'onboarding.body_offer_title');
+    const message = t(language, 'onboarding.body_offer_message');
+    const addLabel = t(language, 'onboarding.body_offer_add');
+    const skipLabel = t(language, 'onboarding.body_offer_skip');
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) goToBodyInfoAfterOnboarding(); else goToMainAfterOnboarding();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: skipLabel, style: 'cancel', onPress: goToMainAfterOnboarding },
+      { text: addLabel, onPress: goToBodyInfoAfterOnboarding },
+    ]);
+  }
   const [feedbackState, setFeedbackState] = useState('idle'); // idle | commenting | sending | done
   const [feedbackRating, setFeedbackRating] = useState(null); // 'up' | 'down' — which flow is active
   const [feedbackComment, setFeedbackComment] = useState('');
@@ -573,10 +602,7 @@ export default function ResultScreen({ navigation, route }) {
                     if (scanId) await apiSubmitFeedback(token, { scanId, rating: 'up' });
                     setFeedbackState('done');
                     if (isOnboarding) {
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Main' }],
-                      });
+                      offerBodyInfoThenMain();
                     }
                   } catch (e) {
                     setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));
@@ -615,10 +641,7 @@ export default function ResultScreen({ navigation, route }) {
               onPress={() => {
                 setFeedbackState('done');
                 if (isOnboarding) {
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Main' }],
-                  });
+                  offerBodyInfoThenMain();
                 }
               }}
             >
@@ -831,10 +854,7 @@ export default function ResultScreen({ navigation, route }) {
                     }
                     setFeedbackState('done');
                     if (isOnboarding) {
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Main' }],
-                      });
+                      offerBodyInfoThenMain();
                     }
                   } catch (e) {
                     setFeedbackError(e.message || t(language, 'onboarding.feedback_error'));

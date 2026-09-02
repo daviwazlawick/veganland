@@ -270,6 +270,10 @@ export default {
     feedback_skip_send: 'Send without a note',
     feedback_error: "Couldn't send right now. Try again.",
     feedback_thanks: 'Thanks! Got it.',
+    body_offer_title: 'One more thing',
+    body_offer_message: 'Add your body info (sex, activity level, goal) to get personalized calorie and BMI targets.',
+    body_offer_add: 'Add body info',
+    body_offer_skip: 'Skip for now',
   },
   profile: {
     title: 'My Profile',

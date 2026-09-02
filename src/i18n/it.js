@@ -270,6 +270,10 @@ export default {
     feedback_skip_send: 'Invia senza commento',
     feedback_error: 'Non è stato possibile inviare. Riprova.',
     feedback_thanks: 'Grazie! Ricevuto.',
+    body_offer_title: "Un'ultima cosa",
+    body_offer_message: "Aggiungi i tuoi dati corporei (sesso, livello di attività, obiettivo) per ottenere obiettivi di calorie e BMI personalizzati.",
+    body_offer_add: 'Aggiungi dati corporei',
+    body_offer_skip: 'Non ora',
   },
   profile: {
     title: 'Il mio profilo',
