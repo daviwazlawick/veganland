@@ -1872,3 +1872,22 @@ Explica ao user por que os items não são verificados contra a dieta (é imposs
 - Botão `ⓘ` sempre visível no header (substituiu o spacer vazio à direita do título). Toque reabre o modal em qualquer altura (não afecta o estado dismissed).
 - 2 botões no modal: **"Não mostrar de novo"** (grava `'1'` no AsyncStorage + fecha) e **"Fechar"** (só fecha).
 - Novas i18n keys em `nutrition.*` nas 6 línguas: `plate_notice_title`, `plate_notice_body`, `plate_notice_dismiss`, `plate_notice_close`.
+
+### Emojis → Ionicons + delete água + merge Report→Dashboard (2026-09-02)
+Bloco grande de refactor visual + UX, 5 commits, todos deployed para `https://novaqi.app` via `npm run build:novaqi:deploy` (ainda pendente OTA para mobile — apenas alterações JS).
+
+**Ionicons swap em 3 fases (a58c386 · df19b79 · 3e1cd98)** — todos os ~121 emojis fora de i18n substituídos por `@expo/vector-icons` Ionicons outline. Fase 1: UI controls (✓ ✕ ⚠ 🔍 ✏ ⚙ 🗑 🔥 📷 📧). Fase 2: rewards (🎁 💚 👍 👎 ★ 💡 ✨ ⚡ 🛡 📊 📈 📉). Fase 3: sports/misc (60+ ícones em `constants/exercises.js` + ACTIVITY_ICONS + DISCLAIMER_BLOCKS + os restantes). i18n não foi tocado — emojis dentro de strings traduzidas ficam onde estão.
+
+- **Padrão de swap:** `<Text style={s.x}>emoji</Text>` → `<Ionicons name="X-outline" size={Y} color={Z} style={s.x} />`. Emojis inline em text (`<Text>emoji Foo</Text>`) → `<Text><Ionicons ... /> Foo</Text>` (Ionicons dentro de Text funciona em RN, preserva layout).
+- **Constantes com icons** (SOURCE_ICON, EXERCISES.icon, ACTIVITY_ICONS, DISCLAIMER_BLOCKS, VideoAnalysisScreen TIPS): valor mudou de emoji string para Ionicons name string. Render sites (~4-8 por constante) actualizados para `<Ionicons name={const[key]} ... />`.
+- **Aproximações onde Ionicons não tem glyph nativo** (documentadas no commit da Fase 3): running/skating → `walk-outline`, swim → `water`, rowing → `boat`, yoga/pilates/bodyweight/jump-rope → `body`, dance/zumba → `musical-notes`, hiking → `map`, stair-climbing → `swap-vertical`, volleyball → `american-football`, tai-chi → `water`. Se ficarem estranhos na UI, o plano B é cair para `MaterialCommunityIcons` só nestes ~7 (que tem glyphs próprios: `yoga`, `dance-ballroom`, `swim`, `rowing`, `volleyball`, `skate`, `arm-flex`).
+
+**Delete água entry-por-entry (f79e3cc)** — cada log de água é uma linha em `consumption_log` com `product_name='Water'` mas o dashboard só mostrava o total. Adicionado filtro `todayLog.filter(e => e.product_name === 'Water' && water_ml>0)`, sort DESC por `consumed_at`, renderizado por baixo dos botões +ml (dentro do mesmo `waterCard`). Cada linha: hora · ml · botão ✕. Reusa `handleDelete` (deleteConsumption) — mesmo confirm flow do food.
+
+**Merge NutritionReport → NutritionDashboard (78e7fe5)** — o `NutritionReportScreen.js` foi apagado (455 linhas) e o seu conteúdo passou a viver dentro do dashboard como um componente `ReportView` local. Header do dashboard perdeu o ícone `bar-chart-outline`; ganhou tabs (`Today · Week · Month · Custom`) por baixo do header. Quando `period === 'today'` o dashboard mantém o UI interactivo (edit food, log water/exercise/weight, add food, goals). Qualquer outro period → `ReportView` (summary card, chart, day-by-day, entries list).
+- Rota `NutritionReport` removida do `AppNavigator` em ambos os fluxos (com/sem paywall).
+- Data fetching: `useEffect` dispara `loadReport(period, custom)` quando period muda; custom espera ISO válido em ambos os campos antes de chamar API (mesmo guard do report antigo).
+- Estilos do report têm prefixo `report*` (`reportEntryRow`, `reportEntryIcon`) para não colidirem com os do dashboard.
+
+**Deploy web:** 4 builds hoje via `build:novaqi:deploy`, cada um após uma phase / mudança grande. Cache do browser precisa Cmd+Shift+R.
+**Pendente:** OTA no Mac para levar tudo aos users mobile (`npm run update:novaqi`).
