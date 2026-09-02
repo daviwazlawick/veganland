@@ -219,7 +219,7 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate('Referral')}
           >
             <View style={homeReferralStyles.heroLeft}>
-              <Text style={homeReferralStyles.heroEmoji}>🎁</Text>
+              <Ionicons name="gift-outline" size={32} color={Colors.primary} style={homeReferralStyles.heroEmoji} />
               <View style={{ flex: 1 }}>
                 <Text style={homeReferralStyles.heroTitle}>{t(language, 'referral.home_hero_title')}</Text>
                 <Text style={homeReferralStyles.heroCta}>{t(language, 'referral.home_hero_cta')} ›</Text>
@@ -476,7 +476,7 @@ export default function HomeScreen({ navigation }) {
               </>
             )}
             <View style={styles.tooltipRow}>
-              <Text style={styles.tooltipEmoji}>📊</Text>
+              <Ionicons name="bar-chart-outline" size={22} color={Colors.primary} style={styles.tooltipEmoji} />
               <View style={styles.tooltipTexts}>
                 <Text style={styles.tooltipNum}>{monthlyScanCount || scanHistory.length}</Text>
                 <Text style={styles.tooltipDesc}>{t(language, 'home.badge_scans_desc')}</Text>

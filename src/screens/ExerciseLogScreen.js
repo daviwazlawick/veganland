@@ -199,7 +199,7 @@ export default function ExerciseLogScreen({ navigation }) {
         horizontal
         data={[
           { id: 'all', label: t(language, 'exercise.all') },
-          { id: 'favorites', label: '★ ' + t(language, 'exercise.favorites') },
+          { id: 'favorites', label: t(language, 'exercise.favorites'), iconName: 'star' },
           ...categories.map(c => ({ id: c, label: t(language, EXERCISE_CATEGORY_KEYS[c]) })),
         ]}
         keyExtractor={item => item.id}
@@ -214,7 +214,10 @@ export default function ExerciseLogScreen({ navigation }) {
               style={[styles.tab, isActive && { backgroundColor: cfg?.color || Colors.primary }]}
               onPress={() => setActiveTab(tab.id)}
             >
-              <Text style={[styles.tabTxt, isActive && styles.tabTxtActive]}>{tab.label}</Text>
+              <Text style={[styles.tabTxt, isActive && styles.tabTxtActive]}>
+                {tab.iconName && <><Ionicons name={tab.iconName} size={12} color={isActive ? '#FFF' : '#FFB800'} /> </>}
+                {tab.label}
+              </Text>
             </TouchableOpacity>
           );
         }}
@@ -246,7 +249,7 @@ export default function ExerciseLogScreen({ navigation }) {
                 </Text>
               </View>
               <TouchableOpacity onPress={() => toggleFav(ex.id)} style={styles.favBtn}>
-                <Text style={{ fontSize: 16, color: isFav ? '#FFB800' : '#DDD' }}>★</Text>
+                <Ionicons name={isFav ? 'star' : 'star-outline'} size={16} color={isFav ? '#FFB800' : '#DDD'} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => openLog(ex)}

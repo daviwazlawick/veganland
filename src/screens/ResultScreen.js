@@ -585,7 +585,7 @@ export default function ResultScreen({ navigation, route }) {
                   }
                 }}
               >
-                <Text style={fbStyles.thumbEmoji}>👍</Text>
+                <Ionicons name="thumbs-up-outline" size={34} color={Colors.primary} style={fbStyles.thumbEmoji} />
                 <Text style={fbStyles.thumbLabel}>{t(language, 'onboarding.feedback_up')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -598,7 +598,7 @@ export default function ResultScreen({ navigation, route }) {
                   setFeedbackState('commenting');
                 }}
               >
-                <Text style={fbStyles.thumbEmoji}>👎</Text>
+                <Ionicons name="thumbs-down-outline" size={34} color={Colors.textMuted} style={fbStyles.thumbEmoji} />
                 <Text style={fbStyles.thumbLabel}>{t(language, 'onboarding.feedback_down')}</Text>
               </TouchableOpacity>
             </View>

@@ -27,7 +27,7 @@ function SectionLabel({ label }) {
 function Row({ icon, label, value, onPress, danger, chevron = true }) {
   return (
     <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1} disabled={!onPress}>
-      {icon ? <Text style={s.rowIcon}>{icon}</Text> : null}
+      {icon ? <Ionicons name={icon} size={20} color={Colors.textMuted} style={s.rowIcon} /> : null}
       <Text style={[s.rowLabel, danger && s.rowLabelDanger]}>{label}</Text>
       {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : null}
       {onPress && chevron ? <Text style={[s.rowChev, danger && s.rowChevDanger]}>›</Text> : null}
@@ -147,7 +147,11 @@ export default function ProfileScreen({ navigation }) {
               )}
               {bodyProfile.goal && (
                 <View style={s.bodyCell}>
-                  <Text style={s.bodyCellValue}>{bodyProfile.goal === 'lose' ? '📉' : bodyProfile.goal === 'gain' ? '📈' : '⚖️'}</Text>
+                  <Ionicons
+                    name={bodyProfile.goal === 'lose' ? 'trending-down-outline' : bodyProfile.goal === 'gain' ? 'trending-up-outline' : 'remove-outline'}
+                    size={18}
+                    color={Colors.navy || Colors.text}
+                  />
                   <Text style={s.bodyCellLabel}>{t(language, `nutrition.goal_${bodyProfile.goal}`)}</Text>
                 </View>
               )}
@@ -218,7 +222,7 @@ export default function ProfileScreen({ navigation }) {
         {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
           <TouchableOpacity style={s.referralCard} activeOpacity={0.9} onPress={() => navigation.navigate('Referral')}>
-            <Text style={s.referralEmoji}>🎁</Text>
+            <Ionicons name="gift-outline" size={24} color={Colors.primary} style={s.referralEmoji} />
             <View style={{ flex: 1 }}>
               <Text style={s.referralTitle}>{t(language, 'referral.profile_card_title')}</Text>
               <Text style={s.referralSub}>
@@ -334,7 +338,7 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={s.accountEmail} numberOfLines={1}>{user.email}</Text>
               </View>
               {userType === 'admin' && (
-                <Row icon="🛡️" label="Admin Panel" onPress={async () => {
+                <Row icon="shield-outline" label="Admin Panel" onPress={async () => {
                   try {
                     const url = await apiAdminHandoff(token);
                     await WebBrowser.openBrowserAsync(url);
@@ -344,7 +348,7 @@ export default function ProfileScreen({ navigation }) {
                 }} />
               )}
               {isNovaQI && (
-                <Row icon="📐" label="Análise corporal" onPress={() => navigation.navigate('BodyAnalysis')} />
+                <Row icon="body-outline" label="Análise corporal" onPress={() => navigation.navigate('BodyAnalysis')} />
               )}
               <Row label={t(language, 'profile.terms')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)} />
               <Row label={t(language, 'profile.privacy')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)} />

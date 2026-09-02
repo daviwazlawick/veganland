@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { t } from '../../i18n';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function AppSurveyModal({ visible, language, token, onDone, onSkip, onSubmit }) {
   const [message, setMessage] = useState('');
@@ -60,7 +61,7 @@ export default function AppSurveyModal({ visible, language, token, onDone, onSki
             <View style={styles.card}>
               {phase === 'thanks' ? (
                 <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-                  <Text style={styles.emoji}>💚</Text>
+                  <Ionicons name="heart" size={44} color={Colors.primary} style={styles.emoji} />
                   <Text style={styles.title}>{t(language, 'app_survey.thanks_title')}</Text>
                   <Text style={styles.bodyText}>{t(language, 'app_survey.thanks_body')}</Text>
                   <TouchableOpacity style={styles.submitBtn} onPress={handleDone} activeOpacity={0.85}>

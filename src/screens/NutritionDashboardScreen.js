@@ -419,7 +419,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t(language, 'nutrition.dashboard_title')}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('NutritionReport')} style={s.reportBtn}>
-          <Text style={s.reportBtnText}>📊</Text>
+          <Ionicons name="bar-chart-outline" size={22} color={Colors.navy} />
         </TouchableOpacity>
       </View>
 

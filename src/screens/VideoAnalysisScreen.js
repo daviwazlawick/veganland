@@ -7,6 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNutrition } from '../context/NutritionContext';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
+import { Ionicons } from '@expo/vector-icons';
 
 // expo-sensors is a native module — guard the require so OTAs to old native
 // builds (before 1.0.15) don't crash. Pitch capture just silently no-ops there.
@@ -33,13 +34,13 @@ const SILHOUETTES = {
 const STEPS = ['intro', 'front', 'side', 'confirm'];
 
 const TIPS = [
-  { icon: '🧱', text: 'Encosta-te a uma parede BRANCA ou lisa — sem padrões, móveis ou sombras atrás de ti' },
-  { icon: '👙', text: 'Roupa JUSTA: leggings, calções curtos ou roupa interior. Sem camisolas largas nem cintos' },
-  { icon: '💳', text: 'Cola um cartão de crédito com fita-cola no CENTRO DO PEITO (frente) e na LATERAL DA CINTURA (lado). Plano e totalmente visível' },
-  { icon: '🙋', text: 'Foto de lado: LADO DIREITO do corpo para a câmara. Braço direito a 90° à frente (horizontal). Braço esquerdo atrás do corpo. Nunca braços junto ao tronco' },
-  { icon: '📱', text: 'Telemóvel fixo a ~2 m de distância, ao nível do peito — usa um suporte ou encosta-o a algo estável' },
-  { icon: '💡', text: 'Boa iluminação frontal — evita luz atrás de ti (contra-luz) ou sombras no rosto' },
-  { icon: '📏', text: 'Corpo INTEIRO visível da cabeça à planta do pé — não te cortes nos bordos da câmara' },
+  { icon: 'cube-outline',            text: 'Encosta-te a uma parede BRANCA ou lisa — sem padrões, móveis ou sombras atrás de ti' },
+  { icon: 'shirt-outline',           text: 'Roupa JUSTA: leggings, calções curtos ou roupa interior. Sem camisolas largas nem cintos' },
+  { icon: 'card-outline',            text: 'Cola um cartão de crédito com fita-cola no CENTRO DO PEITO (frente) e na LATERAL DA CINTURA (lado). Plano e totalmente visível' },
+  { icon: 'hand-right-outline',      text: 'Foto de lado: LADO DIREITO do corpo para a câmara. Braço direito a 90° à frente (horizontal). Braço esquerdo atrás do corpo. Nunca braços junto ao tronco' },
+  { icon: 'phone-portrait-outline',  text: 'Telemóvel fixo a ~2 m de distância, ao nível do peito — usa um suporte ou encosta-o a algo estável' },
+  { icon: 'bulb-outline',            text: 'Boa iluminação frontal — evita luz atrás de ti (contra-luz) ou sombras no rosto' },
+  { icon: 'resize-outline',          text: 'Corpo INTEIRO visível da cabeça à planta do pé — não te cortes nos bordos da câmara' },
 ];
 
 export default function VideoAnalysisScreen({ navigation }) {
@@ -162,7 +163,7 @@ export default function VideoAnalysisScreen({ navigation }) {
             <Text style={s.tipsTitle}>Instruções completas</Text>
             {TIPS.map((t, i) => (
               <View key={i} style={s.tipRow}>
-                <Text style={s.tipIcon}>{t.icon}</Text>
+                <Ionicons name={t.icon} size={20} color={Colors.primary} style={s.tipIcon} />
                 <Text style={s.tipText}>{t.text}</Text>
               </View>
             ))}

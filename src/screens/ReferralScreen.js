@@ -8,6 +8,7 @@ import Brand from '../brand';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { logEvent } from '../services/analyticsService';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ReferralScreen({ navigation }) {
   const { language } = useApp();
@@ -84,7 +85,7 @@ export default function ReferralScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.heroCard}>
-          <Text style={styles.heroEmoji}>🎁</Text>
+          <Ionicons name="gift-outline" size={44} color={Colors.primary} style={styles.heroEmoji} />
           <Text style={styles.heroTitle}>{t(language, 'referral.hero_title')}</Text>
           <Text style={styles.heroSub}>{t(language, 'referral.hero_subtitle')}</Text>
         </View>
@@ -117,7 +118,7 @@ export default function ReferralScreen({ navigation }) {
 
         {bonusRemaining > 0 && (
           <View style={styles.promoCard}>
-            <Text style={styles.promoEmoji}>⚡</Text>
+            <Ionicons name="flash-outline" size={30} color={Colors.primary} style={styles.promoEmoji} />
             <View style={{ flex: 1 }}>
               <Text style={styles.promoTitle}>{t(language, 'referral.bonus_balance', { count: bonusRemaining })}</Text>
               {bonusExpiresFmt && (

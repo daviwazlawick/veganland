@@ -6,6 +6,7 @@ import { useReferral } from '../context/ReferralContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { HIDE_REFERRAL } from '../constants/features';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PendingReferralPrompt() {
   const { language } = useApp();
@@ -34,7 +35,7 @@ export default function PendingReferralPrompt() {
     <Modal visible transparent animationType="fade" onRequestClose={dismissPendingCode}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.emoji}>🎁</Text>
+          <Ionicons name="gift-outline" size={48} color={Colors.primary} style={styles.emoji} />
           <Text style={styles.title}>{t(language, 'referral.pending_modal_title')}</Text>
           <View style={styles.codeBox}><Text style={styles.codeText}>{pendingCode}</Text></View>
           <Text style={styles.body}>{t(language, 'referral.pending_modal_body', { code: pendingCode })}</Text>

@@ -284,7 +284,7 @@ export default function RegisterScreen({ navigation }) {
 
             {!HIDE_REFERRAL && (
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>🎁 {t(language, 'referral.register_field_label')}</Text>
+                <Text style={styles.fieldLabel}><Ionicons name="gift-outline" size={14} color={Colors.textMuted} /> {t(language, 'referral.register_field_label')}</Text>
                 <TextInput
                   style={styles.input}
                   value={referralCode}

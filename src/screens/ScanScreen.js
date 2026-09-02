@@ -395,7 +395,7 @@ export default function ScanScreen({ navigation, route }) {
               <Text style={onboardingScanStyles.heroTitle}>{t(language, 'onboarding.scan_title')}</Text>
               <Text style={onboardingScanStyles.heroHeadline}>{t(language, 'onboarding.scan_headline')}</Text>
               <Text style={onboardingScanStyles.heroSub}>{t(language, 'onboarding.scan_subtitle')}</Text>
-              <Text style={onboardingScanStyles.heroHint}>✨ {t(language, 'onboarding.scan_hint')}</Text>
+              <Text style={onboardingScanStyles.heroHint}><Ionicons name="sparkles-outline" size={14} color={Colors.primary} /> {t(language, 'onboarding.scan_hint')}</Text>
             </View>
           )}
 
