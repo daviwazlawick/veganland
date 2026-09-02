@@ -482,11 +482,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.72)',
     gap: 8, position: 'relative',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    // elevation + a translucent backgroundColor breaks border-radius
+    // clipping on Android (it can't compute a rounded shadow outline
+    // from a non-opaque surface) — square shadow bleeds past the
+    // rounded corners. iOS shadow* props are unaffected, so keep those.
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8,
+    elevation: Platform.OS === 'android' ? 0 : 2,
   },
   dietCardSelected: {
     borderColor: Colors.primary, backgroundColor: Colors.glass,
-    shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 4,
+    shadowColor: Colors.primary, shadowOpacity: 0.15,
+    elevation: Platform.OS === 'android' ? 0 : 4,
   },
   dietCheckCircle: {
     position: 'absolute', top: 10, right: 10,
@@ -571,11 +577,15 @@ const styles = StyleSheet.create({
     borderRadius: 24, padding: 20,
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.72)',
     position: 'relative', overflow: 'visible',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    // See dietCard above — elevation + translucent bg breaks rounded
+    // corners on Android.
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
+    elevation: Platform.OS === 'android' ? 0 : 2,
   },
   planCardSelected: {
     borderColor: Colors.primary, backgroundColor: Colors.glass,
-    shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
+    shadowColor: Colors.primary, shadowOpacity: 0.15,
+    elevation: Platform.OS === 'android' ? 0 : 5,
   },
   popularBadge: {
     position: 'absolute', top: -12, alignSelf: 'center',

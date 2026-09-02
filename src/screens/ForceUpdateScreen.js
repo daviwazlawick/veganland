@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
@@ -46,8 +46,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.glass,
     borderRadius: 28, padding: 26, gap: 16,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)',
+    // elevation + a translucent backgroundColor breaks border-radius
+    // clipping on Android — see ProfileSetupScreen.dietCard for detail.
     shadowColor: Colors.navy, shadowOpacity: 0.08, shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 }, elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: Platform.OS === 'android' ? 0 : 8,
   },
   title: { fontSize: 20, fontWeight: '800', color: Colors.text, textAlign: 'center', fontFamily: BrandFonts.headingMed || undefined },
   body: { fontSize: 15, color: Colors.textLight, textAlign: 'center', lineHeight: 22, fontWeight: '500' },

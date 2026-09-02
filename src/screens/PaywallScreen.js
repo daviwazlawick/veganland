@@ -429,11 +429,17 @@ const styles = StyleSheet.create({
     borderRadius: 24, padding: 20, marginBottom: 14,
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.72)',
     position: 'relative', overflow: 'visible',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    // elevation + a translucent backgroundColor breaks border-radius
+    // clipping on Android (it can't compute a rounded shadow outline
+    // from a non-opaque surface) — square shadow bleeds past the
+    // rounded corners. iOS shadow* props are unaffected, so keep those.
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
+    elevation: Platform.OS === 'android' ? 0 : 2,
   },
   planCardSelected: {
     borderColor: Colors.primary, backgroundColor: Colors.glass,
-    shadowColor: Colors.primary, shadowOpacity: 0.15, elevation: 5,
+    shadowColor: Colors.primary, shadowOpacity: 0.15,
+    elevation: Platform.OS === 'android' ? 0 : 5,
   },
   planCardCurrent: { borderColor: Colors.safe },
   popularBadge: {
