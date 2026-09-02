@@ -37,7 +37,7 @@ function Row({ icon, label, value, onPress, danger, chevron = true }) {
 
 const isNovaQI = Brand.id === 'novaqi';
 
-const ACTIVITY_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏃', active: '💪', very_active: '🔥' };
+const ACTIVITY_ICONS = { sedentary: 'bed-outline', light: 'walk-outline', moderate: 'walk-outline', active: 'body-outline', very_active: 'flame-outline' };
 
 export default function ProfileScreen({ navigation }) {
   const { language, setLanguage, profile, monthlyScanCount, scanHistory, streak } = useApp();
@@ -141,7 +141,7 @@ export default function ProfileScreen({ navigation }) {
               )}
               {bodyProfile.activity_level && (
                 <View style={s.bodyCell}>
-                  <Text style={s.bodyCellValue}>{ACTIVITY_ICONS[bodyProfile.activity_level] || '🏃'}</Text>
+                  <Ionicons name={ACTIVITY_ICONS[bodyProfile.activity_level] || 'walk-outline'} size={18} color={Colors.navy || Colors.text} />
                   <Text style={s.bodyCellLabel}>{t(language, `nutrition.activity_${bodyProfile.activity_level}`)}</Text>
                 </View>
               )}

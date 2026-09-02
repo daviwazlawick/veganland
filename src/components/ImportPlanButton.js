@@ -86,7 +86,7 @@ export default function ImportPlanButton({ language, token, onExtracted, style }
     return (
       <>
         <View style={[styles.importBtn, style]}>
-          <Text style={styles.importBtnIcon}>📄</Text>
+          <Ionicons name="document-outline" size={18} color={Colors.primary} />
           <Text style={styles.importBtnText}>{t(language, 'nutrition.import_plan_btn')}</Text>
           {/* Invisible file input overlaid on button — direct user gesture, no async gap */}
           <input
@@ -112,7 +112,7 @@ export default function ImportPlanButton({ language, token, onExtracted, style }
   return (
     <>
       <TouchableOpacity onPress={() => setShowModal(true)} style={[styles.importBtn, style]}>
-        <Text style={styles.importBtnIcon}>📄</Text>
+        <Ionicons name="document-outline" size={18} color={Colors.primary} />
         <Text style={styles.importBtnText}>{t(language, 'nutrition.import_plan_btn')}</Text>
       </TouchableOpacity>
 
@@ -124,10 +124,10 @@ export default function ImportPlanButton({ language, token, onExtracted, style }
             <Text style={styles.optionText}><Ionicons name="camera-outline" size={16} color={Colors.navy} />  {t(language, 'nutrition.import_plan_camera')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.option} onPress={pickGallery}>
-            <Text style={styles.optionText}>🖼️  {t(language, 'nutrition.import_plan_gallery')}</Text>
+            <Text style={styles.optionText}><Ionicons name="image-outline" size={16} color={Colors.navy} />  {t(language, 'nutrition.import_plan_gallery')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.option} onPress={pickDocument}>
-            <Text style={styles.optionText}>📄  {t(language, 'nutrition.import_plan_document')}</Text>
+            <Text style={styles.optionText}><Ionicons name="document-outline" size={16} color={Colors.navy} />  {t(language, 'nutrition.import_plan_document')}</Text>
           </TouchableOpacity>
         </View>
       </Modal>

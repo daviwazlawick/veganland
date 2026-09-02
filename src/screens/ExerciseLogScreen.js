@@ -29,7 +29,7 @@ function ActivityCard({ entry, onDelete, language }) {
   return (
     <View style={[actCard.wrap, { borderLeftColor: cfg?.color || Colors.primary }]}>
       <View style={[actCard.iconBubble, { backgroundColor: cfg?.bg || '#F0F0F0' }]}>
-        <Text style={actCard.icon}>{ex?.icon || '🏃'}</Text>
+        <Ionicons name={ex?.icon || 'walk-outline'} size={20} color={cfg?.color || Colors.primary} />
       </View>
       <View style={actCard.info}>
         <Text style={actCard.name} numberOfLines={1}>{entry.exercise_name}</Text>
@@ -240,7 +240,7 @@ export default function ExerciseLogScreen({ navigation }) {
           return (
             <View style={styles.exCard}>
               <View style={[styles.iconBubble, { backgroundColor: cfg?.bg || '#F0F0F0' }]}>
-                <Text style={styles.iconEmoji}>{ex.icon}</Text>
+                <Ionicons name={ex.icon} size={22} color={cfg?.color || Colors.primary} />
               </View>
               <View style={styles.exInfo}>
                 <Text style={styles.exName}>{getExerciseName(ex, language)}</Text>
@@ -270,7 +270,7 @@ export default function ExerciseLogScreen({ navigation }) {
               {logModal && (
                 <>
                   <View style={[styles.modalStrip, { backgroundColor: catCfg?.color || Colors.primary }]}>
-                    <Text style={styles.modalIcon}>{logModal.icon}</Text>
+                    <Ionicons name={logModal.icon} size={28} color="#fff" />
                     <Text style={styles.modalExName}>{getExerciseName(logModal, language)}</Text>
                   </View>
 

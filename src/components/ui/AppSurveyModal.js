@@ -70,7 +70,7 @@ export default function AppSurveyModal({ visible, language, token, onDone, onSki
                 </ScrollView>
               ) : (
                 <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                  <Text style={styles.emoji}>🙏</Text>
+                  <Ionicons name="hand-left-outline" size={44} color={Colors.primary} style={styles.emoji} />
                   <Text style={styles.title}>{t(language, 'app_survey.title')}</Text>
                   <Text style={styles.bodyText}>{t(language, 'app_survey.body')}</Text>
                   <TextInput

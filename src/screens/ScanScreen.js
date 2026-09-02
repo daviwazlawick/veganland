@@ -577,7 +577,7 @@ export default function ScanScreen({ navigation, route }) {
             activeOpacity={0.85}
             onPress={() => { setShowCameraChoice(false); navigation.navigate('PlateAnalysis'); }}
           >
-            <Text style={cameraChoiceStyles.optionIcon}>🍽️</Text>
+            <Ionicons name="restaurant-outline" size={28} color={Colors.navy} />
             <View style={{ flex: 1 }}>
               <Text style={cameraChoiceStyles.optionLabel}>{t(language, 'scan.camera_choice_plate')}</Text>
               <Text style={cameraChoiceStyles.optionSub}>{t(language, 'scan.camera_choice_plate_sub')}</Text>

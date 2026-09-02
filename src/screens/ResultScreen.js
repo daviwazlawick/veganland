@@ -399,7 +399,7 @@ export default function ResultScreen({ navigation, route }) {
                     <View style={styles.burnRow}>
                       {burnExercises.map(ex => (
                         <View key={ex.id} style={styles.burnItem}>
-                          <Text style={styles.burnItemIcon}>{ex.icon}</Text>
+                          <Ionicons name={ex.icon} size={20} color={Colors.primary} />
                           <Text style={styles.burnMins}>{minutesToBurn(kcalPer100, ex.met, weight)}'</Text>
                           <Text style={styles.burnExName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
                         </View>

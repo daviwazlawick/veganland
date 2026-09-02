@@ -298,7 +298,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.actionSub}>{t(language, 'nutrition.plate_scan_sub')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.scanBtnHalf, styles.plateBtn]} onPress={() => navigation.navigate('PlateAnalysis')} activeOpacity={0.85}>
-                <Text style={styles.actionIcon}>🍽️</Text>
+                <Ionicons name="restaurant-outline" size={32} color="#FFF" />
                 <Text style={styles.actionTitle}>{t(language, 'nutrition.plate_photo_btn')}</Text>
                 <Text style={styles.actionSub}>{t(language, 'nutrition.plate_photo_sub')}</Text>
               </TouchableOpacity>
@@ -372,11 +372,11 @@ export default function HomeScreen({ navigation }) {
 
         {recentPlates.length > 0 && (
           <View style={styles.historySection}>
-            <Text style={styles.historyHeading}>🍽️ {t(language, 'nutrition.recent_plates')}</Text>
+            <Text style={styles.historyHeading}><Ionicons name="restaurant-outline" size={16} color={Colors.primary} /> {t(language, 'nutrition.recent_plates')}</Text>
             {recentPlates.slice(0, 5).map((entry, i) => (
               <View key={i} style={[styles.historyItem, { borderLeftColor: Colors.safe }]}>
                 <View style={[styles.historyIconWrap, { backgroundColor: Colors.safeLight }]}>
-                  <Text style={{ fontSize: 22 }}>🍽️</Text>
+                  <Ionicons name="restaurant-outline" size={22} color={Colors.safe} />
                 </View>
                 <View style={styles.historyContent}>
                   <Text style={styles.historyTitle} numberOfLines={1}>{entry.product_name}</Text>

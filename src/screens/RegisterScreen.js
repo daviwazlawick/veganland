@@ -24,10 +24,10 @@ const isNovaQI = Brand.id === 'novaqi';
 const DISCLAIMER_VERSION = '1.0';
 
 const DISCLAIMER_BLOCKS = [
-  { icon: '🚫', key: 'block1' },
-  { icon: '⛔', key: 'block2' },
-  { icon: '🤖', key: 'block3' },
-  { icon: 'ℹ️', key: 'block4' },
+  { icon: 'ban-outline',                key: 'block1' },
+  { icon: 'close-circle-outline',       key: 'block2' },
+  { icon: 'hardware-chip-outline',      key: 'block3' },
+  { icon: 'information-circle-outline', key: 'block4' },
 ];
 
 export default function RegisterScreen({ navigation }) {
@@ -177,7 +177,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.disclaimerBlocks}>
             {DISCLAIMER_BLOCKS.map(({ icon, key }) => (
               <View key={key} style={styles.disclaimerBlock}>
-                <Text style={styles.disclaimerBlockIcon}>{icon}</Text>
+                <Ionicons name={icon} size={20} color={Colors.navy} style={styles.disclaimerBlockIcon} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.disclaimerBlockTitle}>{t(language, `disclaimer.${key}_title`)}</Text>
                   <Text style={styles.disclaimerBlockBody}>{t(language, `disclaimer.${key}_body`)}</Text>

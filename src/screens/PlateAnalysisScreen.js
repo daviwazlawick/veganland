@@ -364,7 +364,7 @@ export default function PlateAnalysisScreen({ navigation }) {
 
         {!image ? (
           <View style={s.pickCard}>
-            <Text style={s.pickEmoji}>🍽️</Text>
+            <Ionicons name="restaurant-outline" size={52} color={Colors.primary} style={s.pickEmoji} />
             <Text style={s.pickTitle}>{t(language, 'nutrition.plate_title')}</Text>
             <Text style={s.pickSub}>{t(language, 'nutrition.plate_subtitle')}</Text>
             <View style={s.pickBtns}>
@@ -375,7 +375,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                     <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImageWeb(false)}>
-                    <Text style={s.pickBtnIcon}>🖼️</Text>
+                    <Ionicons name="image-outline" size={24} color={Colors.primary} />
                     <Text style={[s.pickBtnText, isNovaQI && s.pickBtnTextSecondary]}>{t(language, 'nutrition.plate_pick_library')}</Text>
                   </TouchableOpacity>
                 </>
@@ -386,7 +386,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                     <Text style={s.pickBtnText}>{t(language, 'nutrition.plate_take_photo')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.pickBtn, s.pickBtnSecondary]} onPress={() => pickImage(false)}>
-                    <Text style={s.pickBtnIcon}>🖼️</Text>
+                    <Ionicons name="image-outline" size={24} color={Colors.primary} />
                     <Text style={[s.pickBtnText, isNovaQI && s.pickBtnTextSecondary]}>{t(language, 'nutrition.plate_pick_library')}</Text>
                   </TouchableOpacity>
                 </>

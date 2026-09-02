@@ -365,7 +365,7 @@ export default function BodyAnalysisScreen({ navigation, route }) {
           <Text style={s.poseGuideTitle}>{t(language, 'body_analysis_screen.pose_guide_title')}</Text>
 
           <View style={s.cardHint}>
-            <Text style={s.cardHintIcon}>💳</Text>
+            <Ionicons name="card-outline" size={20} color={Colors.primary} style={s.cardHintIcon} />
             <Text style={s.cardHintText}>{t(language, 'body_analysis_screen.card_hint')}</Text>
           </View>
 

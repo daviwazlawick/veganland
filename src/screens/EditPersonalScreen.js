@@ -544,7 +544,7 @@ export default function EditPersonalScreen({ navigation }) {
               onPress={() => navigation.navigate('VideoAnalysis')}
               activeOpacity={0.85}
             >
-              <Text style={styles.baSuggestIcon}>📐</Text>
+              <Ionicons name="body-outline" size={26} color={Colors.primary} style={styles.baSuggestIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.baSuggestTitle}>Análise corporal por foto</Text>
                 <Text style={styles.baSuggestText}>
@@ -712,8 +712,8 @@ export default function EditPersonalScreen({ navigation }) {
                     <View key={i} style={[styles.baRefRow, i > 0 && styles.baRefRowBorder]}>
                       <Text style={styles.baRefLabel} numberOfLines={2}>{row.label}</Text>
                       <View style={styles.baRefVals}>
-                        <Text style={styles.baRefVal}><Text style={styles.baRefSex}>♂ </Text>{row.male}</Text>
-                        <Text style={styles.baRefVal}><Text style={styles.baRefSex}>♀ </Text>{row.female}</Text>
+                        <Text style={styles.baRefVal}><Ionicons name="male-outline" size={12} color={Colors.textMuted} /> {row.male}</Text>
+                        <Text style={styles.baRefVal}><Ionicons name="female-outline" size={12} color={Colors.textMuted} /> {row.female}</Text>
                       </View>
                     </View>
                   ))}

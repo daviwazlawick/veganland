@@ -477,7 +477,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                     return (
                       <View key={entry.id} style={[s.exEntryRow, { borderLeftColor: cfg?.color || Colors.primary }]}>
                         <View style={[s.exEntryIcon, { backgroundColor: cfg?.bg || '#F0F0F0' }]}>
-                          <Text style={{ fontSize: 14 }}>{ex?.icon || '🏃'}</Text>
+                          <Ionicons name={ex?.icon || 'walk-outline'} size={14} color={cfg?.color || Colors.primary} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.exEntryName}>{entry.exercise_name}</Text>
@@ -507,7 +507,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             {/* Water */}
             <View style={s.waterCard}>
               <View style={s.waterTop}>
-                <Text style={s.waterLabel}>💧 {t(language, 'nutrition.water')}</Text>
+                <Text style={s.waterLabel}><Ionicons name="water-outline" size={14} color="#06B6D4" /> {t(language, 'nutrition.water')}</Text>
                 <Text style={s.waterValue}>{Math.round(todayTotals.water_ml || 0)} <Text style={s.waterUnit}>ml</Text></Text>
               </View>
               <View style={s.waterBtns}>

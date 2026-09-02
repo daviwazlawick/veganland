@@ -150,7 +150,7 @@ export default function VideoAnalysisScreen({ navigation }) {
           </Text>
 
           <View style={s.cardCallout}>
-            <Text style={s.cardCalloutIcon}>💳</Text>
+            <Ionicons name="card-outline" size={28} color={Colors.primary} style={s.cardCalloutIcon} />
             <View style={{ flex: 1 }}>
               <Text style={s.cardCalloutTitle}>Cartão de crédito obrigatório</Text>
               <Text style={s.cardCalloutText}>
@@ -248,7 +248,7 @@ export default function VideoAnalysisScreen({ navigation }) {
           <Text style={s.instructionText}>{instruction}</Text>
           {DeviceMotion && (
             <View style={[s.pitchPill, { backgroundColor: pitchColor + 'CC' }]}>
-              <Text style={s.pitchPillText}>📱 {pitchLabel}</Text>
+              <Text style={s.pitchPillText}><Ionicons name="phone-portrait-outline" size={12} color="#fff" /> {pitchLabel}</Text>
             </View>
           )}
         </SafeAreaView>

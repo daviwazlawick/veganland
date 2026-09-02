@@ -260,7 +260,7 @@ export default function NutritionReportScreen({ navigation }) {
                   <View style={s.dayStatsRow}>
                     {nut && nut.kcal > 0 && (
                       <View style={s.dayStat}>
-                        <Text style={s.dayStatIcon}>🍴</Text>
+                        <Ionicons name="restaurant-outline" size={13} color={Colors.navy} style={s.dayStatIcon} />
                         <Text style={s.dayStatTxt}>{Math.round(nut.kcal)} kcal</Text>
                       </View>
                     )}
@@ -272,7 +272,7 @@ export default function NutritionReportScreen({ navigation }) {
                     )}
                     {nut && nut.water > 0 && (
                       <View style={s.dayStat}>
-                        <Text style={s.dayStatIcon}>💧</Text>
+                        <Ionicons name="water-outline" size={13} color="#06B6D4" style={s.dayStatIcon} />
                         <Text style={[s.dayStatTxt, { color: '#06B6D4' }]}>{Math.round(nut.water)} ml</Text>
                       </View>
                     )}
@@ -297,7 +297,7 @@ export default function NutritionReportScreen({ navigation }) {
                         const cfg = ex ? CATEGORY_CONFIG[ex.category] : null;
                         return (
                           <View key={e.id} style={[s.dayExChip, { backgroundColor: cfg?.bg || '#F5F5F5', borderColor: cfg?.color || '#DDD' }]}>
-                            <Text style={s.dayExChipTxt}>{ex?.icon || '🏃'} {e.exercise_name} {Math.round(e.duration_min)}′</Text>
+                            <Text style={s.dayExChipTxt}><Ionicons name={ex?.icon || 'walk-outline'} size={11} color={cfg?.color || '#666'} /> {e.exercise_name} {Math.round(e.duration_min)}′</Text>
                           </View>
                         );
                       })}
