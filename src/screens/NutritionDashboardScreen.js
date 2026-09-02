@@ -1,13 +1,16 @@
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Modal, KeyboardAvoidingView, Keyboard, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useNutrition } from '../context/NutritionContext';
 import { useAuth } from '../context/AuthContext';
-import { apiSearchFood, apiGetProductInfo } from '../services/apiService';
+import { apiSearchFood, apiGetProductInfo, apiGetExerciseHistory, apiGetLogRange } from '../services/apiService';
 import { Ionicons } from '@expo/vector-icons';
 import { t, localeFor } from '../i18n';
+import { Colors } from '../constants/colors';
+import Brand, { BrandFonts } from '../brand';
+import { EXERCISES, CATEGORY_CONFIG, getExerciseName } from '../constants/exercises';
 
 function formatTime(iso, language) {
   if (!iso) return '';
@@ -17,9 +20,36 @@ function formatTime(iso, language) {
     return '';
   }
 }
-import { Colors } from '../constants/colors';
-import Brand, { BrandFonts } from '../brand';
-import { EXERCISES, CATEGORY_CONFIG, getExerciseName } from '../constants/exercises';
+
+function formatEntryTime(iso, language) {
+  const d = new Date(iso);
+  return d.toLocaleString(localeFor(language), {
+    day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function formatDay(dateStr, language) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString(localeFor(language), { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+const PERIODS = ['today', 'week', 'month', 'custom'];
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SOURCE_ICON = { scan: 'camera-outline', plate_photo: 'restaurant-outline', manual: 'pencil-outline' };
+
+function dateRange(period, custom) {
+  const to = new Date().toISOString().slice(0, 10);
+  if (period === 'today') return { from: to, to };
+  if (period === 'custom') {
+    const from = ISO_DATE.test(custom?.from) ? custom.from : to;
+    const toC  = ISO_DATE.test(custom?.to)   ? custom.to   : to;
+    return from > toC ? { from: toC, to: from } : { from, to: toC };
+  }
+  const d = new Date();
+  d.setDate(d.getDate() - (period === 'week' ? 6 : 29));
+  return { from: d.toISOString().slice(0, 10), to };
+}
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -153,16 +183,237 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   );
 }
 
+function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language }) {
+  const nutritionByDate = rows.reduce((acc, r) => {
+    const day = r.day || r.local_date;
+    if (!acc[day]) acc[day] = { kcal: 0, protein: 0, fat: 0, carbs: 0, water: 0 };
+    acc[day].kcal    += Number(r.calories_kcal) || 0;
+    acc[day].protein += Number(r.protein_g) || 0;
+    acc[day].fat     += Number(r.fat_g) || 0;
+    acc[day].carbs   += Number(r.carbs_g) || 0;
+    acc[day].water   += Number(r.water_ml) || 0;
+    return acc;
+  }, {});
+
+  const exerciseByDate = exerciseHistory.reduce((acc, e) => {
+    const day = e.local_date;
+    (acc[day] = acc[day] || []).push(e);
+    return acc;
+  }, {});
+
+  const allDates = [...new Set([
+    ...Object.keys(nutritionByDate),
+    ...Object.keys(exerciseByDate),
+  ])].sort().reverse();
+
+  const totalKcal = Object.values(nutritionByDate).reduce((sum, d) => sum + d.kcal, 0);
+  const totalBurnedPeriod = exerciseHistory.reduce((sum, e) => sum + Number(e.calories_burned || 0), 0);
+  const totalWater = Object.values(nutritionByDate).reduce((sum, d) => sum + d.water, 0);
+
+  const chartDays = Object.keys(nutritionByDate).sort();
+  const maxVal = Math.max(...chartDays.map(d => nutritionByDate[d].kcal), goals?.calories_kcal || 1, 1);
+
+  if (loading) return <ActivityIndicator color={Colors.navy} style={{ marginTop: 40 }} />;
+  if (loaded && allDates.length === 0) {
+    return (
+      <View style={s.emptyCard}>
+        <Text style={s.emptyText}>{t(language, 'nutrition.no_report_data')}</Text>
+      </View>
+    );
+  }
+  if (!loaded) return null;
+
+  return (
+    <>
+      <View style={s.summaryCard}>
+        <View style={s.sumRow}>
+          <View style={s.sumCol}>
+            <Text style={s.sumNum}>{Math.round(totalKcal)}</Text>
+            <Text style={s.sumLabel}>kcal {t(language, 'nutrition.calories')}</Text>
+          </View>
+          {totalBurnedPeriod > 0 && (
+            <>
+              <View style={s.sumDivider} />
+              <View style={s.sumCol}>
+                <Text style={[s.sumNum, { color: '#E8450A' }]}>{Math.round(totalBurnedPeriod)}</Text>
+                <Text style={s.sumLabel}>kcal {t(language, 'nutrition.burned')}</Text>
+              </View>
+            </>
+          )}
+          <View style={s.sumDivider} />
+          <View style={s.sumCol}>
+            <Text style={[s.sumNum, { color: '#06B6D4' }]}>{Math.round(totalWater / 100) / 10}L</Text>
+            <Text style={s.sumLabel}>{t(language, 'nutrition.water')}</Text>
+          </View>
+        </View>
+      </View>
+
+      {chartDays.length > 1 && (
+        <View style={s.card}>
+          <Text style={s.cardTitle}>{t(language, 'nutrition.calories')} / dia</Text>
+          <View style={s.chartArea}>
+            {chartDays.map(d => {
+              const kcal = nutritionByDate[d]?.kcal || 0;
+              return (
+                <View key={d} style={s.barCol}>
+                  <View style={s.barTrack}>
+                    <View style={[s.barFill, { height: `${(kcal / maxVal) * 100}%` }]} />
+                    {goals?.calories_kcal && (
+                      <View style={[s.goalLine, { bottom: `${(goals.calories_kcal / maxVal) * 100}%` }]} />
+                    )}
+                  </View>
+                  <Text style={s.barLabel}>{d.slice(5)}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {goals?.calories_kcal && (
+            <Text style={s.chartNote}>— meta: {Math.round(goals.calories_kcal)} kcal</Text>
+          )}
+        </View>
+      )}
+
+      {allDates.map(date => {
+        const nut = nutritionByDate[date];
+        const exEntries = exerciseByDate[date] || [];
+        const dayBurned = exEntries.reduce((sum, e) => sum + Number(e.calories_burned || 0), 0);
+        return (
+          <View key={date} style={s.daySection}>
+            <Text style={s.dayHeader}>{formatDay(date, language)}</Text>
+            <View style={s.dayStatsRow}>
+              {nut && nut.kcal > 0 && (
+                <View style={s.dayStat}>
+                  <Ionicons name="restaurant-outline" size={13} color={Colors.navy} style={s.dayStatIcon} />
+                  <Text style={s.dayStatTxt}>{Math.round(nut.kcal)} kcal</Text>
+                </View>
+              )}
+              {dayBurned > 0 && (
+                <View style={s.dayStat}>
+                  <Ionicons name="flame-outline" size={13} color="#E8450A" style={s.dayStatIcon} />
+                  <Text style={[s.dayStatTxt, { color: '#E8450A' }]}>{Math.round(dayBurned)} kcal</Text>
+                </View>
+              )}
+              {nut && nut.water > 0 && (
+                <View style={s.dayStat}>
+                  <Ionicons name="water-outline" size={13} color="#06B6D4" style={s.dayStatIcon} />
+                  <Text style={[s.dayStatTxt, { color: '#06B6D4' }]}>{Math.round(nut.water)} ml</Text>
+                </View>
+              )}
+            </View>
+            {nut && (nut.protein > 0 || nut.carbs > 0 || nut.fat > 0) && (
+              <View style={s.dayMacroRow}>
+                {[
+                  { label: 'P', val: nut.protein, color: '#3B82F6' },
+                  { label: 'C', val: nut.carbs,   color: '#8B5CF6' },
+                  { label: 'G', val: nut.fat,     color: '#F97316' },
+                ].map(m => (
+                  <Text key={m.label} style={[s.dayMacro, { color: m.color }]}>
+                    {m.label} {Math.round(m.val)}g
+                  </Text>
+                ))}
+              </View>
+            )}
+            {exEntries.length > 0 && (
+              <View style={s.dayExRow}>
+                {exEntries.map(e => {
+                  const ex = EXERCISES.find(x => x.id === e.exercise_id);
+                  const cfg = ex ? CATEGORY_CONFIG[ex.category] : null;
+                  return (
+                    <View key={e.id} style={[s.dayExChip, { backgroundColor: cfg?.bg || '#F5F5F5', borderColor: cfg?.color || '#DDD' }]}>
+                      <Text style={s.dayExChipTxt}><Ionicons name={ex?.icon || 'walk-outline'} size={11} color={cfg?.color || '#666'} /> {e.exercise_name} {Math.round(e.duration_min)}′</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      {entries.length > 0 && (
+        <View style={s.entriesCard}>
+          <Text style={s.cardTitle}>
+            {t(language, 'nutrition.entries_title') || 'Registros'}
+            {' '}<Text style={s.entriesCount}>({entries.length})</Text>
+          </Text>
+          {entries.map(e => {
+            const macros = [];
+            if (Number(e.calories_kcal) > 0) macros.push(`${Math.round(e.calories_kcal)} kcal`);
+            if (Number(e.protein_g) > 0)    macros.push(`P ${Math.round(e.protein_g)}g`);
+            if (Number(e.carbs_g) > 0)      macros.push(`C ${Math.round(e.carbs_g)}g`);
+            if (Number(e.fat_g) > 0)        macros.push(`G ${Math.round(e.fat_g)}g`);
+            const water = Number(e.water_ml) || 0;
+            const title = e.product_name
+              || (water > 0 ? `${water} ml ${t(language, 'nutrition.water') || 'água'}` : '—');
+            return (
+              <View key={e.id} style={s.reportEntryRow}>
+                <Ionicons name={SOURCE_ICON[e.source] || 'ellipse-outline'} size={14} color="#94a3b8" style={s.reportEntryIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.reportEntryTitle} numberOfLines={2}>{title}</Text>
+                  <Text style={s.reportEntryMeta}>
+                    {formatEntryTime(e.consumed_at, language)}
+                    {e.meal_type ? ` · ${e.meal_type}` : ''}
+                    {e.grams ? ` · ${Math.round(e.grams)}g` : ''}
+                  </Text>
+                  {macros.length > 0 && (
+                    <Text style={s.reportEntryMacros}>{macros.join('  ·  ')}</Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </>
+  );
+}
+
 export default function NutritionDashboardScreen({ navigation, route }) {
   const { language } = useApp();
   const { token } = useAuth();
-  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, updateConsumption, refresh, addWeight, weightHistory, todayBurned, todayExercise, deleteExercise } = useNutrition();
+  const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, updateConsumption, refresh, addWeight, weightHistory, todayBurned, todayExercise, deleteExercise, getReport } = useNutrition();
   const insets = useSafeAreaInsets();
   const [weightModal, setWeightModal] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [loggingWater, setLoggingWater] = useState(false);
+
+  // Report tab state — inline replacement for the separate NutritionReportScreen.
+  const [period, setPeriod] = useState('today');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [reportRows, setReportRows] = useState([]);
+  const [reportEntries, setReportEntries] = useState([]);
+  const [reportExerciseHistory, setReportExerciseHistory] = useState([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportLoaded, setReportLoaded] = useState(false);
+
+  const loadReport = useCallback(async (p, custom) => {
+    setReportLoading(true);
+    const { from, to } = dateRange(p, custom);
+    const [res, exHistory, rawEntries] = await Promise.all([
+      getReport(from, to).catch(() => ({ rows: [] })),
+      apiGetExerciseHistory(token, from, to).catch(() => []),
+      apiGetLogRange(token, from, to).catch(() => []),
+    ]);
+    setReportRows(Array.isArray(res?.rows) ? res.rows : Array.isArray(res) ? res : []);
+    setReportExerciseHistory(Array.isArray(exHistory) ? exHistory : []);
+    setReportEntries(Array.isArray(rawEntries) ? rawEntries : []);
+    setReportLoading(false);
+    setReportLoaded(true);
+  }, [getReport, token]);
+
+  useEffect(() => {
+    if (period === 'today') return;
+    if (period === 'custom') {
+      if (ISO_DATE.test(customFrom) && ISO_DATE.test(customTo)) {
+        loadReport(period, { from: customFrom, to: customTo });
+      }
+    } else {
+      loadReport(period, null);
+    }
+  }, [period, customFrom, customTo, loadReport]);
   const [addModal, setAddModal] = useState(false);
   const [addEntry, setAddEntry] = useState(EMPTY_ENTRY);
   const [editingId, setEditingId] = useState(null);
@@ -429,14 +680,80 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backBtnText}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t(language, 'nutrition.dashboard_title')}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('NutritionReport')} style={s.reportBtn}>
-          <Ionicons name="bar-chart-outline" size={22} color={Colors.navy} />
-        </TouchableOpacity>
+        <Text style={s.headerTitle}>
+          {period === 'today'
+            ? t(language, 'nutrition.dashboard_title')
+            : t(language, 'nutrition.report_title')}
+        </Text>
+        <View style={{ width: 44 }} />
       </View>
+
+      {/* Period tabs — hoje | semana | mês | custom */}
+      <View style={s.periodRow}>
+        {PERIODS.map(p => (
+          <TouchableOpacity
+            key={p}
+            onPress={() => setPeriod(p)}
+            style={[s.periodBtn, period === p && s.periodBtnActive]}
+          >
+            <Text
+              style={[s.periodText, period === p && s.periodTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {p === 'custom'
+                ? (t(language, 'exercise.period_custom') || 'Personalizado')
+                : t(language, `exercise.period_${p}`)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {period === 'custom' && (
+        <View style={s.customRow}>
+          <View style={s.customField}>
+            <Text style={s.customLabel}>{t(language, 'exercise.period_custom_from') || 'De'}</Text>
+            <TextInput
+              style={s.customInput}
+              value={customFrom}
+              onChangeText={setCustomFrom}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              autoCapitalize="none"
+            />
+          </View>
+          <View style={s.customField}>
+            <Text style={s.customLabel}>{t(language, 'exercise.period_custom_to') || 'Até'}</Text>
+            <TextInput
+              style={s.customInput}
+              value={customTo}
+              onChangeText={setCustomTo}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 24 }]}>
 
+        {period !== 'today' ? (
+          <ReportView
+            loading={reportLoading}
+            loaded={reportLoaded}
+            rows={reportRows}
+            entries={reportEntries}
+            exerciseHistory={reportExerciseHistory}
+            goals={goals}
+            language={language}
+          />
+        ) : (
         <>
 
             {noGoals ? (
@@ -592,6 +909,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
               <Text style={s.goalsBtnText}><Ionicons name="settings-outline" size={13} color={Colors.navy} /> {t(language, 'nutrition.goals_title')}</Text>
             </TouchableOpacity>
         </>
+        )}
 
       </ScrollView>
 
@@ -948,6 +1266,63 @@ const s = StyleSheet.create({
   saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   cancelBtn: { alignItems: 'center', paddingVertical: 8 },
   cancelText: { color: '#94a3b8', fontSize: 14 },
+
+  // Period tabs (Today | Week | Month | Custom)
+  periodRow: {
+    flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1, borderBottomColor: Colors.border || '#E5E7EB',
+  },
+  periodBtn: {
+    flex: 1, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 20,
+    backgroundColor: Colors.backgroundSecondary || '#F1F5F9',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  periodBtnActive: { backgroundColor: Colors.navy },
+  periodText: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textAlign: 'center' },
+  periodTextActive: { color: '#fff' },
+  customRow: {
+    flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1, borderBottomColor: Colors.border || '#E5E7EB',
+  },
+  customField: { flex: 1 },
+  customLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  customInput: { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 8, padding: 8, fontSize: 13, fontWeight: '600', color: Colors.navy, backgroundColor: '#fff' },
+
+  // ReportView-only styles
+  summaryCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  sumRow: { flexDirection: 'row', alignItems: 'center' },
+  sumCol: { flex: 1, alignItems: 'center' },
+  sumDivider: { width: 1, height: 32, backgroundColor: '#E5E7EB' },
+  sumNum: { fontSize: 22, fontWeight: '800', color: Colors.navy },
+  sumLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: Colors.navy, marginBottom: 12 },
+  chartArea: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 4, paddingTop: 8 },
+  barCol: { flex: 1, alignItems: 'center', gap: 4 },
+  barTrack: { flex: 1, width: '100%', backgroundColor: '#F1F5F9', borderRadius: 4, justifyContent: 'flex-end', overflow: 'hidden', position: 'relative' },
+  barFill: { backgroundColor: Colors.primary, width: '100%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  goalLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: '#EF4444' },
+  barLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '600' },
+  chartNote: { fontSize: 11, color: '#EF4444', marginTop: 8, textAlign: 'center' },
+  daySection: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E5E7EB', gap: 6 },
+  dayHeader: { fontSize: 13, fontWeight: '800', color: Colors.navy, textTransform: 'capitalize' },
+  dayStatsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  dayStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dayStatIcon: { marginRight: 2 },
+  dayStatTxt: { fontSize: 12, fontWeight: '700', color: Colors.navy },
+  dayMacroRow: { flexDirection: 'row', gap: 10 },
+  dayMacro: { fontSize: 11, fontWeight: '700' },
+  dayExRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 },
+  dayExChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  dayExChipTxt: { fontSize: 11, fontWeight: '600', color: Colors.navy },
+  entriesCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
+  entriesCount: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  reportEntryRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  reportEntryIcon: { marginTop: 2 },
+  reportEntryTitle: { fontSize: 13, fontWeight: '600', color: Colors.navy },
+  reportEntryMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  reportEntryMacros: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '600' },
 });
 
 const bar = StyleSheet.create({
