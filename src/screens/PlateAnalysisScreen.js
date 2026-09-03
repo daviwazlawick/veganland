@@ -452,7 +452,7 @@ export default function PlateAnalysisScreen({ navigation }) {
                         <View style={s.burnRow}>
                           {burnExercises.map(ex => (
                             <View key={ex.id} style={s.burnItem}>
-                              <Text style={s.burnItemIcon}>{ex.icon}</Text>
+                              <Ionicons name={ex.icon} size={20} color={Colors.primary} />
                               <Text style={s.burnMins}>{minutesToBurn(liveTotal.calories_kcal, ex.met, weight)}'</Text>
                               <Text style={s.burnExName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
                             </View>
@@ -671,7 +671,6 @@ const s = StyleSheet.create({
   burnTitle: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 0.8 },
   burnRow: { flexDirection: 'row', gap: 8 },
   burnItem: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, paddingVertical: 10, gap: 3 },
-  burnItemIcon: { fontSize: 20 },
   burnMins: { fontSize: 20, fontWeight: '800', color: '#FFF' },
   burnExName: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '600', textAlign: 'center' },
 
