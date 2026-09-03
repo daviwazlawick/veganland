@@ -18,7 +18,7 @@ import {
   upsertFreshProduct,
   upsertProduct,
 } from './db.js';
-import { buildSlimProductInfo, fetchOffEnrichment, findProductIdentity, findProductIngredients } from './openFoodFacts.js';
+import { buildSlimProductInfo, fetchOffEnrichment, findOffEnrichmentByName, findProductIdentity, findProductIngredients } from './openFoodFacts.js';
 import { saveScanPhoto } from './photoStorage.js';
 
 // A row is "OFF-enriched" if any of the OFF-only columns are populated or the
@@ -634,13 +634,25 @@ export async function analyzeProduct({
 
   // Build the final response (with productInfo + offMeta) and persist that
   // same blob — otherwise scan history reopens without the OFF UI.
+  // knownDbRow has OFF columns (allergens_tags, nutriscore_grade, etc.) that
+  // imageInspection lacks — prefer it so offMeta survives when the product
+  // exists in our DB but has no ingredients yet.
+  let offMetaSource = product || knownDbRow || imageInspection;
+  // Photo scans without a barcode never trigger the OFF enrichment path, so
+  // offMeta ends up null and ResultScreen loses nutrition, Nutri-Score, NOVA
+  // and the burn-equivalent box. Try a name+brand lookup as fallback — in
+  // memory only, not persisted (name matches are weaker than barcode ones).
+  if (needsOffEnrichment(offMetaSource) && !offMetaSource?.barcode) {
+    const query = [offMetaSource?.brand, offMetaSource?.product_name].filter(Boolean).join(' ');
+    if (query.trim()) {
+      const offMatch = await findOffEnrichmentByName(query, lang);
+      if (offMatch) offMetaSource = { ...offMetaSource, ...offMatch };
+    }
+  }
   const fullResult = {
     ...result,
     product_type: productType,
-    // knownDbRow has OFF columns (allergens_tags, nutriscore_grade, etc.) that
-    // imageInspection lacks — prefer it so offMeta survives when the product
-    // exists in our DB but has no ingredients yet.
-    productInfo: buildSlimProductInfo(product || knownDbRow || imageInspection),
+    productInfo: buildSlimProductInfo(offMetaSource),
   };
 
   const scanId = await saveScanEvent({

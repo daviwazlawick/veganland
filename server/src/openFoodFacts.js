@@ -245,6 +245,79 @@ export async function searchOffProducts(query, limit = 10, lang = 'en') {
   }
 }
 
+// Search OFF by brand+name for photo scans without a barcode. Returns the same
+// shape as fetchOffEnrichment so buildOffMeta can consume it. Strict token
+// matching (all query tokens must appear in the candidate's brand+name) — a
+// weaker match could attribute wrong nutrition to a real product.
+export async function findOffEnrichmentByName(query, lang = 'en') {
+  try {
+    const q = String(query || '').trim();
+    if (!q) return null;
+    const lc = String(lang || 'en').slice(0, 2).toLowerCase();
+    const fields = [
+      'code', 'product_name', 'generic_name', 'brands', 'lang',
+      `product_name_${lc}`,
+      'nutriscore_grade', 'nova_group',
+      'nutriments',
+      'categories_tags', 'labels_tags', 'traces_tags',
+      'image_url', 'image_front_url',
+      'quantity', 'serving_size',
+    ].join(',');
+    const params = new URLSearchParams({
+      search_terms: q,
+      search_simple: '1',
+      action: 'process',
+      json: '1',
+      page_size: '10',
+      lc,
+      sort_by: 'popularity_key',
+      fields,
+    });
+    const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?${params}`, {
+      headers: { 'User-Agent': 'NovaQI/1.0 (https://novaqi.app)' },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    if (!r.headers.get('content-type')?.includes('application/json')) return null;
+    const data = await r.json();
+    const products = Array.isArray(data.products) ? data.products : [];
+    if (!products.length) return null;
+
+    const tokens = q.toLowerCase()
+      .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
+      .split(/\s+/)
+      .filter(t => t.length >= 2);
+
+    const best = products
+      .map(p => {
+        const localName = p[`product_name_${lc}`] || p.product_name || '';
+        const hay = `${p.brands || ''} ${localName}`.toLowerCase();
+        const matched = tokens.filter(t => hay.includes(t)).length;
+        const langMatch = p.lang && p.lang.toLowerCase() === lc ? 1 : 0;
+        return { raw: p, matched, langMatch };
+      })
+      .filter(x => tokens.length === 0 || x.matched === tokens.length)
+      .sort((a, b) => (b.matched - a.matched) || (b.langMatch - a.langMatch))[0];
+
+    if (!best) return null;
+    const raw = best.raw;
+    return {
+      raw,
+      nutriscore_grade: raw.nutriscore_grade || null,
+      nova_group: Number.isFinite(raw.nova_group) ? raw.nova_group : null,
+      image_url: raw.image_url || raw.image_front_url || null,
+      quantity: raw.quantity || null,
+      serving_size: raw.serving_size || null,
+      allergens_tags: Array.isArray(raw.allergens_tags) ? raw.allergens_tags : [],
+      traces_tags: Array.isArray(raw.traces_tags) ? raw.traces_tags : [],
+      categories_tags: Array.isArray(raw.categories_tags) ? raw.categories_tags : [],
+      labels_tags: Array.isArray(raw.labels_tags) ? raw.labels_tags : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function findProductIdentity(barcode) {
   const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,generic_name,brands`);
   if (!response.ok) return null;
