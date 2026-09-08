@@ -47,11 +47,16 @@ function calcTotal(items) {
   }), { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0, sugar_g: 0, salt_g: 0 });
 }
 
-export default function PlateAnalysisScreen({ navigation }) {
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export default function PlateAnalysisScreen({ navigation, route }) {
   const { language, profile, setMonthlyScanCount } = useApp();
   const { token } = useAuth();
   const { logConsumption, bodyProfile } = useNutrition();
   const insets = useSafeAreaInsets();
+  // Optional past-date target — when set, every logged plate item is pinned
+  // to noon UTC of this date so it lands on the intended day.
+  const presetDate = ISO_DATE.test(route?.params?.presetDate) ? route.params.presetDate : null;
 
   const [image, setImage] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -300,7 +305,7 @@ export default function PlateAnalysisScreen({ navigation }) {
     setLogging(true);
     try {
       for (const item of editableItems) {
-        await logConsumption({
+        const payload = {
           product_name:  item.name,
           source:        'plate_photo',
           grams:         item.grams         || null,
@@ -312,10 +317,17 @@ export default function PlateAnalysisScreen({ navigation }) {
           fiber_g:       item.fiber_g       || null,
           sugar_g:       item.sugar_g       || null,
           salt_g:        item.salt_g        || null,
-        });
+        };
+        if (presetDate) payload.consumed_at = `${presetDate}T12:00:00Z`;
+        await logConsumption(payload);
       }
       setLogged(true);
-      setTimeout(() => navigation.navigate('NutritionDashboard'), 1200);
+      // Past-date flow was launched from the dashboard's report view — go
+      // back so it stays on the same period and reloads the day card.
+      setTimeout(() => {
+        if (presetDate && navigation.canGoBack()) navigation.goBack();
+        else navigation.navigate('NutritionDashboard');
+      }, 1200);
     } catch {
       Alert.alert('Erro', 'Não foi possível registar. Tenta novamente.');
     } finally {
@@ -331,7 +343,12 @@ export default function PlateAnalysisScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backBtnText}>←</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t(language, 'nutrition.plate_title')}</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={s.headerTitle}>{t(language, 'nutrition.plate_title')}</Text>
+          {presetDate && (
+            <Text style={s.headerSubtitle}>{new Date(presetDate + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
+          )}
+        </View>
         <TouchableOpacity
           onPress={() => setNoticeOpen(true)}
           style={s.headerInfoBtn}
@@ -622,6 +639,7 @@ const s = StyleSheet.create({
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 28, color: Colors.headerText, marginTop: -2 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.headerText, fontFamily: BrandFonts?.heading },
+  headerSubtitle: { fontSize: 12, fontWeight: '600', color: Colors.headerText, opacity: 0.75, textTransform: 'capitalize', marginTop: 1 },
   headerInfoBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerInfoBtnText: { fontSize: 22, color: Colors.headerText, fontWeight: '700' },
 

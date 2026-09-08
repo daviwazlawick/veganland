@@ -196,7 +196,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   );
 }
 
-function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry, onAddWater, onDeleteExercise, onAddExercise }) {
+function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry, onAddWater, onDeleteExercise, onAddExercise, onAddPlate }) {
   const nutritionByDate = rows.reduce((acc, r) => {
     const day = r.day || r.local_date;
     if (!acc[day]) acc[day] = { kcal: 0, protein: 0, fat: 0, carbs: 0, water: 0 };
@@ -423,10 +423,19 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                 ))}
               </View>
             )}
-            {onAddEntry && (
-              <TouchableOpacity style={s.dayAddBtn} onPress={() => onAddEntry(date)} activeOpacity={0.7}>
-                <Text style={s.dayAddBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
-              </TouchableOpacity>
+            {(onAddEntry || onAddPlate) && (
+              <View style={s.dayAddRow}>
+                {onAddPlate && (
+                  <TouchableOpacity style={[s.dayAddBtn, { flex: 1 }]} onPress={() => onAddPlate(date)} activeOpacity={0.7}>
+                    <Text style={s.dayAddBtnText}><Ionicons name="camera-outline" size={12} color={Colors.navy} /> {t(language, 'nutrition.plate_title') || 'foto'}</Text>
+                  </TouchableOpacity>
+                )}
+                {onAddEntry && (
+                  <TouchableOpacity style={[s.dayAddBtn, { flex: 1 }]} onPress={() => onAddEntry(date)} activeOpacity={0.7}>
+                    <Text style={s.dayAddBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
         );
@@ -879,6 +888,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             onAddWater={handleAddWaterAt}
             onDeleteExercise={handleDeleteExerciseAt}
             onAddExercise={(date) => navigation.navigate('ExerciseLog', { presetDate: date })}
+            onAddPlate={(date) => navigation.navigate('PlateAnalysis', { presetDate: date })}
           />
         ) : (
         <>
@@ -1450,7 +1460,8 @@ const s = StyleSheet.create({
   reportEntryTitle: { fontSize: 13, fontWeight: '600', color: Colors.navy },
   reportEntryMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   reportEntryMacros: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '600' },
-  dayAddBtn: { marginTop: 6, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
+  dayAddRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  dayAddBtn: { paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
   dayAddBtnText: { fontSize: 12, fontWeight: '700', color: Colors.navy },
   dayExChipDelete: { marginLeft: 4, alignItems: 'center', justifyContent: 'center' },
   dayExAddChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.navy, alignItems: 'center', justifyContent: 'center' },
