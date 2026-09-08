@@ -196,7 +196,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   );
 }
 
-function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry }) {
+function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry, onAddWater, onDeleteExercise }) {
   const nutritionByDate = rows.reduce((acc, r) => {
     const day = r.day || r.local_date;
     if (!acc[day]) acc[day] = { kcal: 0, protein: 0, fat: 0, carbs: 0, water: 0 };
@@ -303,9 +303,12 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
       {allDates.map(date => {
         const nut = nutritionByDate[date];
         const exEntries = exerciseByDate[date] || [];
-        const dayEntries = (entriesByDate[date] || [])
+        const allDayEntries = (entriesByDate[date] || [])
           .slice()
           .sort((a, b) => new Date(a.consumed_at) - new Date(b.consumed_at));
+        const dayFoodEntries  = allDayEntries.filter(e => e.product_name !== 'Water' && !(Number(e.water_ml) > 0));
+        const dayWaterEntries = allDayEntries.filter(e => e.product_name === 'Water' && Number(e.water_ml) > 0);
+        const dayWaterTotal   = dayWaterEntries.reduce((sum, e) => sum + Number(e.water_ml || 0), 0);
         const dayBurned = exEntries.reduce((sum, e) => sum + Number(e.calories_burned || 0), 0);
         return (
           <View key={date} style={s.daySection}>
@@ -323,10 +326,10 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                   <Text style={[s.dayStatTxt, { color: '#E8450A' }]}>{Math.round(dayBurned)} kcal</Text>
                 </View>
               )}
-              {nut && nut.water > 0 && (
+              {dayWaterTotal > 0 && (
                 <View style={s.dayStat}>
                   <Ionicons name="water-outline" size={13} color="#06B6D4" style={s.dayStatIcon} />
-                  <Text style={[s.dayStatTxt, { color: '#06B6D4' }]}>{Math.round(nut.water)} ml</Text>
+                  <Text style={[s.dayStatTxt, { color: '#06B6D4' }]}>{Math.round(dayWaterTotal)} ml</Text>
                 </View>
               )}
             </View>
@@ -351,20 +354,23 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                   return (
                     <View key={e.id} style={[s.dayExChip, { backgroundColor: cfg?.bg || '#F5F5F5', borderColor: cfg?.color || '#DDD' }]}>
                       <Text style={s.dayExChipTxt}><Ionicons name={ex?.icon || 'walk-outline'} size={11} color={cfg?.color || '#666'} /> {e.exercise_name} {Math.round(e.duration_min)}′</Text>
+                      {onDeleteExercise && (
+                        <TouchableOpacity onPress={() => onDeleteExercise(e.id, e.exercise_name)} hitSlop={8} style={s.dayExChipDelete}>
+                          <Ionicons name="close" size={11} color={cfg?.color || '#666'} />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 })}
               </View>
             )}
-            {dayEntries.map(e => {
+            {dayFoodEntries.map(e => {
               const macros = [];
               if (Number(e.calories_kcal) > 0) macros.push(`${Math.round(e.calories_kcal)} kcal`);
               if (Number(e.protein_g) > 0)    macros.push(`P ${Math.round(e.protein_g)}g`);
               if (Number(e.carbs_g) > 0)      macros.push(`C ${Math.round(e.carbs_g)}g`);
               if (Number(e.fat_g) > 0)        macros.push(`G ${Math.round(e.fat_g)}g`);
-              const water = Number(e.water_ml) || 0;
-              const title = e.product_name
-                || (water > 0 ? `${water} ml ${t(language, 'nutrition.water') || 'água'}` : '—');
+              const title = e.product_name || '—';
               return (
                 <TouchableOpacity key={e.id} style={s.reportEntryRow} onPress={() => onEditEntry && onEditEntry(e)} activeOpacity={0.7}>
                   <Ionicons name={SOURCE_ICON[e.source] || 'ellipse-outline'} size={14} color="#94a3b8" style={s.reportEntryIcon} />
@@ -385,6 +391,33 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                 </TouchableOpacity>
               );
             })}
+            {(dayWaterEntries.length > 0 || onAddWater) && (
+              <View style={s.dayWaterBox}>
+                <View style={s.dayWaterHeader}>
+                  <Text style={s.dayWaterLabel}><Ionicons name="water-outline" size={12} color="#06B6D4" /> {t(language, 'nutrition.water')}</Text>
+                  {onAddWater && (
+                    <View style={s.dayWaterBtns}>
+                      {[150, 250, 330, 500].map(ml => (
+                        <TouchableOpacity key={ml} style={s.dayWaterBtn} onPress={() => onAddWater(ml, date)} activeOpacity={0.75}>
+                          <Text style={s.dayWaterBtnText}>+{ml}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+                {dayWaterEntries.map(e => (
+                  <View key={e.id} style={s.dayWaterEntryRow}>
+                    <Text style={s.dayWaterEntryTime}>{formatEntryTime(e.consumed_at, language)}</Text>
+                    <Text style={s.dayWaterEntryMl}>{e.water_ml} ml</Text>
+                    {onDeleteEntry && (
+                      <TouchableOpacity onPress={() => onDeleteEntry(e.id, `${e.water_ml} ml`)} hitSlop={8}>
+                        <Ionicons name="close" size={14} color="#94a3b8" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
             {onAddEntry && (
               <TouchableOpacity style={s.dayAddBtn} onPress={() => onAddEntry(date)} activeOpacity={0.7}>
                 <Text style={s.dayAddBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
@@ -504,13 +537,47 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     }
   }
 
+  const reloadCurrentReport = () => {
+    if (period !== 'today') {
+      loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
+    }
+  };
+
+  async function handleAddWaterAt(ml, dateStr) {
+    try {
+      const payload = { product_name: 'Water', source: 'manual', water_ml: ml, meal_type: null };
+      if (ISO_DATE.test(dateStr)) payload.consumed_at = `${dateStr}T12:00:00Z`;
+      await logConsumption(payload);
+      reloadCurrentReport();
+    } catch (e) {
+      showError(e.message || t(language, 'nutrition.save_failed'));
+    }
+  }
+
+  async function handleDeleteExerciseAt(id, name) {
+    const doDelete = async () => {
+      try {
+        await deleteExercise(id);
+        reloadCurrentReport();
+      } catch (e) {
+        showError(e.message || t(language, 'nutrition.delete_failed'));
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete "${name}"?`)) doDelete();
+    } else {
+      Alert.alert(t(language, 'nutrition.delete_entry'), name, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: t(language, 'nutrition.delete_entry'), style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  }
+
   function handleDelete(id, name) {
     const doDelete = async () => {
       try {
         await deleteConsumption(id);
-        if (period !== 'today') {
-          loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
-        }
+        reloadCurrentReport();
       } catch (e) {
         showError(e.message || t(language, 'nutrition.delete_failed'));
       }
@@ -707,9 +774,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         await logConsumption(payload);
       }
       setAddModal(false);
-      if (period !== 'today') {
-        loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
-      }
+      reloadCurrentReport();
     } catch (e) {
       showError(e.message || t(language, 'nutrition.save_failed'));
     }
@@ -801,6 +866,8 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             onEditEntry={openEditModal}
             onAddEntry={openAddModal}
             onDeleteEntry={handleDelete}
+            onAddWater={handleAddWaterAt}
+            onDeleteExercise={handleDeleteExerciseAt}
           />
         ) : (
         <>
@@ -1363,7 +1430,7 @@ const s = StyleSheet.create({
   dayMacroRow: { flexDirection: 'row', gap: 10 },
   dayMacro: { fontSize: 11, fontWeight: '700' },
   dayExRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 },
-  dayExChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  dayExChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
   dayExChipTxt: { fontSize: 11, fontWeight: '600', color: Colors.navy },
   entriesCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB', gap: 10 },
   entriesCount: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
@@ -1374,6 +1441,16 @@ const s = StyleSheet.create({
   reportEntryMacros: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '600' },
   dayAddBtn: { marginTop: 6, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
   dayAddBtnText: { fontSize: 12, fontWeight: '700', color: Colors.navy },
+  dayExChipDelete: { marginLeft: 4, alignItems: 'center', justifyContent: 'center' },
+  dayWaterBox: { marginTop: 4, padding: 8, borderRadius: 10, backgroundColor: '#F0F9FF', borderWidth: 1, borderColor: '#BAE6FD', gap: 4 },
+  dayWaterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 },
+  dayWaterLabel: { fontSize: 11, fontWeight: '700', color: '#0369A1' },
+  dayWaterBtns: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  dayWaterBtn: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, backgroundColor: '#E0F2FE', borderWidth: 1, borderColor: '#7DD3FC' },
+  dayWaterBtnText: { fontSize: 11, fontWeight: '700', color: '#0369A1' },
+  dayWaterEntryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
+  dayWaterEntryTime: { fontSize: 11, color: '#64748b', width: 46 },
+  dayWaterEntryMl: { flex: 1, fontSize: 12, fontWeight: '600', color: '#0369A1' },
 });
 
 const bar = StyleSheet.create({
