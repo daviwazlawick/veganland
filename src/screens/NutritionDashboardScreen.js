@@ -196,7 +196,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   );
 }
 
-function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry, onAddWater, onDeleteExercise }) {
+function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry, onAddWater, onDeleteExercise, onAddExercise }) {
   const nutritionByDate = rows.reduce((acc, r) => {
     const day = r.day || r.local_date;
     if (!acc[day]) acc[day] = { kcal: 0, protein: 0, fat: 0, carbs: 0, water: 0 };
@@ -346,7 +346,7 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                 ))}
               </View>
             )}
-            {exEntries.length > 0 && (
+            {(exEntries.length > 0 || onAddExercise) && (
               <View style={s.dayExRow}>
                 {exEntries.map(e => {
                   const ex = EXERCISES.find(x => x.id === e.exercise_id);
@@ -362,6 +362,11 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                     </View>
                   );
                 })}
+                {onAddExercise && (
+                  <TouchableOpacity style={s.dayExAddChip} onPress={() => onAddExercise(date)} activeOpacity={0.7}>
+                    <Text style={s.dayExAddChipTxt}>+ {t(language, 'exercise.log_exercise') || 'exercício'}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
             {dayFoodEntries.map(e => {
@@ -491,6 +496,11 @@ export default function NutritionDashboardScreen({ navigation, route }) {
 
   useFocusEffect(useCallback(() => {
     refresh();
+    // Coming back from ExerciseLog / editing flows should re-pull the report
+    // so newly logged past-date exercises show up on the day card.
+    if (period !== 'today') {
+      loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
+    }
     if (route?.params?.openAddFood) {
       setAddEntry(EMPTY_ENTRY);
       setSuggestions([]);
@@ -501,7 +511,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       setAddModal(true);
       navigation.setParams({ openAddFood: false });
     }
-  }, [refresh, route?.params?.openAddFood]));
+  }, [refresh, route?.params?.openAddFood, period, customFrom, customTo, loadReport]));
 
   const byMeal = MEALS.reduce((acc, m) => { acc[m] = todayLog.filter(e => e.meal_type === m); return acc; }, {});
   const waterEntries = todayLog
@@ -868,6 +878,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             onDeleteEntry={handleDelete}
             onAddWater={handleAddWaterAt}
             onDeleteExercise={handleDeleteExerciseAt}
+            onAddExercise={(date) => navigation.navigate('ExerciseLog', { presetDate: date })}
           />
         ) : (
         <>
@@ -1442,6 +1453,8 @@ const s = StyleSheet.create({
   dayAddBtn: { marginTop: 6, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
   dayAddBtnText: { fontSize: 12, fontWeight: '700', color: Colors.navy },
   dayExChipDelete: { marginLeft: 4, alignItems: 'center', justifyContent: 'center' },
+  dayExAddChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.navy, alignItems: 'center', justifyContent: 'center' },
+  dayExAddChipTxt: { fontSize: 11, fontWeight: '700', color: Colors.navy },
   dayWaterBox: { marginTop: 4, padding: 8, borderRadius: 10, backgroundColor: '#F0F9FF', borderWidth: 1, borderColor: '#BAE6FD', gap: 4 },
   dayWaterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 },
   dayWaterLabel: { fontSize: 11, fontWeight: '700', color: '#0369A1' },

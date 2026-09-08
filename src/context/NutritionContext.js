@@ -109,7 +109,11 @@ export function NutritionProvider({ children }) {
   const logExercise = useCallback(async (entry) => {
     if (!token) return null;
     const res = await apiLogExercise(token, entry);
-    setTodayExercise(prev => [...prev, res]);
+    // Only merge into todayExercise when the entry is actually for today —
+    // logging into a past date must not inflate the "today" burn card.
+    if (!entry?.local_date || entry.local_date === todayStr()) {
+      setTodayExercise(prev => [...prev, res]);
+    }
     return res;
   }, [token]);
 

@@ -52,10 +52,16 @@ function ActivityCard({ entry, onDelete, language }) {
   );
 }
 
-export default function ExerciseLogScreen({ navigation }) {
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export default function ExerciseLogScreen({ navigation, route }) {
   const { language } = useApp();
   const { todayExercise, todayBurned, logExercise, deleteExercise, bodyProfile } = useNutrition();
   const insets = useSafeAreaInsets();
+  // When opened from a past-day card on the dashboard, presetDate pins the
+  // log to that day; otherwise we default to today.
+  const presetDate = ISO_DATE.test(route?.params?.presetDate) ? route.params.presetDate : null;
+  const targetDate = presetDate || todayStr();
 
   const [favorites, setFavorites] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
@@ -108,13 +114,16 @@ export default function ExerciseLogScreen({ navigation }) {
         exercise_name: getExerciseName(logModal, language),
         duration_min: effectiveDuration,
         calories_burned: kcal,
-        local_date: todayStr(),
+        local_date: targetDate,
       });
       pulse();
+      // Logged into a past day → back to dashboard so the user sees the day
+      // card update immediately.
+      if (presetDate) navigation.goBack();
     } catch {}
     setLogging(false);
     setLogModal(null);
-  }, [logModal, effectiveDuration, weight, language, logExercise, pulse]);
+  }, [logModal, effectiveDuration, weight, language, logExercise, pulse, targetDate, presetDate, navigation]);
 
   // Category breakdown for hero strip
   const catBreakdown = todayExercise.reduce((acc, e) => {
@@ -150,7 +159,12 @@ export default function ExerciseLogScreen({ navigation }) {
           >
             <Ionicons name="chevron-back" size={26} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.heroTitle}>{t(language, 'exercise.title')}</Text>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.heroTitle}>{t(language, 'exercise.title')}</Text>
+            {presetDate && (
+              <Text style={styles.heroSubtitle}>{new Date(presetDate + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
+            )}
+          </View>
           <View style={{ width: 40 }} />
         </View>
 
@@ -391,12 +405,18 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40 },
   heroTitle: {
-    flex: 1,
     textAlign: 'center',
     fontSize: 17,
     fontWeight: '700',
     color: '#FFF',
     fontFamily: BrandFonts.heading || undefined,
+  },
+  heroSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.75)',
+    textTransform: 'capitalize',
   },
   burnBlock: { alignItems: 'center', marginTop: 8, marginBottom: 6 },
   burnNum: {
