@@ -51,6 +51,19 @@ function dateRange(period, custom) {
   return { from: d.toISOString().slice(0, 10), to };
 }
 
+// Every YYYY-MM-DD from `from` to `to` inclusive, newest first — used to
+// render empty-day cards so past days with no entries are still tappable.
+function enumerateDates(from, to) {
+  if (!ISO_DATE.test(from) || !ISO_DATE.test(to)) return [];
+  const start = new Date(from + 'T00:00:00Z');
+  const end   = new Date(to   + 'T00:00:00Z');
+  const days = [];
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days.reverse();
+}
+
 const isNovaQI = Brand.id === 'novaqi';
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -183,7 +196,7 @@ function MacroBar({ labelKey, consumed, goal, unit, color, language }) {
   );
 }
 
-function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language }) {
+function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, language, fromDate, toDate, onEditEntry, onAddEntry, onDeleteEntry }) {
   const nutritionByDate = rows.reduce((acc, r) => {
     const day = r.day || r.local_date;
     if (!acc[day]) acc[day] = { kcal: 0, protein: 0, fat: 0, carbs: 0, water: 0 };
@@ -201,9 +214,23 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
     return acc;
   }, {});
 
-  const allDates = [...new Set([
+  // Bucket every consumption_log entry into its local YYYY-MM-DD so we can
+  // render them under the right day and let the user tap through to edit.
+  const entriesByDate = entries.reduce((acc, e) => {
+    const day = String(e.consumed_at || '').slice(0, 10);
+    if (!day) return acc;
+    (acc[day] = acc[day] || []).push(e);
+    return acc;
+  }, {});
+
+  // Enumerate every date in the visible window so empty days are still
+  // tappable (user can add an entry). Falls back to the union of days that
+  // actually have data if the range wasn't provided.
+  const rangeDates = enumerateDates(fromDate, toDate);
+  const allDates = rangeDates.length > 0 ? rangeDates : [...new Set([
     ...Object.keys(nutritionByDate),
     ...Object.keys(exerciseByDate),
+    ...Object.keys(entriesByDate),
   ])].sort().reverse();
 
   const totalKcal = Object.values(nutritionByDate).reduce((sum, d) => sum + d.kcal, 0);
@@ -276,6 +303,9 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
       {allDates.map(date => {
         const nut = nutritionByDate[date];
         const exEntries = exerciseByDate[date] || [];
+        const dayEntries = (entriesByDate[date] || [])
+          .slice()
+          .sort((a, b) => new Date(a.consumed_at) - new Date(b.consumed_at));
         const dayBurned = exEntries.reduce((sum, e) => sum + Number(e.calories_burned || 0), 0);
         return (
           <View key={date} style={s.daySection}>
@@ -326,44 +356,44 @@ function ReportView({ loading, loaded, rows, entries, exerciseHistory, goals, la
                 })}
               </View>
             )}
+            {dayEntries.map(e => {
+              const macros = [];
+              if (Number(e.calories_kcal) > 0) macros.push(`${Math.round(e.calories_kcal)} kcal`);
+              if (Number(e.protein_g) > 0)    macros.push(`P ${Math.round(e.protein_g)}g`);
+              if (Number(e.carbs_g) > 0)      macros.push(`C ${Math.round(e.carbs_g)}g`);
+              if (Number(e.fat_g) > 0)        macros.push(`G ${Math.round(e.fat_g)}g`);
+              const water = Number(e.water_ml) || 0;
+              const title = e.product_name
+                || (water > 0 ? `${water} ml ${t(language, 'nutrition.water') || 'água'}` : '—');
+              return (
+                <TouchableOpacity key={e.id} style={s.reportEntryRow} onPress={() => onEditEntry && onEditEntry(e)} activeOpacity={0.7}>
+                  <Ionicons name={SOURCE_ICON[e.source] || 'ellipse-outline'} size={14} color="#94a3b8" style={s.reportEntryIcon} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.reportEntryTitle} numberOfLines={2}>{title}</Text>
+                    <Text style={s.reportEntryMeta}>
+                      {formatEntryTime(e.consumed_at, language)}
+                      {e.meal_type ? ` · ${e.meal_type}` : ''}
+                      {e.grams ? ` · ${Math.round(e.grams)}g` : ''}
+                    </Text>
+                    {macros.length > 0 && (
+                      <Text style={s.reportEntryMacros}>{macros.join('  ·  ')}</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity onPress={() => onDeleteEntry && onDeleteEntry(e.id, title)} style={s.deleteBtn} hitSlop={8}>
+                    <Ionicons name="close" size={16} color="#94a3b8" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              );
+            })}
+            {onAddEntry && (
+              <TouchableOpacity style={s.dayAddBtn} onPress={() => onAddEntry(date)} activeOpacity={0.7}>
+                <Text style={s.dayAddBtnText}>+ {t(language, 'nutrition.add_food')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         );
       })}
 
-      {entries.length > 0 && (
-        <View style={s.entriesCard}>
-          <Text style={s.cardTitle}>
-            {t(language, 'nutrition.entries_title') || 'Registros'}
-            {' '}<Text style={s.entriesCount}>({entries.length})</Text>
-          </Text>
-          {entries.map(e => {
-            const macros = [];
-            if (Number(e.calories_kcal) > 0) macros.push(`${Math.round(e.calories_kcal)} kcal`);
-            if (Number(e.protein_g) > 0)    macros.push(`P ${Math.round(e.protein_g)}g`);
-            if (Number(e.carbs_g) > 0)      macros.push(`C ${Math.round(e.carbs_g)}g`);
-            if (Number(e.fat_g) > 0)        macros.push(`G ${Math.round(e.fat_g)}g`);
-            const water = Number(e.water_ml) || 0;
-            const title = e.product_name
-              || (water > 0 ? `${water} ml ${t(language, 'nutrition.water') || 'água'}` : '—');
-            return (
-              <View key={e.id} style={s.reportEntryRow}>
-                <Ionicons name={SOURCE_ICON[e.source] || 'ellipse-outline'} size={14} color="#94a3b8" style={s.reportEntryIcon} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.reportEntryTitle} numberOfLines={2}>{title}</Text>
-                  <Text style={s.reportEntryMeta}>
-                    {formatEntryTime(e.consumed_at, language)}
-                    {e.meal_type ? ` · ${e.meal_type}` : ''}
-                    {e.grams ? ` · ${Math.round(e.grams)}g` : ''}
-                  </Text>
-                  {macros.length > 0 && (
-                    <Text style={s.reportEntryMacros}>{macros.join('  ·  ')}</Text>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      )}
     </>
   );
 }
@@ -417,6 +447,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   const [addModal, setAddModal] = useState(false);
   const [addEntry, setAddEntry] = useState(EMPTY_ENTRY);
   const [editingId, setEditingId] = useState(null);
+  const [addForDate, setAddForDate] = useState(null);
   const [perGram, setPerGram] = useState(null);
   const [savingEntry, setSavingEntry] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -477,6 +508,9 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     const doDelete = async () => {
       try {
         await deleteConsumption(id);
+        if (period !== 'today') {
+          loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
+        }
       } catch (e) {
         showError(e.message || t(language, 'nutrition.delete_failed'));
       }
@@ -491,9 +525,10 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     }
   }
 
-  function openAddModal() {
+  function openAddModal(dateStr = null) {
     setAddEntry(EMPTY_ENTRY);
     setEditingId(null);
+    setAddForDate(ISO_DATE.test(dateStr) ? dateStr : null);
     setPerGram(null);
     setSuggestions([]);
     setSearching(false);
@@ -502,6 +537,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   }
 
   function openEditModal(entry) {
+    setAddForDate(null);
     const g = parseFloat(entry.grams) || 0;
     setAddEntry({
       name:         String(entry.product_name || ''),
@@ -659,6 +695,11 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       fiber_g: addEntry.fiber ? parseFloat(addEntry.fiber) : null,
       salt_g: addEntry.salt ? parseFloat(addEntry.salt) : null,
     };
+    // Adding into a past day → pin the entry at noon UTC of that date so it
+    // lands unambiguously inside the day range on the server side.
+    if (!editingId && addForDate) {
+      payload.consumed_at = `${addForDate}T12:00:00Z`;
+    }
     try {
       if (editingId) {
         await updateConsumption(editingId, payload);
@@ -666,6 +707,9 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         await logConsumption(payload);
       }
       setAddModal(false);
+      if (period !== 'today') {
+        loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
+      }
     } catch (e) {
       showError(e.message || t(language, 'nutrition.save_failed'));
     }
@@ -752,6 +796,11 @@ export default function NutritionDashboardScreen({ navigation, route }) {
             exerciseHistory={reportExerciseHistory}
             goals={goals}
             language={language}
+            fromDate={dateRange(period, period === 'custom' ? { from: customFrom, to: customTo } : null).from}
+            toDate={dateRange(period, period === 'custom' ? { from: customFrom, to: customTo } : null).to}
+            onEditEntry={openEditModal}
+            onAddEntry={openAddModal}
+            onDeleteEntry={handleDelete}
           />
         ) : (
         <>
@@ -1323,6 +1372,8 @@ const s = StyleSheet.create({
   reportEntryTitle: { fontSize: 13, fontWeight: '600', color: Colors.navy },
   reportEntryMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   reportEntryMacros: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '600' },
+  dayAddBtn: { marginTop: 6, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.navy, borderStyle: 'dashed', alignItems: 'center' },
+  dayAddBtnText: { fontSize: 12, fontWeight: '700', color: Colors.navy },
 });
 
 const bar = StyleSheet.create({
