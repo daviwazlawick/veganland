@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
+import { runOnboardingNotifications } from './onboarding-notif.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
 import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
 import { resolvePhotoPath } from './photoStorage.js';
@@ -647,17 +648,30 @@ async function getScheduledNotifStats() {
   const db = await import('./db.js').then(m => m.getPool());
   if (!db) return [];
   const SLOTS = ['water_morning','water_afternoon','water_evening','food_morning','food_midday','food_evening'];
-  const { rows } = await db.query(`
-    SELECT s.slot,
-           count(DISTINCT l.id)::int  AS sent,
-           count(DISTINCT t.id)::int  AS taps
-    FROM   (SELECT unnest($1::text[]) AS slot) s
-    LEFT JOIN water_notification_log     l ON l.slot = s.slot
-    LEFT JOIN scheduled_notification_taps t ON t.slot = s.slot
-    GROUP BY s.slot
-    ORDER BY array_position($1::text[], s.slot)
-  `, [SLOTS]);
-  return rows;
+  const ONBOARDING_SLOTS = ['first_scan_reminder','body_profile_reminder'];
+  const [{ rows: waterFood }, { rows: onboarding }] = await Promise.all([
+    db.query(`
+      SELECT s.slot,
+             count(DISTINCT l.id)::int  AS sent,
+             count(DISTINCT t.id)::int  AS taps
+      FROM   (SELECT unnest($1::text[]) AS slot) s
+      LEFT JOIN water_notification_log     l ON l.slot = s.slot
+      LEFT JOIN scheduled_notification_taps t ON t.slot = s.slot
+      GROUP BY s.slot
+      ORDER BY array_position($1::text[], s.slot)
+    `, [SLOTS]),
+    db.query(`
+      SELECT s.slot,
+             count(DISTINCT l.id)::int  AS sent,
+             count(DISTINCT t.id)::int  AS taps
+      FROM   (SELECT unnest($1::text[]) AS slot) s
+      LEFT JOIN onboarding_notification_log l ON l.campaign = s.slot
+      LEFT JOIN scheduled_notification_taps t ON t.slot = s.slot
+      GROUP BY s.slot
+      ORDER BY array_position($1::text[], s.slot)
+    `, [ONBOARDING_SLOTS]),
+  ]);
+  return [...waterFood, ...onboarding];
 }
 
 function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStats = []) {
@@ -763,14 +777,14 @@ function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStat
   </div>
 
   <div class="card">
-    <h2>⏰ Notificações Automáticas (água + refeições)</h2>
+    <h2>⏰ Notificações Automáticas (água + refeições + onboarding)</h2>
     <table>
       <thead><tr>
         <th>Slot</th><th>Tipo</th><th style="text-align:center">Enviadas</th><th style="text-align:center">👆 Cliques</th><th style="text-align:center">Taxa</th>
       </tr></thead>
       <tbody>${scheduledStats.length > 0 ? scheduledStats.map(s => {
-        const label = { water_morning:'Água — Manhã', water_afternoon:'Água — Tarde', water_evening:'Água — Noite', food_morning:'Refeição — Manhã', food_midday:'Refeição — Meio-dia', food_evening:'Refeição — Noite' }[s.slot] || s.slot;
-        const type = s.slot.startsWith('water') ? '💧' : '🍽️';
+        const label = { water_morning:'Água — Manhã', water_afternoon:'Água — Tarde', water_evening:'Água — Noite', food_morning:'Refeição — Manhã', food_midday:'Refeição — Meio-dia', food_evening:'Refeição — Noite', first_scan_reminder:'Nunca escaneou', body_profile_reminder:'Sem perfil corporal' }[s.slot] || s.slot;
+        const type = s.slot.startsWith('water') ? '💧' : s.slot.startsWith('food') ? '🍽️' : s.slot === 'first_scan_reminder' ? '🔍' : '📊';
         const rate = s.sent > 0 ? Math.round((s.taps / s.sent) * 100) : 0;
         return `<tr>
           <td><strong>${label}</strong></td>
@@ -2649,3 +2663,8 @@ server.listen(PORT, () => {
 const NOTIF_INTERVAL_MS = 30 * 60 * 1000;
 setTimeout(() => runNotifications().catch(e => console.warn('[notif]', e.message)), 2 * 60 * 1000);
 setInterval(() => runNotifications().catch(e => console.warn('[notif]', e.message)), NOTIF_INTERVAL_MS);
+
+// Onboarding reminders: first scan (11h) + body profile (16h) — local time per user.
+// Daily, once per user per campaign; stops on its own once the user does the thing.
+setTimeout(() => runOnboardingNotifications().catch(e => console.warn('[onboarding-notif]', e.message)), 3 * 60 * 1000);
+setInterval(() => runOnboardingNotifications().catch(e => console.warn('[onboarding-notif]', e.message)), NOTIF_INTERVAL_MS);

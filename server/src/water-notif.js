@@ -179,7 +179,7 @@ function foodMessage(locale, slotName, caloriesToday, caloriesGoal) {
 
 // ── Push sender ───────────────────────────────────────────────────────────────
 
-async function sendPushMessages(messages) {
+export async function sendPushMessages(messages) {
   const valid = messages.filter(m => m?.to?.startsWith('ExponentPushToken'));
   if (valid.length === 0) return;
   for (let i = 0; i < valid.length; i += 100) {
