@@ -1,27 +1,29 @@
 import './env.js';
 import { getPool } from './db.js';
 import { sendPushMessages } from './water-notif.js';
+import { pickChallengeVariation } from './challengeContent.js';
 
 // Daily reminders for users stuck before the two "aha" moments: their first
 // scan, and setting up a body profile. Each fires once per local day per
 // user and stops on its own once the user does the thing (the NOT EXISTS
-// query below simply no longer matches them).
+// query below simply no longer matches them) — except the admin, who is
+// always included so he can see exactly what goes out and how it arrives.
+const ADMIN_USER_ID = 2; // daviwazlawick@gmail.com
 const WINDOW_MINUTES = 20;
-const CAMPAIGNS = [
-  { name: 'first_scan_reminder',   minutes: 11 * 60 },
-  { name: 'body_profile_reminder', minutes: 16 * 60 },
-];
+
+// The scan-challenge fires at a different local hour each day (rotates
+// through this list by day-of-year) so it doesn't feel like the exact same
+// robotic ping every day.
+const CHALLENGE_TIMES_MIN = [9 * 60 + 30, 11 * 60, 14 * 60, 17 * 60 + 30, 20 * 60];
+function todaysChallengeMinutes() {
+  const dayOfYear = Math.floor(Date.now() / 86400000);
+  return CHALLENGE_TIMES_MIN[dayOfYear % CHALLENGE_TIMES_MIN.length];
+}
 
 function firstScanMessage(locale) {
-  const T = {
-    pt: { title: '🔍 O scan é grátis!', body: 'Ainda não experimentaste o scan. É 100% grátis — aponta a câmara a um produto e descobre em segundos se é para ti.' },
-    en: { title: '🔍 Scanning is free!', body: "You haven't tried a scan yet. It's 100% free — point your camera at any product and find out in seconds if it fits you." },
-    de: { title: '🔍 Scannen ist kostenlos!', body: 'Du hast noch nicht gescannt. Komplett kostenlos — richte die Kamera auf ein Produkt und erfahre in Sekunden, ob es zu dir passt.' },
-    fr: { title: '🔍 Le scan est gratuit !', body: "Vous n'avez pas encore essayé le scan. 100% gratuit — pointez la caméra vers un produit et découvrez en quelques secondes s'il vous convient." },
-    it: { title: '🔍 La scansione è gratis!', body: 'Non hai ancora provato la scansione. È gratis al 100% — inquadra un prodotto con la fotocamera e scopri in pochi secondi se fa per te.' },
-    es: { title: '🔍 ¡Escanear es gratis!', body: 'Aún no has probado el escaneo. 100% gratis — apunta la cámara a cualquier producto y descubre en segundos si es apto para ti.' },
-  };
-  return T[locale] || T.en;
+  const variation = pickChallengeVariation();
+  const lang = variation[locale] ? locale : 'en';
+  return variation[lang];
 }
 
 function bodyProfileMessage(locale) {
