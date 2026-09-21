@@ -4,8 +4,10 @@ import { analyzeProduct } from './analyze.js';
 import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromImage } from './anthropic.js';
 import { runNotifications } from './water-notif.js';
 import { runOnboardingNotifications } from './onboarding-notif.js';
+import { runOnboardingEmails } from './onboarding-email.js';
+import { verifyUnsubscribe } from './unsubscribe.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, setMarketingEmailOptOut, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
 import { resolvePhotoPath } from './photoStorage.js';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink, stat, readFile } from 'node:fs/promises';
@@ -1314,6 +1316,30 @@ const server = http.createServer(async (req, res) => {
       res.end(user
         ? htmlPage('Email confirmado! 🌱', '<p>Seu email foi confirmado com sucesso. Pode fechar esta página.</p>', '#7CB518')
         : htmlPage('Link inválido', '<p>Este link é inválido ou expirou. Solicite um novo email de confirmação no app.</p>', '#FF4B4B')
+      );
+      return;
+    }
+
+    // GET/POST /email/unsubscribe?u=<userId>&c=<campaign>&sig=<hmac> — one-click
+    // unsubscribe (RFC 8058). No auth: the HMAC signature is the credential.
+    if ((req.method === 'GET' || req.method === 'POST') && req.url.startsWith('/email/unsubscribe')) {
+      const params = new URL(req.url, 'http://x').searchParams;
+      const userId = Number(params.get('u'));
+      const campaign = params.get('c') || '';
+      const sig = params.get('sig') || '';
+      const valid = userId && verifyUnsubscribe(userId, campaign, sig);
+      if (valid) await setMarketingEmailOptOut(userId).catch(() => {});
+
+      if (req.method === 'POST') {
+        // One-click unsubscribe per RFC 8058 — plain 200, no body needed.
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('OK');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(valid
+        ? htmlPage('Descadastrado', '<p>Não vais mais receber estes lembretes por email. Podes continuar a usar a app normalmente.</p>', '#7CB518')
+        : htmlPage('Link inválido', '<p>Este link é inválido.</p>', '#FF4B4B')
       );
       return;
     }
@@ -2668,3 +2694,9 @@ setInterval(() => runNotifications().catch(e => console.warn('[notif]', e.messag
 // Daily, once per user per campaign; stops on its own once the user does the thing.
 setTimeout(() => runOnboardingNotifications().catch(e => console.warn('[onboarding-notif]', e.message)), 3 * 60 * 1000);
 setInterval(() => runOnboardingNotifications().catch(e => console.warn('[onboarding-notif]', e.message)), NOTIF_INTERVAL_MS);
+
+// Onboarding email nudges: decaying cadence (day 1/3/7/14, then stops), hard
+// capped and throttled per run — see onboarding-email.js for why.
+const ONBOARDING_EMAIL_INTERVAL_MS = 4 * 60 * 60 * 1000;
+setTimeout(() => runOnboardingEmails().catch(e => console.warn('[onboarding-email]', e.message)), 5 * 60 * 1000);
+setInterval(() => runOnboardingEmails().catch(e => console.warn('[onboarding-email]', e.message)), ONBOARDING_EMAIL_INTERVAL_MS);

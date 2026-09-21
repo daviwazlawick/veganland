@@ -761,6 +761,13 @@ export async function setUserDisclaimerAccepted(userId, version) {
   );
 }
 
+export async function setMarketingEmailOptOut(userId) {
+  const db = await getPool();
+  if (!db) return false;
+  await db.query(`update users set marketing_email_opt_out = true where id = $1`, [userId]);
+  return true;
+}
+
 // Fill utm_* / platform_os for existing users on first fresh login after
 // the migration ships. Only sets a field if it's currently NULL so we
 // don't overwrite the original signup attribution on subsequent logins.
