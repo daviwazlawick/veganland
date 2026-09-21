@@ -43,14 +43,18 @@ export async function runOnboardingNotifications() {
   if (!db) return;
 
   const now = new Date();
+  const CAMPAIGNS = [
+    { name: 'first_scan_reminder',   minutes: todaysChallengeMinutes() },
+    { name: 'body_profile_reminder', minutes: 16 * 60 },
+  ];
 
   const [{ rows: neverScanned }, { rows: noBodyProfile }] = await Promise.all([
     db.query(`
       SELECT pt.user_id, pt.token, pt.locale, pt.timezone
       FROM push_tokens pt
       WHERE pt.user_id IS NOT NULL AND pt.timezone IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM scan_events se WHERE se.user_id = pt.user_id)
-    `).catch(() => ({ rows: [] })),
+        AND (pt.user_id = $1 OR NOT EXISTS (SELECT 1 FROM scan_events se WHERE se.user_id = pt.user_id))
+    `, [ADMIN_USER_ID]).catch(() => ({ rows: [] })),
     db.query(`
       SELECT pt.user_id, pt.token, pt.locale, pt.timezone
       FROM push_tokens pt
