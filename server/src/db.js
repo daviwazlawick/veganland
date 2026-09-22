@@ -761,6 +761,16 @@ export async function setUserDisclaimerAccepted(userId, version) {
   );
 }
 
+export async function logEmailEvent(userId, campaign, stage, eventType) {
+  const db = await getPool();
+  if (!db) return;
+  await db.query(
+    `INSERT INTO onboarding_email_events (user_id, campaign, stage, event_type)
+     VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+    [userId, campaign, stage, eventType]
+  ).catch(() => {});
+}
+
 export async function setMarketingEmailOptOut(userId) {
   const db = await getPool();
   if (!db) return false;

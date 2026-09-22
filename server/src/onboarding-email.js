@@ -2,6 +2,7 @@ import './env.js';
 import nodemailer from 'nodemailer';
 import { getPool } from './db.js';
 import { unsubscribeUrl } from './unsubscribe.js';
+import { trackingUrls } from './emailTracking.js';
 
 // Decaying-cadence email nudges: day 1, 3, 7, 14 since the user became
 // eligible (or since the previous nudge), then the sequence stops for good.
@@ -92,14 +93,14 @@ const CONTENT = {
 };
 
 const FALLBACK = 'en';
-const CTA_URL = { first_scan: 'https://novaqi.app/get', body_profile: 'https://novaqi.app/get' };
+export const CTA_URL = { first_scan: 'https://novaqi.app/get', body_profile: 'https://novaqi.app/get' };
 
 function pickLang(obj, locale) {
   const lang = (locale || '').slice(0, 2);
   return obj[lang] ? lang : FALLBACK;
 }
 
-function buildEmail({ campaign, stage, locale, unsubUrl }) {
+function buildEmail({ campaign, stage, locale, unsubUrl, openUrl, clickUrl }) {
   const lang = pickLang(CONTENT[campaign][stage], locale);
   const c = CONTENT[campaign][stage][lang];
   const cta = CTA[campaign][lang] || CTA[campaign][FALLBACK];
@@ -108,13 +109,14 @@ function buildEmail({ campaign, stage, locale, unsubUrl }) {
       <h2 style="color:#0E1B14;margin-bottom:16px;">🔍 NovaQI</h2>
       <p style="font-size:15px;line-height:1.55;">${c.body}</p>
       <p style="text-align:center;margin:28px 0;">
-        <a href="${CTA_URL[campaign]}" style="display:inline-block;background:#16A75A;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">${cta}</a>
+        <a href="${clickUrl}" style="display:inline-block;background:#16A75A;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;">${cta}</a>
       </p>
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
       <p style="color:#888;font-size:11px;margin:0;"><a href="${unsubUrl}" style="color:#888;">Unsubscribe</a></p>
+      <img src="${openUrl}" width="1" height="1" alt="" style="display:block;border:0;" />
     </div>
   `;
-  const text = `${c.body}\n\n${CTA_URL[campaign]}\n\nUnsubscribe: ${unsubUrl}`;
+  const text = `${c.body}\n\n${clickUrl}\n\nUnsubscribe: ${unsubUrl}`;
   return { subject: c.subject, html, text };
 }
 
@@ -199,7 +201,8 @@ export async function runOnboardingEmails() {
   let ok = 0, err = 0;
   for (const u of batch) {
     const unsubUrl = unsubscribeUrl('novaqi.app', u.user_id, u.campaign);
-    const { subject, html, text } = buildEmail({ campaign: u.campaign, stage: u.stage, locale: u.locale, unsubUrl });
+    const { openUrl, clickUrl } = trackingUrls('novaqi.app', u.user_id, u.campaign, u.stage);
+    const { subject, html, text } = buildEmail({ campaign: u.campaign, stage: u.stage, locale: u.locale, unsubUrl, openUrl, clickUrl });
     try {
       await transport.sendMail({
         from, to: u.email, subject, html, text,

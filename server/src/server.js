@@ -6,8 +6,10 @@ import { runNotifications } from './water-notif.js';
 import { runOnboardingNotifications } from './onboarding-notif.js';
 import { runOnboardingEmails } from './onboarding-email.js';
 import { verifyUnsubscribe } from './unsubscribe.js';
+import { verifyEmailTracking } from './emailTracking.js';
+import { CTA_URL } from './onboarding-email.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, setMarketingEmailOptOut, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, setMarketingEmailOptOut, logEmailEvent, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
 import { resolvePhotoPath } from './photoStorage.js';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink, stat, readFile } from 'node:fs/promises';
@@ -1317,6 +1319,39 @@ const server = http.createServer(async (req, res) => {
         ? htmlPage('Email confirmado! 🌱', '<p>Seu email foi confirmado com sucesso. Pode fechar esta página.</p>', '#7CB518')
         : htmlPage('Link inválido', '<p>Este link é inválido ou expirou. Solicite um novo email de confirmação no app.</p>', '#FF4B4B')
       );
+      return;
+    }
+
+    // GET /email/open?u=&c=&s=&sig= — 1x1 tracking pixel for onboarding emails
+    if (req.method === 'GET' && req.url.startsWith('/email/open')) {
+      const params = new URL(req.url, 'http://x').searchParams;
+      const userId = Number(params.get('u'));
+      const campaign = params.get('c') || '';
+      const stage = Number(params.get('s'));
+      const sig = params.get('sig') || '';
+      if (userId && stage && verifyEmailTracking(userId, campaign, stage, 'open', sig)) {
+        logEmailEvent(userId, campaign, stage, 'open').catch(() => {});
+      }
+      const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', 'base64');
+      res.writeHead(200, { 'Content-Type': 'image/gif', 'Content-Length': pixel.length, 'Cache-Control': 'no-store' });
+      res.end(pixel);
+      return;
+    }
+
+    // GET /email/click?u=&c=&s=&sig= — logs the click, then redirects to the
+    // real destination. Redirects unconditionally (a bad/missing signature
+    // just skips logging) so a stale or forwarded link never strands anyone.
+    if (req.method === 'GET' && req.url.startsWith('/email/click')) {
+      const params = new URL(req.url, 'http://x').searchParams;
+      const userId = Number(params.get('u'));
+      const campaign = params.get('c') || '';
+      const stage = Number(params.get('s'));
+      const sig = params.get('sig') || '';
+      if (userId && stage && verifyEmailTracking(userId, campaign, stage, 'click', sig)) {
+        logEmailEvent(userId, campaign, stage, 'click').catch(() => {});
+      }
+      res.writeHead(302, { Location: CTA_URL[campaign] || 'https://novaqi.app/get' });
+      res.end();
       return;
     }
 
