@@ -2,3 +2,4 @@
 export async function registerForPushAsync() { return null; }
 export function setNotificationHandler() {}
 export function addNotificationResponseListener() { return { remove: () => {} }; }
+export async function getLastNotificationResponseAsync() { return null; }

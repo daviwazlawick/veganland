@@ -53,6 +53,19 @@ export function addNotificationResponseListener(handler) {
   return Notifications.addNotificationResponseReceivedListener(handler);
 }
 
+// The live listener above only fires for taps that happen while the JS
+// runtime is already up. A tap that cold-launches the app (the most common
+// case for a re-engagement push — the app was fully closed) never reaches
+// it; this separately returns "the response that most recently caused the
+// app to open", which the caller checks once on mount.
+export async function getLastNotificationResponseAsync() {
+  try {
+    return await Notifications.getLastNotificationResponseAsync();
+  } catch {
+    return null;
+  }
+}
+
 export function setNotificationHandler() {
   // Handler already configured at module load above; this export exists so
   // both web and native share the same surface.
