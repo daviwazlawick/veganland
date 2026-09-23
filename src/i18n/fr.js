@@ -86,6 +86,7 @@ export default {
     none: 'Aucune',
     select_diet: 'Veuillez sélectionner un régime',
     save_error: "Impossible d'enregistrer votre profil. Vérifiez votre connexion et réessayez.",
+    photo_too_large: "Cette photo est trop grande. Choisissez-en une autre ou réduisez la résolution.",
     diet_step: 'Régime',
     allergies_step: 'Sensibilités',
     how_do_you_eat: 'Comment mangez-vous ?',

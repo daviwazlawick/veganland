@@ -315,6 +315,16 @@ export default function EditPersonalScreen({ navigation }) {
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
       if (asset.base64) {
+        // A high-res Android camera photo can still produce a multi-MB
+        // base64 string even at quality:0.6 (no resize step available
+        // without expo-image-manipulator). Past this size the request gets
+        // rejected by nginx before it ever reaches the API, and the user
+        // just sees a generic "check your connection" error that has
+        // nothing to do with their connection.
+        if (asset.base64.length > 4_000_000) {
+          Alert.alert('', t(language, 'profile_setup.photo_too_large') || 'This photo is too large. Please pick a smaller one.');
+          return;
+        }
         setPhotoUri(`data:image/jpeg;base64,${asset.base64}`);
       } else {
         setPhotoUri(asset.uri);
@@ -367,7 +377,8 @@ export default function EditPersonalScreen({ navigation }) {
       });
       if (hasGoal) await saveGoals(goalPayload);
       navigation.goBack();
-    } catch {
+    } catch (error) {
+      console.warn('[EditPersonal] save failed:', error?.message);
       Alert.alert('', t(language, 'profile_setup.save_error'));
     }
   }

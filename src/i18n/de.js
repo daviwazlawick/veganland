@@ -86,6 +86,7 @@ export default {
     none: 'Keine',
     select_diet: 'Bitte wähle eine Ernährung',
     save_error: "Profil konnte nicht gespeichert werden. Bitte Verbindung prüfen und erneut versuchen.",
+    photo_too_large: "Dieses Foto ist zu groß. Bitte wähle ein kleineres oder mit niedrigerer Auflösung.",
     diet_step: 'Ernährung',
     allergies_step: 'Empfindlichkeiten',
     how_do_you_eat: 'Wie ernährst du dich?',
