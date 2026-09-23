@@ -9,7 +9,7 @@ import { verifyUnsubscribe } from './unsubscribe.js';
 import { verifyEmailTracking } from './emailTracking.js';
 import { CTA_URL } from './onboarding-email.js';
 import { searchOffProducts, buildSlimProductInfo, fetchOffEnrichment } from './openFoodFacts.js';
-import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, setMarketingEmailOptOut, logEmailEvent, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts } from './db.js';
+import { pool, SCAN_LIMITS, createUser, findUserByEmail, getUserById, updateUserProfile, getUserHistory, getScanById, checkAndIncrementScanCounter, getScanUsage, setUserType, grantReferralSignupBonusOnPurchase, deleteUserAccount, getAdminStats, getAdminUserDetail, storeEmailConfirmationToken, confirmEmailByToken, createPasswordResetToken, findValidPasswordResetToken, markPasswordResetTokenUsed, updateUserPassword, setUserDisclaimerAccepted, getReferralStats, redeemReferralCode, qualifyReferralIfPending, upsertPushToken, deletePushToken, listPushTokens, insertFunnelEvent, logPushBroadcast, listPushBroadcasts, findUserByOAuthSub, linkOAuthToUser, createOAuthUser, backfillAttributionIfMissing, insertScanFeedback, getScanForFeedback, logPushClick, updatePushBroadcastCounts, insertLinkClick, insertAppSurvey, setMarketingEmailOptOut, logEmailEvent, getBodyProfile, saveBodyProfile, saveBodyMeasurements, getBodyMeasurementHistory, getNutritionGoals, saveNutritionGoals, suggestNutritionGoals, calcBMR, addConsumptionEntry, deleteConsumptionEntry, getDayLog, getConsumptionRange, getNutritionReport, logWeight, getWeightHistory, logBodyMeasurements, getBodyMeasurementsHistory, searchFoodProducts, getRecentPlateLogs, getUserStreak, updateConsumptionEntry, listContributedProducts, saveScanEvent } from './db.js';
 import { resolvePhotoPath } from './photoStorage.js';
 import { spawn } from 'node:child_process';
 import { writeFile, unlink, stat, readFile } from 'node:fs/promises';
@@ -286,6 +286,7 @@ function htmlAdminPage(stats, token, dateRange = {}) {
           <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap">${esc(monthLabel)}</span>
         </div>
       </td>
+      <td style="text-align:center;color:#2563EB;font-weight:700" title="${u.nutrition_logs_this_month} este mês">${u.nutrition_logs}</td>
       <td style="color:#888;font-size:13px">${lastScan}</td>
       <td style="color:#888;font-size:13px" title="${esc(joinedFull)}">${joined}</td>
     </tr>`;
@@ -433,6 +434,15 @@ function htmlAdminPage(stats, token, dateRange = {}) {
       </div>
     </div>
 
+    <!-- Nutrition activity row — separate from scans: manual food/water/
+         exercise/weight logs + plate photos, none of which show up in
+         "Scans" above. Previously invisible in this dashboard entirely. -->
+    <div class="row cols-3">
+      <div class="card blue"><div class="num">${stats.total_nutrition_logs}</div><div class="lbl">Registos de nutrição (total)</div></div>
+      <div class="card blue"><div class="num">${stats.nutrition_logs_this_month}</div><div class="lbl">Registos de nutrição este mês</div></div>
+      <div class="card"><div class="sub" style="font-size:11px;line-height:1.5">Refeições, água, exercício e peso registados manualmente ou por foto de prato — <code>consumption_log</code>. Não conta como "scan".</div></div>
+    </div>
+
     <!-- Users table -->
     <div class="section">
       <h2>
@@ -460,9 +470,9 @@ function htmlAdminPage(stats, token, dateRange = {}) {
       <div style="overflow-x:auto">
       <table>
         <thead><tr>
-          <th>Email</th><th>Dieta</th><th>OS</th><th>Origem</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Último scan</th><th>Cadastro</th>
+          <th>Email</th><th>Dieta</th><th>OS</th><th>Origem</th><th>Plano</th><th>Total scans</th><th>Este mês</th><th>Nutrição</th><th>Último scan</th><th>Cadastro</th>
         </tr></thead>
-        <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">Nenhum utilizador no período</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">Nenhum utilizador no período</td></tr>'}</tbody>
       </table>
       </div>
     </div>
@@ -473,12 +483,16 @@ function htmlAdminPage(stats, token, dateRange = {}) {
 }
 
 function htmlAdminUserPage(data, token) {
-  const { user, scans, scans_this_month } = data;
+  const { user, scans, scans_this_month, nutrition_logs, nutrition_logs_this_month } = data;
   const dietLabel = { vegan: '🌱 Vegan', vegetarian: '🥕 Vegetariano', pescatarian: '🐟 Pescatariano', gluten_free: '🌾 Sem Glúten', halal: '☪️ Halal', omnivore: '🍽️ Onívoro' };
   const statusCfg = {
     SAFE:     { label: 'Seguro',   color: '#2E6B2E', bg: '#EDF7E7' },
     CAUTION:  { label: 'Atenção',  color: '#9A6121', bg: '#FFF1E2' },
     NOT_SAFE: { label: 'Evitar',   color: '#8A3D3D', bg: '#FBEAEA' },
+    PLATE_ANALYZED:          { label: '🍽️ Prato analisado',    color: '#2E5B8A', bg: '#EAF1FB' },
+    NO_ITEMS_FOUND:          { label: 'Prato sem itens',        color: '#888',    bg: '#f5f5f5' },
+    NEEDS_PHOTO:             { label: '📷 Pediu foto',          color: '#8A6D3D', bg: '#FBF3E8' },
+    NEEDS_INGREDIENTS_PHOTO: { label: '📋 Pediu ingredientes',  color: '#8A6D3D', bg: '#FBF3E8' },
   };
   const joined = user.created_at ? new Date(user.created_at).toLocaleString('pt-BR') : '—';
   const diet = dietLabel[user.diet_id] || (user.diet_id || '—');
@@ -556,6 +570,10 @@ function htmlAdminUserPage(data, token) {
       </div>
       <div class="card"><div class="num">${scans.filter(s => s.status === 'SAFE').length}</div><div class="lbl">✅ Seguros</div></div>
       <div class="card"><div class="num">${scans.filter(s => s.status === 'NOT_SAFE').length}</div><div class="lbl">🚫 Evitar</div></div>
+      <div class="card" style="border-left:3px solid #2563EB">
+        <div class="num" style="color:#2563EB">${nutrition_logs}</div>
+        <div class="lbl">Registos de nutrição (${nutrition_logs_this_month} este mês)</div>
+      </div>
     </div>
     <div class="profile">
       <h2>Perfil</h2>
@@ -2336,7 +2354,23 @@ const server = http.createServer(async (req, res) => {
         if (u?.diet_id) profile = { dietId: u.diet_id, allergyIds: u.allergy_ids || [] };
       }
       const result = await analyzePlate(image, language || 'en', profile);
-      sendJson(res, 200, { ...result, usage }, origin);
+      // Plate analysis never wrote a scan_event — every plate scan, the
+      // app's flagship feature, was invisible to admin usage stats. Log it
+      // here regardless of outcome (empty items still means the AI ran).
+      const plateTitle = Array.isArray(result.items) && result.items.length
+        ? result.items.map(i => i.name).filter(Boolean).slice(0, 3).join(', ')
+        : null;
+      const scanId = await saveScanEvent({
+        productId: null,
+        userId: claims.userId,
+        profile,
+        language: language || 'en',
+        status: plateTitle ? 'PLATE_ANALYZED' : 'NO_ITEMS_FOUND',
+        source: 'plate_photo',
+        title: plateTitle,
+        result,
+      });
+      sendJson(res, 200, { ...result, usage, scan_id: scanId }, origin);
       return;
     }
 

@@ -1307,6 +1307,7 @@ export async function getAdminStats({ from = null, to = null } = {}) {
     usersRes, totalScansRes, monthScansRes, recentScansRes, userStatsRes, costRes,
     newTodayRes, newWeekRes, newMonthRes, planBreakdownRes, signupTrendRes,
     activeWeekRes, confirmedRes, dietStatsRes, utmOriginsRes,
+    totalNutritionRes, monthNutritionRes,
   ] = await Promise.all([
     db.query(`SELECT COUNT(*) AS total FROM users`),
     db.query(`SELECT COUNT(*) AS total FROM scan_events`),
@@ -1320,7 +1321,12 @@ export async function getAdminStats({ from = null, to = null } = {}) {
         u.utm_source, u.utm_medium, u.utm_campaign, u.platform_os,
         COUNT(se.id)::int AS total_scans,
         MAX(se.created_at) AS last_scan,
-        COUNT(se.id) FILTER (WHERE date_trunc('month', se.created_at) = date_trunc('month', now()))::int AS scans_this_month
+        COUNT(se.id) FILTER (WHERE date_trunc('month', se.created_at) = date_trunc('month', now()))::int AS scans_this_month,
+        -- Scalar subqueries (not a JOIN) so they don't fan out against the
+        -- scan_events LEFT JOIN above and double-count total_scans.
+        (SELECT COUNT(*) FROM consumption_log cl WHERE cl.user_id = u.id)::int AS nutrition_logs,
+        (SELECT COUNT(*) FROM consumption_log cl WHERE cl.user_id = u.id
+          AND date_trunc('month', cl.consumed_at) = date_trunc('month', now()))::int AS nutrition_logs_this_month
       FROM users u
       LEFT JOIN scan_events se ON se.user_id = u.id
       ${dateFilter}
@@ -1372,6 +1378,8 @@ export async function getAdminStats({ from = null, to = null } = {}) {
       ORDER BY clicks DESC
       LIMIT 150
     `),
+    db.query(`SELECT COUNT(*) AS total FROM consumption_log`),
+    db.query(`SELECT COUNT(*) AS total FROM consumption_log WHERE date_trunc('month', consumed_at) = date_trunc('month', now())`),
   ]);
 
   const planBreakdown = { none: 0, free: 0, starter: 0, premium: 0, admin: 0 };
@@ -1397,6 +1405,8 @@ export async function getAdminStats({ from = null, to = null } = {}) {
     no_diet_legacy: Number(dietStatsRes.rows[0].no_diet_legacy),
     no_diet_recent: Number(dietStatsRes.rows[0].no_diet_recent),
     utm_origins: utmOriginsRes.rows,
+    total_nutrition_logs: Number(totalNutritionRes.rows[0].total),
+    nutrition_logs_this_month: Number(monthNutritionRes.rows[0].total),
     users: userStatsRes.rows,
   };
 }
@@ -1405,9 +1415,7 @@ export async function getAdminUserDetail(userId) {
   const db = await getPool();
   if (!db) return null;
 
-  const month = new Date().toISOString().slice(0, 7);
-
-  const [userRes, scansRes, monthRes] = await Promise.all([
+  const [userRes, scansRes, monthRes, nutritionRes, nutritionMonthRes] = await Promise.all([
     db.query(
       `SELECT id, email, diet_id, allergy_ids, user_type, onboarding_scan_used, created_at, updated_at FROM users WHERE id = $1`,
       [userId]
@@ -1423,9 +1431,19 @@ export async function getAdminUserDetail(userId) {
         LIMIT 200`,
       [userId]
     ),
+    // scan_events, not scan_counters — scan_counters is never incremented for
+    // unlimited (admin) plans and anonymous scans, so it always reads 0 for
+    // those (same undercount as getAdminStats fixes at the dashboard level).
     db.query(
-      `SELECT COALESCE(count, 0) AS count FROM scan_counters WHERE user_id = $1 AND month = $2`,
-      [userId, month]
+      `SELECT COUNT(*) AS count FROM scan_events WHERE user_id = $1
+        AND date_trunc('month', created_at) = date_trunc('month', now())`,
+      [userId]
+    ),
+    db.query(`SELECT COUNT(*) AS count FROM consumption_log WHERE user_id = $1`, [userId]),
+    db.query(
+      `SELECT COUNT(*) AS count FROM consumption_log WHERE user_id = $1
+        AND date_trunc('month', consumed_at) = date_trunc('month', now())`,
+      [userId]
     ),
   ]);
 
@@ -1435,6 +1453,8 @@ export async function getAdminUserDetail(userId) {
     user: userRes.rows[0],
     scans: scansRes.rows,
     scans_this_month: Number(monthRes.rows[0]?.count || 0),
+    nutrition_logs: Number(nutritionRes.rows[0]?.count || 0),
+    nutrition_logs_this_month: Number(nutritionMonthRes.rows[0]?.count || 0),
   };
 }
 

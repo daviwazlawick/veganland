@@ -112,6 +112,21 @@ async function buildNeedsIngredientsResponse(imageInspection, lang, opts = {}) {
     || stub?.product_name
     || null;
 
+  // This is a real scan attempt (identified the product, ran the AI
+  // inspection, persisted a stub) — just incomplete. Log it so admin
+  // usage stats aren't blind to every "not in our DB yet" scan, which
+  // is common and otherwise invisible until (if ever) the user comes
+  // back with the ingredients photo.
+  const scanId = await saveScanEvent({
+    productId: stub?.id || null,
+    userId: contributorUserId,
+    profile: null,
+    language: lang,
+    status: 'NEEDS_INGREDIENTS_PHOTO',
+    source: 'label_photo',
+    title: productName || 'Ingredients needed',
+  });
+
   return {
     status: 'NEEDS_INGREDIENTS_PHOTO',
     product_name: productName,
@@ -124,6 +139,7 @@ async function buildNeedsIngredientsResponse(imageInspection, lang, opts = {}) {
     title: productName || 'Ingredients needed',
     // Reuse missing-ingredients copy for the explanation — same intent.
     explanation: buildMissingIngredientsResult(imageInspection, lang).explanation,
+    scan_id: scanId,
   };
 }
 
@@ -363,6 +379,15 @@ export async function analyzeProduct({
       // clearer explanation — never invent ingredients.
       const stub = clientBarcode ? await findProduct({ barcode: clientBarcode }) : null;
       const displayName = stub?.product_name || hintProductName || null;
+      const scanId = await saveScanEvent({
+        productId: stub?.id || null,
+        userId,
+        profile: null,
+        language: lang,
+        status: 'NEEDS_INGREDIENTS_PHOTO',
+        source: 'ingredients_photo_unreadable',
+        title: displayName || 'Ingredients needed',
+      });
       return {
         status: 'NEEDS_INGREDIENTS_PHOTO',
         product_name: displayName,
@@ -373,6 +398,7 @@ export async function analyzeProduct({
         title: displayName || 'Ingredients needed',
         explanation: buildMissingIngredientsResult(stub || { product_name: displayName, brand: hintBrand }, lang).explanation,
         ingredients_unreadable: true,
+        scan_id: scanId,
       };
     }
     if (clientBarcode) {
@@ -509,7 +535,18 @@ export async function analyzeProduct({
       // Legacy status kept for pre-v1.0.19 clients (they still handle NEEDS_PHOTO
       // by switching to the photo step). New clients treat NEEDS_LABEL_PHOTO
       // and NEEDS_PHOTO as equivalent — the semantic is the same.
-      return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null };
+      // Barcode matched nothing locally or on OFF — still a real scan attempt
+      // on a genuinely unregistered product, worth counting.
+      const scanId = await saveScanEvent({
+        productId: null,
+        userId,
+        profile: null,
+        language: lang,
+        status: 'NEEDS_PHOTO',
+        source: 'barcode',
+        title: clientBarcode || null,
+      });
+      return { status: 'NEEDS_PHOTO', barcode: clientBarcode, productInfo: null, scan_id: scanId };
     }
   }
 
