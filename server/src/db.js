@@ -948,6 +948,21 @@ async function tryConsumeBonusScan(client, userId) {
   return res.rows[0] || null;
 }
 
+// Unlimited (admin) plans skip scan_counters entirely — nothing to enforce.
+// But the app's own usage badge (GET /user/me -> getScanUsage) and the count
+// echoed back after each scan both need *some* real number, or the badge
+// resets to 0 every time the app reopens and re-fetches. scan_events is the
+// real source of truth for "how many scans this month", same as the admin
+// dashboard uses.
+async function countScanEventsThisMonth(db, userId) {
+  const res = await db.query(
+    `SELECT COUNT(*)::int AS count FROM scan_events WHERE user_id = $1
+      AND date_trunc('month', created_at) = date_trunc('month', now())`,
+    [userId]
+  );
+  return res.rows[0]?.count || 0;
+}
+
 export async function checkAndIncrementScanCounter(userId) {
   const db = await getPool();
   if (!db) return { allowed: true, count: 0, limit: SCAN_LIMITS.starter };
@@ -975,7 +990,13 @@ export async function checkAndIncrementScanCounter(userId) {
   }
   const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
 
-  if (limit === null) return { allowed: true, count: 0, limit: null, resets_at: null };
+  if (limit === null) {
+    // +1 to include the scan currently in flight — its scan_event hasn't
+    // been written yet at this point in the request, mirroring the
+    // `count + 1` returned below for capped plans after their increment.
+    const soFar = await countScanEventsThisMonth(db, userId);
+    return { allowed: true, count: soFar + 1, limit: null, resets_at: null };
+  }
 
   const client = await db.connect();
   try {
@@ -1492,7 +1513,12 @@ export async function getScanUsage(userId) {
   const bonus_remaining = bonus_active ? (u.bonus_scans_remaining || 0) : 0;
   const bonus_expires_at = bonus_active ? u.bonus_scans_expires_at : null;
 
-  if (limit === null) return { count: 0, limit: null, resets_at: null, bonus_remaining, bonus_expires_at };
+  if (limit === null) {
+    return {
+      count: await countScanEventsThisMonth(db, userId),
+      limit: null, resets_at: null, bonus_remaining, bonus_expires_at,
+    };
+  }
 
   return { count: Number(usageRes.rows[0]?.count || 0), limit, resets_at, bonus_remaining, bonus_expires_at };
 }
