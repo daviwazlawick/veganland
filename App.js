@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
@@ -18,6 +18,7 @@ import useForceUpdate from './src/hooks/useForceUpdate';
 import { initPurchases } from './src/services/purchasesService';
 import { initAnalytics } from './src/services/analyticsService';
 import { bootAttribution, captureUtmFromUrl } from './src/services/attributionService';
+import { t } from './src/i18n';
 
 // expo-linking has a native module — guard so OTAs stay safe on native
 // builds that don't have it linked yet (see attributionService.js).
@@ -37,9 +38,17 @@ const BRAND_FONTS = Brand.fonts
 
 function AppContent() {
   const updateState = useForceUpdate();
-  const { token } = useAuth();
-  const { disclaimerAccepted } = useApp();
+  const { token, sessionExpiredAt } = useAuth();
+  const { disclaimerAccepted, language } = useApp();
   const { scanClipboard } = useReferral();
+  const lastExpiredAt = useRef(null);
+
+  useEffect(() => {
+    if (sessionExpiredAt && sessionExpiredAt !== lastExpiredAt.current) {
+      lastExpiredAt.current = sessionExpiredAt;
+      Alert.alert('', t(language, 'auth.session_expired'));
+    }
+  }, [sessionExpiredAt, language]);
 
   useEffect(() => {
     // Scan clipboard on cold start so first-time users who tapped a

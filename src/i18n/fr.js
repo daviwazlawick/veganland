@@ -14,6 +14,7 @@ export default {
     already_have_account: 'J’ai déjà un compte',
   },
   auth: {
+    session_expired: "Ta session a expiré. Connecte-toi à nouveau pour continuer.",
     tagline: 'Votre vie végane, plus simple',
     login_title: 'Connectez-vous à votre compte',
     email_placeholder: 'votre@email.com',

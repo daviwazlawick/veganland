@@ -379,7 +379,12 @@ export default function EditPersonalScreen({ navigation }) {
       navigation.goBack();
     } catch (error) {
       console.warn('[EditPersonal] save failed:', error?.message);
-      Alert.alert('', t(language, 'profile_setup.save_error'));
+      // A 401 already triggers AuthContext's global session-expired flow
+      // (logout + its own alert) — showing this generic one too would
+      // stack two popups on top of each other.
+      if (error?.status !== 401) {
+        Alert.alert('', t(language, 'profile_setup.save_error'));
+      }
     }
   }
 

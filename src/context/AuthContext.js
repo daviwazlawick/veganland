@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiLogin, apiRegister, apiGetMe, apiOAuthSignIn } from '../services/apiService';
+import { apiLogin, apiRegister, apiGetMe, apiOAuthSignIn, setUnauthorizedHandler } from '../services/apiService';
 import { signInWithApple, signInWithGoogle } from '../services/socialAuthService';
 import { loginPurchasesUser, logoutPurchasesUser } from '../services/purchasesService';
 import { logRegistration } from '../services/analyticsService';
@@ -16,10 +16,28 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [hasLaunchedBefore, setHasLaunchedBefore] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [sessionExpiredAt, setSessionExpiredAt] = useState(null);
+  const loggingOutRef = useRef(false);
 
   useEffect(() => {
     loadStoredAuth();
   }, []);
+
+  // A stale JWT (90-day expiry) makes every authenticated call fail with a
+  // clean 401. Without this, each screen just showed its own generic
+  // "check your connection" error — actively misleading for what's really
+  // an expired session (reported by a user who hadn't opened the app in
+  // months). One handler, registered once, covers every apiService call.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (loggingOutRef.current || !token) return;
+      loggingOutRef.current = true;
+      logout().finally(() => {
+        setSessionExpiredAt(Date.now());
+        loggingOutRef.current = false;
+      });
+    });
+  }, [token]);
 
   async function loadStoredAuth() {
     try {
@@ -145,7 +163,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser, markOnboardingScanUsed }}>
+    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser, markOnboardingScanUsed, sessionExpiredAt }}>
       {children}
     </AuthContext.Provider>
   );

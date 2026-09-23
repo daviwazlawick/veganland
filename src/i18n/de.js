@@ -14,6 +14,7 @@ export default {
     already_have_account: 'Ich habe bereits ein Konto',
   },
   auth: {
+    session_expired: 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an, um fortzufahren.',
     tagline: 'Dein veganes Leben, einfacher',
     login_title: 'Bei deinem Konto anmelden',
     email_placeholder: 'deine@email.de',

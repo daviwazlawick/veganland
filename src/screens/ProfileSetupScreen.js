@@ -108,8 +108,11 @@ export default function ProfileSetupScreen({ navigation }) {
       } else {
         navigation.navigate('Main');
       }
-    } catch {
-      Alert.alert('', t(language, 'profile_setup.save_error'));
+    } catch (error) {
+      // A 401 already triggers AuthContext's global session-expired flow.
+      if (error?.status !== 401) {
+        Alert.alert('', t(language, 'profile_setup.save_error'));
+      }
     } finally {
       setSaving(false);
     }
@@ -128,8 +131,10 @@ export default function ProfileSetupScreen({ navigation }) {
         halalStrictness: selectedDiet === 'halal' ? halalStrictness : (profile?.halalStrictness || null),
       });
       navigation.navigate('Main');
-    } catch {
-      Alert.alert('', t(language, 'profile_setup.save_error'));
+    } catch (error) {
+      if (error?.status !== 401) {
+        Alert.alert('', t(language, 'profile_setup.save_error'));
+      }
     } finally {
       setSaving(false);
     }

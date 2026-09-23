@@ -14,6 +14,7 @@ export default {
     already_have_account: 'Ya tengo una cuenta',
   },
   auth: {
+    session_expired: 'Tu sesión ha expirado. Inicia sesión de nuevo para continuar.',
     tagline: 'Tu vida vegana, más fácil',
     login_title: 'Entra en tu cuenta',
     email_placeholder: 'tu@email.com',

@@ -17,8 +17,28 @@ export function hasApiConfig() {
   return API_URL.trim().length > 0;
 }
 
+// A stale JWT (90-day expiry) makes every authenticated call fail with a
+// clean 401 — no crash, nothing to catch server-side, so it never showed up
+// in error logs. Every screen just displayed its own generic "check your
+// connection" message, which is actively misleading for what's really an
+// expired session. AuthContext registers a handler here once, at startup,
+// so any authenticated call anywhere in the app can trigger the same
+// "session expired, please log in again" flow instead of a dead end.
+let unauthorizedHandler = null;
+export function setUnauthorizedHandler(fn) {
+  unauthorizedHandler = fn;
+}
+
+async function authFetch(url, options) {
+  const response = await fetch(url, options);
+  if (response.status === 401 && unauthorizedHandler) {
+    try { unauthorizedHandler(); } catch {}
+  }
+  return response;
+}
+
 export async function analyzeProductWithApi(imageBase64, profile, language, token, barcode = null, skipBarcodeCache = false) {
-  const response = await fetch(`${baseUrl()}/analyze-product`, {
+  const response = await authFetch(`${baseUrl()}/analyze-product`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({
@@ -43,7 +63,7 @@ export async function analyzeProductWithApi(imageBase64, profile, language, toke
 // was ever scanned — the server uses them for display since the ingredients
 // photo alone rarely carries branding.
 export async function analyzeIngredientsPhotoWithApi(imageBase64, profile, language, token, barcode, hintProductName = null, hintBrand = null) {
-  const response = await fetch(`${baseUrl()}/analyze-product`, {
+  const response = await authFetch(`${baseUrl()}/analyze-product`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({
@@ -64,7 +84,7 @@ export async function analyzeIngredientsPhotoWithApi(imageBase64, profile, langu
 }
 
 export async function analyzeBarcodeWithApi(barcode, profile, language, token) {
-  const response = await fetch(`${baseUrl()}/analyze-product`, {
+  const response = await authFetch(`${baseUrl()}/analyze-product`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ barcode, profile, language }),
@@ -80,7 +100,7 @@ export async function analyzeBarcodeWithApi(barcode, profile, language, token) {
 }
 
 export async function apiGetMe(token) {
-  const response = await fetch(`${baseUrl()}/auth/me`, {
+  const response = await authFetch(`${baseUrl()}/auth/me`, {
     headers: appHeaders(token),
   });
   const data = await response.json().catch(() => ({}));
@@ -89,13 +109,17 @@ export async function apiGetMe(token) {
 }
 
 export async function apiUpdateProfile(profileData, token) {
-  const response = await fetch(`${baseUrl()}/user/profile`, {
+  const response = await authFetch(`${baseUrl()}/user/profile`, {
     method: 'PATCH',
     headers: appHeaders(token),
     body: JSON.stringify(profileData),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Failed to update profile');
+  if (!response.ok) {
+    const err = new Error(data.error || 'Failed to update profile');
+    err.status = response.status;
+    throw err;
+  }
   return data;
 }
 
@@ -148,14 +172,14 @@ export async function apiOAuthSignIn(provider, payload) {
 }
 
 export async function apiGetReferral(token) {
-  const response = await fetch(`${baseUrl()}/referral/me`, { headers: appHeaders(token) });
+  const response = await authFetch(`${baseUrl()}/referral/me`, { headers: appHeaders(token) });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Failed');
   return data;
 }
 
 export async function apiAdminHandoff(token) {
-  const response = await fetch(`${baseUrl()}/admin/handoff`, {
+  const response = await authFetch(`${baseUrl()}/admin/handoff`, {
     method: 'POST',
     headers: appHeaders(token),
   });
@@ -165,7 +189,7 @@ export async function apiAdminHandoff(token) {
 }
 
 export async function apiRegisterPush(token, { token: pushToken, platform, locale, timezone }) {
-  const response = await fetch(`${baseUrl()}/push/register`, {
+  const response = await authFetch(`${baseUrl()}/push/register`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ token: pushToken, platform, locale, timezone }),
@@ -177,7 +201,7 @@ export async function apiSyncPushTimezone(token) {
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!timezone) return;
-    await fetch(`${baseUrl()}/push/timezone`, {
+    await authFetch(`${baseUrl()}/push/timezone`, {
       method: 'PATCH',
       headers: appHeaders(token),
       body: JSON.stringify({ timezone }),
@@ -195,7 +219,7 @@ export async function apiUnregisterPush(pushToken) {
 }
 
 export async function apiRedeemReferral(token, code) {
-  const response = await fetch(`${baseUrl()}/referral/redeem`, {
+  const response = await authFetch(`${baseUrl()}/referral/redeem`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ code }),
@@ -205,7 +229,7 @@ export async function apiRedeemReferral(token, code) {
 }
 
 export async function apiAcceptDisclaimer(token, disclaimerVersion) {
-  const response = await fetch(`${baseUrl()}/user/disclaimer`, {
+  const response = await authFetch(`${baseUrl()}/user/disclaimer`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ disclaimer_version: disclaimerVersion }),
@@ -228,7 +252,7 @@ export async function apiForgotPassword(email) {
 }
 
 export async function apiResendConfirmation(token) {
-  const response = await fetch(`${baseUrl()}/auth/resend-confirmation`, {
+  const response = await authFetch(`${baseUrl()}/auth/resend-confirmation`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -255,7 +279,7 @@ export async function apiCheckAppVersion() {
 }
 
 export async function apiDeleteAccount(token) {
-  const response = await fetch(`${baseUrl()}/user/account`, {
+  const response = await authFetch(`${baseUrl()}/user/account`, {
     method: 'DELETE',
     headers: appHeaders(token),
   });
@@ -265,7 +289,7 @@ export async function apiDeleteAccount(token) {
 }
 
 export async function apiSetUserPlan(plan, token) {
-  const response = await fetch(`${baseUrl()}/user/plan`, {
+  const response = await authFetch(`${baseUrl()}/user/plan`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ plan }),
@@ -276,7 +300,7 @@ export async function apiSetUserPlan(plan, token) {
 }
 
 export async function apiGetHistory(token) {
-  const response = await fetch(`${baseUrl()}/user/history`, {
+  const response = await authFetch(`${baseUrl()}/user/history`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => ({}));
@@ -285,7 +309,7 @@ export async function apiGetHistory(token) {
 }
 
 export async function apiReportPushClick(token, broadcastId) {
-  const response = await fetch(`${baseUrl()}/push/click`, {
+  const response = await authFetch(`${baseUrl()}/push/click`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ broadcast_id: broadcastId }),
@@ -294,7 +318,7 @@ export async function apiReportPushClick(token, broadcastId) {
 }
 
 export async function apiReportNotificationTap(token, slot) {
-  const response = await fetch(`${baseUrl()}/push/notification-tap`, {
+  const response = await authFetch(`${baseUrl()}/push/notification-tap`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ slot }),
@@ -303,7 +327,7 @@ export async function apiReportNotificationTap(token, slot) {
 }
 
 export async function apiSubmitFeedback(token, { scanId, rating, comment }) {
-  const response = await fetch(`${baseUrl()}/feedback`, {
+  const response = await authFetch(`${baseUrl()}/feedback`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ scanId, rating, comment: comment || undefined }),
@@ -314,7 +338,7 @@ export async function apiSubmitFeedback(token, { scanId, rating, comment }) {
 }
 
 export async function apiSubmitAppSurvey(token, { message, language }) {
-  const response = await fetch(`${baseUrl()}/app-survey`, {
+  const response = await authFetch(`${baseUrl()}/app-survey`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ message, language }),
@@ -327,62 +351,70 @@ export async function apiSubmitAppSurvey(token, { message, language }) {
 // ── Nutrition API ─────────────────────────────────────────────────────────────
 
 export async function apiGetBodyProfile(token) {
-  const r = await fetch(`${baseUrl()}/nutrition/profile`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/profile`, { headers: appHeaders(token) });
   return r.json().catch(() => ({}));
 }
 
 export async function apiSaveBodyProfile(token, data) {
-  const r = await fetch(`${baseUrl()}/nutrition/profile`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(data) });
+  const r = await authFetch(`${baseUrl()}/nutrition/profile`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(data) });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body.error || 'Failed to save body profile');
+  if (!r.ok) {
+    const err = new Error(body.error || 'Failed to save body profile');
+    err.status = r.status;
+    throw err;
+  }
   return body;
 }
 
 export async function apiGetNutritionGoals(token) {
-  const r = await fetch(`${baseUrl()}/nutrition/goals`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/goals`, { headers: appHeaders(token) });
   return r.json().catch(() => ({}));
 }
 
 export async function apiSaveNutritionGoals(token, goals) {
-  const r = await fetch(`${baseUrl()}/nutrition/goals`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(goals) });
+  const r = await authFetch(`${baseUrl()}/nutrition/goals`, { method: 'PUT', headers: appHeaders(token), body: JSON.stringify(goals) });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body.error || 'Failed to save goals');
+  if (!r.ok) {
+    const err = new Error(body.error || 'Failed to save goals');
+    err.status = r.status;
+    throw err;
+  }
   return body;
 }
 
 export async function apiLogConsumption(token, entry) {
-  const r = await fetch(`${baseUrl()}/nutrition/log`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(entry) });
+  const r = await authFetch(`${baseUrl()}/nutrition/log`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(entry) });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.error || 'Failed to log entry');
   return body;
 }
 
 export async function apiUpdateConsumption(token, id, entry) {
-  const r = await fetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'PATCH', headers: appHeaders(token), body: JSON.stringify(entry) });
+  const r = await authFetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'PATCH', headers: appHeaders(token), body: JSON.stringify(entry) });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.error || 'Failed to update entry');
   return body;
 }
 
 export async function apiDeleteConsumption(token, id) {
-  const r = await fetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'DELETE', headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/log/${id}`, { method: 'DELETE', headers: appHeaders(token) });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.error || 'Failed to delete entry');
   return body;
 }
 
 export async function apiGetDayLog(token, date) {
-  const r = await fetch(`${baseUrl()}/nutrition/log?date=${date}`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/log?date=${date}`, { headers: appHeaders(token) });
   return r.json().catch(() => []);
 }
 
 export async function apiGetNutritionReport(token, from, to) {
-  const r = await fetch(`${baseUrl()}/nutrition/report?from=${from}&to=${to}`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/report?from=${from}&to=${to}`, { headers: appHeaders(token) });
   return r.json().catch(() => ({ rows: [] }));
 }
 
 export async function apiReportProduct(token, { productName, barcode, description, categories, language, photos }) {
-  const r = await fetch(`${baseUrl()}/product/report`, {
+  const r = await authFetch(`${baseUrl()}/product/report`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({
@@ -400,41 +432,41 @@ export async function apiReportProduct(token, { productName, barcode, descriptio
 }
 
 export async function apiGetLogRange(token, from, to) {
-  const r = await fetch(`${baseUrl()}/nutrition/log-range?from=${from}&to=${to}`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/log-range?from=${from}&to=${to}`, { headers: appHeaders(token) });
   const j = await r.json().catch(() => []);
   return Array.isArray(j) ? j : [];
 }
 
 export async function apiLogWeight(token, weight_kg) {
-  const r = await fetch(`${baseUrl()}/nutrition/weight`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify({ weight_kg }) });
+  const r = await authFetch(`${baseUrl()}/nutrition/weight`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify({ weight_kg }) });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.error || 'Failed to log weight');
   return body;
 }
 
 export async function apiGetWeightHistory(token) {
-  const r = await fetch(`${baseUrl()}/nutrition/weight`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/weight`, { headers: appHeaders(token) });
   return r.json().catch(() => []);
 }
 
 export async function apiLogMeasurements(token, data) {
-  const r = await fetch(`${baseUrl()}/nutrition/measurements`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(data) });
+  const r = await authFetch(`${baseUrl()}/nutrition/measurements`, { method: 'POST', headers: appHeaders(token), body: JSON.stringify(data) });
   return r.json().catch(() => ({}));
 }
 
 export async function apiGetMeasurements(token) {
-  const r = await fetch(`${baseUrl()}/nutrition/measurements`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/measurements`, { headers: appHeaders(token) });
   return r.json().catch(() => []);
 }
 
 export async function apiGetRecentPlates(token) {
-  const r = await fetch(`${baseUrl()}/nutrition/plates`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/nutrition/plates`, { headers: appHeaders(token) });
   if (!r.ok) return [];
   return r.json();
 }
 
 export async function apiSearchFood(token, query, language = 'en') {
-  const r = await fetch(`${baseUrl()}/nutrition/search?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(language)}`, {
+  const r = await authFetch(`${baseUrl()}/nutrition/search?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(language)}`, {
     headers: appHeaders(token),
   });
   if (!r.ok) return [];
@@ -443,7 +475,7 @@ export async function apiSearchFood(token, query, language = 'en') {
 
 export async function apiGetProductInfo(token, barcode) {
   try {
-    const r = await fetch(`${baseUrl()}/nutrition/product-info?code=${encodeURIComponent(barcode)}`, {
+    const r = await authFetch(`${baseUrl()}/nutrition/product-info?code=${encodeURIComponent(barcode)}`, {
       headers: appHeaders(token),
     });
     if (!r.ok) return null;
@@ -455,7 +487,7 @@ export async function apiGetProductInfo(token, barcode) {
 
 export async function apiGetTodayExercise(token, date) {
   try {
-    const r = await fetch(`${baseUrl()}/exercise/today?date=${encodeURIComponent(date)}`, {
+    const r = await authFetch(`${baseUrl()}/exercise/today?date=${encodeURIComponent(date)}`, {
       headers: appHeaders(token),
     });
     if (!r.ok) return [];
@@ -466,7 +498,7 @@ export async function apiGetTodayExercise(token, date) {
 }
 
 export async function apiLogExercise(token, entry) {
-  const r = await fetch(`${baseUrl()}/exercise/log`, {
+  const r = await authFetch(`${baseUrl()}/exercise/log`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify(entry),
@@ -476,14 +508,14 @@ export async function apiLogExercise(token, entry) {
 }
 
 export async function apiDeleteExercise(token, id) {
-  await fetch(`${baseUrl()}/exercise/log/${id}`, {
+  await authFetch(`${baseUrl()}/exercise/log/${id}`, {
     method: 'DELETE',
     headers: appHeaders(token),
   }).catch(() => {});
 }
 
 export async function apiGetExerciseHistory(token, from, to) {
-  const r = await fetch(`${baseUrl()}/exercise/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+  const r = await authFetch(`${baseUrl()}/exercise/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
     headers: appHeaders(token),
   });
   if (!r.ok) return [];
@@ -491,7 +523,7 @@ export async function apiGetExerciseHistory(token, from, to) {
 }
 
 export async function apiParsePlan(token, imageBase64, language, mediaType = null) {
-  const r = await fetch(`${baseUrl()}/nutrition/parse-plan`, {
+  const r = await authFetch(`${baseUrl()}/nutrition/parse-plan`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ image: imageBase64, language, mediaType }),
@@ -502,7 +534,7 @@ export async function apiParsePlan(token, imageBase64, language, mediaType = nul
 }
 
 export async function apiAnalyzePlate(token, imageBase64, language, profile) {
-  const r = await fetch(`${baseUrl()}/analyze-plate`, {
+  const r = await authFetch(`${baseUrl()}/analyze-plate`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({ image: imageBase64, language, profile: profile || null }),
@@ -513,7 +545,7 @@ export async function apiAnalyzePlate(token, imageBase64, language, profile) {
 }
 
 export async function apiBodyAnalyze(token, { frontImage, sideImage, heightCm, weightKg, sex, age, frontPitchDeg, sidePitchDeg }) {
-  const r = await fetch(`${baseUrl()}/body/analyze`, {
+  const r = await authFetch(`${baseUrl()}/body/analyze`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify({
@@ -533,7 +565,7 @@ export async function apiBodyAnalyze(token, { frontImage, sideImage, heightCm, w
 }
 
 export async function apiSaveBodyMeasurements(token, measurements) {
-  const r = await fetch(`${baseUrl()}/body/measurements`, {
+  const r = await authFetch(`${baseUrl()}/body/measurements`, {
     method: 'POST',
     headers: appHeaders(token),
     body: JSON.stringify(measurements),
@@ -544,7 +576,7 @@ export async function apiSaveBodyMeasurements(token, measurements) {
 }
 
 export async function apiGetBodyMeasurements(token) {
-  const r = await fetch(`${baseUrl()}/body/measurements`, { headers: appHeaders(token) });
+  const r = await authFetch(`${baseUrl()}/body/measurements`, { headers: appHeaders(token) });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'fetch_failed');
   return data.history || [];
