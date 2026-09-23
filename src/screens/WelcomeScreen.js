@@ -130,7 +130,14 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 36,
     paddingHorizontal: 24,
     paddingTop: 28,
-    paddingBottom: 8,
+    // Floor padding, on top of whatever SafeAreaView adds for the bottom
+    // inset. Some Android devices (gesture nav, certain OEM skins) report
+    // an incorrect/zero bottom inset, leaving the CTA flush against the
+    // physical edge — right where the OS intercepts the swipe-up-for-home
+    // gesture before it ever reaches the button. Reported live: a user's
+    // taps on "Começar a Acompanhar" opened the Android app switcher /
+    // home screen instead of navigating.
+    paddingBottom: 28,
     gap: 18,
   },
   sheetTitle: { fontSize: 14, fontWeight: '500', color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
