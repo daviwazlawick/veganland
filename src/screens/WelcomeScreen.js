@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, t } from '../i18n';
 import { Colors } from '../constants/colors';
@@ -9,8 +9,20 @@ import { PremiumIcon, BrandName } from '../components/ui';
 
 const isNovaQI = Brand.id === 'novaqi';
 
+// Minimum breathing room below the primary CTA, regardless of what the OS
+// reports as the bottom safe-area inset. Some Android devices (gesture nav,
+// certain OEM skins) report insets.bottom as 0 when it shouldn't be —
+// SafeAreaView then renders the CTA flush against the physical edge, right
+// where the OS intercepts the swipe-up-for-home gesture before it reaches
+// the button at all. Confirmed live via screen recording: taps opened the
+// Android app switcher instead of navigating. Computing padding by hand
+// here (instead of trusting SafeAreaView's edges=['bottom']) guarantees a
+// floor no matter what the inset comes back as.
+const MIN_BOTTOM_PADDING = 40;
+
 export default function WelcomeScreen({ navigation }) {
   const { language, setLanguage } = useApp();
+  const insets = useSafeAreaInsets();
   const languageIndex = LANGUAGES.findIndex(item => item.code === language);
   const currentLanguage = LANGUAGES[languageIndex] || LANGUAGES[0];
   const nextLanguage = LANGUAGES[(languageIndex + 1) % LANGUAGES.length] || LANGUAGES[0];
@@ -45,7 +57,7 @@ export default function WelcomeScreen({ navigation }) {
         <Text style={styles.tagline}>{t(language, 'welcome.tagline')}</Text>
       </SafeAreaView>
 
-      <SafeAreaView edges={['bottom']} style={styles.sheet}>
+      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, MIN_BOTTOM_PADDING) }]}>
         <Text style={styles.sheetTitle}>{t(language, 'welcome.subtitle')}</Text>
 
         <View style={styles.features}>
@@ -71,7 +83,7 @@ export default function WelcomeScreen({ navigation }) {
             <Text style={styles.ghostBtnText}>{t(language, 'welcome.already_have_account')}</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -130,14 +142,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 36,
     paddingHorizontal: 24,
     paddingTop: 28,
-    // Floor padding, on top of whatever SafeAreaView adds for the bottom
-    // inset. Some Android devices (gesture nav, certain OEM skins) report
-    // an incorrect/zero bottom inset, leaving the CTA flush against the
-    // physical edge — right where the OS intercepts the swipe-up-for-home
-    // gesture before it ever reaches the button. Reported live: a user's
-    // taps on "Começar a Acompanhar" opened the Android app switcher /
-    // home screen instead of navigating.
-    paddingBottom: 28,
+    // paddingBottom is computed inline from real insets — see MIN_BOTTOM_PADDING above.
     gap: 18,
   },
   sheetTitle: { fontSize: 14, fontWeight: '500', color: Colors.textMuted, textAlign: 'center', lineHeight: 20 },
