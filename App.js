@@ -46,7 +46,14 @@ function AppContent() {
   useEffect(() => {
     if (sessionExpiredAt && sessionExpiredAt !== lastExpiredAt.current) {
       lastExpiredAt.current = sessionExpiredAt;
-      Alert.alert('', t(language, 'auth.session_expired'));
+      // Small delay: firing a native Alert while the navigator is mid-swap
+      // (auth stack replacing the main stack right as logout() resolves)
+      // is a known source of Android dialogs that render but swallow all
+      // touch input. Letting the navigation settle first avoids the race.
+      const timer = setTimeout(() => {
+        Alert.alert('', t(language, 'auth.session_expired'));
+      }, 600);
+      return () => clearTimeout(timer);
     }
   }, [sessionExpiredAt, language]);
 

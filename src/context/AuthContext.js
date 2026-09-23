@@ -58,6 +58,13 @@ export function AuthProvider({ children }) {
             setUser(merged);
             AsyncStorage.setItem(USER_KEY, JSON.stringify(merged)).catch(() => {});
           }
+          // Sliding session: the server reissues a fresh 90-day token on
+          // every /auth/me call. Persisting it here means an actively-used
+          // app never actually reaches the old token's expiry.
+          if (data?.token) {
+            setToken(data.token);
+            AsyncStorage.setItem(TOKEN_KEY, data.token).catch(() => {});
+          }
         }).catch(() => {});
       }
       // A stored token also implies the app has been launched before
@@ -126,6 +133,15 @@ export function AuthProvider({ children }) {
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),
+      // Logging out only ever happens from a logged-in state, so the app
+      // has definitely launched before. Without this, a legacy account
+      // whose LAUNCHED_KEY was never written (created before that tracking
+      // existed) would fall back to `!!storedToken` on the next cold start
+      // — which is now false — and land on the Welcome/Register screen
+      // instead of Login. That's what happened to a user auto-logged-out
+      // by the 401 handler: she saw an unresponsive-looking Welcome screen
+      // instead of a normal "please log in again".
+      AsyncStorage.setItem(LAUNCHED_KEY, '1'),
     ]);
   }
 
@@ -143,6 +159,10 @@ export function AuthProvider({ children }) {
         const updated = { ...user, ...data.user };
         setUser(updated);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+      }
+      if (data.token) {
+        setToken(data.token);
+        await AsyncStorage.setItem(TOKEN_KEY, data.token);
       }
     } catch {}
   }

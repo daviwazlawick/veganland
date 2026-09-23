@@ -1472,7 +1472,16 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 404, { error: 'User not found' }, origin);
         return;
       }
-      sendJson(res, 200, { user, usage, streak }, origin);
+      // Sliding session: every call here (app cold-start, Profile tab
+      // focus) reissues a fresh 90-day token. An actively-used app then
+      // never actually hits the expiry — only someone who genuinely
+      // doesn't open the app for 90 straight days does. Without this, an
+      // account's very first token was also its last: a returning user
+      // just found every authenticated action failing with a 401 that
+      // looked identical to a connectivity problem, since nothing ever
+      // refreshed it.
+      const freshToken = generateToken(user.id, user.email);
+      sendJson(res, 200, { user, usage, streak, token: freshToken }, origin);
       return;
     }
 
