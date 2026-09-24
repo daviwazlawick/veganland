@@ -5,6 +5,7 @@ import { analyzePlate, expandSearchQuery, fetchNutritionalData, parsePlanFromIma
 import { runNotifications } from './water-notif.js';
 import { runOnboardingNotifications } from './onboarding-notif.js';
 import { runOnboardingEmails } from './onboarding-email.js';
+import { runDailyAdminReport } from './daily-admin-report.js';
 import { verifyUnsubscribe } from './unsubscribe.js';
 import { verifyEmailTracking } from './emailTracking.js';
 import { CTA_URL } from './onboarding-email.js';
@@ -2778,3 +2779,8 @@ setInterval(() => runOnboardingNotifications().catch(e => console.warn('[onboard
 const ONBOARDING_EMAIL_INTERVAL_MS = 4 * 60 * 60 * 1000;
 setTimeout(() => runOnboardingEmails().catch(e => console.warn('[onboarding-email]', e.message)), 5 * 60 * 1000);
 setInterval(() => runOnboardingEmails().catch(e => console.warn('[onboarding-email]', e.message)), ONBOARDING_EMAIL_INTERVAL_MS);
+
+// Daily admin usage report: one push at 08:00 admin-local-time summarizing
+// the previous day (new users, scans, active users, plate analyses).
+setTimeout(() => runDailyAdminReport().catch(e => console.warn('[daily-admin-report]', e.message)), 6 * 60 * 1000);
+setInterval(() => runDailyAdminReport().catch(e => console.warn('[daily-admin-report]', e.message)), NOTIF_INTERVAL_MS);
