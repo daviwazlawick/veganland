@@ -207,7 +207,13 @@ export async function runOnboardingEmails() {
       await transport.sendMail({
         from, to: u.email, subject, html, text,
         headers: {
-          'List-Unsubscribe': `<${unsubUrl}>, <mailto:contact@novaqi.app?subject=unsubscribe>`,
+          // Some mail clients (Apple Mail included) use the mailto fallback
+          // instead of the one-click URL — when that happens nothing on our
+          // side is triggered automatically, it just lands as a plain email.
+          // Encoding the address in the subject means whoever reads that
+          // inbox can immediately tell which account to opt out by hand,
+          // instead of having to cross-reference the sender.
+          'List-Unsubscribe': `<${unsubUrl}>, <mailto:contact@novaqi.app?subject=${encodeURIComponent(`unsubscribe: ${u.email}`)}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
         },
       });
