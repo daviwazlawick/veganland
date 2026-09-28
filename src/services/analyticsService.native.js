@@ -4,6 +4,7 @@ import {
   requestTrackingPermissionsAsync,
   getTrackingPermissionsAsync,
 } from 'expo-tracking-transparency';
+import { logFunnelEvent } from './funnelService';
 
 const FB_APP_ID = process.env.EXPO_PUBLIC_FB_APP_ID || '';
 const FB_CLIENT_TOKEN = process.env.EXPO_PUBLIC_FB_CLIENT_TOKEN || '';
@@ -15,13 +16,25 @@ export function isAnalyticsConfigured() {
   return configured;
 }
 
+// Diagnostic only — investigating why Meta Ads shows 0 attributed Android
+// installs despite regular ActivateApp/DeactivateApp events arriving daily
+// (proof the SDK itself works). Every prior try/catch here swallowed errors
+// silently (console.warn is __DEV__-only, so production told us nothing).
+// This reports what actually happens on real devices via the existing
+// funnel_events pipe — safe to remove once the cause is confirmed.
 export async function initAnalytics() {
-  if (!configured || initialized) return;
+  if (!configured) {
+    logFunnelEvent('meta_sdk_init', { success: false, reason: 'not_configured' });
+    return;
+  }
+  if (initialized) return;
   try {
     Settings.setAppID(FB_APP_ID);
     Settings.setClientToken(FB_CLIENT_TOKEN);
+    let attStatus = null;
     if (Platform.OS === 'ios') {
       const { status } = await getTrackingPermissionsAsync();
+      attStatus = status;
       Settings.setAdvertiserTrackingEnabled(status === 'granted');
     } else {
       Settings.setAdvertiserTrackingEnabled(true);
@@ -30,8 +43,10 @@ export async function initAnalytics() {
     Settings.setAdvertiserIDCollectionEnabled(true);
     await Settings.initializeSDK();
     initialized = true;
+    logFunnelEvent('meta_sdk_init', { success: true, att_status: attStatus });
   } catch (e) {
     if (__DEV__) console.warn('FB SDK init failed', e);
+    logFunnelEvent('meta_sdk_init', { success: false, reason: 'exception', error: String(e?.message || e).slice(0, 200) });
   }
 }
 
