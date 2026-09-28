@@ -113,6 +113,14 @@ export default {
       // use the advertising identifier — Meta SDK reads it for ad attribution.
       // Without this, the ID is zeroed and Meta Ads attribution breaks.
       permissions: ['android.permission.CAMERA', 'com.google.android.gms.permission.AD_ID'],
+      // Android's default Auto Backup silently restores AsyncStorage
+      // (session token, cached profile) from the device's Google account on
+      // reinstall — "reinstalling to start fresh" doesn't actually start
+      // fresh, it can drop the user straight into an authenticated screen
+      // with a stale/invalid token, no login screen involved at all.
+      // Confirmed live 2026-09-28: a fresh Play Store install skipped
+      // straight to onboarding without ever asking for a login.
+      allowBackup: false,
       edgeToEdgeEnabled: true,
       versionCode: 21,
       // Firebase config — required for FCM (push) and Firebase Analytics.
