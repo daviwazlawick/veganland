@@ -6,6 +6,7 @@ import { runNotifications } from './water-notif.js';
 import { runOnboardingNotifications } from './onboarding-notif.js';
 import { runOnboardingEmails } from './onboarding-email.js';
 import { runDailyAdminReport } from './daily-admin-report.js';
+import { runUnsubscribeInbox } from './unsubscribe-inbox.js';
 import { verifyUnsubscribe } from './unsubscribe.js';
 import { verifyEmailTracking } from './emailTracking.js';
 import { CTA_URL } from './onboarding-email.js';
@@ -2784,3 +2785,8 @@ setInterval(() => runOnboardingEmails().catch(e => console.warn('[onboarding-ema
 // the previous day (new users, scans, active users, plate analyses).
 setTimeout(() => runDailyAdminReport().catch(e => console.warn('[daily-admin-report]', e.message)), 6 * 60 * 1000);
 setInterval(() => runDailyAdminReport().catch(e => console.warn('[daily-admin-report]', e.message)), NOTIF_INTERVAL_MS);
+
+// Reads contact@novaqi.app for mail-client unsubscribe fallbacks — read-only,
+// never modifies the mailbox. See unsubscribe-inbox.js.
+setTimeout(() => runUnsubscribeInbox().catch(e => console.warn('[unsubscribe-inbox]', e.message)), 7 * 60 * 1000);
+setInterval(() => runUnsubscribeInbox().catch(e => console.warn('[unsubscribe-inbox]', e.message)), NOTIF_INTERVAL_MS);
