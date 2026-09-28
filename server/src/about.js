@@ -69,7 +69,7 @@ function storeButtons(b, t, size = 'normal') {
 const L = {
   en: {
     hero_h1: 'Eat smarter.<br><em>Every single day.</em>',
-    hero_sub: 'Scan any food label in seconds. Track calories, macros and workouts. Analyse full meals from a photo. NovaQI is the all-in-one food intelligence app powered by Claude AI.',
+    hero_sub: 'Scan any food label in seconds. Track calories, macros and workouts. Analyse full meals from a photo. NovaQI is the all-in-one food intelligence app powered by AI.',
     hero_note: 'Free to try · No credit card · iOS & Android',
 
     trust_scans: 'Product scans',
@@ -110,7 +110,7 @@ const L = {
 
     s4_label: 'Plate analysis',
     s4_title: 'Photograph your meal. Get the full breakdown.',
-    s4_body: 'Take a photo of any prepared meal — at home, at a restaurant, at a buffet. Claude AI identifies every item, estimates portions, and gives you macros for the whole plate. Edit any item, then log it all with one tap.',
+    s4_body: 'Take a photo of any prepared meal — at home, at a restaurant, at a buffet. Our AI identifies every item, estimates portions, and gives you macros for the whole plate. Edit any item, then log it all with one tap.',
     s4_f1: 'Works on any meal, even home-cooked dishes',
     s4_f2: 'Edit items and portions before logging',
     s4_f3: 'Diet verdict per item (Safe / Caution / Not Safe)',
@@ -176,7 +176,7 @@ const L = {
 
   pt: {
     hero_h1: 'Come com mais inteligência.<br><em>Todos os dias.</em>',
-    hero_sub: 'Escaneia qualquer rótulo em segundos. Faz tracking de calorias, macros e exercícios. Analisa refeições completas a partir de uma foto. O NovaQI é o app de inteligência alimentar tudo-em-um, powered by Claude AI.',
+    hero_sub: 'Escaneia qualquer rótulo em segundos. Faz tracking de calorias, macros e exercícios. Analisa refeições completas a partir de uma foto. O NovaQI é o app de inteligência alimentar tudo-em-um, com Inteligência Artificial.',
     hero_note: 'Grátis para experimentar · Sem cartão · iOS & Android',
     trust_scans: 'Scans de produtos', trust_allergens: 'Alergénios monitorizados', trust_exercises: 'Exercícios e desportos', trust_langs: 'Idiomas',
     pill_scan: '📷 Scan de ingredientes', pill_macro: '📊 Tracking de macros', pill_exercise: '🏃 Registo de exercício', pill_plate: '🍽️ Análise de prato', pill_halal: '☪️ Verificado halal', pill_water: '💧 Hidratação',
@@ -190,7 +190,7 @@ const L = {
     s3_body: '27 exercícios com queima calórica cientificamente calibrada (valores MET). Registe qualquer treino em segundos. Veja as calorias queimadas a compensar as consumidas — sabendo sempre o saldo real do dia.',
     s3_f1: 'Cardio, força, desportos, yoga e mais', s3_f2: 'Preview de queima calórica em tempo real antes de registar', s3_f3: 'Histórico de medidas corporais (cintura, anca, peito…)', s3_f4: '"Equivale a queimar" mostrado em cada produto scaneado',
     s4_label: 'Análise de prato', s4_title: 'Fotografe a sua refeição. Obtenha a análise completa.',
-    s4_body: 'Tire uma foto de qualquer refeição — em casa, num restaurante, num buffet. A IA Claude identifica cada alimento, estima as porções e devolve os macros do prato completo. Edite o que quiser e registe tudo com um toque.',
+    s4_body: 'Tire uma foto de qualquer refeição — em casa, num restaurante, num buffet. A nossa IA identifica cada alimento, estima as porções e devolve os macros do prato completo. Edite o que quiser e registe tudo com um toque.',
     s4_f1: 'Funciona em qualquer refeição, incluindo pratos caseiros', s4_f2: 'Edite alimentos e porções antes de registar', s4_f3: 'Veredicto de dieta por item (Seguro / Atenção / Evitar)', s4_f4: 'Conta como um scan do plano mensal',
     halal_label: 'Modo halal', halal_title: 'O motor de ingredientes halal mais completo.',
     halal_body: 'O modo halal do NovaQI vai além de uma lista de palavras-chave. Cada ingrediente e código-E é verificado contra um ruleset halal dedicado — no próprio dispositivo, instantaneamente, sem dados partilhados externamente.',
@@ -222,7 +222,7 @@ const L = {
 
   de: {
     hero_h1: 'Essen Sie intelligenter.<br><em>Jeden Tag.</em>',
-    hero_sub: 'Scannen Sie jedes Produktetikett in Sekunden. Tracken Sie Kalorien, Makros und Training. Analysieren Sie komplette Mahlzeiten per Foto. NovaQI ist die All-in-One Ernährungs-App powered by Claude AI.',
+    hero_sub: 'Scannen Sie jedes Produktetikett in Sekunden. Tracken Sie Kalorien, Makros und Training. Analysieren Sie komplette Mahlzeiten per Foto. NovaQI ist die All-in-One Ernährungs-App powered by AI.',
     hero_note: 'Kostenlos testen · Keine Kreditkarte · iOS & Android',
     trust_scans:'Produkt-Scans', trust_allergens:'Allergene getrackt', trust_exercises:'Übungen & Sportarten', trust_langs:'Sprachen',
     pill_scan:'📷 Zutaten-Scan', pill_macro:'📊 Makro-Tracking', pill_exercise:'🏃 Trainingslog', pill_plate:'🍽️ Mahlzeit-Analyse', pill_halal:'☪️ Halal-geprüft', pill_water:'💧 Hydration',
@@ -268,7 +268,7 @@ const L = {
 
   fr: {
     hero_h1: 'Mangez plus intelligemment.<br><em>Chaque jour.</em>',
-    hero_sub: "Scannez n'importe quelle étiquette en secondes. Suivez calories, macros et entraînements. Analysez vos repas depuis une photo. NovaQI est l'app d'intelligence alimentaire tout-en-un, powered by Claude AI.",
+    hero_sub: "Scannez n'importe quelle étiquette en secondes. Suivez calories, macros et entraînements. Analysez vos repas depuis une photo. NovaQI est l'app d'intelligence alimentaire tout-en-un, propulsée par l'IA.",
     hero_note: 'Gratuit à tester · Sans carte bancaire · iOS & Android',
     trust_scans:'Scans de produits', trust_allergens:'Allergènes suivis', trust_exercises:'Exercices et sports', trust_langs:'Langues',
     pill_scan:'📷 Scan ingrédients', pill_macro:'📊 Suivi macros', pill_exercise:'🏃 Journal sport', pill_plate:"🍽️ Analyse d'assiette", pill_halal:'☪️ Certifié halal', pill_water:'💧 Hydratation',
@@ -314,7 +314,7 @@ const L = {
 
   it: {
     hero_h1: 'Mangia in modo più intelligente.<br><em>Ogni giorno.</em>',
-    hero_sub: 'Scansiona qualsiasi etichetta in secondi. Traccia calorie, macros e allenamenti. Analizza pasti completi da una foto. NovaQI è l\'app di intelligenza alimentare all-in-one, powered by Claude AI.',
+    hero_sub: 'Scansiona qualsiasi etichetta in secondi. Traccia calorie, macros e allenamenti. Analizza pasti completi da una foto. NovaQI è l\'app di intelligenza alimentare all-in-one, con Intelligenza Artificiale.',
     hero_note: 'Gratis da provare · Nessuna carta · iOS & Android',
     trust_scans:'Scansioni prodotti', trust_allergens:'Allergeni tracciati', trust_exercises:'Esercizi e sport', trust_langs:'Lingue',
     pill_scan:'📷 Scan ingredienti', pill_macro:'📊 Tracking macros', pill_exercise:'🏃 Diario sport', pill_plate:"🍽️ Analisi piatto", pill_halal:'☪️ Verificato halal', pill_water:'💧 Idratazione',
@@ -360,7 +360,7 @@ const L = {
 
   es: {
     hero_h1: 'Come de forma más inteligente.<br><em>Cada día.</em>',
-    hero_sub: 'Escanea cualquier etiqueta en segundos. Rastrea calorías, macros y entrenamientos. Analiza comidas completas desde una foto. NovaQI es la app de inteligencia alimentaria todo-en-uno, powered by Claude AI.',
+    hero_sub: 'Escanea cualquier etiqueta en segundos. Rastrea calorías, macros y entrenamientos. Analiza comidas completas desde una foto. NovaQI es la app de inteligencia alimentaria todo-en-uno, con Inteligencia Artificial.',
     hero_note: 'Gratis para probar · Sin tarjeta · iOS & Android',
     trust_scans:'Escaneos de productos', trust_allergens:'Alérgenos rastreados', trust_exercises:'Ejercicios y deportes', trust_langs:'Idiomas',
     pill_scan:'📷 Scan ingredientes', pill_macro:'📊 Seguimiento macros', pill_exercise:'🏃 Diario ejercicio', pill_plate:'🍽️ Análisis de plato', pill_halal:'☪️ Verificado halal', pill_water:'💧 Hidratación',
@@ -564,7 +564,7 @@ header{position:sticky;top:0;z-index:100;background:${b.dark};height:64px;displa
   <div style="position:relative;max-width:700px;margin:0 auto">
     <div style="display:inline-flex;align-items:center;gap:8px;background:${b.primary}18;border:1px solid ${b.primary}35;padding:7px 16px;border-radius:24px;margin-bottom:28px">
       ${NOVAQI_ICON(18)}
-      <span style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${b.primary}">NovaQI · Claude AI</span>
+      <span style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${b.primary}">NovaQI · AI-Powered</span>
     </div>
     <h1 style="color:#fff;font-size:clamp(32px,6vw,58px);font-weight:900;letter-spacing:-2px;line-height:1.08;margin-bottom:22px">${ll('hero_h1').replace('<em>',`<em style="font-style:normal;color:${b.primary}">`)}</h1>
     <p style="color:rgba(255,255,255,.6);font-size:clamp(15px,2vw,18px);line-height:1.65;margin-bottom:36px;max-width:560px;margin-left:auto;margin-right:auto">${ll('hero_sub')}</p>
