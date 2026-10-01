@@ -48,7 +48,17 @@ export function AuthProvider({ children }) {
       ]);
       if (storedToken) {
         setToken(storedToken);
-        if (storedUser) setUser(JSON.parse(storedUser));
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          // Self-heal for accounts created before register() linked RevenueCat
+          // identity (see AuthContext register() fix): re-identifying on an
+          // already-logged-in cold start merges any anonymous RC purchase
+          // history into this account, so a later cancellation/renewal
+          // webhook can actually match this user instead of silently no-op'ing
+          // against an anonymous app_user_id forever.
+          if (parsedUser?.id) loginPurchasesUser(parsedUser.id).catch(() => {});
+        }
         // Background self-heal: pull the latest user from server so cached
         // fields like onboarding_scan_used stay in sync even if the local
         // update failed (app killed mid-flight, storage error, etc.).
