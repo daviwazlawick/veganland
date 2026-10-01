@@ -16,6 +16,18 @@ const googleSignInPlugin = isNovaQI && googleIosUrlScheme
   : [];
 const appleSignInPlugin = isNovaQI ? ['expo-apple-authentication'] : [];
 
+// Firebase Analytics (NovaQI only — google-services.json/GoogleService-Info.plist
+// are only registered for app.novaqi). Re-added for v1.0.19: the original
+// build incompatibility (useFrameworks:'static' + RNFBApp modular headers,
+// see commit 87739aa) no longer applies since that setting was removed; the
+// only conflict hit on current RNFirebase (v26) is Swift Package Manager
+// resolving Firebase alongside static linkage, fixed by disableSPM below
+// (a real RNFirebase config-plugin option, durable across EAS's own prebuild
+// — not a hand-edit to ios/Podfile). Auto-collection stays off by default
+// (firebase.json) until ATT/disclaimer consent, same gating as the Meta SDK
+// in analyticsService.native.js.
+const firebasePlugin = isNovaQI ? [['@react-native-firebase/app', { ios: { disableSPM: true } }]] : [];
+
 const SKADNETWORK_IDS = [
   'v9wttpbfk9.skadnetwork',
   'n38lu8286q.skadnetwork',
@@ -74,7 +86,7 @@ export default {
   expo: {
     name: B,
     slug: isNovaQI ? 'novaqi' : 'veganland',
-    version: '1.0.18', // NEVER bump without a new native build — runtimeVersion = appVersion
+    version: '1.0.19', // NEVER bump without a new native build — runtimeVersion = appVersion
     orientation: 'portrait',
     icon: `${assets}/icon.png`,
     userInterfaceStyle: 'light',
@@ -122,7 +134,7 @@ export default {
       // straight to onboarding without ever asking for a login.
       allowBackup: false,
       edgeToEdgeEnabled: true,
-      versionCode: 21,
+      versionCode: 22,
       // Firebase config — required for FCM (push) and Firebase Analytics.
       // The file is committed at the repo root; EAS picks it up at build time.
       googleServicesFile: isNovaQI ? './google-services.json' : undefined,
@@ -176,14 +188,7 @@ export default {
           color: isNovaQI ? '#0E1B14' : '#7CB518',
         },
       ],
-      // @react-native-firebase was removed for v1.0.11 — incompatible with
-      // useFrameworks: 'static' on Expo SDK 54 / RN 0.81 (RNFBApp framework
-      // can't import React/RCTConvert.h as a modular header). Push notifications
-      // still work because expo-notifications relays through FCM directly via
-      // google-services.json on Android and APNs on iOS. Google Ads install
-      // attribution still works via Play Install Referrer + SKAdNetwork.
-      // Re-add Firebase Analytics once a stable Expo+RNFirebase combination
-      // ships that handles modular headers correctly.
+      ...firebasePlugin,
       ...fbPlugin,
       ...appleSignInPlugin,
       ...googleSignInPlugin,

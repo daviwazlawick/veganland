@@ -5,12 +5,41 @@ import {
   getTrackingPermissionsAsync,
 } from 'expo-tracking-transparency';
 import { logFunnelEvent } from './funnelService';
+import Brand from '../brand';
+
+// Lazy require + try/catch — same pattern as socialAuthService.native.js —
+// so an OTA bundle that lands on a runtime built before Firebase was
+// re-added (pre-1.0.19) doesn't crash on module load. Also NovaQI-only:
+// google-services.json/GoogleService-Info.plist are only registered for
+// app.novaqi, so the Firebase app isn't configured under the VeganLand
+// bundle id.
+let firebaseAnalytics = null;
+if (Brand.id === 'novaqi') {
+  try { firebaseAnalytics = require('@react-native-firebase/analytics').default; } catch {}
+}
 
 const FB_APP_ID = process.env.EXPO_PUBLIC_FB_APP_ID || '';
 const FB_CLIENT_TOKEN = process.env.EXPO_PUBLIC_FB_CLIENT_TOKEN || '';
 const configured = !!(FB_APP_ID && FB_CLIENT_TOKEN);
 
 let initialized = false;
+let firebaseInitialized = false;
+
+// Firebase Analytics auto-collection is OFF by default (firebase.json) until
+// consent is decided — same gating as the Meta SDK below. Feeds Google Ads
+// UAC with first_open/app_open; re-added for v1.0.19 after confirming the
+// original build incompatibility (see app.config.js comment) no longer
+// reproduces with current RNFirebase + $RNFirebaseDisableSPM.
+async function initFirebaseAnalytics() {
+  if (!firebaseAnalytics || firebaseInitialized) return;
+  try {
+    await firebaseAnalytics().setAnalyticsCollectionEnabled(true);
+    firebaseInitialized = true;
+    logFunnelEvent('firebase_analytics_init', { success: true });
+  } catch (e) {
+    logFunnelEvent('firebase_analytics_init', { success: false, reason: 'exception', error: String(e?.message || e).slice(0, 200) });
+  }
+}
 
 export function isAnalyticsConfigured() {
   return configured;
@@ -44,6 +73,7 @@ export async function initAnalytics() {
     await Settings.initializeSDK();
     initialized = true;
     logFunnelEvent('meta_sdk_init', { success: true, att_status: attStatus });
+    await initFirebaseAnalytics();
   } catch (e) {
     if (__DEV__) console.warn('FB SDK init failed', e);
     logFunnelEvent('meta_sdk_init', { success: false, reason: 'exception', error: String(e?.message || e).slice(0, 200) });
