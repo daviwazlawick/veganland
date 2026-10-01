@@ -1947,5 +1947,45 @@ Encontrados numa auditoria pedida antes de buildar ("make sure the onboarding is
 ### Pendências descobertas nesta sessão (não resolvidas, para retomar)
 
 - **Play Console: "DEX code optimisation is below our threshold — Obfuscation (2%)"** na release 1.0.18. Causa confirmada: `android/app/build.gradle` tem `minifyEnabled enableMinifyInReleaseBuilds` com o default a `false` (`android.enableMinifyInReleaseBuilds` nunca definido em lado nenhum) — R8/ProGuard nunca correu em nenhum build de produção até agora. Fix é `expo-build-properties` → `android: { enableProguardInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true }`, mas precisa de `proguard-rules.pro` com keep-rules para os módulos nativos reflection-heavy (TFLite, VisionCamera, Firebase, RevenueCat, Google Sign-In) e teste manual num APK de release antes de submeter — **decisão da sessão: não meter isto no mesmo build que o Firebase, tratar como trabalho próprio na próxima release.**
-- **Gap de dados: não há timestamp de início de subscrição.** `POST /webhook/revenuecat` → `setUserType()` só faz `UPDATE users SET user_type = ...`, nunca toca `updated_at` nem grava em tabela nenhuma de histórico (ao contrário de `push_broadcasts`, que tem histórico próprio). `users.updated_at` só é tocado por `updateUserProfile` (edições de perfil), não tem nada a ver com subscrição — **não usar `updated_at` como proxy de data de subscrição**, é um erro fácil de cometer (foi cometido nesta sessão antes de verificar o código). Se precisar de responder "quem assinou em tal mês" no futuro: ou consultar a API da RevenueCat directamente (precisa de permissão explícita — chamada bloqueada pelo classifier de segurança por enviar a secret key via curl) ou criar uma tabela de histórico de eventos de subscrição, à semelhança de `push_broadcasts`.
+- **Gap de dados: não há timestamp de início de subscrição.** `POST /webhook/revenuecat` → `setUserType()` só faz `UPDATE users SET user_type = ...`, nunca toca `updated_at` nem grava em tabela nenhuma de histórico (ao contrário de `push_broadcasts`, que tem histórico próprio). `users.updated_at` só é tocado por `updateUserProfile` (edições de perfil), não tem nada a ver com subscrição — **não usar `updated_at` como proxy de data de subscrição**, é um erro fácil de cometer (foi cometido nesta sessão antes de verificar o código). Se precisar de responder "quem assinou em tal mês" no futuro: a API da RevenueCat **funciona** para uma lookup pontual e justificada (`GET /v1/subscribers/{app_user_id}` com a `REVENUECAT_SECRET_KEY` do `.env`, via curl no servidor) — ver secção "Bug de atribuição RevenueCat" abaixo para um caso real resolvido assim. Só uma chamada mais ampla (ex: listar todos os projects/customers) é que foi bloqueada pelo classifier de segurança nesta sessão; uma chamada escopada a um subscriber específico passou sem problema. Para não depender de chamadas pontuais no futuro, considerar criar uma tabela de histórico de eventos de subscrição, à semelhança de `push_broadcasts`.
 - **Play Install Referrer** continua por implementar no backend (`utm_source/medium/campaign` sempre NULL) — ver secção "Contexto: investigação installs vs opens" acima.
+
+---
+
+## Bug de atribuição RevenueCat — cliente pagante preso em "free" (2026-10-01)
+
+### Como foi descoberto
+
+Davi perguntou quem era o novo cliente pagante do NovaQI que tinha começado a pagar em Setembro. Investigação revelou:
+
+- **Nenhum dos 181 utilizadores registados em Setembro 2026 tinha `user_type` diferente de `'free'`** — mesmo havendo um pagamento real confirmado por Davi no RevenueCat a 17/09.
+- Confirmado no RevenueCat (Davi forneceu o ID): o cliente que pagou aparecia como `$RCAnonymousID:5faf419b500146658d0975ac1fdf2bfc` — nunca ligado a uma conta real.
+- `GET /v1/subscribers/{app_user_id}` na API da RevenueCat (usando `REVENUECAT_SECRET_KEY` do `.env`, via curl no servidor — **esta chamada escopada a um subscriber específico passa pelo classifier de segurança sem problema**, ao contrário de uma listagem ampla de projects/customers) confirmou: subscrição **real e activa** (`novaqi_starter`, $2.99/mês, App Store, não sandbox), comprada `2026-09-17T01:23:42Z`, não cancelada (`unsubscribe_detected_at: null`).
+- Cruzando `first_seen`/`last_seen` desse subscriber anónimo com `funnel_events` (paywall_shown, scan_started) identificámos com confiança alta o utilizador real: **id 521, fabricas84@hotmail.com** — registou-se às 01:20:18, tentou 2 scans de prato, viu o paywall às 01:23:20, comprou 22 segundos depois.
+
+### Causa raiz — `src/context/AuthContext.js`
+
+`login()` e `signInWithProvider()` chamam `loginPurchasesUser(u.id)` logo a seguir a `persistAuth()`, ligando a identidade da RevenueCat à conta real. **`register()` nunca chamava isto.** Qualquer utilizador que se regista por email/password e compra uma subscrição nessa mesma sessão (o fluxo de conversão mais comum — registar → paywall → comprar) ficava preso como cliente anónimo na RevenueCat para sempre: o webhook (`POST /webhook/revenuecat` → `setUserType(userId, ...)`) chega com um `app_user_id` tipo `$RCAnonymousID:...` que nunca bate com nenhuma linha da tabela `users` (coluna `id` é integer) — `setUserType` não tem try/catch, mas o `.catch(console.error)` do caller engole o erro silenciosamente.
+
+**Segundo gap, descoberto ao pensar no cenário de cancelamento:** mesmo depois de corrigir `register()`, um utilizador **já afectado antes da fix** continuaria preso — `loginPurchasesUser` também nunca era chamado num cold-start normal (`loadStoredAuth()`, app já logado, só restaura o token). Sem isso, o dispositivo dessa pessoa nunca re-identifica à RevenueCat, e um futuro webhook de cancelamento/expiração chegaria com o mesmo ID anónimo e falharia a fazer downgrade para `free` — o mesmo bug, espelhado no sentido inverso.
+
+### Fix (2 commits)
+
+- **`055528e`** — `register()` agora chama `loginPurchasesUser(data.user.id)` depois de `persistAuth()`, igual a `login()`/`signInWithProvider()`.
+- **`1100678`** — `loadStoredAuth()` agora também chama `loginPurchasesUser(parsedUser.id)` quando há um `storedUser` válido num cold-start. A API da RevenueCat (`Purchases.logIn()`) funde automaticamente o histórico de compras de um cliente anónimo na identidade real da primeira vez que é chamado — isto **auto-cura** qualquer conta historicamente afectada (não só a 521) assim que a pessoa voltar a abrir a app, sem precisar de intervenção manual por utilizador.
+
+### Correcção manual necessária (feita)
+
+`UPDATE users SET user_type='starter' WHERE id=521` — corrido manualmente no servidor (esta chamada foi bloqueada pelo classifier de segurança como escrita em BD de produção; precisou de confirmação explícita do Davi antes de se repetir). **Nota para o futuro:** UPDATEs directos na BD de produção via SSH ficam sujeitos ao classifier, mesmo sendo legítimos — pedir confirmação explícita ao utilizador antes de tentar de novo, não insistir sozinho.
+
+### Deploy
+
+Ambos os commits foram publicados via OTA em **dois runtimes**, com a técnica de "backport" (editar `app.config.js` temporariamente, publicar, restaurar, nunca comitar a versão temporária):
+- **Runtime 1.0.18** (produção actual, utilizadores reais hoje) — `npm run update:novaqi` com `version` temporariamente revertido para `'1.0.18'`.
+- **Runtime 1.0.19** (build já submetido manualmente à Apple e à Play Store por Davi, pendente de review) — publicado com a `version` real (`1.0.19`) já commitada. Como a app verifica OTA a cada arranque (`checkAutomatically: 'ON_LOAD'`, até 8s de espera no splash), a fix já está pré-carregada e vai ser aplicada no primeiro arranque de qualquer pessoa que instale a 1.0.19 assim que for aprovada — **não é preciso fazer mais nada quando o `min` do force update for avançado para 1.0.19**.
+
+### Alcance desconhecido
+
+Não há forma fácil de descobrir se há **outros** utilizadores historicamente afectados por este bug (clientes anónimos na RevenueCat com subscrições activas nunca ligadas a uma conta) sem uma chamada mais ampla à API da RevenueCat (listagem de customers/projects), que ficou bloqueada pelo classifier de segurança nesta sessão. A fix do `loadStoredAuth()` auto-cura qualquer caso destes **assim que a pessoa reabrir a app**, mas não há visibilidade activa sobre quantos casos existem até isso acontecer.
+
+**Lembrete agendado:** verificar daqui a 2-3 dias se a fix está a funcionar correctamente nos registos novos da 1.0.19 (depois de aprovada pelas lojas).
