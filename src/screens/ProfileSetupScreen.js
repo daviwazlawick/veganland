@@ -7,7 +7,6 @@ import { useNutrition } from '../context/NutritionContext';
 import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
-import { HIDE_FREE_OPTION } from '../constants/features';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { HALAL_STRICTNESS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
@@ -110,28 +109,6 @@ export default function ProfileSetupScreen({ navigation }) {
       }
     } catch (error) {
       // A 401 already triggers AuthContext's global session-expired flow.
-      if (error?.status !== 401) {
-        Alert.alert('', t(language, 'profile_setup.save_error'));
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleContinueFree() {
-    if (!selectedDiet) {
-      Alert.alert('', t(language, 'profile_setup.select_diet'));
-      return;
-    }
-    setSaving(true);
-    try {
-      await saveProfile({
-        dietId: selectedDiet,
-        allergyIds: selectedAllergies,
-        halalStrictness: selectedDiet === 'halal' ? halalStrictness : (profile?.halalStrictness || null),
-      });
-      navigation.navigate('Main');
-    } catch (error) {
       if (error?.status !== 401) {
         Alert.alert('', t(language, 'profile_setup.save_error'));
       }

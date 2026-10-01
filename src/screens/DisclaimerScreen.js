@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, SafeAreaView,
+  TouchableOpacity, SafeAreaView, Alert,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,10 +27,23 @@ export default function DisclaimerScreen() {
   const { token } = useAuth();
   const [checked, setChecked] = useState(false);
 
+  function syncDisclaimerToServer() {
+    apiAcceptDisclaimer(token, DISCLAIMER_VERSION).catch(() => {
+      Alert.alert(
+        t(language, 'disclaimer.sync_error_title'),
+        t(language, 'disclaimer.sync_error_body'),
+        [
+          { text: t(language, 'disclaimer.sync_error_retry'), onPress: syncDisclaimerToServer },
+          { text: t(language, 'disclaimer.sync_error_later'), style: 'cancel' },
+        ],
+      );
+    });
+  }
+
   async function handleAccept() {
     await acceptDisclaimer();
     if (token) {
-      apiAcceptDisclaimer(token, DISCLAIMER_VERSION).catch(() => {});
+      syncDisclaimerToServer();
     }
   }
 

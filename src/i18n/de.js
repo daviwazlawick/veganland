@@ -25,6 +25,7 @@ export default {
     continue_with_google: 'Mit Google fortfahren',
     social_failed: 'Anmeldung fehlgeschlagen. Bitte erneut versuchen.',
     social_apple_reauth: 'Melde dich in den Einstellungen von Apple ID ab und versuche es erneut.',
+    social_new_user_on_login: 'Kein Konto gefunden. Bitte zuerst registrieren.',
     social_terms_hint: 'Wenn du mit Apple oder Google fortfährst, akzeptierst du die AGB, die Datenschutzerklärung und den Gesundheitshinweis.',
     missing_login: 'E-Mail und Passwort eingeben',
     invalid_credentials: 'E-Mail oder Passwort ist falsch.',
@@ -357,6 +358,10 @@ export default {
     block4_body: "Diese App dient ausschließlich als Hilfsmittel für Nutzer, die Zutatenlisten schnell einsehen möchten. Sie ist kein Ersatz für ärztlichen Rat, professionelle Beratung oder sorgfältiges Lesen von Etiketten.",
     checkbox: "Ich verstehe, dass diese App kein medizinisches Werkzeug ist. Ich werde die Zutaten stets auf dem physischen Produktetikett überprüfen, bevor ich es konsumiere.",
     accept: "Ich akzeptiere und fahre fort",
+    sync_error_title: 'Speichern fehlgeschlagen',
+    sync_error_body: 'Wir konnten deine Zustimmung nicht auf dem Server bestätigen. Erneut versuchen?',
+    sync_error_retry: 'Erneut versuchen',
+    sync_error_later: 'Später',
   },
   referral: {
     title: "Freunde einladen",

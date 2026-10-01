@@ -37,7 +37,9 @@ export default function SocialAuthButtons({ disclaimerVersion, referralCode, onE
       if (e?.userCancelled) return; // silent
       const msg = e?.message === 'apple_email_missing_reauth_required'
         ? t(language, 'auth.social_apple_reauth')
-        : (e?.message || t(language, 'auth.social_failed'));
+        : e?.message === 'disclaimer_acceptance is required'
+        ? t(language, 'auth.social_new_user_on_login')
+        : t(language, 'auth.social_failed');
       onError?.(msg);
     } finally {
       setBusy(null);
