@@ -272,13 +272,13 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 
 | Campo | Valor |
 |---|---|
-| version | `1.0.13` (build em progresso, ainda não submetido) |
-| versionCode (Android) | `16` |
+| version | `1.0.19` — build concluído em ambas plataformas (EAS), submissão manual ainda pendente (ver sessão 2026-10-01) |
+| versionCode (Android) | `22` |
 | bundleIdentifier iOS | `app.novaqi` |
 | package Android | `app.novaqi` |
 | runtimeVersion policy | `appVersion` — OTA só chega a builds com a mesma versão |
-| force update `min` (servidor) | `1.0.12` (iOS + Android) — confirmar em `GET /app/version` |
-| Em produção actualmente | `1.0.12` na App Store e Play Store |
+| force update `min` (servidor) | `1.0.18` (iOS + Android) — confirmado em `GET /app/version` |
+| Em produção actualmente | `1.0.18` na App Store e Play Store |
 
 **Histórico:**
 - 1.0.5 — rejeitado pela Apple (BetaRibbon, planos bloqueados, etc.)
@@ -290,6 +290,8 @@ Stack: `react-native-fbsdk-next` + `expo-tracking-transparency`.
 - 1.0.11 — **aprovado e em produção** (iOS + Android, Android já publicado na Play Store) — Push Notifications (APNs + FCM via Expo Push Service) + Programa de referência (referrals com bónus de scans). Firebase Analytics SDK foi tentado e **revertido** por incompatibilidade com Expo SDK 54 (ver secção "Firebase Analytics — tentativa revertida")
 - 1.0.12 — fix do Meta Client Token (tinha um char a mais no `eas.json`, quebrava auth do SDK), fix de bug no RevenueCat (`entitlementToUserType` dava plano starter grátis via "Restaurar compras"), force update `min` bumped pra 1.0.12 em ambas plataformas
 - 1.0.13 — **em build, NovaQI apenas** — Sign in with Apple + Sign in with Google (backend + app), esconder opção "Continue with Free plan" (feature flag), trial pill amber prominente, fixes de bugs pré-existentes (origin scope no catch + XSS no admin panel)
+- 1.0.14 → 1.0.18 — ver secções de sessão correspondentes mais abaixo neste documento (nutrição, exercício, body analysis, react-native-svg, etc.) — histórico não retro-preenchido aqui em cima, só a partir de 1.0.19
+- 1.0.19 — **build concluído em ambas plataformas (EAS), submissão manual pendente** — Firebase Analytics re-adicionado (NovaQI, só após confirmar que a incompatibilidade original de 1.0.11 não reproduz mais), fix de erro não traduzido no social login, fix de falha silenciosa ao sincronizar aceitação do disclaimer, remoção da flag morta `HIDE_FREE_OPTION`, rename "Sex" → "Gender" no onboarding (6 idiomas). Ver secção "1.0.19 — Sessão 2026-10-01" abaixo para detalhes completos.
 
 ---
 
@@ -1891,3 +1893,59 @@ Bloco grande de refactor visual + UX, 5 commits, todos deployed para `https://no
 
 **Deploy web:** 4 builds hoje via `build:novaqi:deploy`, cada um após uma phase / mudança grande. Cache do browser precisa Cmd+Shift+R.
 **Pendente:** OTA no Mac para levar tudo aos users mobile (`npm run update:novaqi`).
+
+---
+
+## 1.0.19 — Sessão 2026-10-01 — Firebase Analytics re-add + fixes de onboarding
+
+### Contexto: investigação "installs vs opens" (Meta Ads)
+
+Retomada de uma investigação começada antes de um restart (commits `a70cf3d` e `2799643`, já em produção na 1.0.18): Meta Ads reportava 0 installs Android atribuídos apesar de ActivateApp/DeactivateApp chegarem todos os dias.
+
+- **Telemetria confirma que o SDK funciona:** `meta_sdk_init` em `funnel_events` tem 100% de sucesso, zero falhas, em todos os eventos recentes (Android + iOS). O SDK inicializa sempre.
+- **Gap descoberto:** `users.utm_source/utm_medium/utm_campaign` existem como colunas mas estão **100% NULL** nos últimos 60 dias (276 users) — nunca implementámos captura própria de Play Install Referrer no backend. Isto não explica o problema do Meta (que lê o referrer internamente, dentro do próprio SDK deles), mas significa que não temos atribuição própria independente para verificar.
+- **Esclarecimento importante (pode poupar tempo numa sessão futura):** Firebase Analytics e Meta Ads são **sistemas de atribuição completamente separados**. Firebase Analytics serve campanhas **Google Ads UAC** (first_open/app_open); a atribuição do **Meta Ads** depende só do próprio SDK do Meta (Play Install Referrer lido internamente pelo FBSDK + AD_ID). A falta de Firebase nunca foi a causa do "0 installs" do Meta.
+- **Causa raiz do "0 installs" do Meta continua por confirmar.** Já descartámos: falha de init do SDK (não falha), AD_ID (já corrigido há meses), AutoLogAppEvents (já corrigido), Client Token com typo (corrigido na 1.0.12), bug do Auto Backup (corrigido, mas só entra em vigor com build nativo novo). Próximo passo seria olhar directo no Meta Ads Manager/Events Manager — ficou bloqueado nesta sessão porque o Chrome estava logado numa conta Business diferente ("Pixformance Sports GmbH", não a conta do NovaQI).
+
+### Firebase Analytics re-adicionado (NovaQI apenas) — `@react-native-firebase/app` + `/analytics` v26.4.0
+
+Tinha sido removido na 1.0.11 (commit `87739aa`, Junho 2026) depois de 4 builds iOS falhados, por incompatibilidade entre `useFrameworks: 'static'` + RNFBApp (conflito de modular headers com React-Core).
+
+**Testado localmente antes de mexer no build real** (sem gastar créditos EAS às cegas):
+- A configuração actual **já não usa** `useFrameworks: 'static'` — foi removida junto com o Firebase original e nunca mais voltou. Isso por si só já muda o cenário da incompatibilidade original.
+- `pod install` com a v26.4.0 (vs. v22/v25 testadas em Junho) correu **limpo** — zero conflitos de header, geração normal do projecto Xcode.
+- O único erro apanhado foi **novo e diferente**: RNFirebase v26 por defeito resolve o Firebase via Swift Package Manager, que colide com linkagem estática (`Pods-NovaQI` duplicate symbols). Resolvido com a opção oficial do config-plugin do RNFirebase — `['@react-native-firebase/app', { ios: { disableSPM: true } }]` — **não** um hack manual no `ios/Podfile` (esse seria perdido no próximo `prebuild` do EAS; a opção do plugin é que fica persistente).
+- **Confirmação real, não só local:** build EAS completo em ambas as plataformas terminou com sucesso — `.ipa` e `.aab` gerados (ver links na secção seguinte). Localmente também correu um `./gradlew assembleDebug` completo no Android (gerou APK de verdade) e um `pod install` + geração de projecto Xcode no iOS (compile completo local bloqueado só porque este Mac não tem a plataforma iOS 26.5 simulator/device instalada — não é problema de configuração).
+
+**Ficheiros alterados:**
+- `app.config.js` — `firebasePlugin` novo, NovaQI-only (mesmo padrão de `fbPlugin`/`appleSignInPlugin`/`googleSignInPlugin`)
+- `firebase.json` (novo) — `analytics_auto_collection_enabled: false` por defeito, igual ao ficheiro original pré-revert
+- `src/services/analyticsService.native.js` — `require('@react-native-firebase/analytics')` via lazy-require + try/catch (mesmo padrão de segurança do `socialAuthService.native.js`, para uma OTA não rebentar num runtime antigo sem o módulo linkado); também NovaQI-only via check de `Brand.id`. `initFirebaseAnalytics()` só liga a colecção depois do mesmo ponto de consentimento ATT/disclaimer que já gatava o Meta SDK — chamado a seguir ao `Settings.initializeSDK()` com sucesso.
+- `package.json` / `package-lock.json` — `@react-native-firebase/app` + `@react-native-firebase/analytics` `^26.4.0`
+
+**Pendente para reactivar no futuro, se precisar:** nada — está tudo ligado e a disparar `first_open`/`app_open`/`session_start` automaticamente assim que o consentimento é dado, em qualquer build a partir da 1.0.19.
+
+### Fixes de onboarding (JS-only, já em OTA na 1.0.18 + web)
+
+Encontrados numa auditoria pedida antes de buildar ("make sure the onboarding is correct"):
+
+1. **Erro não traduzido no social login** — um utilizador novo que tentasse Google/Apple sign-in a partir do ecrã de **Login** (em vez de Register) via a string crua do backend `"disclaimer_acceptance is required"` em português/alemão/francês/italiano/espanhol, sem tradução nenhuma. Fix em `SocialAuthButtons.js`: novo caso especial (`auth.social_new_user_on_login`, 6 idiomas) + fallback endurecido para nunca mais deixar uma string crua do backend passar (antes: `e?.message || t(...)`, qualquer código de erro desconhecido do backend aparecia cru).
+2. **Falha silenciosa ao sincronizar aceitação do disclaimer** — `DisclaimerScreen.js` chamava `apiAcceptDisclaimer` fire-and-forget com `.catch(() => {})`; se falhasse, `disclaimer_accepted_at` nunca ficava gravado no servidor, sem aviso nem retry (relevante para o registo de compliance da Apple). Fix: `Alert.alert` com retry, novas keys `disclaimer.sync_error_*` (6 idiomas).
+3. **Flag `HIDE_FREE_OPTION` morta** — auditoria encontrou que não controlava nada em nenhum dos dois sítios documentados: `PaywallScreen.js` nunca a importava (o link "Continue with Free plan" era gated por uma flag não relacionada, `isLocked`, sempre `false` na prática); `ProfileSetupScreen.js` importava a flag mas o link já tinha sido removido directamente do JSX, não por via da flag — `handleContinueFree` ficou órfã, nunca chamada. A experiência de A/B de 1 semana que a motivou era de Julho 2026, há muito acabada. Removida a flag (`src/constants/features.js`) e a função órfã em vez de a fingir que ainda faz alguma coisa.
+4. **"Sex" → "Gender"** no passo de perfil corporal (`body_sex` + `body_offer_message`), nas 6 línguas: PT "Sexo"→"Gênero", FR "Sexe"→"Genre", IT "Sesso"→"Genere", ES "Sexo"→"Género". DE mantido "Geschlecht" (já é a tradução correcta de "Gender" em alemão, não existe um termo em uso corrente separado).
+
+### Deploy desta sessão
+
+- **OTA publicado** para runtime 1.0.18 (produção actual, antes do version bump) — commit `ba0abaa`, ambas plataformas.
+- **Web** (`novaqi.app`) rebuilded e deployado via `npm run build:novaqi:deploy`.
+- **EAS build 1.0.19** (commit `142b4b4`) — **ambas plataformas concluídas com sucesso**:
+  - iOS: `https://expo.dev/artifacts/eas/emMpbkh4fB8mKEoDhZIxn-fcJlBmm8bUsl1lBCW4W0o.ipa`
+  - Android: `https://expo.dev/artifacts/eas/f2F735wc7cdXyEOCO1qYltI1sVsHJidENek3UF_v4vs.aab`
+  - Android ficou **~47 min em fila** antes de começar a compilar (fila do EAS, não é bug nosso) — se voltar a acontecer, não é motivo de alarme sozinho.
+- **Submissão manual ainda pendente** (não feita nesta sessão — precisa de confirmação explícita antes): iOS via Transporter, Android via download do `.aab` + upload manual no Play Console (continua sem `google-play-key.json`).
+
+### Pendências descobertas nesta sessão (não resolvidas, para retomar)
+
+- **Play Console: "DEX code optimisation is below our threshold — Obfuscation (2%)"** na release 1.0.18. Causa confirmada: `android/app/build.gradle` tem `minifyEnabled enableMinifyInReleaseBuilds` com o default a `false` (`android.enableMinifyInReleaseBuilds` nunca definido em lado nenhum) — R8/ProGuard nunca correu em nenhum build de produção até agora. Fix é `expo-build-properties` → `android: { enableProguardInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true }`, mas precisa de `proguard-rules.pro` com keep-rules para os módulos nativos reflection-heavy (TFLite, VisionCamera, Firebase, RevenueCat, Google Sign-In) e teste manual num APK de release antes de submeter — **decisão da sessão: não meter isto no mesmo build que o Firebase, tratar como trabalho próprio na próxima release.**
+- **Gap de dados: não há timestamp de início de subscrição.** `POST /webhook/revenuecat` → `setUserType()` só faz `UPDATE users SET user_type = ...`, nunca toca `updated_at` nem grava em tabela nenhuma de histórico (ao contrário de `push_broadcasts`, que tem histórico próprio). `users.updated_at` só é tocado por `updateUserProfile` (edições de perfil), não tem nada a ver com subscrição — **não usar `updated_at` como proxy de data de subscrição**, é um erro fácil de cometer (foi cometido nesta sessão antes de verificar o código). Se precisar de responder "quem assinou em tal mês" no futuro: ou consultar a API da RevenueCat directamente (precisa de permissão explícita — chamada bloqueada pelo classifier de segurança por enviar a secret key via curl) ou criar uma tabela de histórico de eventos de subscrição, à semelhança de `push_broadcasts`.
+- **Play Install Referrer** continua por implementar no backend (`utm_source/medium/campaign` sempre NULL) — ver secção "Contexto: investigação installs vs opens" acima.
