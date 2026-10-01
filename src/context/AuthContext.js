@@ -105,6 +105,7 @@ export function AuthProvider({ children }) {
       throw err;
     }
     await persistAuth(data.token, data.user);
+    loginPurchasesUser(data.user.id).catch(() => {});
     return data.user;
   }
 
