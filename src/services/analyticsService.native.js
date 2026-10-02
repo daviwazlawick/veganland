@@ -13,16 +13,22 @@ import Brand from '../brand';
 // google-services.json/GoogleService-Info.plist are only registered for
 // app.novaqi, so the Firebase app isn't configured under the VeganLand
 // bundle id.
-let firebaseAnalytics = null;
+//
+// v26 of @react-native-firebase/analytics ships ONLY the modular API
+// (named exports: getAnalytics(app), setAnalyticsCollectionEnabled(instance,
+// bool), ...) — there is no default export / no analytics() namespace call
+// anymore. Root cause of the earlier silent no-op: this module was written
+// against the old default-export API (`analytics().setAnalyticsCollectionEnabled`),
+// so `.default` was `undefined` — no exception, no log, just silently did
+// nothing on every real-device init.
+let getAnalytics = null;
+let setAnalyticsCollectionEnabled = null;
 if (Brand.id === 'novaqi') {
   try {
-    firebaseAnalytics = require('@react-native-firebase/analytics').default;
+    const mod = require('@react-native-firebase/analytics');
+    getAnalytics = mod.getAnalytics;
+    setAnalyticsCollectionEnabled = mod.setAnalyticsCollectionEnabled;
   } catch (e) {
-    // DIAGNOSTIC — 13/13 real-device inits on 1.0.19 showed zero
-    // firebase_analytics_init events (success or failure), pointing at this
-    // require() throwing silently. Reporting the real error instead of
-    // swallowing it so we can see the actual cause instead of guessing.
-    // Safe to remove once the cause is confirmed.
     logFunnelEvent('firebase_require_failed', { error: String(e?.message || e).slice(0, 300) });
   }
 }
@@ -40,9 +46,10 @@ let firebaseInitialized = false;
 // original build incompatibility (see app.config.js comment) no longer
 // reproduces with current RNFirebase + $RNFirebaseDisableSPM.
 async function initFirebaseAnalytics() {
-  if (!firebaseAnalytics || firebaseInitialized) return;
+  if (!getAnalytics || !setAnalyticsCollectionEnabled || firebaseInitialized) return;
   try {
-    await firebaseAnalytics().setAnalyticsCollectionEnabled(true);
+    const instance = getAnalytics();
+    await setAnalyticsCollectionEnabled(instance, true);
     firebaseInitialized = true;
     logFunnelEvent('firebase_analytics_init', { success: true });
   } catch (e) {
