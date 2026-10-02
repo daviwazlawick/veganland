@@ -1989,3 +1989,17 @@ Ambos os commits foram publicados via OTA em **dois runtimes**, com a técnica d
 Não há forma fácil de descobrir se há **outros** utilizadores historicamente afectados por este bug (clientes anónimos na RevenueCat com subscrições activas nunca ligadas a uma conta) sem uma chamada mais ampla à API da RevenueCat (listagem de customers/projects), que ficou bloqueada pelo classifier de segurança nesta sessão. A fix do `loadStoredAuth()` auto-cura qualquer caso destes **assim que a pessoa reabrir a app**, mas não há visibilidade activa sobre quantos casos existem até isso acontecer.
 
 **Lembrete agendado:** verificar daqui a 2-3 dias se a fix está a funcionar correctamente nos registos novos da 1.0.19 (depois de aprovada pelas lojas).
+
+---
+
+## Force update iOS → 1.0.19 (2026-10-02)
+
+Confirmado 1.0.19 aprovado e ao vivo na App Store (listagem mostrava "Version 1.0.19"). `server/src/server.js` `/app/version` → `ios.min` bumped para `1.0.19` (commit `54e8ab5`). Android **não** foi tocado — mantém-se `1.0.18` (não pedido, status de release Android não verificado nesta sessão).
+
+### ⚠️ Armadilha real: `git push` ≠ deploy em produção
+
+Fiz commit + push da alteração do `ios.min` para o GitHub mas **esqueci-me do passo de deploy no servidor** (`git pull && pm2 restart`). Resultado: o endpoint `/app/version` ao vivo continuou a devolver `ios.min: '1.0.18'` durante algum tempo depois do commit — Davi abriu a app na 1.0.18 à espera de ser bloqueado pelo `ForceUpdateScreen` e não foi, porque o servidor nunca recebeu o código novo.
+
+**Isto é diferente de uma alteração OTA** (`eas update`), que é publicada directamente para os dispositivos sem passar pelo servidor. Qualquer alteração em `server/src/*.js` (incluindo o `min` do force update) só ganha efeito real depois de, no servidor: `cd /opt/veganland && git pull && pm2 restart veganland-api --update-env`. Commitar e dar push no Mac nunca é suficiente sozinho para mudanças de servidor — ver secção "Deploy — Web" mais acima neste documento, já documentada, mas vale reforçar aqui porque foi uma falha real nesta sessão, não hipotética.
+
+**Como verificar que uma mudança de servidor pegou de verdade:** `curl -s https://novaqi.app/app/version` (ou o endpoint relevante) depois do `pm2 restart` — não confiar só no commit/push como prova de que está em produção.
