@@ -15,7 +15,16 @@ import Brand from '../brand';
 // bundle id.
 let firebaseAnalytics = null;
 if (Brand.id === 'novaqi') {
-  try { firebaseAnalytics = require('@react-native-firebase/analytics').default; } catch {}
+  try {
+    firebaseAnalytics = require('@react-native-firebase/analytics').default;
+  } catch (e) {
+    // DIAGNOSTIC — 13/13 real-device inits on 1.0.19 showed zero
+    // firebase_analytics_init events (success or failure), pointing at this
+    // require() throwing silently. Reporting the real error instead of
+    // swallowing it so we can see the actual cause instead of guessing.
+    // Safe to remove once the cause is confirmed.
+    logFunnelEvent('firebase_require_failed', { error: String(e?.message || e).slice(0, 300) });
+  }
 }
 
 const FB_APP_ID = process.env.EXPO_PUBLIC_FB_APP_ID || '';
