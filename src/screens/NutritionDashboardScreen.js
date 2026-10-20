@@ -173,7 +173,7 @@ function ForestSummaryCard({ todayTotals, goals, language, expanded, onToggleExp
         ))}
       </View>
       <TouchableOpacity onPress={onToggleExpand} style={s.expandBtn}>
-        <Text style={s.expandBtnText}>{expanded ? '▲ Less' : '▼ More'}</Text>
+        <Text style={s.expandBtnText}>{expanded ? `▲ ${t(language, 'nutrition.show_less')}` : `▼ ${t(language, 'nutrition.show_more')}`}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -915,7 +915,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
                     consumed={todayTotals[f.key]} goal={goals?.[f.key] || 0} unit={f.unit} color={f.color} language={language} />
                 ))}
                 <TouchableOpacity onPress={() => setExpanded(!expanded)} style={s.expandBtn}>
-                  <Text style={s.expandBtnText}>{expanded ? '▲ Less' : '▼ More'}</Text>
+                  <Text style={s.expandBtnText}>{expanded ? `▲ ${t(language, 'nutrition.show_less')}` : `▼ ${t(language, 'nutrition.show_more')}`}</Text>
                 </TouchableOpacity>
               </View>
             )}

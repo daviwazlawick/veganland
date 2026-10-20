@@ -604,7 +604,9 @@ export default {
     plate_log_btn: 'Enregistrer le repas',
     plate_logged: 'Enregistré !',
     burned: 'brûlées',
-    net: 'restante',
+    net: 'restantes',
+    show_more: 'Plus',
+    show_less: 'Moins',
   },
   exercise: {
     title: 'Exercices',

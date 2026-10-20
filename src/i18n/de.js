@@ -604,7 +604,9 @@ export default {
     plate_log_btn: 'Mahlzeit speichern',
     plate_logged: 'Gespeichert!',
     burned: 'verbrannt',
-    net: 'restante',
+    net: 'verbleibend',
+    show_more: 'Mehr',
+    show_less: 'Weniger',
   },
   exercise: {
     title: 'Übungen',

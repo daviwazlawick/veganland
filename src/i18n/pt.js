@@ -605,6 +605,8 @@ export default {
     plate_logged: 'Registrado!',
     burned: 'queimadas',
     net: 'restante',
+    show_more: 'Mais',
+    show_less: 'Menos',
   },
   exercise: {
     title: 'Exercícios',
