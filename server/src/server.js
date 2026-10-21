@@ -813,38 +813,6 @@ function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStat
   </form>
 
   <div class="card">
-    <h2>Histórico — últimos ${history.length}</h2>
-    <table>
-      <thead><tr>
-        <th>Quando</th><th>Mensagem</th><th>Filtros</th><th>Total</th><th>✅ Ok</th><th>👆 Opens</th><th>❌ Erro</th><th>🚫 Inválido</th>
-      </tr></thead>
-      <tbody>${historyRows || '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">Nenhum broadcast enviado ainda</td></tr>'}</tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>⏰ Notificações Automáticas (água + refeições + onboarding)</h2>
-    <table>
-      <thead><tr>
-        <th>Slot</th><th>Tipo</th><th style="text-align:center">Enviadas</th><th style="text-align:center">👆 Cliques</th><th style="text-align:center">Taxa</th>
-      </tr></thead>
-      <tbody>${scheduledStats.length > 0 ? scheduledStats.map(s => {
-        const label = { water_morning:'Água — Manhã', water_afternoon:'Água — Tarde', water_evening:'Água — Noite', food_morning:'Refeição — Manhã', food_midday:'Refeição — Meio-dia', food_evening:'Refeição — Noite', first_scan_reminder:'Nunca escaneou', body_profile_reminder:'Sem perfil corporal' }[s.slot] || s.slot;
-        const type = s.slot.startsWith('water') ? '💧' : s.slot.startsWith('food') ? '🍽️' : s.slot === 'first_scan_reminder' ? '🔍' : '📊';
-        const rate = s.sent > 0 ? Math.round((s.taps / s.sent) * 100) : 0;
-        return `<tr>
-          <td><strong>${label}</strong></td>
-          <td style="text-align:center">${type}</td>
-          <td style="text-align:center">${s.sent}</td>
-          <td style="text-align:center;color:#2563eb;font-weight:700">${s.taps}</td>
-          <td style="text-align:center;font-size:12px;color:#64748b">${rate}%</td>
-        </tr>`;
-      }).join('') : '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">Sem dados ainda</td></tr>'}</tbody>
-    </table>
-    <p style="font-size:11px;color:#94a3b8;margin-top:12px">Cliques registados quando o utilizador abre a app tocando na notificação.</p>
-  </div>
-
-  <div class="card">
     <h2>🎯 Funil de Activação / Reactivação</h2>
     <table>
       <thead><tr>
@@ -882,6 +850,38 @@ function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStat
       Activados = scan/body/funnel event depois do envio · Conv. = activados/enviadas · Primeiro envio real: 2026-10-21.
       Pausa: <code>crontab -e</code>, comentar as 2 linhas <code>activation-funnel.mjs</code>.
     </p>
+  </div>
+
+  <div class="card">
+    <h2>⏰ Notificações Automáticas (água + refeições + onboarding)</h2>
+    <table>
+      <thead><tr>
+        <th>Slot</th><th>Tipo</th><th style="text-align:center">Enviadas</th><th style="text-align:center">👆 Cliques</th><th style="text-align:center">Taxa</th>
+      </tr></thead>
+      <tbody>${scheduledStats.length > 0 ? scheduledStats.map(s => {
+        const label = { water_morning:'Água — Manhã', water_afternoon:'Água — Tarde', water_evening:'Água — Noite', food_morning:'Refeição — Manhã', food_midday:'Refeição — Meio-dia', food_evening:'Refeição — Noite', first_scan_reminder:'Nunca escaneou', body_profile_reminder:'Sem perfil corporal' }[s.slot] || s.slot;
+        const type = s.slot.startsWith('water') ? '💧' : s.slot.startsWith('food') ? '🍽️' : s.slot === 'first_scan_reminder' ? '🔍' : '📊';
+        const rate = s.sent > 0 ? Math.round((s.taps / s.sent) * 100) : 0;
+        return `<tr>
+          <td><strong>${label}</strong></td>
+          <td style="text-align:center">${type}</td>
+          <td style="text-align:center">${s.sent}</td>
+          <td style="text-align:center;color:#2563eb;font-weight:700">${s.taps}</td>
+          <td style="text-align:center;font-size:12px;color:#64748b">${rate}%</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">Sem dados ainda</td></tr>'}</tbody>
+    </table>
+    <p style="font-size:11px;color:#94a3b8;margin-top:12px">Cliques registados quando o utilizador abre a app tocando na notificação.</p>
+  </div>
+
+  <div class="card">
+    <h2>Histórico — últimos ${history.length}</h2>
+    <table>
+      <thead><tr>
+        <th>Quando</th><th>Mensagem</th><th>Filtros</th><th>Total</th><th>✅ Ok</th><th>👆 Opens</th><th>❌ Erro</th><th>🚫 Inválido</th>
+      </tr></thead>
+      <tbody>${historyRows || '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">Nenhum broadcast enviado ainda</td></tr>'}</tbody>
+    </table>
   </div>
 
   <p style="text-align:center;font-size:13px"><a href="/admin">← Voltar ao admin</a></p>
