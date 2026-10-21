@@ -2054,8 +2054,27 @@ Línguas suportadas: EN (fallback), PT, ES, FR, DE, IT. Match por prefixo de `pu
 
 ### Backfill inicial
 
-Ao armar (2026-10-21T13:44Z): **132 utilizadores** elegíveis, distribuídos por ~40 fusos. Entram no funil ao próximo tick da hora que coincide com a sua 11:00 local — ninguém recebe em massa simultaneamente.
+Ao armar (2026-10-21T13:44Z): **132 utilizadores (activation)** + **120 utilizadores (reactivation)** = **252 no total**, distribuídos por ~40 fusos. Entram no funil ao próximo tick da hora que coincide com a sua 11:00 local — ninguém recebe em massa simultaneamente.
 
-### Pendente (próximo sprint)
+### Track B — reactivation (armado na mesma sessão, commit 3f1dd10)
 
-**Track B — reactivation** para users que usaram e depois ficaram ≥7 dias dormentes. Mesma infra, mesma tabela (`track='reactivation'`), cadência a confirmar com Davi antes de construir. Nada disto ainda está armado.
+Target: `last_activity ≤ now - 7d AND push_token alive <60d` (users que tiveram actividade mas ficaram dormentes). **1 ciclo único × 5 steps lifetime** (sem re-triggers — já conhecem a app). Partilha script e tabela com Track A, distinto só pela coluna `track`.
+
+Mensagens com ângulo "saudade / retomar", não "primeira vez":
+- Step 1 → PlateAnalysis — "We miss you"
+- Step 2 → BodyAnalysis — "7 days, no data"
+- Step 3 → PlateAnalysis — "You know this already"
+- Step 4 → NutritionDashboard — "Progress needs data"
+- Step 5 → PlateAnalysis — "Still here when you are"
+
+Lógica de single-cycle em `decideNext()`: quando `trackCfg.cycleGapDays` é `null`, se `last_cycle === 1 AND last_step >= 5`, retorna `null` para sempre.
+
+### Admin stats card (commit ebcab1a)
+
+Novo card "🎯 Funil de Activação / Reactivação" no fundo de `/admin/push?token=<JWT_ADMIN>`, powered por `getFunnelStats()` em `server.js`. SQL agrega `reactivation_sends` × `push_clicks` × (`scan_events` | `body_measurements` | `funnel_events`) por `(track, cycle, step)`. Colunas: enviadas, 👆 clicks, CTR, 🎯 activados (quem fez scan/body/funnel event *depois* do envio), conv %. Labels curtos inline por step em vez de duplicar o copy do script (par é estável).
+
+### Troubleshooting rápido
+
+- **Report vazio**: funnel ainda não disparou (cron só manda a cada :00 UTC, apenas para users em 11:00 local nesse instante). Primeiro envio real para Asia/Dubai às ~15:00 UTC do mesmo dia.
+- **Teste manual a 1 user**: enviar para o próprio token via fetch `exp.host/--/api/v2/push/send` (ver padrão em `broadcast-challenge.mjs`); se admin, não entra no funil real porque `user_type='admin'` cai no filtro `zero_usage` (admin tem actividade).
+- **Reset total**: `TRUNCATE reactivation_sends` → o próximo tick recomeça todos como se fosse primeira vez. Perde histórico, perde state de ciclo.
