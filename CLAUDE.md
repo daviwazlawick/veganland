@@ -2003,3 +2003,59 @@ Fiz commit + push da alteração do `ios.min` para o GitHub mas **esqueci-me do 
 **Isto é diferente de uma alteração OTA** (`eas update`), que é publicada directamente para os dispositivos sem passar pelo servidor. Qualquer alteração em `server/src/*.js` (incluindo o `min` do force update) só ganha efeito real depois de, no servidor: `cd /opt/veganland && git pull && pm2 restart veganland-api --update-env`. Commitar e dar push no Mac nunca é suficiente sozinho para mudanças de servidor — ver secção "Deploy — Web" mais acima neste documento, já documentada, mas vale reforçar aqui porque foi uma falha real nesta sessão, não hipotética.
 
 **Como verificar que uma mudança de servidor pegou de verdade:** `curl -s https://novaqi.app/app/version` (ou o endpoint relevante) depois do `pm2 restart` — não confiar só no commit/push como prova de que está em produção.
+
+---
+
+## Activation funnel evergreen (2026-10-21)
+
+**Contexto**: 55% dos signups são zero-usage (nunca scanearam, nunca fizeram análise corporal, nunca geraram funnel event). Monetização sem resolver activation era otimizar balde furado — ver secção paywall mais acima.
+
+### O sistema
+
+- **Migration** `server/src/migrations/042_reactivation_sends.sql` — tabela `reactivation_sends (user_id, track, cycle, step, broadcast_id, locale_sent, sent_at)` com UNIQUE em `(user_id, track, cycle, step)`.
+- **Script** `server/src/scripts/activation-funnel.mjs` — modos: default (horário), `--backfill` (lista eligíveis), `--dry-run`, `--force-hour=N`, `--report`.
+- **Cron no root crontab** (não `/etc/cron.d`, segue convenção do `update-off.sh`):
+  ```
+  0 * * * * cd /opt/veganland && /usr/bin/node server/src/scripts/activation-funnel.mjs >> /var/log/novaqi-funnel.log 2>&1
+  0 9 * * 1 cd /opt/veganland && /usr/bin/node server/src/scripts/activation-funnel.mjs --report >> /var/log/novaqi-funnel.log 2>&1
+  ```
+
+### Lógica
+
+- **Target**: `created_at ≤ now - 3d AND zero scan_events AND zero body_measurements AND zero funnel_events AND push_token alive <60d`.
+- **Ciclo**: 3 ciclos no total por user. Ciclo 1 começa ao primeiro envio (`funnel_started_at = MIN(sent_at)`), ciclo 2 em +30d, ciclo 3 em +60d.
+- **Steps dentro do ciclo**: dias 0, 1, 6, 10, 15 do start do ciclo (schedule tabulado em `STEP_DAYS`).
+- **Horário**: 11:00 local do user (via `push_tokens.timezone`). Cron horário selecciona só quem está em 11:00 local nesse instante — `EXTRACT(HOUR FROM (NOW() AT TIME ZONE pt.timezone)) = 11`.
+- **Rate guard**: nunca envia se o último send foi há <20h (defesa contra duplo-tick).
+- **Pára imediatamente** se o user activar — a query de candidatos exige zero_usage ongoing, então basta 1 scan/body/funnel event para sair do universo elegível para sempre.
+
+### Mensagens (ângulo saúde — NÃO dieta)
+
+Lead sempre com macros/corpo/nutrição/treino; filtro vegan/halal nunca é o gancho (ver memory `feedback_novaqi_positioning`). Routes por step:
+- 1 → `PlateAnalysis` — "What's really on your plate?"
+- 2 → `BodyAnalysis` — "Your body, in numbers"
+- 3 → `PlateAnalysis` — "~400 kcal more than you think"
+- 4 → `NutritionDashboard` — "7 days from now..."
+- 5 → `PlateAnalysis` — "Last ping."
+
+Línguas suportadas: EN (fallback), PT, ES, FR, DE, IT. Match por prefixo de `push_tokens.locale` (`en-US`, `pt-BR`, etc.).
+
+### Click tracking + report
+
+- Cada envio cria uma linha em `push_broadcasts` com `route` + `locale=null` (porque é mix) e injecta `broadcast_id` no payload do push. Clicks são capturados pelo endpoint existente `POST /push/click` → tabela `push_clicks`.
+- Report semanal (segunda 09:00 UTC) gera HTML com per-cycle × per-step: sent, clicked, CTR, "activated after send" — e envia para `contact@novaqi.app` via `NOVAQI_SMTP_*`.
+
+### Operação
+
+- Pausar tudo: `crontab -e` → comentar as 2 linhas. State fica preservado em `reactivation_sends`.
+- Report ad-hoc: `node /opt/veganland/server/src/scripts/activation-funnel.mjs --report`.
+- Ver quem entrou hoje: `psql ... "SELECT * FROM reactivation_sends WHERE sent_at > NOW() - INTERVAL '24 hours' ORDER BY sent_at DESC"`.
+- Log: `/var/log/novaqi-funnel.log`.
+
+### Backfill inicial
+
+Ao armar (2026-10-21T13:44Z): **132 utilizadores** elegíveis, distribuídos por ~40 fusos. Entram no funil ao próximo tick da hora que coincide com a sua 11:00 local — ninguém recebe em massa simultaneamente.
+
+### Pendente (próximo sprint)
+
+**Track B — reactivation** para users que usaram e depois ficaram ≥7 dias dormentes. Mesma infra, mesma tabela (`track='reactivation'`), cadência a confirmar com Davi antes de construir. Nada disto ainda está armado.
