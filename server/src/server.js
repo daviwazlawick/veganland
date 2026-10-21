@@ -668,6 +668,28 @@ const PUSH_DIET_OPTIONS = [
   { id: 'omnivore',     label: '🍽️ Onívoro' },
 ];
 
+async function getFunnelStats() {
+  const db = await import('./db.js').then(m => m.getPool());
+  if (!db) return [];
+  const { rows } = await db.query(`
+    SELECT
+      rs.track, rs.cycle, rs.step,
+      COUNT(*)::int                                                    AS sent,
+      COUNT(DISTINCT pc.user_id)::int                                  AS clicks,
+      COUNT(DISTINCT CASE
+        WHEN se.id IS NOT NULL OR bm.id IS NOT NULL OR fe.id IS NOT NULL
+        THEN rs.user_id END)::int                                      AS activated
+    FROM   reactivation_sends rs
+    LEFT JOIN push_clicks       pc ON pc.broadcast_id = rs.broadcast_id AND pc.user_id = rs.user_id
+    LEFT JOIN scan_events       se ON se.user_id      = rs.user_id      AND se.created_at >= rs.sent_at
+    LEFT JOIN body_measurements bm ON bm.user_id      = rs.user_id      AND bm.recorded_at >= rs.sent_at
+    LEFT JOIN funnel_events     fe ON fe.user_id      = rs.user_id      AND fe.created_at >= rs.sent_at
+    GROUP BY rs.track, rs.cycle, rs.step
+    ORDER BY rs.track, rs.cycle, rs.step
+  `);
+  return rows;
+}
+
 async function getScheduledNotifStats() {
   const db = await import('./db.js').then(m => m.getPool());
   if (!db) return [];
@@ -698,7 +720,7 @@ async function getScheduledNotifStats() {
   return [...waterFood, ...onboarding];
 }
 
-function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStats = []) {
+function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStats = [], funnelStats = []) {
   const resultHtml = lastResult ? `<div class="result">${esc(lastResult)}</div>` : '';
   const historyRows = history.map(h => {
     const when = new Date(h.created_at).toLocaleString('pt-BR');
@@ -820,6 +842,46 @@ function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStat
       }).join('') : '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">Sem dados ainda</td></tr>'}</tbody>
     </table>
     <p style="font-size:11px;color:#94a3b8;margin-top:12px">Cliques registados quando o utilizador abre a app tocando na notificação.</p>
+  </div>
+
+  <div class="card">
+    <h2>🎯 Funil de Activação / Reactivação</h2>
+    <table>
+      <thead><tr>
+        <th>Track</th><th>Ciclo</th><th>Step</th><th>Alvo</th>
+        <th style="text-align:center">Enviadas</th>
+        <th style="text-align:center">👆 Clicks</th>
+        <th style="text-align:center">CTR</th>
+        <th style="text-align:center">🎯 Activados</th>
+        <th style="text-align:center">Conv.</th>
+      </tr></thead>
+      <tbody>${(() => {
+        if (!funnelStats.length) return '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px">Sem envios ainda</td></tr>';
+        const STEP_LABEL = { 1: 'Plate — macros', 2: 'Body — numbers', 3: 'Plate — ~400 kcal', 4: 'Dashboard — 7 days', 5: 'Plate — last ping' };
+        const REACT_LABEL = { 1: 'We miss you', 2: '7 days no data', 3: 'You know this', 4: 'Progress needs data', 5: 'Still here' };
+        return funnelStats.map(r => {
+          const label = r.track === 'activation' ? STEP_LABEL[r.step] : REACT_LABEL[r.step];
+          const ctr = r.sent > 0 ? Math.round((r.clicks / r.sent) * 100) : 0;
+          const conv = r.sent > 0 ? Math.round((r.activated / r.sent) * 100) : 0;
+          const trackColor = r.track === 'activation' ? '#16a34a' : '#9333ea';
+          return `<tr>
+            <td><span style="background:${trackColor};color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">${r.track}</span></td>
+            <td style="text-align:center">${r.cycle}</td>
+            <td style="text-align:center;font-weight:700">${r.step}</td>
+            <td style="font-size:12px;color:#64748b">${esc(label || '')}</td>
+            <td style="text-align:center;color:#16a34a;font-weight:700">${r.sent}</td>
+            <td style="text-align:center;color:#2563eb;font-weight:700">${r.clicks}</td>
+            <td style="text-align:center;font-size:12px;color:#64748b">${ctr}%</td>
+            <td style="text-align:center;color:#d97706;font-weight:700">${r.activated}</td>
+            <td style="text-align:center;font-size:12px;color:#64748b">${conv}%</td>
+          </tr>`;
+        }).join('');
+      })()}</tbody>
+    </table>
+    <p style="font-size:11px;color:#94a3b8;margin-top:12px">
+      Activados = scan/body/funnel event depois do envio · Conv. = activados/enviadas · Primeiro envio real: 2026-10-21.
+      Pausa: <code>crontab -e</code>, comentar as 2 linhas <code>activation-funnel.mjs</code>.
+    </p>
   </div>
 
   <p style="text-align:center;font-size:13px"><a href="/admin">← Voltar ao admin</a></p>
@@ -1823,12 +1885,13 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const token = new URL(req.url, 'http://x').searchParams.get('token');
-      const [history, scheduledStats] = await Promise.all([
+      const [history, scheduledStats, funnelStats] = await Promise.all([
         listPushBroadcasts(30),
         getScheduledNotifStats(),
+        getFunnelStats(),
       ]);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(token, null, history, scheduledStats));
+      res.end(htmlAdminPushPage(token, null, history, scheduledStats, funnelStats));
       return;
     }
 
@@ -1859,9 +1922,11 @@ const server = http.createServer(async (req, res) => {
         .map(v => (v || '').trim())
         .filter(v => allowedDiets.has(v));
       if (!title || !body) {
-        const history = await listPushBroadcasts(30);
+        const [history, scheduledStats, funnelStats] = await Promise.all([
+          listPushBroadcasts(30), getScheduledNotifStats(), getFunnelStats(),
+        ]);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history));
+        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history, scheduledStats, funnelStats));
         return;
       }
       const tokens = await listPushTokens({ locale, userType, onboardingScanUsed, dietIds });
@@ -1891,9 +1956,11 @@ const server = http.createServer(async (req, res) => {
         });
       }
       const summary = `✅ Enviadas: ${ok} · ❌ Erros: ${errors} · 🚫 Inválidos: ${invalid} · 📊 Total: ${tokens.length}`;
-      const history = await listPushBroadcasts(30);
+      const [history, scheduledStats, funnelStats] = await Promise.all([
+        listPushBroadcasts(30), getScheduledNotifStats(), getFunnelStats(),
+      ]);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(adminToken, summary, history));
+      res.end(htmlAdminPushPage(adminToken, summary, history, scheduledStats, funnelStats));
       return;
     }
 
