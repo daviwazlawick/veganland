@@ -2078,3 +2078,100 @@ Novo card "🎯 Funil de Activação / Reactivação" no fundo de `/admin/push?t
 - **Report vazio**: funnel ainda não disparou (cron só manda a cada :00 UTC, apenas para users em 11:00 local nesse instante). Primeiro envio real para Asia/Dubai às ~15:00 UTC do mesmo dia.
 - **Teste manual a 1 user**: enviar para o próprio token via fetch `exp.host/--/api/v2/push/send` (ver padrão em `broadcast-challenge.mjs`); se admin, não entra no funil real porque `user_type='admin'` cai no filtro `zero_usage` (admin tem actividade).
 - **Reset total**: `TRUNCATE reactivation_sends` → o próximo tick recomeça todos como se fosse primeira vez. Perde histórico, perde state de ciclo.
+
+---
+
+## Paywall step de volta no onboarding (2026-10-22, OTA na 1.0.19)
+
+Contexto: desde `e0ef61a` (2026-09-01) o onboarding ia direto Profile → Scan/Main, sem paywall. Decidido reinserir o plan step entre Profile e o guided-first-scan para voltar a oferecer o trial a signups novos (versão com opção "continue free" visível, como era antes de Jul 2026 pré-A/B HIDE_FREE_OPTION).
+
+**Commit:** `c352085` · **Update group EAS:** `a75b89f7-430e-41c4-ace3-642be9f194ad` · **Branch:** production · **Runtime:** appVersion 1.0.19.
+
+### Mudanças (só 2 ficheiros, JS puro)
+
+- **`src/screens/ProfileSetupScreen.js:94-98`** — após save em first-time, `navigation.reset` passa a mandar para `Paywall` com `{ currentPlan: 'free', source: 'onboarding', onboarding: true }` em vez de ir direto a `Scan`/`Main`. Removido o branch `needsOnboardingScan` dentro deste ficheiro (lógica deslocada para o PaywallScreen).
+- **`src/screens/PaywallScreen.js:58-80`** — nova helper `goAfterPaywall()`: se `route.params.onboarding === true`, faz `navigation.reset` para `Scan { onboarding: true }` quando `user.onboarding_scan_used !== true`, senão `Main`. `handleClose` (= botão "continue free" + X do topo) agora chama a helper em vez do antigo `canGoBack/Main`.
+- **`src/screens/PaywallScreen.js:184-197`** — pós-compra bem-sucedida também respeita o flag `onboarding`: user que compra Starter/Premium no onboarding segue para `Scan { onboarding: true }` (não salta o guided-first-scan).
+- Call sites não-onboarding ficam intactos (Profile Upgrade, ScanLimitCard, null-tier initial route em `AppNavigator.js:142`) — nenhum passa `onboarding: true` → caem no path antigo `canGoBack/Main`.
+
+### Fluxo final
+
+```
+Register → ProfileSetup (3 steps) → Paywall ─┬─ continue_free → Scan (onboarding=true)
+                                             ├─ starter/premium → RC purchase → Scan (onboarding=true)
+                                             └─ X topo                        → Scan (onboarding=true)
+                                                                                 → Main depois do scan
+```
+
+### RevenueCat — não é dummy
+
+`PaywallScreen` importa de `src/services/purchasesService` que resolve para `.native.js` em iOS/Android → `react-native-purchases` SDK oficial (`^10.1.2`, já linkado nativamente desde a 1.0.19). Chaves RC hardcoded em `purchasesService.native.js:7-10` (`appl_yitu...` iOS, `goog_YnmI...` Android) — já não dependem de env var, portanto imunes ao bug de 2026-09-01 (commit `0cf9caf` scrambled key).
+
+### Como medir se afectou criação de contas
+
+Baseline pré-reinserção (fluxo sem paywall, Set-Out 2026):
+
+| Janela | Signups (28d) | user_type pós-signup |
+|---|---|---|
+| 2026-09-01 → 2026-09-28 | 166 | 100% free |
+| 2026-09-29 → 2026-10-21 (3 semanas) | ~130 | 100% free |
+
+Pré-remoção da paywall (Ago 2026, com paywall no onboarding):
+- 91 signups em 28d, 3 com `user_type='premium'` (3.3% trial conversion durante onboarding).
+
+**Nota crítica sobre o que medir:** a row em `users` é criada no **RegisterScreen** (`apiRegister` → `POST /auth/register`), **antes** do ProfileSetup e do Paywall. Dropar no paywall **não** remove a row. Portanto `COUNT(*) FROM users` sozinho não detecta impacto negativo — só mede chegadas ao Register. O que o paywall pode realmente afectar é **activação** (chegar a fazer um scan) e **trial starts**.
+
+**Query principal — activação 7d por cohort (pré vs pós reinserção):**
+```sql
+SELECT
+  CASE WHEN u.created_at >= '2026-10-22' THEN 'pos_paywall' ELSE 'pre_paywall' END AS cohort,
+  COUNT(*) AS signups,
+  COUNT(*) FILTER (WHERE EXISTS (
+    SELECT 1 FROM scan_events s
+    WHERE s.user_id = u.id AND s.created_at BETWEEN u.created_at AND u.created_at + interval '7 days'
+  )) AS activated_7d,
+  ROUND(100.0 * COUNT(*) FILTER (WHERE EXISTS (
+    SELECT 1 FROM scan_events s
+    WHERE s.user_id = u.id AND s.created_at BETWEEN u.created_at AND u.created_at + interval '7 days'
+  )) / NULLIF(COUNT(*), 0), 1) AS activation_pct
+FROM users u
+WHERE u.created_at >= '2026-09-24' AND u.created_at < '2026-11-19'
+GROUP BY 1
+ORDER BY 1;
+```
+
+**Queries complementares:**
+```sql
+-- signups 28d pré-reinserção
+SELECT COUNT(*) FROM users WHERE created_at >= '2026-09-24' AND created_at < '2026-10-22';
+-- signups 28d pós-reinserção
+SELECT COUNT(*) FROM users WHERE created_at >= '2026-10-22' AND created_at < '2026-11-19';
+-- trial starts no onboarding pós-reinserção (user_type != 'free' logo após signup)
+SELECT user_type, COUNT(*) FROM users
+WHERE created_at >= '2026-10-22'
+GROUP BY 1 ORDER BY 2 DESC;
+-- funil paywall_shown vs paywall_dismissed no onboarding
+SELECT event_type, COUNT(*) FROM funnel_events
+WHERE created_at >= '2026-10-22' AND metadata->>'source' = 'onboarding'
+GROUP BY 1;
+```
+
+**Hipóteses a validar:**
+- **H1 — melhorou:** signups ≥ baseline + 2-5% dos novos começam trial. Paywall não é fricção perceptível e capta receita.
+- **H2 — igual:** signups ≈ baseline, 0-1% começam trial. Users clicam "continue free" sem hesitar. Paywall não ajuda nem atrapalha.
+- **H3 — piorou:** signups caem >15%. Users abandonam no plan step. Nesse caso, reverter via OTA (basta reverter commit `c352085`).
+
+**Confounders a ter em conta:** o activation funnel evergreen (cron horário) continua a correr e injectar scans/body profile em users zero-uso — isso não afecta signups mas afecta scan_started downstream. Também não houve broadcast simultâneo (ao contrário de Set-01 que teve o freemium broadcast misturado).
+
+### Rollback (se H3)
+
+```bash
+cd ~/Veganland/veganland
+git revert c352085
+git push origin main
+npm run update:novaqi
+```
+
+### Nota operacional importante
+
+- **OTAs correm sempre do Mac do Davi**, não do `/opt/veganland` no VPS (ver `MEMORY.md` → feedback-ota-command). O VPS pode estar vários commits atrás; o Mac tem a sessão EAS e os RN modules. Esta sessão: Mac estava 17 commits atrás + ainda em 1.0.18; teve de ser `git pull` + `npm install` (para apanhar os `@react-native-firebase/*`) antes do `npm run update:novaqi`.
