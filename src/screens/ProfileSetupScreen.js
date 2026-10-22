@@ -92,18 +92,10 @@ export default function ProfileSetupScreen({ navigation }) {
         }).catch(() => {});
       }
       if (isFirstTime) {
-        const needsOnboardingScan = user?.onboarding_scan_used !== true;
-        if (needsOnboardingScan) {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Scan', params: { onboarding: true } }],
-          });
-        } else {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Main' }],
-          });
-        }
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Paywall', params: { currentPlan: 'free', source: 'onboarding', onboarding: true } }],
+        });
       } else {
         navigation.navigate('Main');
       }

@@ -55,14 +55,28 @@ export default function PaywallScreen({ navigation, route }) {
   // they'd land on Main and get treated as if they had free access.
   const isLocked = user?.user_type === null;
 
+  function goAfterPaywall() {
+    if (route?.params?.onboarding) {
+      const needsScan = user?.onboarding_scan_used !== true;
+      navigation.reset({
+        index: 0,
+        routes: needsScan
+          ? [{ name: 'Scan', params: { onboarding: true } }]
+          : [{ name: 'Main' }],
+      });
+      return;
+    }
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Main');
+  }
+
   function handleClose() {
     if (isLocked) return;
     logFunnelEvent('paywall_dismissed', {
       source: route?.params?.source || 'unknown',
       current_plan: currentPlan,
     }, token);
-    if (navigation.canGoBack()) navigation.goBack();
-    else navigation.navigate('Main');
+    goAfterPaywall();
   }
 
   useEffect(() => {
@@ -170,7 +184,17 @@ export default function PaywallScreen({ navigation, route }) {
         logSubscribe({ price, currency, planId: plan.id });
       }
       updateUserType(newUserType);
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+      if (route?.params?.onboarding) {
+        const needsScan = user?.onboarding_scan_used !== true;
+        navigation.reset({
+          index: 0,
+          routes: needsScan
+            ? [{ name: 'Scan', params: { onboarding: true } }]
+            : [{ name: 'Main' }],
+        });
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+      }
       if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
     } catch (e) {
       if (!e.userCancelled) {
