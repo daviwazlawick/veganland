@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Linking, Modal, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, Alert, Animated, Easing, AccessibilityInfo } from 'react-native';
+import { font } from '../theme/type';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -61,6 +62,17 @@ const NOVA_COLORS = { 1: '#2E7D32', 2: '#FBC02D', 3: '#F57C00', 4: '#C62828' };
 function parseIngredients(text) {
   if (!text) return [];
   return text.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+}
+
+// Tamanho da palavra do veredito pela palavra mais longa: "OK" cabe a 76,
+// "ATTENZIONE" e "Rabbinische Aufsicht erforderlich" precisam descer.
+// (adjustsFontSizeToFit não funciona no web, por isso a conta.)
+function verdictSize(text) {
+  const s = String(text || '');
+  const longest = Math.max(0, ...s.split(/\s+/).map(w => w.length));
+  let size = longest <= 5 ? 76 : longest <= 7 ? 60 : longest <= 10 ? 44 : 38;
+  if (s.length > 16) size = Math.min(size, 38);
+  return { fontSize: size, lineHeight: Math.round(size * 1.05), letterSpacing: size >= 60 ? -2.5 : -1 };
 }
 
 function titleCase(s) {
@@ -159,6 +171,24 @@ export default function ResultScreen({ navigation, route }) {
   const [consumeLogging, setConsumeLogging] = useState(false);
   const [consumeLogged, setConsumeLogged] = useState(false);
   const [burnExIds, setBurnExIds] = useState(DEFAULT_BURN_EXERCISES);
+
+  // Único movimento da tela: o veredito entra (opacidade + 10px), saída forte.
+  // Com "reduzir movimento" ligado, aparece direto.
+  const enter = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let alive = true;
+    const run = (reduce) => {
+      if (!alive) return;
+      if (reduce) { enter.setValue(1); return; }
+      Animated.timing(enter, {
+        toValue: 1, duration: 360,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    };
+    Promise.resolve(AccessibilityInfo.isReduceMotionEnabled?.()).then(run).catch(() => run(true));
+    return () => { alive = false; };
+  }, []);
 
   async function handleLogConsume() {
     const grams = parseFloat(consumeGrams) || 100;
@@ -300,284 +330,246 @@ export default function ResultScreen({ navigation, route }) {
   const aiTraces = Array.isArray(result.traces) && result.traces.length > 0 ? result.traces : null;
   const traces = offTraces || aiTraces;
 
+  // Ingrediente marcado: mesma regra de antes (halal/kosher locais ou concerns do servidor).
+  function isFlagged(item) {
+    if (halalResult) return halalFlagMap.has(item);
+    if (kosherResult) return kosherFlagMap.has(item);
+    const lower = item.toLowerCase();
+    return concerns.some(c => {
+      const cl = c.toLowerCase();
+      return lower.includes(cl) || cl.includes(lower);
+    });
+  }
+  const markColor = effectiveStatus === 'NOT_SAFE'
+    ? (Colors.markDanger || Colors.dangerLight)
+    : (Colors.markCaution || Colors.cautionLight);
+  const flaggedCount = ingredients.filter(isFlagged).length;
+
+  // Sensibilidades do próprio perfil aparecem marcadas na lista de alérgenos.
+  const myAllergyIds = new Set(profile?.allergyIds || []);
+  // Traços vêm em inglês do OFF/IA ("peanuts"); traduz quando bate com a lista de alergias.
+  const traceLabel = (item) => {
+    const key = String(item).trim().toLowerCase().replace(/\s+/g, '_');
+    const hit = ALLERGIES.find(a => a.id === key || String(a.label.en).toLowerCase() === String(item).trim().toLowerCase());
+    return hit ? (hit.label[language] || hit.label.en) : item;
+  };
+  const verdictIcon = { SAFE: 'checkmark-circle', CAUTION: 'alert-circle', NOT_SAFE: 'close-circle' }[effectiveStatus] || 'alert-circle';
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: cfg.bannerBg }]} edges={['top']}>
+      <View style={[v.header, { backgroundColor: cfg.bannerBg }]}>
         {isOnboarding ? (
           <View style={{ width: 44 }} />
         ) : (
-          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>←</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Main')}
+            style={v.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </TouchableOpacity>
         )}
-        <Text style={styles.headerTitle}>
+        <Text style={v.headerTitle}>
           {isOnboarding ? t(language, 'onboarding.scan_title') : t(language, 'result.full_analysis')}
         </Text>
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.banner}>
-          {offMeta?.image_url ? (
-            <>
-              <Image
-                source={{ uri: offMeta.image_url }}
-                style={StyleSheet.absoluteFillObject}
-                resizeMode="cover"
-              />
-              <View style={[StyleSheet.absoluteFillObject, styles.bannerDarkOverlay]} />
-            </>
-          ) : (
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: cfg.bannerBg }]} />
+      <ScrollView
+        style={{ backgroundColor: Colors.background }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        {/* Veredito: a palavra grande na cor do resultado, e o produto logo abaixo. */}
+        <View style={[v.verdict, { backgroundColor: cfg.bannerBg }]}>
+          <Animated.View style={{ opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+            <View style={v.verdictTop}>
+              <Ionicons name={verdictIcon} size={30} color={Colors.white} />
+              {offMeta?.image_url ? (
+                <Image source={{ uri: offMeta.image_url }} style={v.thumb} resizeMode="contain" />
+              ) : null}
+            </View>
+            <Text style={[v.verdictWord, verdictSize(bannerTitleText)]}>
+              {bannerTitleText}
+            </Text>
+            <Text style={v.verdictSub}>{bannerSubText}</Text>
+          </Animated.View>
+          {(productName || result.title) && (
+            <View style={v.productBlock}>
+              <Text style={v.productName}>{result.title || productName}</Text>
+              {sourceKey && KNOWN_SOURCES.has(sourceKey) && (
+                <Text style={v.productSource}>{t(language, `result.source_${sourceKey}`)}</Text>
+              )}
+            </View>
           )}
-          <View style={styles.lightLine} />
-          <View style={[styles.bannerIconCircle, { backgroundColor: cfg.bannerBg }]}>
-            <PremiumIcon name={cfg.icon} size={64} color={Colors.white} />
-          </View>
-          <Text style={styles.bannerTitle}>{bannerTitleText}</Text>
-          <Text style={styles.bannerSub}>{bannerSubText}</Text>
-          <View style={styles.statusBadge}>
-            <PremiumIcon name={cfg.icon} size={22} />
-          </View>
         </View>
 
         {result.imageUri && (
-          <View style={[styles.productImageWrap, isNovaQI && styles.productImageWrapNovaqi]}>
-            <Image source={{ uri: result.imageUri }} style={styles.productImage} resizeMode="cover" />
-            {isNovaQI && (
-              <>
-                <View style={styles.productImageScrim} />
-                <View style={[styles.productImageBadge, { backgroundColor: cfg.bannerBg }]}>
-                  <PremiumIcon name={cfg.icon} size={18} color={Colors.white} />
+          <Image source={{ uri: result.imageUri }} style={v.userPhoto} resizeMode="cover" />
+        )}
+
+        {/* Por quê: explicação e, quando houver, cada motivo numa linha. */}
+        <View style={v.sheet}>
+          <Text style={v.explanation}>
+            {result.cannot_read ? t(language, 'result.cannot_read') : result.explanation}
+          </Text>
+          {displayConcerns.length > 0 && (
+            <View style={v.concerns}>
+              <Text style={v.sheetTitle}>{t(language, 'result.concerns')}</Text>
+              {displayConcerns.map((item, i) => (
+                <View key={i} style={v.concernRow}>
+                  <View style={[v.concernMark, { backgroundColor: cfg.bannerBg }]} />
+                  <Text style={v.concernText}>{item}</Text>
                 </View>
-                <Text style={styles.productImageScrimText}>{bannerTitleText}</Text>
+              ))}
+            </View>
+          )}
+          {displayConcerns.length === 0 && effectiveStatus === 'SAFE' && (
+            <View style={v.concerns}>
+              <Text style={[v.sheetTitle, { color: Colors.safeDark }]}>{t(language, 'result.no_issues')}</Text>
+              <Text style={v.muted}>{t(language, 'result.no_concerns')}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* O rótulo lido: a lista inteira, com o que pesou no veredito no marca-texto. */}
+        <View style={v.sheet}>
+          <View style={v.sheetHead}>
+            <Text style={v.sheetTitle}>{t(language, 'result.ingredients')}</Text>
+            {ingredients.length > 0 && (
+              <Text style={v.sheetCount}>{flaggedCount > 0 ? `${flaggedCount}/${ingredients.length}` : ingredients.length}</Text>
+            )}
+          </View>
+          {ingredients.length > 0 ? (
+            <Text style={v.label}>
+              {ingredients.map((item, i) => {
+                const flagged = isFlagged(item);
+                return (
+                  <Text key={i}>
+                    <Text style={flagged ? [v.labelFlagged, { backgroundColor: markColor }] : null}>{item}</Text>
+                    {i < ingredients.length - 1 ? ', ' : '.'}
+                  </Text>
+                );
+              })}
+            </Text>
+          ) : (
+            <Text style={v.muted}>{t(language, 'result.ingredients_unavailable')}</Text>
+          )}
+
+          <View style={v.rule} />
+
+          <Text style={v.factLabel}>{t(language, 'result.allergens_found')}</Text>
+          {identifiedAllergens.length > 0 ? (
+            <Text style={v.factValue}>
+              {identifiedAllergens.map((a, i) => {
+                const mine = myAllergyIds.has(a.id);
+                return (
+                  <Text key={a.id}>
+                    <Text style={mine ? [v.labelFlagged, { backgroundColor: Colors.markDanger || Colors.dangerLight }] : null}>
+                      {a.label[language] || a.label.en}
+                    </Text>
+                    {i < identifiedAllergens.length - 1 ? ', ' : ''}
+                  </Text>
+                );
+              })}
+            </Text>
+          ) : (
+            <Text style={v.muted}>{t(language, 'result.allergens_none')}</Text>
+          )}
+
+          {traces && (
+            <>
+              <Text style={[v.factLabel, { marginTop: 14 }]}>{t(language, 'result.traces_title')}</Text>
+              <Text style={v.muted}>{t(language, 'result.traces_subtitle')}</Text>
+              <Text style={[v.factValue, { marginTop: 2 }]}>{traces.map(traceLabel).join(', ')}</Text>
+            </>
+          )}
+        </View>
+
+        {(nutriscoreLetter || novaGroup || nutritionRows.length > 0 || offMeta?.categories?.length || offMeta?.labels?.length) && (
+          <View style={v.sheet}>
+            {(nutriscoreLetter || novaGroup) && (
+              <View style={styles.gradesRow}>
+                {nutriscoreLetter && (
+                  <TouchableOpacity
+                    onPress={() => setActiveInfo('nutriscore')}
+                    activeOpacity={0.85}
+                    style={[styles.gradeBadge, { backgroundColor: NUTRISCORE_COLORS[nutriscoreLetter] }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.gradeBadgeLabel}>{t(language, 'result.nutriscore')}</Text>
+                    <Text style={styles.gradeBadgeValue}>{nutriscoreLetter}</Text>
+                    <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.9)" />
+                  </TouchableOpacity>
+                )}
+                {novaGroup && (
+                  <TouchableOpacity
+                    onPress={() => setActiveInfo('nova')}
+                    activeOpacity={0.85}
+                    style={[styles.gradeBadge, { backgroundColor: NOVA_COLORS[novaGroup] }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.gradeBadgeLabel}>{t(language, 'result.nova')}</Text>
+                    <Text style={styles.gradeBadgeValue}>{novaGroup}</Text>
+                    <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.9)" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {nutritionRows.length > 0 && (
+              <View style={{ marginTop: (nutriscoreLetter || novaGroup) ? 18 : 0 }}>
+                <Text style={v.sheetTitle}>{t(language, 'result.nutrition_title')}</Text>
+                <View style={v.factsTable}>
+                  {nutritionRows.map((row, i) => (
+                    <View key={row.key} style={[v.factsRow, i === 0 && v.factsRowFirst]}>
+                      <Text style={v.factsName}>{t(language, `result.${row.key}`)}</Text>
+                      <Text style={v.factsNum}>{row.value}{row.unit}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {isNovaQI && nutrition?.energy_kcal > 0 && (() => {
+              const weight = bodyProfile?.weight_kg || 70;
+              const kcalPer100 = nutrition.energy_kcal;
+              const burnExercises = burnExIds
+                .map(id => EXERCISES.find(e => e.id === id))
+                .filter(Boolean);
+              if (!burnExercises.length) return null;
+              return (
+                <View style={{ marginTop: 18 }}>
+                  <Text style={v.sheetTitle}>{t(language, 'exercise.burn_equivalent')} 100g</Text>
+                  <View style={v.burnRow}>
+                    {burnExercises.map(ex => (
+                      <View key={ex.id} style={v.burnItem}>
+                        <Ionicons name={ex.icon} size={18} color={Colors.primaryDark} />
+                        <Text style={v.burnMins}>{minutesToBurn(kcalPer100, ex.met, weight)} min</Text>
+                        <Text style={v.burnName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            })()}
+
+            {offMeta?.categories?.length > 0 && (
+              <>
+                <Text style={[v.factLabel, { marginTop: 18 }]}>{t(language, 'result.categories')}</Text>
+                <Text style={v.factValue}>{offMeta.categories.map(titleCase).join(', ')}</Text>
+              </>
+            )}
+            {offMeta?.labels?.length > 0 && (
+              <>
+                <Text style={[v.factLabel, { marginTop: 14 }]}>{t(language, 'result.labels')}</Text>
+                <Text style={v.factValue}>{offMeta.labels.map(titleCase).join(', ')}</Text>
               </>
             )}
           </View>
         )}
-
-        <View style={[styles.analysisCard, { borderColor: cfg.cardBorder, backgroundColor: cfg.cardBg }]}>
-          {(productName || sourceKey) && (
-            <View style={styles.metaRow}>
-              {productName && (
-                <View style={styles.productNameWrap}>
-                  <PremiumIcon name="scan" size={16} muted />
-                  <Text style={styles.productName} numberOfLines={1}>{productName}</Text>
-                </View>
-              )}
-              {sourceKey && KNOWN_SOURCES.has(sourceKey) && (
-                <View style={styles.sourceBadge}>
-                  <Text style={styles.sourceBadgeText}>
-                    {t(language, `result.source_${sourceKey}`)}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-          <Text style={styles.analysisTitle}>{result.title}</Text>
-          <Text style={styles.explanation}>
-            {result.cannot_read ? t(language, 'result.cannot_read') : result.explanation}
-          </Text>
-
-          {(nutriscoreLetter || novaGroup || nutritionRows.length > 0 || offMeta?.categories?.length || offMeta?.labels?.length) && (
-            <View style={styles.offFacts}>
-              {(nutriscoreLetter || novaGroup) && (
-                <View style={styles.gradesRow}>
-                  {nutriscoreLetter && (
-                    <TouchableOpacity
-                      onPress={() => setActiveInfo('nutriscore')}
-                      activeOpacity={0.85}
-                      style={[styles.gradeBadge, { backgroundColor: NUTRISCORE_COLORS[nutriscoreLetter] }]}
-                    >
-                      <Text style={styles.gradeBadgeLabel}>{t(language, 'result.nutriscore')}</Text>
-                      <Text style={styles.gradeBadgeValue}>{nutriscoreLetter}</Text>
-                      <Text style={styles.gradeBadgeInfo}>ⓘ</Text>
-                    </TouchableOpacity>
-                  )}
-                  {novaGroup && (
-                    <TouchableOpacity
-                      onPress={() => setActiveInfo('nova')}
-                      activeOpacity={0.85}
-                      style={[styles.gradeBadge, { backgroundColor: NOVA_COLORS[novaGroup] }]}
-                    >
-                      <Text style={styles.gradeBadgeLabel}>{t(language, 'result.nova')}</Text>
-                      <Text style={styles.gradeBadgeValue}>{novaGroup}</Text>
-                      <Text style={styles.gradeBadgeInfo}>ⓘ</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-
-              {nutritionRows.length > 0 && (
-                <View style={styles.nutritionBox}>
-                  <Text style={styles.nutritionTitle}>{t(language, 'result.nutrition_title')}</Text>
-                  <View style={styles.nutritionGrid}>
-                    {nutritionRows.map(row => (
-                      <View key={row.key} style={styles.nutritionCell}>
-                        <Text style={styles.nutritionLabel}>{t(language, `result.${row.key}`)}</Text>
-                        <Text style={styles.nutritionValue}>{row.value}{row.unit}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {isNovaQI && nutrition?.energy_kcal > 0 && (() => {
-                const weight = bodyProfile?.weight_kg || 70;
-                const kcalPer100 = nutrition.energy_kcal;
-                const burnExercises = burnExIds
-                  .map(id => EXERCISES.find(e => e.id === id))
-                  .filter(Boolean);
-                if (!burnExercises.length) return null;
-                return (
-                  <View style={styles.burnBox}>
-                    <Text style={styles.burnTitle}>{t(language, 'exercise.burn_equivalent')} 100g</Text>
-                    <View style={styles.burnRow}>
-                      {burnExercises.map(ex => (
-                        <View key={ex.id} style={styles.burnItem}>
-                          <Ionicons name={ex.icon} size={20} color={Colors.primary} />
-                          <Text style={styles.burnMins}>{minutesToBurn(kcalPer100, ex.met, weight)}'</Text>
-                          <Text style={styles.burnExName} numberOfLines={2}>{getExerciseName(ex, language)}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                );
-              })()}
-
-              {offMeta?.categories?.length > 0 && (
-                <View style={styles.metaChipSection}>
-                  <Text style={styles.metaChipLabel}>{t(language, 'result.categories')}</Text>
-                  <View style={styles.metaChipWrap}>
-                    {offMeta.categories.map((c, i) => (
-                      <View key={i} style={styles.metaChip}>
-                        <Text style={styles.metaChipText}>{titleCase(c)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {offMeta?.labels?.length > 0 && (
-                <View style={styles.metaChipSection}>
-                  <Text style={styles.metaChipLabel}>{t(language, 'result.labels')}</Text>
-                  <View style={styles.metaChipWrap}>
-                    {offMeta.labels.map((l, i) => (
-                      <View key={i} style={styles.labelChip}>
-                        <Text style={styles.labelChipText}>{titleCase(l)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-
-        <View style={styles.ingredientsCard}>
-          <Text style={styles.ingredientsTitle}>{t(language, 'result.ingredients')}</Text>
-          {ingredients.length > 0 ? (
-            <View style={styles.ingredientsWrap}>
-              {ingredients.map((item, i) => {
-                const halalFlag = halalFlagMap.get(item);
-                const kosherFlag = kosherFlagMap.get(item);
-                const flagged = halalResult
-                  ? !!halalFlag
-                  : kosherResult
-                    ? !!kosherFlag
-                    : (() => {
-                        const lower = item.toLowerCase();
-                        return concerns.some(c => {
-                          const cl = c.toLowerCase();
-                          return lower.includes(cl) || cl.includes(lower);
-                        });
-                      })();
-                return (
-                  <View key={i} style={[styles.ingredientChip, flagged && styles.ingredientChipFlagged]}>
-                    <Text style={[styles.ingredientText, flagged && styles.ingredientTextFlagged]}>{item}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <Text style={styles.ingredientsEmpty}>{t(language, 'result.ingredients_unavailable')}</Text>
-          )}
-        </View>
-
-        <View style={styles.allergensCard}>
-          <Text style={styles.allergensTitle}>{t(language, 'result.allergens_found')}</Text>
-          {identifiedAllergens.length > 0 ? (
-            <View style={styles.allergensWrap}>
-              {identifiedAllergens.map((allergen, i) => (
-                <View key={i} style={styles.allergenChip}>
-                  <Text style={styles.allergenText}>{allergen.label[language] || allergen.label.en}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.allergensNone}>{t(language, 'result.allergens_none')}</Text>
-          )}
-        </View>
-
-        {traces && (
-          <View style={styles.tracesCard}>
-            <View style={styles.tracesHeader}>
-              <Ionicons name="warning-outline" size={20} color="#f59e0b" style={styles.tracesIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.tracesTitle}>{t(language, 'result.traces_title')}</Text>
-                <Text style={styles.tracesSubtitle}>{t(language, 'result.traces_subtitle')}</Text>
-              </View>
-            </View>
-            <View style={styles.tracesWrap}>
-              {traces.map((item, i) => (
-                <View key={i} style={styles.traceChip}>
-                  <Text style={styles.traceText}>{item}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {displayConcerns.length > 0 && (
-          <View style={styles.concernsCard}>
-            <View style={styles.concernsHeader}>
-              <PremiumIcon name="caution" size={24} />
-              <Text style={styles.concernsTitle}>{t(language, 'result.concerns')}</Text>
-            </View>
-            {displayConcerns.map((item, i) => (
-              <View key={i} style={styles.concernItem}>
-                <View style={styles.concernBullet} />
-                <Text style={styles.concernText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {displayConcerns.length === 0 && effectiveStatus === 'SAFE' && (
-          <View style={styles.noConcernsCard}>
-            <PremiumIcon name="safe" size={52} />
-            <Text style={styles.noConcernsTitle}>
-            {t(language, 'result.no_issues')}
-            </Text>
-            <Text style={styles.noConcernsText}>{t(language, 'result.no_concerns')}</Text>
-          </View>
-        )}
-
-        <View style={styles.disclaimerBox}>
-          <Ionicons name="warning-outline" size={16} color={Colors.textMuted} style={styles.disclaimerIcon} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
-            {isHalal && (
-              <Text style={styles.halalCertLine}>{t(language, 'halal.cert_line')}</Text>
-            )}
-            {isKosher && (
-              <Text style={styles.halalCertLine}>{t(language, 'kosher.cert_line')}</Text>
-            )}
-            <TouchableOpacity onPress={() => Linking.openURL('https://www.anthropic.com')} activeOpacity={0.7}>
-              <Text style={styles.disclaimerSource}>{t(language, 'result.ai_source')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {showReferralBanner && (
           <TouchableOpacity
@@ -585,6 +577,7 @@ export default function ResultScreen({ navigation, route }) {
             style={resultReferralStyles.banner}
             activeOpacity={0.9}
           >
+            <Ionicons name="gift-outline" size={20} color={Colors.accentDark || Colors.primary} />
             <Text style={resultReferralStyles.bannerText}>{t(language, 'referral.result_banner')}</Text>
           </TouchableOpacity>
         )}
@@ -618,7 +611,7 @@ export default function ResultScreen({ navigation, route }) {
                   }
                 }}
               >
-                <Ionicons name="thumbs-up-outline" size={34} color={Colors.primary} style={fbStyles.thumbEmoji} />
+                <Ionicons name="thumbs-up-outline" size={22} color={Colors.primaryDark} />
                 <Text style={fbStyles.thumbLabel}>{t(language, 'onboarding.feedback_up')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -631,7 +624,7 @@ export default function ResultScreen({ navigation, route }) {
                   setFeedbackState('commenting');
                 }}
               >
-                <Ionicons name="thumbs-down-outline" size={34} color={Colors.textMuted} style={fbStyles.thumbEmoji} />
+                <Ionicons name="thumbs-down-outline" size={22} color={Colors.textLight} />
                 <Text style={fbStyles.thumbLabel}>{t(language, 'onboarding.feedback_down')}</Text>
               </TouchableOpacity>
             </View>
@@ -659,9 +652,35 @@ export default function ResultScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* Aviso legal: obrigatório (App Store), mas é nota de rodapé, não alerta. */}
+        <View style={v.disclaimer}>
+          <Text style={v.disclaimerText}>{t(language, 'result.ai_disclaimer')}</Text>
+          {isHalal && (
+            <Text style={[v.disclaimerText, v.disclaimerStrong]}>{t(language, 'halal.cert_line')}</Text>
+          )}
+          {isKosher && (
+            <Text style={[v.disclaimerText, v.disclaimerStrong]}>{t(language, 'kosher.cert_line')}</Text>
+          )}
+          <TouchableOpacity onPress={() => Linking.openURL('https://www.anthropic.com')} activeOpacity={0.7} accessibilityRole="link">
+            <Text style={v.disclaimerLink}>{t(language, 'result.ai_source')}</Text>
+          </TouchableOpacity>
+          {!isOnboarding && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ReportProduct', {
+                productName: result.title || result.product_name || '',
+                barcode: result.barcode || '',
+              })}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Text style={v.disclaimerLink}>{t(language, 'result.wrong_product')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Bottom spacer so scroll content doesn't hide behind the sticky
             footer + Android nav bar / gesture area / iOS home indicator. */}
-        <View style={{ height: 110 + insets.bottom }} />
+        <View style={{ height: 96 + insets.bottom }} />
       </ScrollView>
 
       <Modal
@@ -721,44 +740,34 @@ export default function ResultScreen({ navigation, route }) {
       </Modal>
 
       {!isOnboarding && (
-        <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
-          <View style={styles.consumeRow}>
-            {isFood && (
-              <TouchableOpacity
-                style={[styles.consumeBtn, isNovaQI && styles.consumeBtnNovaqi]}
-                onPress={() => setConsumeModal(true)}
-                activeOpacity={0.85}
-              >
-                <Text
-                  style={styles.consumeBtnText}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                >{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
-              </TouchableOpacity>
-            )}
+        <View style={[v.footer, { paddingBottom: 12 + insets.bottom }]}>
+          {isFood && (
             <TouchableOpacity
-              style={[styles.scanAgainBtn, isNovaQI && styles.scanAgainBtnOutline, !isFood && { flex: 1 }]}
-              onPress={() => navigation.navigate('Scan')}
-              activeOpacity={0.9}
+              style={v.consumeBtn}
+              onPress={() => setConsumeModal(true)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
             >
               <Text
-                style={[styles.scanAgainText, isNovaQI && styles.scanAgainTextOutline]}
+                style={v.consumeText}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}
-              >{t(language, 'result.scan_again')}</Text>
+              >{consumeLogged ? t(language, 'nutrition.logged_ok') : t(language, 'nutrition.will_consume')}</Text>
             </TouchableOpacity>
-          </View>
+          )}
           <TouchableOpacity
-            style={styles.wrongProductBtn}
-            onPress={() => navigation.navigate('ReportProduct', {
-              productName: result.title || result.product_name || '',
-              barcode: result.barcode || '',
-            })}
-            activeOpacity={0.7}
+            style={[v.againBtn, !isFood && { flex: 1 }]}
+            onPress={() => navigation.navigate('Scan')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
           >
-            <Text style={styles.wrongProductText}>{t(language, 'result.wrong_product')}</Text>
+            <Text
+              style={v.againText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >{t(language, 'result.scan_again')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -1239,66 +1248,145 @@ const styles = StyleSheet.create({
 
 const resultReferralStyles = StyleSheet.create({
   banner: {
-    backgroundColor: '#FFF8E1', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: '#FFCB3B', marginTop: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 16, marginTop: 12,
+    borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: Colors.border,
   },
-  bannerText: { fontSize: 13, fontWeight: '700', color: Colors.navy || '#0B1E3F', textAlign: 'center' },
+  bannerText: { flex: 1, fontSize: 14, color: Colors.text, ...font('bodyBold') },
+});
+
+// Estilos do redesenho 2026-11 (veredito, folhas, rótulo marcado, rodapé).
+const v = StyleSheet.create({
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 15, color: 'rgba(255,255,255,0.9)', ...font('bodyBold') },
+
+  verdict: {
+    paddingHorizontal: 24, paddingTop: 8, paddingBottom: 26,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+  },
+  verdictTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', minHeight: 30 },
+  thumb: { width: 64, height: 64, borderRadius: 14, backgroundColor: Colors.white },
+  verdictWord: {
+    fontSize: 76, lineHeight: 80, color: Colors.white,
+    letterSpacing: -2.5, marginTop: 6, ...font('display'),
+  },
+  verdictSub: { fontSize: 18, lineHeight: 24, color: 'rgba(255,255,255,0.92)', ...font('bodyMed') },
+  productBlock: {
+    marginTop: 20, paddingTop: 16,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.28)',
+  },
+  productName: { fontSize: 22, lineHeight: 27, color: Colors.white, letterSpacing: -0.3, ...font('heading') },
+  productSource: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4, ...font('body') },
+
+  userPhoto: { height: 180, marginHorizontal: 16, marginTop: 12, borderRadius: 18, backgroundColor: Colors.border },
+
+  sheet: {
+    marginHorizontal: 16, marginTop: 12,
+    backgroundColor: Colors.card, borderRadius: 20,
+    padding: 20,
+  },
+  sheetHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  sheetTitle: { fontSize: 17, color: Colors.text, marginBottom: 10, ...font('heading') },
+  sheetCount: { fontSize: 13, color: Colors.textMuted, ...font('bodyBold') },
+  explanation: { fontSize: 17, lineHeight: 26, color: Colors.text, ...font('body') },
+  concerns: { marginTop: 18 },
+  concernRow: { flexDirection: 'row', gap: 12, paddingVertical: 6 },
+  concernMark: { width: 4, borderRadius: 2, alignSelf: 'stretch' },
+  concernText: { flex: 1, fontSize: 16, lineHeight: 23, color: Colors.text, ...font('bodyMed') },
+  muted: { fontSize: 14, lineHeight: 20, color: Colors.textLight, ...font('body') },
+
+  // O rótulo como texto corrido, com marca-texto no que pesou.
+  label: { fontSize: 16, lineHeight: 28, color: Colors.textLight, ...font('body') },
+  labelFlagged: { color: Colors.text, ...font('bold') },
+  rule: { height: 1, backgroundColor: Colors.rule || Colors.border, marginVertical: 18 },
+  factLabel: { fontSize: 14, color: Colors.textMuted, marginBottom: 4, ...font('bodyBold') },
+  factValue: { fontSize: 16, lineHeight: 26, color: Colors.text, ...font('bodyMed') },
+
+  // Tabela nutricional no formato do rótulo: fio grosso no topo, fio fino entre linhas.
+  factsTable: { borderTopWidth: 3, borderTopColor: Colors.text },
+  factsRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: Colors.rule || Colors.border,
+  },
+  factsRowFirst: {},
+  factsName: { fontSize: 15, color: Colors.text, ...font('body') },
+  factsNum: { fontSize: 15, color: Colors.text, ...font('bold') },
+
+  burnRow: { flexDirection: 'row', gap: 8 },
+  burnItem: {
+    flex: 1, gap: 2, paddingVertical: 10, paddingHorizontal: 10,
+    borderRadius: 12, backgroundColor: Colors.background,
+  },
+  burnMins: { fontSize: 18, color: Colors.text, marginTop: 4, ...font('heading') },
+  burnName: { fontSize: 12, color: Colors.textLight, ...font('body') },
+
+  disclaimer: { marginHorizontal: 20, marginTop: 24, gap: 8 },
+  disclaimerText: { fontSize: 13, lineHeight: 19, color: Colors.textMuted, ...font('body') },
+  disclaimerStrong: { color: Colors.textLight, ...font('bodyBold') },
+  disclaimerLink: {
+    fontSize: 13, color: Colors.textLight, textDecorationLine: 'underline',
+    paddingVertical: 4, ...font('bodyBold'),
+  },
+
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 16, paddingTop: 12,
+    backgroundColor: Colors.card,
+    borderTopWidth: 1, borderTopColor: Colors.rule || Colors.border,
+  },
+  consumeBtn: {
+    flex: 1, minHeight: 54, borderRadius: 16,
+    backgroundColor: Colors.forest || Colors.primaryDark,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
+  },
+  consumeText: { fontSize: 16, color: Colors.white, ...font('heading') },
+  againBtn: {
+    flex: 1, minHeight: 54, borderRadius: 16,
+    flexDirection: 'row', gap: 8,
+    borderWidth: 1.5, borderColor: Colors.text,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12,
+  },
+  againText: { fontSize: 16, color: Colors.text, ...font('heading') },
 });
 
 const fbStyles = StyleSheet.create({
   card: {
-    marginTop: 20,
-    backgroundColor: Colors.primaryBg,
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1.5,
-    borderColor: Colors.primaryLight,
-    alignItems: 'center',
-    shadowColor: Colors.primaryDark,
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 20,
+    padding: 20,
   },
-  headline: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: Colors.primaryDark,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  sub: {
-    fontSize: 13,
-    color: Colors.textLight,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
+  headline: { fontSize: 17, color: Colors.text, marginBottom: 2, ...font('heading') },
+  sub: { fontSize: 14, color: Colors.textLight, marginBottom: 14, ...font('body') },
   row: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 10,
     width: '100%',
   },
   thumb: {
     flex: 1,
-    borderRadius: 20,
-    paddingVertical: 20,
+    flexDirection: 'row',
+    borderRadius: 14,
+    minHeight: 48,
+    paddingHorizontal: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    borderWidth: 2,
+    borderWidth: 1.5,
   },
-  thumbUp: {
-    backgroundColor: Colors.safeLight,
-    borderColor: Colors.primary,
-  },
-  thumbDown: {
-    backgroundColor: Colors.cautionLight,
-    borderColor: Colors.caution,
-  },
-  thumbEmoji: { fontSize: 34 },
-  thumbLabel: { fontSize: 14, fontWeight: '800', color: Colors.text },
-  skip:      { marginTop: 14, alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 12 },
-  skipTxt:   { fontSize: 13, fontWeight: '600', color: Colors.textMuted, textDecorationLine: 'underline' },
+  thumbUp: { borderColor: Colors.primaryDark },
+  thumbDown: { borderColor: Colors.border },
+  thumbEmoji: { fontSize: 22 },
+  thumbLabel: { fontSize: 15, color: Colors.text, ...font('bodyBold') },
+  skip:      { marginTop: 10, alignSelf: 'flex-start', paddingVertical: 6 },
+  skipTxt:   { fontSize: 13, color: Colors.textMuted, textDecorationLine: 'underline', ...font('bodyBold') },
   error: {
     marginTop: 12,
     fontSize: 12,

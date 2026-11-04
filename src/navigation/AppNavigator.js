@@ -2,7 +2,10 @@ import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, ActivityIndicator } from 'react-native';
+import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { font } from '../theme/type';
 
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -39,61 +42,84 @@ const Tab = createBottomTabNavigator();
 export const navigationRef = createNavigationContainerRef();
 
 const TABS = {
-  Home:    { icon: 'home',    activeBg: Colors.primaryBg },
-  Profile: { icon: 'profile', activeBg: Colors.primaryBg },
+  Home:    { icon: 'home' },
+  Profile: { icon: 'person' },
 };
 
 function TabIcon({ name, focused }) {
-  const cfg = TABS[name];
+  const base = TABS[name].icon;
   return (
-    <View style={{
-      width: 52,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: focused ? cfg.activeBg : 'transparent',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <PremiumIcon name={cfg.icon} size={26} muted={!focused} />
+    <Ionicons
+      name={focused ? base : `${base}-outline`}
+      size={23}
+      color={focused ? Colors.text : Colors.textMuted}
+    />
+  );
+}
+
+// Aba do meio: não é tela, é o atalho fixo pro Scan (a ação principal do app).
+function ScanTabButton({ onPress, label }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={{
+          width: 56, height: 44, borderRadius: 14,
+          backgroundColor: Colors.forest || Colors.primaryDark,
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Ionicons name="scan-outline" size={24} color={Colors.white} />
+      </TouchableOpacity>
     </View>
   );
 }
 
+function EmptyTab() { return null; }
+
 function MainTabs() {
   const { language } = useApp();
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: Colors.text,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          position: 'absolute',
-          left: 24,
-          right: 24,
-          bottom: 18,
-          backgroundColor: 'rgba(255,255,255,0.97)',
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.65)',
-          height: 74,
-          paddingBottom: 12,
-          paddingTop: 10,
-          borderRadius: 999,
-          shadowColor: Colors.navy,
-          shadowOpacity: 0.12,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: 12 },
-          elevation: 12,
+          backgroundColor: Colors.card,
+          borderTopWidth: 1,
+          borderTopColor: Colors.rule || Colors.border,
+          height: 68 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 8),
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '800', fontFamily: BrandFonts.body || undefined },
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+        tabBarLabelStyle: { fontSize: 11, ...font('bodyBold') },
+        tabBarIcon: ({ focused }) => TABS[route.name] ? <TabIcon name={route.name} focused={focused} /> : null,
       })}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{ tabBarLabel: t(language, 'home.tab_home') }}
+      />
+      <Tab.Screen
+        name="ScanTab"
+        component={EmptyTab}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => { e.preventDefault(); navigation.navigate('Scan'); },
+        })}
+        options={{
+          tabBarLabel: () => null,
+          tabBarButton: (props) => (
+            <ScanTabButton onPress={props.onPress} label={t(language, 'nutrition.plate_scan_btn')} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Profile"

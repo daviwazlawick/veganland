@@ -17,6 +17,7 @@ import { useReferral } from '../context/ReferralContext';
 import { useNutrition } from '../context/NutritionContext';
 import { HIDE_REFERRAL } from '../constants/features';
 import { PremiumIcon, BrandName } from '../components/ui';
+import { font } from '../theme/type';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
 
@@ -30,7 +31,7 @@ function Row({ icon, label, value, onPress, danger, chevron = true }) {
       {icon ? <Ionicons name={icon} size={20} color={Colors.textMuted} style={s.rowIcon} /> : null}
       <Text style={[s.rowLabel, danger && s.rowLabelDanger]}>{label}</Text>
       {value ? <Text style={s.rowValue} numberOfLines={1}>{value}</Text> : null}
-      {onPress && chevron ? <Text style={[s.rowChev, danger && s.rowChevDanger]}>›</Text> : null}
+      {onPress && chevron ? <Ionicons name="chevron-forward" size={18} color={danger ? Colors.danger : Colors.textMuted} /> : null}
     </TouchableOpacity>
   );
 }
@@ -94,28 +95,65 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <View style={[s.header, isNovaQI && s.headerNovaqi]}>
-        <Text style={s.headerTitle}>{t(language, 'profile.title')}</Text>
-        {isNovaQI && (
-          <View style={s.headerStatsRow}>
-            <View style={s.headerStat}>
-              <Text style={s.headerStatNumAmber}>{streak || 0}</Text>
-              <Text style={s.headerStatLabel}>{t(language, 'home.streak_label')}</Text>
-            </View>
-            <View style={s.headerStatDivider} />
-            <View style={s.headerStat}>
-              <Text style={s.headerStatNum}>{monthlyScanCount || scanHistory.length}</Text>
-              <Text style={s.headerStatLabel}>{t(language, 'home.scans_label')}</Text>
-            </View>
-          </View>
-        )}
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 40 }]}>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 110 }]}>
+        <View style={s.header}>
+          <Text style={s.headerTitle}>{t(language, 'profile.title')}</Text>
+          {isNovaQI && (
+            <View style={s.headerStatsRow}>
+              <Text style={s.headerStat}>
+                <Text style={s.headerStatNum}>{streak || 0}</Text> {t(language, 'home.streak_label')}
+              </Text>
+              <Text style={s.headerStat}>
+                <Text style={s.headerStatNum}>{monthlyScanCount || scanHistory.length}</Text> {t(language, 'home.scans_label')}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* ── Personal hero ── */}
         <PersonalHero profile={profile} user={user} language={language} navigation={navigation} />
 
+        {/* ── Diet & Allergies (é o que o app usa pra ler cada rótulo, por isso vem primeiro) ── */}
+        <SectionLabel label={t(language, 'profile.diet')} />
+        <View style={s.card}>
+          <TouchableOpacity style={s.dietRow} activeOpacity={0.8} onPress={() => navigation.navigate('ProfileSetup')}>
+            <View style={s.dietIconWrap}>
+              <PremiumIcon name={diet?.icon || 'vegan'} size={34} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.dietName}>{diet?.label[language] || diet?.label?.en || t(language, 'profile.no_profile')}</Text>
+              {diet && <Text style={s.dietDesc} numberOfLines={1}>{diet.description[language] || diet.description.en}</Text>}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          {allergies.length > 0 && (
+            <View style={s.allergySection}>
+              <Text style={s.allergyHeader}>{t(language, 'profile.allergies')}</Text>
+              <Text style={s.allergyList}>{allergies.map(a => a.label[language] || a.label.en).join(', ')}</Text>
+            </View>
+          )}
+          {allergies.length === 0 && (
+            <TouchableOpacity onPress={() => navigation.navigate('ProfileSetup')} style={s.noAllergyRow}>
+              <Text style={s.noAllergyText}>+ {t(language, 'profile.allergies')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Sem dado físico nem meta: um convite só, em vez de dois cartões iguais. */}
+        {!hasBodyProfile && !hasGoals ? (
+          <>
+            <SectionLabel label={t(language, 'nutrition.body_title')} />
+            <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('EditPersonal')}>
+              <View style={s.emptyState}>
+                <Text style={s.emptyStateText}>{t(language, 'nutrition.setup_prompt_body')}</Text>
+                <Text style={s.emptyStateCta}>{t(language, 'nutrition.setup_prompt_cta')}</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        ) : (
+        <>
         {/* ── Body stats ── */}
         <SectionLabel label={t(language, 'nutrition.body_title')} />
         <TouchableOpacity style={s.card} activeOpacity={0.88} onPress={() => navigation.navigate('EditPersonal')}>
@@ -214,15 +252,17 @@ export default function ProfileScreen({ navigation }) {
           ) : (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>{t(language, 'nutrition.setup_prompt_body')}</Text>
-              <Text style={s.emptyStateCta}>{t(language, 'nutrition.setup_prompt_cta')} ›</Text>
+              <Text style={s.emptyStateCta}>{t(language, 'nutrition.setup_prompt_cta')}</Text>
             </View>
           )}
         </TouchableOpacity>
+        </>
+        )}
 
         {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
-          <TouchableOpacity style={s.referralCard} activeOpacity={0.9} onPress={() => navigation.navigate('Referral')}>
-            <Ionicons name="gift-outline" size={24} color={Colors.primary} style={s.referralEmoji} />
+          <TouchableOpacity style={s.referralCard} activeOpacity={0.8} onPress={() => navigation.navigate('Referral')}>
+            <Ionicons name="gift-outline" size={20} color={Colors.accentDark || Colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={s.referralTitle}>{t(language, 'referral.profile_card_title')}</Text>
               <Text style={s.referralSub}>
@@ -232,43 +272,9 @@ export default function ProfileScreen({ navigation }) {
                 })}
               </Text>
             </View>
-            <Text style={s.referralChev}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
-
-        {/* ── Diet & Allergies ── */}
-        <SectionLabel label={t(language, 'profile.diet')} />
-        <View style={s.card}>
-          <TouchableOpacity style={s.dietRow} activeOpacity={0.8} onPress={() => navigation.navigate('ProfileSetup')}>
-            <View style={s.dietIconWrap}>
-              <PremiumIcon name={diet?.icon || 'vegan'} size={38} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.dietName}>{diet?.label[language] || diet?.label?.en || t(language, 'profile.no_profile')}</Text>
-              {diet && <Text style={s.dietDesc} numberOfLines={1}>{diet.description[language] || diet.description.en}</Text>}
-            </View>
-            <Text style={s.rowChev}>›</Text>
-          </TouchableOpacity>
-
-          {allergies.length > 0 && (
-            <View style={s.allergySection}>
-              <Text style={s.allergyHeader}>{t(language, 'profile.allergies')}</Text>
-              <View style={s.allergyWrap}>
-                {allergies.map(a => (
-                  <View key={a.id} style={s.allergyChip}>
-                    <PremiumIcon name={a.icon} size={14} />
-                    <Text style={s.allergyChipText}>{a.label[language] || a.label.en}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-          {allergies.length === 0 && (
-            <TouchableOpacity onPress={() => navigation.navigate('ProfileSetup')} style={s.noAllergyRow}>
-              <Text style={s.noAllergyText}>+ {t(language, 'profile.allergies')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
         {/* ── Plan & Usage ── */}
         {user && usage != null && (
@@ -367,7 +373,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ── About ── */}
         <View style={s.aboutCard}>
-          <BrandName style={s.aboutTitle} prefixColor={Colors.white} suffixColor={Colors.primary} />
+          <BrandName style={s.aboutTitle} prefixColor={Colors.text} suffixColor={Colors.primary} />
           <Text style={s.aboutText}>{t(language, 'profile.about_text')}</Text>
         </View>
 
@@ -413,33 +419,29 @@ function PersonalHero({ profile, user, language, navigation }) {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: Colors.headerBg },
-  headerNovaqi: { borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingBottom: 20 },
-  headerTitle: { fontSize: 34, fontWeight: '800', color: Colors.headerText, fontFamily: BrandFonts.heading || undefined },
-  headerStatsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 20 },
-  headerStat: { alignItems: 'flex-start' },
-  headerStatDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.2)' },
-  headerStatNum: { fontSize: 20, fontWeight: '800', color: Colors.white, fontFamily: BrandFonts.mono || undefined },
-  headerStatNumAmber: { fontSize: 20, fontWeight: '800', color: Colors.accent, fontFamily: BrandFonts.mono || undefined },
-  headerStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-  scroll: { paddingHorizontal: 16, paddingTop: 16, gap: 0 },
+  // Redesenho 2026-11: título no chão (sem placa escura), seções com título em
+  // caixa normal, folhas brancas sem borda.
+  header: { paddingTop: 12, paddingBottom: 18, paddingHorizontal: 4 },
+  headerTitle: { fontSize: 34, lineHeight: 38, color: Colors.text, letterSpacing: -1, ...font('display') },
+  headerStatsRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 8, gap: 18 },
+  headerStat: { fontSize: 15, color: Colors.textMuted, ...font('body') },
+  headerStatNum: { color: Colors.text, ...font('heading') },
+  scroll: { paddingHorizontal: 16, paddingTop: 0, gap: 0 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: '800', color: '#94a3b8',
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginTop: 20, marginBottom: 8, marginLeft: 4,
+    fontSize: 18, color: Colors.text, letterSpacing: -0.2,
+    marginTop: 28, marginBottom: 10, marginLeft: 4,
+    ...font('heading'),
   },
 
   card: {
-    backgroundColor: '#fff', borderRadius: 18,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: Colors.card, borderRadius: 18,
     overflow: 'hidden', marginBottom: 2,
   },
 
   // Personal Hero
   heroCard: {
-    backgroundColor: '#fff', borderRadius: 18,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: Colors.card, borderRadius: 18,
     padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14,
   },
   heroAvatarWrap: {},
@@ -451,9 +453,9 @@ const s = StyleSheet.create({
   },
   heroInitials: { fontSize: 22, fontWeight: '800', color: '#fff', fontFamily: BrandFonts.heading || undefined },
   heroInfo: { flex: 1 },
-  heroName: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  heroName: { fontSize: 20, color: Colors.text, ...font('heading') },
   heroNameEmpty: { fontSize: 15, color: Colors.textMuted, fontStyle: 'italic' },
-  heroEmail: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  heroEmail: { fontSize: 14, color: Colors.textLight, marginTop: 2, ...font('body') },
   heroBio: { fontSize: 12, color: Colors.textLight, marginTop: 3 },
   heroEditBadge: {
     width: 30, height: 30, borderRadius: 15,
@@ -500,30 +502,28 @@ const s = StyleSheet.create({
   goalCellLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginTop: 1, textAlign: 'center' },
 
   // Empty state
-  emptyState: { padding: 20, gap: 4 },
-  emptyStateText: { fontSize: 13, color: '#64748b', lineHeight: 18 },
-  emptyStateCta: { fontSize: 14, fontWeight: '700', color: Colors.primary, marginTop: 4 },
+  emptyState: { padding: 18, gap: 6 },
+  emptyStateText: { fontSize: 15, color: Colors.textLight, lineHeight: 21, ...font('body') },
+  emptyStateCta: { fontSize: 15, color: Colors.primaryDark, ...font('bold') },
 
-  // Referral
+  // Referral: linha discreta, não alerta.
   referralCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.cautionLight, borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: Colors.caution, marginTop: 20,
+    borderRadius: 18, padding: 14,
+    borderWidth: 1, borderColor: Colors.border, marginTop: 28,
   },
-  referralEmoji: { fontSize: 24 },
-  referralTitle: { fontSize: 14, fontWeight: '800', color: Colors.cautionDark },
-  referralSub: { fontSize: 12, color: Colors.caution, marginTop: 1 },
-  referralChev: { fontSize: 22, color: Colors.caution, fontWeight: '700' },
+  referralTitle: { fontSize: 15, color: Colors.text, ...font('bodyBold') },
+  referralSub: { fontSize: 13, color: Colors.textMuted, marginTop: 2, ...font('body') },
 
   // Rows
   row: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 13,
-    borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    borderTopWidth: 1, borderTopColor: Colors.rule || '#F1F5F9',
   },
   rowIcon: { fontSize: 16, marginRight: 10 },
-  rowLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text },
-  rowLabelDanger: { color: '#EF4444' },
+  rowLabel: { flex: 1, fontSize: 15, color: Colors.text, ...font('bodyMed') },
+  rowLabelDanger: { color: Colors.danger },
   rowValue: { fontSize: 13, color: Colors.textMuted, maxWidth: 140 },
   rowChev: { fontSize: 20, color: '#CBD5E1', fontWeight: '700', marginLeft: 4 },
   rowChevDanger: { color: '#FCA5A5' },
@@ -538,13 +538,14 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primaryBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  dietName: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  dietDesc: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  dietName: { fontSize: 18, color: Colors.text, ...font('heading') },
+  dietDesc: { fontSize: 14, color: Colors.textLight, marginTop: 2, ...font('body') },
   allergySection: {
-    paddingHorizontal: 16, paddingBottom: 14,
-    borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12,
+    paddingHorizontal: 16, paddingBottom: 16,
+    borderTopWidth: 1, borderTopColor: Colors.rule || '#F1F5F9', paddingTop: 14,
   },
-  allergyHeader: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  allergyHeader: { fontSize: 14, color: Colors.textMuted, marginBottom: 4, ...font('bodyBold') },
+  allergyList: { fontSize: 16, lineHeight: 23, color: Colors.text, ...font('bodyMed') },
   allergyWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   allergyChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -555,7 +556,7 @@ const s = StyleSheet.create({
   allergyChipText: { fontSize: 11, fontWeight: '700', color: Colors.primaryDark },
   noAllergyRow: {
     paddingHorizontal: 16, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    borderTopWidth: 1, borderTopColor: Colors.rule || '#F1F5F9',
   },
   noAllergyText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
 
@@ -596,12 +597,7 @@ const s = StyleSheet.create({
   accountEmail: { flex: 1, fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
 
   // About
-  aboutCard: {
-    marginTop: 20, marginBottom: 4,
-    backgroundColor: Colors.aboutCardBg || Colors.navy,
-    borderRadius: 18, padding: 22, alignItems: 'center', gap: 6,
-    borderBottomWidth: 4, borderBottomColor: Colors.aboutCardBorder || Colors.primary,
-  },
-  aboutTitle: { fontSize: 20, fontWeight: '900', fontFamily: BrandFonts.heading || undefined },
-  aboutText: { fontSize: 12, color: 'rgba(255,255,255,0.75)', textAlign: 'center', lineHeight: 18 },
+  aboutCard: { marginTop: 32, marginBottom: 4, alignItems: 'center', gap: 4 },
+  aboutTitle: { fontSize: 18, ...font('heading') },
+  aboutText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center', lineHeight: 18, ...font('body') },
 });

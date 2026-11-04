@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react';
 import { View, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
-import { PlusJakartaSans_500Medium, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
-import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
+import {
+  Archivo_400Regular, Archivo_500Medium, Archivo_600SemiBold,
+  Archivo_700Bold, Archivo_800ExtraBold, Archivo_900Black,
+} from '@expo-google-fonts/archivo';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { ReferralProvider, useReferral } from './src/context/ReferralContext';
@@ -33,7 +34,7 @@ bootAttribution();
 try { Linking?.addEventListener('url', ({ url }) => captureUtmFromUrl(url)); } catch {}
 
 const BRAND_FONTS = Brand.fonts
-  ? { Manrope_700Bold, Manrope_800ExtraBold, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, SpaceMono_400Regular, SpaceMono_700Bold }
+  ? { Archivo_400Regular, Archivo_500Medium, Archivo_600SemiBold, Archivo_700Bold, Archivo_800ExtraBold, Archivo_900Black }
   : {};
 
 function AppContent() {
