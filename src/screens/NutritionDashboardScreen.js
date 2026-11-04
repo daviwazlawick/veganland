@@ -11,6 +11,8 @@ import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
 import Brand, { BrandFonts } from '../brand';
 import { EXERCISES, CATEGORY_CONFIG, getExerciseName } from '../constants/exercises';
+import { font } from '../theme/type';
+import { mealForNow } from '../utils/scanStatus';
 
 function formatTime(iso, language) {
   if (!iso) return '';
@@ -450,6 +452,8 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   const { token } = useAuth();
   const { goals, todayLog, todayTotals, deleteConsumption, logConsumption, updateConsumption, refresh, addWeight, weightHistory, todayBurned, todayExercise, deleteExercise, getReport } = useNutrition();
   const insets = useSafeAreaInsets();
+  // Aberto pela aba Diário: sem botão de voltar, título grande como as outras abas.
+  const asTab = route?.name === 'Diary';
   const [weightModal, setWeightModal] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
@@ -511,7 +515,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
       loadReport(period, period === 'custom' ? { from: customFrom, to: customTo } : null);
     }
     if (route?.params?.openAddFood) {
-      setAddEntry(EMPTY_ENTRY);
+      setAddEntry({ ...EMPTY_ENTRY, meal: mealForNow() });
       setSuggestions([]);
       setSearching(false);
       setGramsError(false);
@@ -612,7 +616,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
   }
 
   function openAddModal(dateStr = null) {
-    setAddEntry(EMPTY_ENTRY);
+    setAddEntry({ ...EMPTY_ENTRY, meal: mealForNow() });
     setEditingId(null);
     setAddForDate(ISO_DATE.test(dateStr) ? dateStr : null);
     setPerGram(null);
@@ -804,6 +808,11 @@ export default function NutritionDashboardScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {asTab ? (
+        <View style={s.tabHead}>
+          <Text style={s.tabTitle}>{t(language, 'home.tab_diary')}</Text>
+        </View>
+      ) : (
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backBtnText}>←</Text>
@@ -815,6 +824,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         </Text>
         <View style={{ width: 44 }} />
       </View>
+      )}
 
       {/* Period tabs — hoje | semana | mês | custom */}
       <View style={s.periodRow}>
@@ -1217,6 +1227,8 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.headerBg },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  tabHead: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 },
+  tabTitle: { fontSize: 34, lineHeight: 38, letterSpacing: -1, color: Colors.text, ...font('display') },
   backBtnText: { fontSize: 28, color: Colors.headerText, marginTop: -2 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.headerText, fontFamily: BrandFonts?.heading },
   reportBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

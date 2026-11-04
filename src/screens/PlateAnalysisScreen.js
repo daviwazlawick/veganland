@@ -18,6 +18,7 @@ import { apiAnalyzePlate, apiSearchFood } from '../services/apiService';
 import { logFunnelEvent } from '../services/funnelService';
 import ScanLimitCard from '../components/ScanLimitCard';
 import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
+import { mealForNow } from '../utils/scanStatus';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -63,7 +64,7 @@ export default function PlateAnalysisScreen({ navigation, route }) {
   const [limitReached, setLimitReached] = useState(false);
   const [result, setResult] = useState(null);
   const [editableItems, setEditableItems] = useState([]);
-  const [meal, setMeal] = useState('lunch');
+  const [meal, setMeal] = useState(mealForNow);
   const [logging, setLogging] = useState(false);
   const [logged, setLogged] = useState(false);
 
@@ -326,7 +327,7 @@ export default function PlateAnalysisScreen({ navigation, route }) {
       // back so it stays on the same period and reloads the day card.
       setTimeout(() => {
         if (presetDate && navigation.canGoBack()) navigation.goBack();
-        else navigation.navigate('NutritionDashboard');
+        else navigation.navigate('Main', { screen: 'Diary' });
       }, 1200);
     } catch {
       Alert.alert('Erro', 'Não foi possível registar. Tenta novamente.');

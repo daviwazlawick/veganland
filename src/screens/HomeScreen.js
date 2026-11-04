@@ -16,8 +16,7 @@ import { useNutrition } from '../context/NutritionContext';
 import { useAuth } from '../context/AuthContext';
 import { apiGetRecentPlates } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
-import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../constants/halalRules';
-import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
+import { effectiveStatus, STATUS_CONFIG } from '../utils/scanStatus';
 
 const WATER_PRESETS = [
   { ml: 150,  cups: '¾' },
@@ -26,24 +25,6 @@ const WATER_PRESETS = [
   { ml: 500,  cups: '2' },
   { ml: 750,  cups: '3' },
 ];
-
-const HALAL_TO_STATUS = {
-  [HALAL_STATUS.HALAL]: 'SAFE',
-  [HALAL_STATUS.MASHBOOH]: 'CAUTION',
-  [HALAL_STATUS.NOT_HALAL]: 'NOT_SAFE',
-};
-
-const KOSHER_TO_STATUS = {
-  [KOSHER_STATUS.KOSHER]: 'SAFE',
-  [KOSHER_STATUS.SUPERVISION]: 'CAUTION',
-  [KOSHER_STATUS.NOT_KOSHER]: 'NOT_SAFE',
-};
-
-const STATUS_CONFIG = {
-  SAFE:     { color: Colors.safeDark,    bg: Colors.safeLight,    strip: Colors.safe,    icon: 'safe',    labelKey: 'result.safe' },
-  CAUTION:  { color: Colors.cautionDark, bg: Colors.cautionLight, strip: Colors.caution, icon: 'caution', labelKey: 'result.caution' },
-  NOT_SAFE: { color: Colors.dangerDark,  bg: Colors.dangerLight,  strip: Colors.danger,  icon: 'danger',  labelKey: 'result.not_safe' },
-};
 
 const EMPTY_MARKS = ['vegan', 'scan', 'ai', 'home', 'profile'];
 const isNovaQI = Brand.id === 'novaqi';
@@ -86,7 +67,7 @@ export default function HomeScreen({ navigation }) {
   const [badgeTooltip, setBadgeTooltip] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || isNovaQI) return;
     apiGetRecentPlates(token).then(setRecentPlates).catch(() => {});
   }, [token]);
 
@@ -107,19 +88,11 @@ export default function HomeScreen({ navigation }) {
     .filter(Boolean)
     .map(a => a.label[language] || a.label.en);
 
-  const historyRows = scanHistory.slice(0, 5).map((scan) => {
-    const ings = scan.normalized_ingredients;
-    const scanLabels = (scan.productInfo?.offMeta?.labels || []).map(l => String(l).toLowerCase());
-    let effectiveStatus = scan.status;
-    if (ings?.length) {
-      if (profile?.dietId === 'halal' && !scanLabels.includes('halal')) {
-        effectiveStatus = HALAL_TO_STATUS[applyHalalRules(ings, profile?.halalStrictness || DEFAULT_HALAL_STRICTNESS).status] || scan.status;
-      } else if (profile?.dietId === 'kosher' && !scanLabels.includes('kosher') && !scanLabels.includes('orthodox union kosher')) {
-        effectiveStatus = KOSHER_TO_STATUS[applyKosherRules(ings).status] || scan.status;
-      }
-    }
-    return { scan, cfg: STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.CAUTION };
-  });
+  const historyRows = scanHistory.slice(0, isNovaQI ? 3 : 5).map((scan) => ({
+    scan,
+    cfg: STATUS_CONFIG[effectiveStatus(scan, profile)],
+  }));
+  const hasGoals = goals?.calories_kcal > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -170,7 +143,6 @@ export default function HomeScreen({ navigation }) {
 
         {isNovaQI && (
           <View style={styles.intro}>
-            <Text style={styles.introTitle}>{t(language, 'home.header_question')}</Text>
             {diet && (
               <TouchableOpacity
                 onPress={() => navigation.navigate('ProfileSetup')}
@@ -220,10 +192,70 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
             </TouchableOpacity>
 
+            {/* O dia num lugar só: o resumo (sempre visível, com ou sem metas) e as
+                três formas de registrar logo embaixo. Tocar no resumo abre o Diário. */}
+            <View style={styles.today}>
+              <TouchableOpacity
+                style={styles.todayTop}
+                onPress={() => navigation.navigate('Diary')}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+              >
+                <View style={styles.todayHead}>
+                  <Text style={styles.todayTitle}>{t(language, 'nutrition.home_widget_title')}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                </View>
+                {hasGoals ? (
+                  <View style={homeNutritionStyles.ringRow}>
+                    <CalorieRing
+                      pct={(todayTotals.calories_kcal || 0) / goals.calories_kcal}
+                      centerText={String(Math.round(todayTotals.calories_kcal || 0))}
+                    />
+                    <View style={homeNutritionStyles.ringSide}>
+                      <Text style={styles.todayNum}>
+                        {Math.round(Math.max(goals.calories_kcal - (todayTotals.calories_kcal || 0) + (todayBurned || 0), 0))}
+                        <Text style={styles.todayUnit}> kcal</Text>
+                      </Text>
+                      <Text style={styles.todayLabel}>
+                        {t(language, 'nutrition.remaining')}
+                        {todayBurned > 0 ? `, +${Math.round(todayBurned)} ${t(language, 'exercise.calories_burned')}` : ''}
+                      </Text>
+                      <View style={homeNutritionStyles.proteinBarTrack}>
+                        <View style={[homeNutritionStyles.proteinBarFill, {
+                          backgroundColor: Colors.primary,
+                          width: `${(goals.protein_g > 0 ? Math.min(1, (todayTotals.protein_g || 0) / goals.protein_g) : 0) * 100}%`,
+                        }]} />
+                      </View>
+                      <Text style={styles.todayLabel}>
+                        {Math.round(todayTotals.protein_g || 0)}/{Math.round(goals.protein_g || 0)} g {t(language, 'nutrition.protein')}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.todayNoGoals}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.todayNum}>
+                        {Math.round(todayTotals.calories_kcal || 0)}
+                        <Text style={styles.todayUnit}> kcal</Text>
+                      </Text>
+                      <Text style={styles.todayLabel}>{t(language, 'home.today_eaten')}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('BodyProfile')}
+                      style={styles.todayGoalsBtn}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.todayGoalsText}>{t(language, 'home.today_set_goals')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
+
             <View style={styles.quickStrip}>
               <TouchableOpacity
                 style={styles.quickItem}
-                onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })}
+                onPress={() => navigation.navigate('Diary', { openAddFood: true })}
                 activeOpacity={0.7}
                 accessibilityRole="button"
               >
@@ -254,6 +286,7 @@ export default function HomeScreen({ navigation }) {
                     : t(language, 'nutrition.water')}
                 </Text>
               </TouchableOpacity>
+            </View>
             </View>
           </>
         ) : (
@@ -287,7 +320,7 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <View style={styles.quickRow}>
-              <TouchableOpacity style={styles.addFoodQuickBtn} onPress={() => navigation.navigate('NutritionDashboard', { openAddFood: true })} activeOpacity={0.85}>
+              <TouchableOpacity style={styles.addFoodQuickBtn} onPress={() => navigation.navigate('Diary', { openAddFood: true })} activeOpacity={0.85}>
                 <View style={styles.addFoodIconWrap}>
                   <Text style={styles.addFoodIconGlyph}>+</Text>
                 </View>
@@ -310,10 +343,10 @@ export default function HomeScreen({ navigation }) {
           </>
         )}
 
-        {goals?.calories_kcal > 0 && (
+        {!isNovaQI && hasGoals && (
           <TouchableOpacity
             style={[homeNutritionStyles.widget, isNovaQI && homeNutritionStyles.widgetNovaqi]}
-            onPress={() => navigation.navigate('NutritionDashboard')}
+            onPress={() => navigation.navigate('Diary')}
             activeOpacity={0.88}
           >
             <View style={homeNutritionStyles.row}>
@@ -336,7 +369,7 @@ export default function HomeScreen({ navigation }) {
                   </Text>
                   {todayBurned > 0 && (
                     <TouchableOpacity
-                      onPress={() => navigation.navigate('NutritionDashboard')}
+                      onPress={() => navigation.navigate('Diary')}
                       style={homeNutritionStyles.burnedPill}
                       activeOpacity={0.8}
                     >
@@ -380,7 +413,14 @@ export default function HomeScreen({ navigation }) {
 
         {historyRows.length > 0 && (
           <View style={styles.historySection}>
-            <Text style={styles.historyHeading}>{t(language, 'home.recent_scans')}</Text>
+            <View style={styles.historyHead}>
+              <Text style={styles.historyHeading}>{t(language, 'home.recent_scans')}</Text>
+              {isNovaQI && scanHistory.length > historyRows.length && (
+                <TouchableOpacity onPress={() => navigation.navigate('History')} hitSlop={10} accessibilityRole="button">
+                  <Text style={styles.seeAll}>{t(language, 'home.see_all')} ({scanHistory.length})</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.list}>
               {historyRows.map(({ scan, cfg }, i) => (
                 <TouchableOpacity
@@ -405,7 +445,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {recentPlates.length > 0 && (
+        {!isNovaQI && recentPlates.length > 0 && (
           <View style={styles.historySection}>
             <Text style={styles.historyHeading}>{t(language, 'nutrition.recent_plates')}</Text>
             <View style={styles.list}>
@@ -607,7 +647,7 @@ const styles = StyleSheet.create({
   // NovaQI — scan é a ação principal: um bloco só, largo, escuro.
   scanBlock: {
     backgroundColor: Colors.forest || Colors.navy,
-    borderRadius: 22, padding: 22, minHeight: 168,
+    borderRadius: 22, padding: 22, minHeight: 140,
     justifyContent: 'space-between',
   },
   scanBlockTitle: { fontSize: 30, lineHeight: 32, color: Colors.white, letterSpacing: -0.6, ...font('display') },
@@ -626,10 +666,25 @@ const styles = StyleSheet.create({
   plateTitle: { fontSize: 17, color: Colors.text, ...font('heading') },
   plateSub: { fontSize: 13, color: Colors.textLight, marginTop: 1, ...font('body') },
 
+  today: { backgroundColor: Colors.card, borderRadius: 18, overflow: 'hidden' },
+  todayTop: { padding: 16, gap: 12 },
+  todayHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  todayTitle: { fontSize: 18, color: Colors.text, ...font('heading') },
+  todayNum: { fontSize: 26, color: Colors.text, letterSpacing: -0.5, ...font('display') },
+  todayUnit: { fontSize: 14, color: Colors.textMuted, letterSpacing: 0, ...font('bodyBold') },
+  todayLabel: { fontSize: 13, color: Colors.textLight, ...font('bodyMed') },
+  todayNoGoals: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  todayGoalsBtn: {
+    borderWidth: 1.5, borderColor: Colors.primaryDark, borderRadius: 12,
+    paddingHorizontal: 14, height: 42, justifyContent: 'center',
+  },
+  todayGoalsText: { fontSize: 14, color: Colors.primaryDark, ...font('bold') },
   quickStrip: {
     flexDirection: 'row', alignItems: 'stretch',
-    backgroundColor: Colors.card, borderRadius: 18,
+    borderTopWidth: 1, borderTopColor: Colors.rule || Colors.border,
   },
+  historyHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  seeAll: { fontSize: 15, color: Colors.primaryDark, ...font('bold') },
   quickItem: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 6 },
   quickRule: { width: 1, marginVertical: 14, backgroundColor: Colors.rule || Colors.border },
   quickLabel: { fontSize: 13, color: Colors.text, textAlign: 'center', ...font('bodyBold') },

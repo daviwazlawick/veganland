@@ -259,6 +259,17 @@ export default function ProfileScreen({ navigation }) {
         </>
         )}
 
+        {/* Análise corporal por foto: antes era uma linha perdida em Conta, ao lado dos Termos. */}
+        {isNovaQI && (
+          <View style={[s.card, { marginTop: 10 }]}>
+            <Row
+              icon="body-outline"
+              label={t(language, 'body_analysis_screen.header_title')}
+              onPress={() => navigation.navigate('BodyAnalysis')}
+            />
+          </View>
+        )}
+
         {/* ── Referral ── */}
         {!HIDE_REFERRAL && (
           <TouchableOpacity style={s.referralCard} activeOpacity={0.8} onPress={() => navigation.navigate('Referral')}>
@@ -352,9 +363,6 @@ export default function ProfileScreen({ navigation }) {
                     await WebBrowser.openBrowserAsync(`${API_URL}/admin?token=${token}`);
                   }
                 }} />
-              )}
-              {isNovaQI && (
-                <Row icon="body-outline" label="Análise corporal" onPress={() => navigation.navigate('BodyAnalysis')} />
               )}
               <Row label={t(language, 'profile.terms')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/terms`)} />
               <Row label={t(language, 'profile.privacy')} onPress={() => WebBrowser.openBrowserAsync(`${legalBase}/privacy`)} />

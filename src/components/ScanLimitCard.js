@@ -29,7 +29,7 @@ export default function ScanLimitCard({ navigation, source, token, onDismiss }) 
   function goManual() {
     logFunnelEvent('scan_limit_log_manually_click', { source }, token);
     onDismiss?.();
-    navigation.navigate('NutritionDashboard', { openAddFood: true });
+    navigation.navigate('Main', { screen: 'Diary', params: { openAddFood: true } });
   }
 
   return (

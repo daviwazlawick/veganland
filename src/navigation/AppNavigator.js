@@ -34,6 +34,7 @@ import NutritionGoalsScreen from '../screens/NutritionGoalsScreen';
 import NutritionDashboardScreen from '../screens/NutritionDashboardScreen';
 import PlateAnalysisScreen from '../screens/PlateAnalysisScreen';
 import ExerciseLogScreen from '../screens/ExerciseLogScreen';
+import HistoryScreen from '../screens/HistoryScreen';
 import { t } from '../i18n';
 import { PremiumIcon } from '../components/ui';
 
@@ -43,6 +44,8 @@ export const navigationRef = createNavigationContainerRef();
 
 const TABS = {
   Home:    { icon: 'home' },
+  Diary:   { icon: 'restaurant' },
+  History: { icon: 'time' },
   Profile: { icon: 'person' },
 };
 
@@ -109,6 +112,11 @@ function MainTabs() {
         options={{ tabBarLabel: t(language, 'home.tab_home') }}
       />
       <Tab.Screen
+        name="Diary"
+        component={NutritionDashboardScreen}
+        options={{ tabBarLabel: t(language, 'home.tab_diary') }}
+      />
+      <Tab.Screen
         name="ScanTab"
         component={EmptyTab}
         listeners={({ navigation }) => ({
@@ -120,6 +128,11 @@ function MainTabs() {
             <ScanTabButton onPress={props.onPress} label={t(language, 'nutrition.plate_scan_btn')} />
           ),
         }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ tabBarLabel: t(language, 'home.tab_history') }}
       />
       <Tab.Screen
         name="Profile"

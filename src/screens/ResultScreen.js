@@ -19,6 +19,7 @@ import { applyHalalRules, HALAL_STATUS, DEFAULT_HALAL_STRICTNESS } from '../cons
 import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
 import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 import AppSurveyModal from '../components/ui/AppSurveyModal';
+import { mealForNow } from '../utils/scanStatus';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -167,7 +168,7 @@ export default function ResultScreen({ navigation, route }) {
   const [activeInfo, setActiveInfo] = useState(null);
   const [consumeModal, setConsumeModal] = useState(false);
   const [consumeGrams, setConsumeGrams] = useState('100');
-  const [consumeMeal, setConsumeMeal] = useState('lunch');
+  const [consumeMeal, setConsumeMeal] = useState(mealForNow);
   const [consumeLogging, setConsumeLogging] = useState(false);
   const [consumeLogged, setConsumeLogged] = useState(false);
   const [burnExIds, setBurnExIds] = useState(DEFAULT_BURN_EXERCISES);
