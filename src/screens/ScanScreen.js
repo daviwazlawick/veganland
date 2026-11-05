@@ -50,17 +50,23 @@ export default function ScanScreen({ navigation, route }) {
 
   const LOCK_DELAY = 900; // ms the same barcode must be held to trigger
 
-  // Main becomes the root of the stack (nothing to pop back to from Scan),
-  // with EditPersonal pushed on top when the user accepts — so its own
-  // back button / save flow lands them on Main, not stuck with no way out.
+  // Onboarding's last step is the Paywall — if the user exits the scan
+  // (completed or not), they land on Paywall. EditPersonal save/back then
+  // lands on Paywall too. Paywall continue-free / purchase go to Main.
   function goToMain() {
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Paywall', params: { currentPlan: 'free', source: 'onboarding_post_scan', onboarding: true } }],
+    });
   }
 
   function goToBodyInfo() {
     navigation.reset({
       index: 1,
-      routes: [{ name: 'Main' }, { name: 'EditPersonal', params: { fromOnboarding: true } }],
+      routes: [
+        { name: 'Paywall', params: { currentPlan: 'free', source: 'onboarding_post_scan', onboarding: true } },
+        { name: 'EditPersonal', params: { fromOnboarding: true } },
+      ],
     });
   }
 
