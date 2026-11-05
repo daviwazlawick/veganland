@@ -113,17 +113,24 @@ export default function ResultScreen({ navigation, route }) {
   const { result } = route.params;
   const scanId = result?.scan_id || null;
 
-  // Onboarding's first scan has no previous screen to pop back to — Main
-  // becomes the root, with EditPersonal pushed on top when the user accepts
-  // the body-info offer, so its back button / save flow lands on Main too.
+  // Onboarding's last step is the Paywall — Scan has already been used, and
+  // (optionally) body info captured. Paywall becomes the root so EditPersonal
+  // save/back lands there, and Paywall's own continue-free / purchase both
+  // forward to Main.
   function goToMainAfterOnboarding() {
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Paywall', params: { currentPlan: 'free', source: 'onboarding_post_scan', onboarding: true } }],
+    });
   }
 
   function goToBodyInfoAfterOnboarding() {
     navigation.reset({
       index: 1,
-      routes: [{ name: 'Main' }, { name: 'EditPersonal', params: { fromOnboarding: true } }],
+      routes: [
+        { name: 'Paywall', params: { currentPlan: 'free', source: 'onboarding_post_scan', onboarding: true } },
+        { name: 'EditPersonal', params: { fromOnboarding: true } },
+      ],
     });
   }
 

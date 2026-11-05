@@ -57,13 +57,7 @@ export default function PaywallScreen({ navigation, route }) {
 
   function goAfterPaywall() {
     if (route?.params?.onboarding) {
-      const needsScan = user?.onboarding_scan_used !== true;
-      navigation.reset({
-        index: 0,
-        routes: needsScan
-          ? [{ name: 'Scan', params: { onboarding: true } }]
-          : [{ name: 'Main' }],
-      });
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       return;
     }
     if (navigation.canGoBack()) navigation.goBack();
@@ -184,17 +178,7 @@ export default function PaywallScreen({ navigation, route }) {
         logSubscribe({ price, currency, planId: plan.id });
       }
       updateUserType(newUserType);
-      if (route?.params?.onboarding) {
-        const needsScan = user?.onboarding_scan_used !== true;
-        navigation.reset({
-          index: 0,
-          routes: needsScan
-            ? [{ name: 'Scan', params: { onboarding: true } }]
-            : [{ name: 'Main' }],
-        });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-      }
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
     } catch (e) {
       if (!e.userCancelled) {
