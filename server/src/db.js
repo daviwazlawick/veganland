@@ -143,6 +143,13 @@ export async function findProduct(product) {
   return null;
 }
 
+export async function getProductById(id) {
+  const db = await getPool();
+  if (!db || !id) return null;
+  const result = await db.query('select * from products where id = $1', [id]);
+  return result.rows[0] || null;
+}
+
 export async function upsertProduct(product) {
   const db = await getPool();
   if (!db) {

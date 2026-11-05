@@ -280,6 +280,7 @@ export default function ScanScreen({ navigation, route }) {
             base64, profile, language, token, pendingBarcode,
             pendingResult?.product_name || null,
             pendingResult?.brand || null,
+            pendingResult?.product_id || null,
           )
         : await analyzeProductWithApi(base64, profile, language, token, pendingBarcode, skipBarcodeCache);
 

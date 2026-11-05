@@ -2605,6 +2605,7 @@ const server = http.createServer(async (req, res) => {
         skipBarcodeCache: !!body.skipBarcodeCache,
         hintProductName: body.hintProductName || null,
         hintBrand: body.hintBrand || null,
+        productId: body.productId || null,
       });
 
       sendJson(res, 200, result, origin);

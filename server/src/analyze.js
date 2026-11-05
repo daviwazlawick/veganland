@@ -10,6 +10,7 @@ import {
   enrichProductFromOff,
   findAnalysis,
   findProduct,
+  getProductById,
   saveAnalysis,
   saveScanEvent,
   disassociateBarcode,
@@ -349,6 +350,7 @@ export async function analyzeProduct({
   skipBarcodeCache = false,
   hintProductName = null,// carried from front-photo step so anonymous ingredients scans keep the identity
   hintBrand = null,
+  productId = null,      // when no barcode was captured, the label-photo step returns the stub's uuid so the ingredients step can persist against it
 }) {
   const lang = language || 'pt';
   const contributorUserId = userId || null;
@@ -377,7 +379,9 @@ export async function analyzeProduct({
     if (!ingredientsInspection?.ingredients_visible || !extracted) {
       // The user tried but the ingredients aren't legible. Ask again with a
       // clearer explanation — never invent ingredients.
-      const stub = clientBarcode ? await findProduct({ barcode: clientBarcode }) : null;
+      const stub = clientBarcode
+        ? await findProduct({ barcode: clientBarcode })
+        : (productId ? await getProductById(productId) : null);
       const displayName = stub?.product_name || hintProductName || null;
       const scanId = await saveScanEvent({
         productId: stub?.id || null,
@@ -401,34 +405,43 @@ export async function analyzeProduct({
         scan_id: scanId,
       };
     }
+    // Resolve the stub row to persist against: barcode first (shared across
+    // users), then productId from the label-photo step (private to this
+    // scan but still shared by future scanners who match the same identity).
+    let stubProduct = null;
     if (clientBarcode) {
-      const stubProduct = await findProduct({ barcode: clientBarcode });
-      if (stubProduct?.id) {
-        const ingredientsPath = await saveScanPhoto('ingredients', ingredientsPhotoBase64).catch(() => null);
-        await updateProductIngredients(stubProduct.id, extracted, {
-          ingredientsPhotoPath: ingredientsPath,
-          contributorUserId,
-          source: 'user_ingredients',
-        });
-        // Re-fetch so the analysis below sees the freshly written ingredients.
-        const refreshed = await findProduct({ barcode: clientBarcode });
-        if (refreshed) {
-          knownDbRow = refreshed;
-          const src = refreshed.source || 'processed_food';
-          const catType = productTypeFromCategories(refreshed.categories_tags);
-          imageInspection = {
-            product_type: catType || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
-            product_name: refreshed.product_name,
-            brand: refreshed.brand,
-            barcode: refreshed.barcode,
-            lookup_query: refreshed.lookup_query
-              || [refreshed.brand, refreshed.product_name].filter(Boolean).join(' ')
-              || null,
-            ingredients_visible: false,
-            ingredients_text: refreshed.ingredients_text || null,
-            confidence: 1.0,
-          };
-        }
+      stubProduct = await findProduct({ barcode: clientBarcode });
+    } else if (productId) {
+      stubProduct = await getProductById(productId);
+    }
+
+    if (stubProduct?.id) {
+      const ingredientsPath = await saveScanPhoto('ingredients', ingredientsPhotoBase64).catch(() => null);
+      await updateProductIngredients(stubProduct.id, extracted, {
+        ingredientsPhotoPath: ingredientsPath,
+        contributorUserId,
+        source: 'user_ingredients',
+      });
+      // Re-fetch so the analysis below sees the freshly written ingredients.
+      const refreshed = clientBarcode
+        ? await findProduct({ barcode: clientBarcode })
+        : await getProductById(stubProduct.id);
+      if (refreshed) {
+        knownDbRow = refreshed;
+        const src = refreshed.source || 'processed_food';
+        const catType = productTypeFromCategories(refreshed.categories_tags);
+        imageInspection = {
+          product_type: catType || (src === 'fresh_produce' ? 'fresh_produce' : NON_FOOD_SOURCES.has(src) ? src : 'processed_food'),
+          product_name: refreshed.product_name,
+          brand: refreshed.brand,
+          barcode: refreshed.barcode,
+          lookup_query: refreshed.lookup_query
+            || [refreshed.brand, refreshed.product_name].filter(Boolean).join(' ')
+            || null,
+          ingredients_visible: false,
+          ingredients_text: refreshed.ingredients_text || null,
+          confidence: 1.0,
+        };
       }
     } else {
       // No barcode → one-shot: analyse the extracted ingredients against the
