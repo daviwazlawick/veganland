@@ -57,7 +57,7 @@ export default function BodyProfileScreen({ navigation }) {
       });
       navigation.navigate('NutritionGoals', { suggested: res?.suggested });
     } catch {
-      Alert.alert('Erro', 'Não foi possível salvar. Tenta novamente.');
+      Alert.alert('', t(language, 'profile_setup.save_error'));
     } finally {
       setSaving(false);
     }

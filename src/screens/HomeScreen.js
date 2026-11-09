@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiGetRecentPlates } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { effectiveStatus, STATUS_CONFIG } from '../utils/scanStatus';
+import { computeBodyAnalysis, buildMeasures, scoreLevel } from '../utils/bodyScore';
 
 const WATER_PRESETS = [
   { ml: 150,  cups: '¾' },
@@ -57,7 +58,7 @@ function CalorieRing({ pct, size = 76, centerText }) {
 export default function HomeScreen({ navigation }) {
   const { language, profile, scanHistory, monthlyScanCount, streak } = useApp();
   const { stats: referralStats } = useReferral();
-  const { goals, todayTotals, logConsumption, todayBurned } = useNutrition();
+  const { goals, todayTotals, logConsumption, todayBurned, bodyProfile, bodyMeasurements, measurementsHistory } = useNutrition();
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const [loggingWater, setLoggingWater] = useState(false);
@@ -93,6 +94,23 @@ export default function HomeScreen({ navigation }) {
     cfg: STATUS_CONFIG[effectiveStatus(scan, profile)],
   }));
   const hasGoals = goals?.calories_kcal > 0;
+
+  // Mesma conta do EditPersonal: sem perímetro, % de gordura ou foto não há score.
+  const bodyScore = useMemo(() => {
+    if (!isNovaQI) return null;
+    const bm = bodyMeasurements || [];
+    const analysis = computeBodyAnalysis({
+      bodyMeasurements: bm,
+      measures: buildMeasures((measurementsHistory || [])[0] || null, bm[0] || null),
+      height: bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '',
+      weight: bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '',
+      birthDate: bodyProfile?.birth_date ? bodyProfile.birth_date.slice(0, 10) : '',
+      sex: bodyProfile?.sex || null,
+      bodyProfile,
+    });
+    return analysis?.score ?? null;
+  }, [isNovaQI, bodyMeasurements, measurementsHistory, bodyProfile]);
+  const scoreInfo = bodyScore != null ? scoreLevel(bodyScore) : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -140,6 +158,46 @@ export default function HomeScreen({ navigation }) {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {isNovaQI && (
+          <TouchableOpacity
+            style={[styles.scoreCard, scoreInfo == null && styles.scoreCardCta]}
+            onPress={() => navigation.navigate('EditPersonal')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            {scoreInfo ? (
+              <>
+                <View style={styles.scoreTop}>
+                  <Text style={styles.scoreLabel}>{t(language, 'body_analysis.score')}</Text>
+                  <View style={[styles.scorePill, { backgroundColor: scoreInfo.color + '22' }]}>
+                    <Text style={[styles.scorePillText, { color: scoreInfo.color }]}>
+                      {t(language, `body_analysis_screen.${scoreInfo.key}`)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.scoreNumRow}>
+                  <Text style={[styles.scoreNum, { color: scoreInfo.color }]}>{bodyScore}</Text>
+                  <Text style={styles.scoreDen}>/100</Text>
+                </View>
+                <View style={styles.scoreBarTrack}>
+                  <View style={[styles.scoreBarFill, { width: `${Math.min(100, bodyScore)}%`, backgroundColor: scoreInfo.color }]} />
+                </View>
+              </>
+            ) : (
+              <View style={styles.scoreCtaRow}>
+                <View style={styles.scoreCtaIcon}>
+                  <Ionicons name="analytics-outline" size={22} color={Colors.primaryDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.scoreCtaTitle}>{t(language, 'home.score_cta_title')}</Text>
+                  <Text style={styles.scoreCtaSub}>{t(language, 'home.score_cta_sub')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
 
         {isNovaQI && (
           <View style={styles.intro}>
@@ -411,7 +469,7 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        {historyRows.length > 0 && (
+        {!isNovaQI && historyRows.length > 0 && (
           <View style={styles.historySection}>
             <View style={styles.historyHead}>
               <Text style={styles.historyHeading}>{t(language, 'home.recent_scans')}</Text>
@@ -468,7 +526,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {scanHistory.length === 0 && (
+        {!isNovaQI && scanHistory.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>{t(language, 'home.empty_title')}</Text>
             <Text style={styles.emptyText}>{t(language, 'home.no_scans')}</Text>
@@ -638,6 +696,21 @@ const styles = StyleSheet.create({
   topStatLabel: { fontSize: 13, color: Colors.textMuted, ...font('body') },
 
   // NovaQI — pergunta grande + o perfil que está sendo usado pra ler os rótulos.
+  scoreCard: { backgroundColor: Colors.card, borderRadius: 18, padding: 16, marginTop: 14, gap: 10 },
+  scoreCardCta: { backgroundColor: Colors.primaryLight, borderWidth: 1, borderColor: Colors.primary },
+  scoreTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  scoreLabel: { fontSize: 14, color: Colors.textLight, ...font('bodyBold') },
+  scorePill: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  scorePillText: { fontSize: 12, ...font('heading') },
+  scoreNumRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  scoreNum: { fontSize: 52, lineHeight: 56, ...font('display') },
+  scoreDen: { fontSize: 18, color: Colors.textMuted, paddingBottom: 8, ...font('bodyBold') },
+  scoreBarTrack: { height: 8, backgroundColor: Colors.border, borderRadius: 4, overflow: 'hidden' },
+  scoreBarFill: { height: 8, borderRadius: 4 },
+  scoreCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  scoreCtaIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.card, alignItems: 'center', justifyContent: 'center' },
+  scoreCtaTitle: { fontSize: 16, color: Colors.text, ...font('heading') },
+  scoreCtaSub: { fontSize: 13, color: Colors.textLight, marginTop: 2, ...font('body') },
   intro: { paddingTop: 14, paddingBottom: 6, gap: 10 },
   introTitle: { fontSize: 34, lineHeight: 36, color: Colors.text, letterSpacing: -1, ...font('display') },
   introProfile: { alignSelf: 'flex-start', gap: 2 },
