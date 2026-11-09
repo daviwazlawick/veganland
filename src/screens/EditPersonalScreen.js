@@ -12,6 +12,7 @@ import { t, localeFor } from '../i18n';
 import { Colors } from '../constants/colors';
 import ImportPlanButton from '../components/ImportPlanButton';
 import Brand from '../brand';
+import { HIDE_PHOTO_BODY_ANALYSIS } from '../constants/features';
 import { computeBodyAnalysis, buildMeasures, scoreLevel } from '../utils/bodyScore';
 
 const SEXES = ['male', 'female', 'other'];
@@ -420,7 +421,7 @@ export default function EditPersonalScreen({ navigation }) {
           {/* Photo-analysis suggestion — pushes users to the automatic pipeline
               before they type 9 fields manually. Any measure they don't like
               is still editable one-by-one below. */}
-          {IS_NOVAQI && (
+          {IS_NOVAQI && !HIDE_PHOTO_BODY_ANALYSIS && (
             <TouchableOpacity
               style={styles.baSuggest}
               onPress={() => navigation.navigate('VideoAnalysis')}
