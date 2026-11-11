@@ -9,6 +9,6 @@ BRAND=novaqi EXPO_PUBLIC_BRAND=novaqi EXPO_PUBLIC_V2=1 \
 EXPO_PUBLIC_API_URL=https://novaqi-v2.76-13-238-26.sslip.io EXPO_PUBLIC_APP_API_KEY="$KEY" \
   npx expo export --platform web --clear >/dev/null
 git archive HEAD server deploy | ssh $HOST "mkdir -p $DIR && tar -x -C $DIR"
-tar -c dist | ssh $HOST "rm -rf $DIR/dist && tar -x -C $DIR"
-ssh $HOST "cd $DIR/deploy && docker compose up -d --build && docker compose exec -T api node src/migrate.js | tail -3"
+tar -c -C dist . | ssh $HOST "mkdir -p $DIR/dist && find $DIR/dist -mindepth 1 -delete && tar -x -C $DIR/dist"
+ssh $HOST "cd $DIR/deploy && docker compose up -d --build && docker restart novaqi-v2-web >/dev/null && docker compose exec -T api node src/migrate.js | tail -3"
 echo "ok: https://novaqi-v2.76-13-238-26.sslip.io"
