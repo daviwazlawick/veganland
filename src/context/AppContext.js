@@ -20,6 +20,8 @@ function detectDeviceLanguage() {
       raw = (s && (s.AppleLocale || (Array.isArray(s.AppleLanguages) && s.AppleLanguages[0]))) || null;
     } else if (Platform.OS === 'android') {
       raw = NativeModules.I18nManager && NativeModules.I18nManager.localeIdentifier;
+    } else if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
+      raw = navigator.language || (navigator.languages && navigator.languages[0]);
     }
     if (!raw) return FALLBACK_LANGUAGE;
     const code = String(raw).slice(0, 2).toLowerCase();
