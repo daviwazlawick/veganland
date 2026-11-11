@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useNutrition } from '../context/NutritionContext';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { font } from '../theme/type';
@@ -56,6 +57,7 @@ const REQUIRED = { goal: 'goal', sex: 'sex', activity: 'activity', experience: '
 export default function OnboardingV2Screen({ navigation, route }) {
   const { language, saveProfile, profile } = useApp();
   const { token, user } = useAuth();
+  const { refresh: refreshNutrition } = useNutrition();
   const STORE = STORE_PREFIX + (user?.id || 'anon');
   const T = s2(language);
   const insets = useSafeAreaInsets();
@@ -171,6 +173,8 @@ export default function OnboardingV2Screen({ navigation, route }) {
 
   async function enterApp() {
     await AsyncStorage.removeItem(STORE).catch(() => {});
+    // As metas do plano viraram as metas do Diário no servidor; recarregar.
+    try { refreshNutrition?.(); } catch {}
     const dietId = a.diet_id || 'omnivore';
     if (editMode) {
       await saveProfile({ ...(profile || {}), dietId, allergyIds: a.allergy_ids || [], name: a.name || profile?.name || null }).catch(() => {});
