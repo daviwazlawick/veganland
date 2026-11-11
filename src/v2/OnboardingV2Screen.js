@@ -17,7 +17,7 @@ import { Choice, Chip, PrimaryButton, Ruler } from './ui';
 import { s2 } from './strings';
 import { v2SaveProfile, v2GeneratePlan } from './api';
 
-const STORE = '@novaqi_v2_onboarding';
+const STORE_PREFIX = '@novaqi_v2_onboarding_';
 const MEASURES = ['neck', 'chest', 'waist', 'hips', 'arm', 'thigh', 'calf'];
 const MEASURE_DEFAULT = {
   male:   { neck: 38, chest: 100, waist: 88, hips: 100, arm: 33, thigh: 56, calf: 37 },
@@ -55,7 +55,8 @@ const REQUIRED = { goal: 'goal', sex: 'sex', activity: 'activity', experience: '
 
 export default function OnboardingV2Screen({ navigation, route }) {
   const { language, saveProfile, profile } = useApp();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const STORE = STORE_PREFIX + (user?.id || 'anon');
   const T = s2(language);
   const insets = useSafeAreaInsets();
   const { width: W, height: H } = useWindowDimensions();
