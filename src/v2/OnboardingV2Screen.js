@@ -177,8 +177,10 @@ export default function OnboardingV2Screen({ navigation, route }) {
       navigation.goBack();
       return;
     }
-    // Trocar o perfil faz o navegador sair do onboarding e cair no app.
-    await saveProfile({ dietId, allergyIds: a.allergy_ids || [], name: (a.name || '').trim() || null, halalStrictness: null });
+    await saveProfile({ dietId, allergyIds: a.allergy_ids || [], name: (a.name || '').trim() || null, halalStrictness: null }).catch(() => {});
+    // A rota do onboarding existe nos dois grupos do navegador, então a troca de
+    // perfil sozinha não tira a pessoa daqui: reset explícito pra Main.
+    setTimeout(() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] }), 0);
   }
 
   // ── boneco ──────────────────────────────────────────────────────────────
@@ -218,7 +220,7 @@ export default function OnboardingV2Screen({ navigation, route }) {
           id="main" params={params} width={figH / 2} height={figH} color={fig} limbColor={limb} accent={pal.hl}
           viewBox={vbT.map(n => n.toFixed(1)).join(' ')}
           highlight={phase === 'form' && id === 'focus' ? a.focus : []}
-          tape={mKey} tapePhase={tapePhase} tapeLabel={mKey ? `${String(mValue).replace('.', ',')} cm` : null} labelColor={fg}
+          tape={mKey} tapePhase={tapePhase}
           scan={phase === 'gen' ? genPhase : null}
         />
         {pairK > 0.02 && <Text style={[st.figLabel, { color: fg, opacity: pairK }]}>{T.goal.today}</Text>}
