@@ -287,7 +287,8 @@ const s = StyleSheet.create({
   setHeadT: { fontSize: 12, color: C.muted, textAlign: 'center', ...font('bold') },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
   setIdx: { width: 28, textAlign: 'center', fontSize: 15, color: C.muted, ...font('bold') },
-  setInput: { flex: 1, height: 46, marginHorizontal: 4, borderRadius: 12, backgroundColor: '#F1F3EF', textAlign: 'center', fontSize: 18, color: C.ink, ...font('bold') },
+  // width 0 + minWidth 0: no web o <input> tem largura mínima própria e estoura a linha.
+  setInput: { flex: 1, width: 0, minWidth: 0, height: 46, marginHorizontal: 4, borderRadius: 12, backgroundColor: '#F1F3EF', textAlign: 'center', fontSize: 18, color: C.ink, ...font('bold') },
   setInputDone: { backgroundColor: 'transparent' },
   check: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
   up: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.amberBg, borderRadius: 12, padding: 10, marginTop: 10 },
