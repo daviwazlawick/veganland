@@ -196,7 +196,14 @@ export default function OnboardingV2Screen({ navigation, route }) {
   })();
   const vbT = useTween(vb, 700);
 
-  const figH = wide ? Math.min(H * 0.78, 640) : (phase !== 'form' ? Math.min(300, H * 0.36) : isMeasure ? 250 : id === 'goal' || id === 'silhouette' ? 220 : 190);
+  // No celular o boneco ocupa o espaço que a pergunta deixa livre.
+  const roomy = ['name', 'sex', 'age', 'height', 'weight', 'focus', 'injuries', 'days', 'session', 'meals', 'summary'].includes(id);
+  const figH = wide ? Math.min(H * 0.78, 640)
+    : phase !== 'form' ? Math.min(320, H * 0.38)
+    : isMeasure ? Math.min(360, H * 0.42)
+    : roomy ? Math.min(330, H * 0.38)
+    : id === 'goal' ? Math.min(250, H * 0.3)
+    : Math.min(170, H * 0.22);
   const showGoalPair = phase === 'form' && id === 'goal' && a.goal;
   const goalP = useTween(showGoalPair ? goalParams(baseParams, a.goal) : baseParams, 700);
   const pairK = useTween(showGoalPair ? 1 : 0, 520);
@@ -301,8 +308,8 @@ export default function OnboardingV2Screen({ navigation, route }) {
             placeholderTextColor={pal.fg + '88'}
             style={[st.input, st.inputMulti, { color: pal.fg, borderColor: pal.fg + '44' }, Platform.OS === 'web' ? { outlineStyle: 'none' } : null]} /></>);
       case 'diet':
-        return (<><Question q={T.diet.q} />
-          {DIETS.map(d => <Choice key={d.id} title={d.label[language] || d.label.en} sub={d.description[language] || d.description.en}
+        return (<><Question q={T.dietQ.q} />
+          {[...DIETS].sort((x, y) => (x.id === 'omnivore' ? -1 : y.id === 'omnivore' ? 1 : 0)).map(d => <Choice key={d.id} title={d.label[language] || d.label.en} sub={d.description[language] || d.description.en}
             selected={a.diet_id === d.id} onPress={() => pick('diet_id', d.id)} {...choiceProps} />)}</>);
       case 'allergies':
         return (<><Question q={T.allergies.q} hint={T.allergies.hint} />

@@ -247,7 +247,7 @@ function Tape({ t, phase, accent, label, labelColor }) {
         return <Line key={k} x1={px} y1={py - 2.5} x2={px} y2={py + 2.5} stroke="#FFFFFF" strokeWidth={1} opacity={0.9} />;
       })}
       {label ? (
-        <SvgText x={labelX} y={y + 4} fontSize={12} fontWeight="700" fill={labelColor} textAnchor={anchor}>{label}</SvgText>
+        <SvgText x={labelX} y={y + 4} fontSize={12} fontFamily="Archivo_800ExtraBold, Archivo, sans-serif" fill={labelColor} textAnchor={anchor}>{label}</SvgText>
       ) : null}
     </G>
   );

@@ -117,7 +117,7 @@ export function Ruler({ value, onChange, min, max, step = 1, unit, fg, accent, w
               stroke={fg} strokeWidth={t.major ? 2 : 1} opacity={t.major ? 0.8 : t.whole ? 0.4 : 0.22} />
           ))}
           {ticks.filter(t => t.major).map(t => (
-            <SvgText key={`l${t.v}`} x={t.x} y={60} fontSize={11} fill={fg} opacity={0.6} textAnchor="middle">{Math.round(t.v)}</SvgText>
+            <SvgText key={`l${t.v}`} x={t.x} y={60} fontSize={12} fontFamily="Archivo_600SemiBold, Archivo, sans-serif" fill={fg} opacity={0.6} textAnchor="middle">{Math.round(t.v)}</SvgText>
           ))}
           <Line x1={width / 2} x2={width / 2} y1={2} y2={48} stroke={accent} strokeWidth={3.5} strokeLinecap="round" />
         </Svg>

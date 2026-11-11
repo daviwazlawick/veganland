@@ -54,7 +54,7 @@ const pt = {
     opts: { chest: 'Peito', back: 'Costas', shoulders: 'Ombros', arms: 'Braços', abs: 'Abdômen', glutes: 'Glúteos', thighs: 'Coxas', calves: 'Panturrilha' },
   },
   injuries: { q: 'Alguma dor ou lesão?', ph: 'Ex.: dor no joelho direito, hérnia na lombar', hint: 'Se não tiver, é só continuar.' },
-  diet: { q: 'Como você come?' },
+  dietQ: { q: 'Como você come?' },
   allergies: { q: 'Alguma alergia ou coisa que você não come?', hint: 'Marque o que valer.', dislikes: 'Outra coisa que você não come' },
   meals: { q: 'Quantas refeições por dia cabem na sua rotina?', unit: 'refeições' },
   cooking: {
