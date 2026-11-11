@@ -18,6 +18,7 @@ export const easeInOut = t => (t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t
 
 function lerpValue(a, b, k) {
   if (typeof b === 'number') return (typeof a === 'number' ? a : b) + (b - (typeof a === 'number' ? a : b)) * k;
+  if (Array.isArray(b)) return b.map((v, i) => lerpValue(a?.[i], v, k));
   const out = {};
   for (const key of Object.keys(b)) out[key] = lerpValue(a?.[key], b[key], k);
   return out;
