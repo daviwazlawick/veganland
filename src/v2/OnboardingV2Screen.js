@@ -520,7 +520,9 @@ function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure }) {
         <View style={{ width: '100%', maxWidth: 560 }}>
           <Text style={[st.q, { color: pal.fg, fontSize: wide ? 44 : 32 }]}>{T.reveal.title((name || '').trim())}</Text>
           <Text style={[st.kcal, { color: pal.hl, fontSize: wide ? 128 : 96, lineHeight: wide ? 132 : 100, marginTop: 12 }]}>{kcal}</Text>
-          <Text style={[st.kcalLabel, { color: pal.fg }]}>{T.reveal.perDay}  ·  P {t.protein_g} g  C {t.carbs_g} g  G {t.fat_g} g</Text>
+          <Text style={[st.kcalLabel, { color: pal.fg }]}>{T.reveal.perDay}</Text>
+          <Text style={[st.kcalLabel, { color: pal.fg, marginTop: 4 }]}>P {t.protein_g} g    C {t.carbs_g} g    G {t.fat_g} g</Text>
+          {d.source === 'regras' || w.source === 'regras' ? <Text style={[st.revealText, { color: pal.hl, fontSize: 14 }]}>{T.reveal.rules}</Text> : null}
 
           {d.summary ? <Text style={[st.revealText, { color: pal.fg }]}>{d.summary}</Text> : null}
 

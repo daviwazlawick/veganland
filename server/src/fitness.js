@@ -5,6 +5,7 @@
 // ajuste pelo objetivo, proteína por kg. A IA recebe os números prontos e só monta
 // o cardápio e a ficha em cima deles. Assim o total do dia sempre bate.
 import './env.js';
+import { fallbackDiet, fallbackWorkout } from './fitnessFallback.js';
 import { getPool, logApiUsage, saveBodyProfile, saveNutritionGoals, logWeight, logBodyMeasurements, addConsumptionEntry } from './db.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
@@ -239,10 +240,16 @@ async function latestPlan(db, userId) {
 
 async function buildPlan(db, userId, profile, language) {
   const targets = computeTargets(profile);
-  const [diet, workout] = await Promise.all([
+  // Se a IA falhar (sem crédito, fora do ar), cai no plano por regra: a pessoa não
+  // fica presa no fim do onboarding.
+  const [d, w] = await Promise.allSettled([
     generateDiet(profile, targets, language),
     generateWorkout(profile, targets, language),
   ]);
+  if (d.status === 'rejected') console.warn('[fitness] diet AI failed, using fallback:', d.reason?.message);
+  if (w.status === 'rejected') console.warn('[fitness] workout AI failed, using fallback:', w.reason?.message);
+  const diet = d.status === 'fulfilled' ? { ...d.value, source: 'ia' } : fallbackDiet(profile, targets);
+  const workout = w.status === 'fulfilled' ? { ...w.value, source: 'ia' } : fallbackWorkout(profile);
   const { rows } = await db.query(
     'insert into fitness_plan (user_id, targets, diet, workout) values ($1,$2,$3,$4) returning id, targets, diet, workout, created_at',
     [userId, JSON.stringify(targets), JSON.stringify(diet), JSON.stringify(workout)]

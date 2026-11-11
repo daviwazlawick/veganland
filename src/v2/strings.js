@@ -107,6 +107,7 @@ const pt = {
     days: n => `${n} treinos por semana`,
     meals: n => `${n} refeições no dia`,
     cta: 'Entrar no app',
+    rules: 'A IA não respondeu agora, então este plano saiu das nossas tabelas, nas mesmas metas. Dá pra refazer com a IA depois, na aba Dieta.',
   },
   units: { kg: 'kg', cm: 'cm' },
   tabs: { home: 'Início', diet: 'Dieta', workout: 'Treino', profile: 'Perfil' },
