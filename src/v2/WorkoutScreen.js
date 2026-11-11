@@ -161,7 +161,7 @@ function Exercise({ ex, T, logged, last, best, onToggle }) {
         <View style={{ width: 48 }} />
       </View>
       {Array.from({ length: n }, (_, i) => (
-        <SetRow key={i} i={i} ex={ex} done={loggedSets[i]} ref0={lastSets[i] || lastSets[lastSets.length - 1]} top={top} onToggle={onToggle} />
+        <SetRow key={i} i={i} ex={ex} done={loggedSets[i]} prev={i > 0 ? loggedSets[i - 1] : null} ref0={lastSets[i] || lastSets[lastSets.length - 1]} top={top} onToggle={onToggle} />
       ))}
       {beatAll ? (
         <View style={s.up}><Ionicons name="trending-up" size={16} color="#9A5A06" /><Text style={s.upText}>{T.workout.up}</Text></View>
@@ -170,10 +170,12 @@ function Exercise({ ex, T, logged, last, best, onToggle }) {
   );
 }
 
-function SetRow({ i, ex, done, ref0, top, onToggle }) {
+function SetRow({ i, ex, done, prev, ref0, top, onToggle }) {
   const [w, setW] = useState(done ? fmtKg(done.weight_kg) : ref0?.weight_kg != null ? fmtKg(ref0.weight_kg) : '');
   const [r, setR] = useState(done ? String(done.reps ?? '') : top ? String(top) : '');
   useEffect(() => { if (done) { setW(fmtKg(done.weight_kg)); setR(String(done.reps ?? '')); } }, [!!done]);
+  // A série anterior confirmada passa a carga pra esta, se ainda estiver vazia.
+  useEffect(() => { if (!done && prev?.weight_kg != null && w === '') setW(fmtKg(prev.weight_kg)); }, [prev?.weight_kg]);
   const k = useTween(done ? 1 : 0, 220);
   const num = v => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
   return (
