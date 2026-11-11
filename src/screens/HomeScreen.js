@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiGetRecentPlates } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { effectiveStatus, STATUS_CONFIG } from '../utils/scanStatus';
+import TodayPlanCard from '../v2/TodayPlanCard';
 
 const WATER_PRESETS = [
   { ml: 150,  cups: '¾' },
@@ -160,6 +161,8 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
         )}
+
+        {isNovaQI && <TodayPlanCard navigation={navigation} />}
 
         {isNovaQI ? (
           <>

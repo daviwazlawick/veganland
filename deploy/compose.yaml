@@ -1,0 +1,55 @@
+# NovaQI V2 (teste) na VPS 76.13.238.26, em /opt/novaqi-v2.
+# Banco próprio: não encosta no Postgres de produção do novaqi.app.
+name: novaqi-v2
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: novaqi-v2-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: novaqi
+      POSTGRES_USER: novaqi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novaqi -d novaqi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    networks: [internal]
+
+  api:
+    build: ../server
+    container_name: novaqi-v2-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://novaqi:${POSTGRES_PASSWORD}@db:5432/novaqi
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 384m
+    cpus: 1.0
+    networks: [internal]
+
+  web:
+    image: nginx:alpine
+    container_name: novaqi-v2-web
+    restart: unless-stopped
+    volumes:
+      - ../dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [api]
+    mem_limit: 64m
+    networks: [internal, verith-net]
+
+volumes:
+  db-data:
+
+networks:
+  internal:
+  verith-net:
+    external: true

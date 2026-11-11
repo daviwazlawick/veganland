@@ -24,13 +24,14 @@ import { htmlTerms, htmlPrivacy, htmlImprint } from './legal.js';
 import { htmlSupportPage, getSupportRecipient, getSupportBrandName } from './support.js';
 import { htmlAboutPage } from './about.js';
 import { detectLang } from './web_i18n.js';
+import { handleFitnessRoutes } from './fitness.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const APP_API_KEY = process.env.APP_API_KEY || '';
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 8 * 1024 * 1024);
 const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET || '';
 
-const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app', 'http://localhost:8081', 'http://localhost:19006', 'http://localhost:19000']);
+const ALLOWED_ORIGINS = new Set(['https://veganland.app', 'https://novaqi.app', ...(process.env.EXTRA_ORIGIN ? [process.env.EXTRA_ORIGIN] : []), 'http://localhost:8081', 'http://localhost:19006', 'http://localhost:19000']);
 
 // Auth endpoints return this trimmed user shape. user_type is explicitly
 // included (may be null for users who haven't picked a plan yet) so the app
@@ -92,7 +93,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Headers': 'Content-Type, x-app-api-key, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   };
 }
 
@@ -1227,6 +1228,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, corsHeaders(origin));
       res.end();
+      return;
+    }
+
+    // NovaQI V2: dieta + treino gerados pela IA (server/src/fitness.js)
+    if (req.url.startsWith('/v2/')) {
+      await handleFitnessRoutes(req, res, { origin, sendJson, readJsonBody, getAuthUser });
       return;
     }
 

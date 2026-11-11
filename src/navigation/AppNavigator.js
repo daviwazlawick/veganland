@@ -36,6 +36,10 @@ import PlateAnalysisScreen from '../screens/PlateAnalysisScreen';
 import ExerciseLogScreen from '../screens/ExerciseLogScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import { t } from '../i18n';
+import OnboardingV2Screen from '../v2/OnboardingV2Screen';
+import DietPlanScreen from '../v2/DietPlanScreen';
+import WorkoutScreen from '../v2/WorkoutScreen';
+import { s2 } from '../v2/strings';
 import { PremiumIcon } from '../components/ui';
 
 const Stack = createNativeStackNavigator();
@@ -44,8 +48,8 @@ export const navigationRef = createNavigationContainerRef();
 
 const TABS = {
   Home:    { icon: 'home' },
-  Diary:   { icon: 'restaurant' },
-  History: { icon: 'time' },
+  Plan:    { icon: 'restaurant' },
+  Workout: { icon: 'barbell' },
   Profile: { icon: 'person' },
 };
 
@@ -112,9 +116,9 @@ function MainTabs() {
         options={{ tabBarLabel: t(language, 'home.tab_home') }}
       />
       <Tab.Screen
-        name="Diary"
-        component={NutritionDashboardScreen}
-        options={{ tabBarLabel: t(language, 'home.tab_diary') }}
+        name="Plan"
+        component={DietPlanScreen}
+        options={{ tabBarLabel: s2(language).tabs.diet }}
       />
       <Tab.Screen
         name="ScanTab"
@@ -130,9 +134,9 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="History"
-        component={HistoryScreen}
-        options={{ tabBarLabel: t(language, 'home.tab_history') }}
+        name="Workout"
+        component={WorkoutScreen}
+        options={{ tabBarLabel: s2(language).tabs.workout }}
       />
       <Tab.Screen
         name="Profile"
@@ -174,7 +178,7 @@ export default function AppNavigator() {
   // Legacy users (any tier, including 'free') and paid users go to Main.
   // Cached sessions from before this change have user_type absent (undefined)
   // and are treated as legacy — they are NOT forced into the paywall.
-  const nullTier = user?.user_type === null;
+  const nullTier = process.env.EXPO_PUBLIC_V2 === '1' ? false : user?.user_type === null;
   const onboardingScanAvailable = nullTier && user?.onboarding_scan_used !== true;
   const profileInitialRoute = onboardingScanAvailable
     ? 'Scan'
@@ -191,7 +195,7 @@ export default function AppNavigator() {
   const initialRouteName =
     !token ? (hasLaunchedBefore ? 'Login' : 'Welcome') :
     !disclaimerAccepted ? 'Disclaimer' :
-    !profile ? 'ProfileSetup' :
+    !profile ? 'OnboardingV2' :
     profileInitialRoute;
 
   return (
@@ -210,6 +214,7 @@ export default function AppNavigator() {
           </>
         ) : !profile ? (
           <>
+            <Stack.Screen name="OnboardingV2" component={OnboardingV2Screen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: 'fullScreenModal' }} />
@@ -226,6 +231,8 @@ export default function AppNavigator() {
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
             <Stack.Screen name="ExerciseLog" component={ExerciseLogScreen} />
             <Stack.Screen name="ReportProduct" component={ReportProductScreen} />
+            <Stack.Screen name="Diary" component={NutritionDashboardScreen} />
+            <Stack.Screen name="History" component={HistoryScreen} />
           </>
         ) : (
           <>
@@ -250,6 +257,9 @@ export default function AppNavigator() {
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
             <Stack.Screen name="ExerciseLog" component={ExerciseLogScreen} />
             <Stack.Screen name="ReportProduct" component={ReportProductScreen} />
+            <Stack.Screen name="Diary" component={NutritionDashboardScreen} />
+            <Stack.Screen name="History" component={HistoryScreen} />
+            <Stack.Screen name="OnboardingV2" component={OnboardingV2Screen} />
           </>
         )}
       </Stack.Navigator>
