@@ -15,7 +15,7 @@ import { ALLERGIES } from '../constants/allergies';
 import { apiGetMe, apiAdminHandoff } from '../services/apiService';
 import { useReferral } from '../context/ReferralContext';
 import { useNutrition } from '../context/NutritionContext';
-import { HIDE_REFERRAL } from '../constants/features';
+import { HIDE_REFERRAL, HIDE_PHOTO_BODY_ANALYSIS } from '../constants/features';
 import { PremiumIcon, BrandName } from '../components/ui';
 import { font } from '../theme/type';
 
@@ -260,7 +260,7 @@ export default function ProfileScreen({ navigation }) {
         )}
 
         {/* Análise corporal por foto: antes era uma linha perdida em Conta, ao lado dos Termos. */}
-        {isNovaQI && (
+        {isNovaQI && !HIDE_PHOTO_BODY_ANALYSIS && (
           <View style={[s.card, { marginTop: 10 }]}>
             <Row
               icon="body-outline"

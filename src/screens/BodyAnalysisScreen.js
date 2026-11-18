@@ -13,6 +13,7 @@ import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import { apiBodyAnalyze, apiSaveBodyMeasurements } from '../services/apiService';
 import { Ionicons } from '@expo/vector-icons';
+import { scoreLevel } from '../utils/bodyScore';
 import { t } from '../i18n';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -318,16 +319,10 @@ export default function BodyAnalysisScreen({ navigation, route }) {
   }
 
   function scoreColor(v) {
-    if (!v) return Colors.textMuted;
-    if (v >= 90) return '#22C55E'; if (v >= 75) return '#4ADE80';
-    if (v >= 60) return '#F59E0B'; return '#EF4444';
+    return v ? scoreLevel(v).color : Colors.textMuted;
   }
   function scoreLabel(v) {
-    if (!v) return '—';
-    if (v >= 90) return t(language, 'body_analysis_screen.score_excellent');
-    if (v >= 75) return t(language, 'body_analysis_screen.score_good');
-    if (v >= 60) return t(language, 'body_analysis_screen.score_moderate');
-    return t(language, 'body_analysis_screen.score_attention');
+    return v ? t(language, `body_analysis_screen.${scoreLevel(v).key}`) : '—';
   }
 
   const bf = bfMeta(bc?.body_fat_pct);

@@ -205,7 +205,7 @@ export default function PlateAnalysisScreen({ navigation, route }) {
 
   function saveEdit() {
     if (!editDraft.name.trim()) {
-      Alert.alert('', 'O nome do alimento é obrigatório.');
+      Alert.alert('', t(language, 'nutrition.plate_name_required'));
       return;
     }
     const item = {
@@ -251,7 +251,7 @@ export default function PlateAnalysisScreen({ navigation, route }) {
       setLogged(false);
       await analyzeImage(asset.base64);
     } catch {
-      Alert.alert('Erro', 'Não foi possível aceder à câmara.');
+      Alert.alert('', t(language, 'nutrition.plate_camera_error'));
     }
   }
 
@@ -293,7 +293,7 @@ export default function PlateAnalysisScreen({ navigation, route }) {
         setLimitReached(true);
         logFunnelEvent('scan_failed', { method: 'plate', reason: 'limit' }, token);
       } else {
-        Alert.alert('Erro', 'Análise falhou. Tenta com outra foto.');
+        Alert.alert('', t(language, 'nutrition.plate_analysis_failed'));
         logFunnelEvent('scan_failed', { method: 'plate', reason: (e?.message || 'error').slice(0, 120) }, token);
       }
     } finally {
@@ -330,7 +330,7 @@ export default function PlateAnalysisScreen({ navigation, route }) {
         else navigation.navigate('Main', { screen: 'Diary' });
       }, 1200);
     } catch {
-      Alert.alert('Erro', 'Não foi possível registar. Tenta novamente.');
+      Alert.alert('', t(language, 'nutrition.plate_log_failed'));
     } finally {
       setLogging(false);
     }

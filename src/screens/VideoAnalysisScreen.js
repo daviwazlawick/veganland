@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNutrition } from '../context/NutritionContext';
+import { useApp } from '../context/AppContext';
+import { t } from '../i18n';
 import { Colors } from '../constants/colors';
 import { BrandFonts } from '../brand';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,17 +36,19 @@ const SILHOUETTES = {
 const STEPS = ['intro', 'front', 'side', 'confirm'];
 
 const TIPS = [
-  { icon: 'cube-outline',            text: 'Encosta-te a uma parede BRANCA ou lisa — sem padrões, móveis ou sombras atrás de ti' },
-  { icon: 'shirt-outline',           text: 'Roupa JUSTA: leggings, calções curtos ou roupa interior. Sem camisolas largas nem cintos' },
-  { icon: 'card-outline',            text: 'Cola um cartão de crédito com fita-cola no CENTRO DO PEITO (frente) e na LATERAL DA CINTURA (lado). Plano e totalmente visível' },
-  { icon: 'hand-right-outline',      text: 'Foto de lado: LADO DIREITO do corpo para a câmara. Braço direito a 90° à frente (horizontal). Braço esquerdo atrás do corpo. Nunca braços junto ao tronco' },
-  { icon: 'phone-portrait-outline',  text: 'Telemóvel fixo a ~2 m de distância, ao nível do peito — usa um suporte ou encosta-o a algo estável' },
-  { icon: 'bulb-outline',            text: 'Boa iluminação frontal — evita luz atrás de ti (contra-luz) ou sombras no rosto' },
-  { icon: 'resize-outline',          text: 'Corpo INTEIRO visível da cabeça à planta do pé — não te cortes nos bordos da câmara' },
+  { icon: 'cube-outline',           key: 'tip1' },
+  { icon: 'shirt-outline',          key: 'tip2' },
+  { icon: 'card-outline',           key: 'tip3' },
+  { icon: 'hand-right-outline',     key: 'tip4' },
+  { icon: 'phone-portrait-outline', key: 'tip5' },
+  { icon: 'bulb-outline',           key: 'tip6' },
+  { icon: 'resize-outline',         key: 'tip7' },
 ];
 
 export default function VideoAnalysisScreen({ navigation }) {
   const { bodyProfile } = useNutrition();
+  const { language } = useApp();
+  const tv = (k, params) => t(language, `video_analysis.${k}`, params);
   const sex = bodyProfile?.sex || 'female';
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -117,9 +121,9 @@ export default function VideoAnalysisScreen({ navigation }) {
         setStep('confirm');
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível capturar a foto. Tenta novamente.');
+      Alert.alert(tv('error_title'), tv('capture_error'));
     }
-  }, [step]);
+  }, [step, language]);
 
   const retake = useCallback(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -144,27 +148,27 @@ export default function VideoAnalysisScreen({ navigation }) {
     return (
       <SafeAreaView style={s.safe}>
         <ScrollView contentContainerStyle={s.introContainer} showsVerticalScrollIndicator={false}>
-          <Text style={s.title}>Análise Corporal por Câmara</Text>
+          <Text style={s.title}>{tv('title')}</Text>
           <Text style={s.subtitle}>
-            O app guia-te passo a passo. Segue as instruções para obter as medições mais precisas possível.
+            {tv('intro_sub')}
           </Text>
 
           <View style={s.cardCallout}>
             <Ionicons name="card-outline" size={28} color={Colors.primary} style={s.cardCalloutIcon} />
             <View style={{ flex: 1 }}>
-              <Text style={s.cardCalloutTitle}>Cartão de crédito obrigatório</Text>
+              <Text style={s.cardCalloutTitle}>{tv('card_title')}</Text>
               <Text style={s.cardCalloutText}>
-                Antes de começar, cola com fita-cola um cartão de crédito plano no centro do peito. Terás de o mudar para a lateral da cintura antes da foto de lado.
+                {tv('card_text')}
               </Text>
             </View>
           </View>
 
           <View style={s.tipsCard}>
-            <Text style={s.tipsTitle}>Instruções completas</Text>
-            {TIPS.map((t, i) => (
+            <Text style={s.tipsTitle}>{tv('tips_title')}</Text>
+            {TIPS.map((tip, i) => (
               <View key={i} style={s.tipRow}>
-                <Ionicons name={t.icon} size={20} color={Colors.primary} style={s.tipIcon} />
-                <Text style={s.tipText}>{t.text}</Text>
+                <Ionicons name={tip.icon} size={20} color={Colors.primary} style={s.tipIcon} />
+                <Text style={s.tipText}>{tv(tip.key)}</Text>
               </View>
             ))}
           </View>
@@ -173,28 +177,28 @@ export default function VideoAnalysisScreen({ navigation }) {
             <View style={s.poseItem}>
               <Image source={SILHOUETTES.front[sex === 'male' ? 'male' : 'female']}
                      style={s.poseImg} resizeMode="contain" />
-              <Text style={s.poseLabel}>Frente</Text>
+              <Text style={s.poseLabel}>{tv('front')}</Text>
             </View>
             <View style={s.poseArrow}><Text style={s.poseArrowText}>→</Text></View>
             <View style={s.poseItem}>
               <Image source={SILHOUETTES.side[sex === 'male' ? 'male' : 'female']}
                      style={s.poseImg} resizeMode="contain" />
-              <Text style={s.poseLabel}>Lado direito</Text>
+              <Text style={s.poseLabel}>{tv('right_side')}</Text>
             </View>
           </View>
 
           <TouchableOpacity style={s.primaryBtn} onPress={async () => {
             if (!permission?.granted) {
               const { granted } = await requestPermission();
-              if (!granted) { Alert.alert('Câmara necessária', 'Permite o acesso à câmara nas definições.'); return; }
+              if (!granted) { Alert.alert(tv('perm_title'), tv('perm_msg')); return; }
             }
             setStep('front');
           }}>
-            <Text style={s.primaryBtnText}>Começar →</Text>
+            <Text style={s.primaryBtnText}>{tv('start')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.backLink} onPress={() => navigation.goBack()}>
-            <Text style={s.backLinkText}>Voltar</Text>
+            <Text style={s.backLinkText}>{tv('back')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -206,17 +210,15 @@ export default function VideoAnalysisScreen({ navigation }) {
   if (step === 'front' || step === 'side') {
     const isFront = step === 'front';
     const silhouette = SILHOUETTES[isFront ? 'front' : 'side'][sex === 'male' ? 'male' : 'female'];
-    const instruction = isFront
-      ? 'Cartão no centro do peito · Braços afastados do tronco\nPernas abertas · Palmas para a câmara'
-      : 'Cartão na lateral da cintura · LADO DIREITO para a câmara\nBraço direito 90° à frente · Braço esquerdo atrás do corpo';
-    const stepLabel = isFront ? 'Passo 1 de 2 — Frente' : 'Passo 2 de 2 — Lado direito';
+    const instruction = tv(isFront ? 'front_instr' : 'side_instr');
+    const stepLabel = tv(isFront ? 'step_front' : 'step_side');
 
     if (!permission?.granted) {
       return (
         <SafeAreaView style={[s.safe, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={s.subtitle}>Câmara sem permissão</Text>
+          <Text style={s.subtitle}>{tv('perm_none')}</Text>
           <TouchableOpacity style={s.primaryBtn} onPress={requestPermission}>
-            <Text style={s.primaryBtnText}>Permitir câmara</Text>
+            <Text style={s.primaryBtnText}>{tv('perm_allow')}</Text>
           </TouchableOpacity>
         </SafeAreaView>
       );
@@ -228,10 +230,10 @@ export default function VideoAnalysisScreen({ navigation }) {
                     : pitchAbs <= PITCH_WARN_DEG ? '#F59E0B'
                     : '#EF4444';
     const pitchLabel = pitchAbs == null
-      ? 'Nível: —'
-      : pitchAbs <= 5  ? `Nível OK (${livePitch.toFixed(0)}°)`
-      : pitchAbs <= PITCH_WARN_DEG ? `Endireita o telemóvel (${livePitch.toFixed(0)}°)`
-      : `Telemóvel muito inclinado (${livePitch.toFixed(0)}°)`;
+      ? tv('level_none')
+      : pitchAbs <= 5  ? tv('level_ok', { deg: livePitch.toFixed(0) })
+      : pitchAbs <= PITCH_WARN_DEG ? tv('level_tilt', { deg: livePitch.toFixed(0) })
+      : tv('level_too_tilted', { deg: livePitch.toFixed(0) });
 
     return (
       <View style={s.cameraContainer}>
@@ -264,7 +266,7 @@ export default function VideoAnalysisScreen({ navigation }) {
         <SafeAreaView style={s.cameraBottomBar}>
           {!isFront && (
             <TouchableOpacity style={s.retakeBtn} onPress={() => { setStep('front'); setFrontUri(null); if (countdownRef.current) clearInterval(countdownRef.current); setCountdown(null); }}>
-              <Text style={s.retakeBtnText}>← Refazer frente</Text>
+              <Text style={s.retakeBtnText}>{tv('retake_front')}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -275,7 +277,7 @@ export default function VideoAnalysisScreen({ navigation }) {
             <View style={s.captureBtnInner} />
           </TouchableOpacity>
           <Text style={s.captureHint}>
-            {countdown !== null ? `A capturar em ${countdown}s...` : 'Toca para iniciar contagem (7s)'}
+            {countdown !== null ? tv('countdown', { n: countdown }) : tv('tap_to_start')}
           </Text>
         </SafeAreaView>
       </View>
@@ -288,32 +290,32 @@ export default function VideoAnalysisScreen({ navigation }) {
     return (
       <SafeAreaView style={s.safe}>
         <ScrollView contentContainerStyle={s.confirmContainer} showsVerticalScrollIndicator={false}>
-          <Text style={s.title}>Confirmar fotos</Text>
-          <Text style={s.subtitle}>Verifica se as fotos estão nítidas e o corpo inteiro visível.</Text>
+          <Text style={s.title}>{tv('confirm_title')}</Text>
+          <Text style={s.subtitle}>{tv('confirm_sub')}</Text>
 
           <View style={s.photoRow}>
             <View style={s.photoItem}>
               <Image source={{ uri: frontUri }} style={s.photoThumb} resizeMode="cover" />
-              <Text style={s.photoLabel}>Frente</Text>
+              <Text style={s.photoLabel}>{tv('front')}</Text>
               <TouchableOpacity onPress={() => { setFrontUri(null); setStep('front'); }}>
-                <Text style={s.retakeText}>Refazer</Text>
+                <Text style={s.retakeText}>{tv('retake')}</Text>
               </TouchableOpacity>
             </View>
             <View style={s.photoItem}>
               <Image source={{ uri: sideUri }} style={s.photoThumb} resizeMode="cover" />
-              <Text style={s.photoLabel}>Lado</Text>
+              <Text style={s.photoLabel}>{tv('side')}</Text>
               <TouchableOpacity onPress={() => { setSideUri(null); setStep('side'); }}>
-                <Text style={s.retakeText}>Refazer</Text>
+                <Text style={s.retakeText}>{tv('retake')}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <TouchableOpacity style={s.primaryBtn} onPress={goToAnalysis}>
-            <Text style={s.primaryBtnText}>Analisar →</Text>
+            <Text style={s.primaryBtnText}>{tv('analyze')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.backLink} onPress={() => { setFrontUri(null); setSideUri(null); setStep('intro'); }}>
-            <Text style={s.backLinkText}>Recomeçar</Text>
+            <Text style={s.backLinkText}>{tv('restart')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

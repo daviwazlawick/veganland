@@ -691,6 +691,35 @@ async function getFunnelStats() {
   return rows;
 }
 
+async function getReferralCampaignStats() {
+  const db = await import('./db.js').then(m => m.getPool());
+  if (!db) return null;
+  const { rows: bc } = await db.query(
+    `SELECT COALESCE(SUM(ok_count),0)::int AS sent, MIN(created_at) AS started
+       FROM push_broadcasts WHERE route = 'Referral' AND ok_count > 0`);
+  const started = bc[0]?.started;
+  if (!started) return null;
+  const [clickers, signups, top] = await Promise.all([
+    db.query(
+      `SELECT u.email, b.locale, pc.clicked_at,
+              EXISTS (SELECT 1 FROM referral_events re WHERE re.referrer_id = u.id AND re.created_at >= pc.clicked_at) AS referred_after
+         FROM push_clicks pc
+         JOIN push_broadcasts b ON b.id = pc.broadcast_id AND b.route = 'Referral'
+         LEFT JOIN users u ON u.id = pc.user_id
+        ORDER BY pc.clicked_at DESC LIMIT 100`),
+    db.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status = 'qualified')::int AS qualified,
+              (SELECT COUNT(*)::int FROM referral_events WHERE created_at < $1) AS before_total
+         FROM referral_events WHERE created_at >= $1`, [started]),
+    db.query(
+      `SELECT u.email, COUNT(*)::int AS n, COUNT(*) FILTER (WHERE re.status='qualified')::int AS q
+         FROM referral_events re JOIN users u ON u.id = re.referrer_id
+        WHERE re.created_at >= $1 GROUP BY u.email ORDER BY n DESC LIMIT 10`, [started]),
+  ]);
+  return { sent: bc[0].sent, started, clickers: clickers.rows, signups: signups.rows[0], top: top.rows };
+}
+
 async function getScheduledNotifStats() {
   const db = await import('./db.js').then(m => m.getPool());
   if (!db) return [];
@@ -721,7 +750,7 @@ async function getScheduledNotifStats() {
   return [...waterFood, ...onboarding];
 }
 
-function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStats = [], funnelStats = []) {
+function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStats = [], funnelStats = [], referralCampaign = null) {
   const resultHtml = lastResult ? `<div class="result">${esc(lastResult)}</div>` : '';
   const historyRows = history.map(h => {
     const when = new Date(h.created_at).toLocaleString('pt-BR');
@@ -812,6 +841,23 @@ function htmlAdminPushPage(token, lastResult = null, history = [], scheduledStat
     <p class="small">O link interno é guardado no <code>data.route</code> e o app navega para esse ecrã ao tocar.</p>
     <button type="submit">Enviar a todos os tokens com filtros activos</button>
   </form>
+
+  ${referralCampaign ? `<div class="card">
+    <h2>🎁 Campanha Referral</h2>
+    <p style="font-size:13px;color:#475569">Enviado desde ${new Date(referralCampaign.started).toLocaleString('pt-BR')} · ${referralCampaign.sent} entregues · 👆 ${referralCampaign.clickers.length} clicaram (${referralCampaign.sent ? Math.round(referralCampaign.clickers.length / referralCampaign.sent * 100) : 0}%)</p>
+    <p style="font-size:14px"><strong>${referralCampaign.signups.total}</strong> novos registos com código desde o envio (<strong>${referralCampaign.signups.qualified}</strong> já qualificados) · antes do envio: ${referralCampaign.signups.before_total}</p>
+    <table>
+      <thead><tr><th>Quem clicou</th><th>Idioma</th><th>Quando</th><th style="text-align:center">Convidou depois?</th></tr></thead>
+      <tbody>${referralCampaign.clickers.map(c => `<tr>
+        <td>${esc(c.email || 'anónimo')}</td><td>${esc(c.locale || '')}</td>
+        <td style="font-size:12px;color:#64748b">${new Date(c.clicked_at).toLocaleString('pt-BR')}</td>
+        <td style="text-align:center">${c.referred_after ? '✅' : '—'}</td></tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">Sem cliques ainda</td></tr>'}</tbody>
+    </table>
+    ${referralCampaign.top.length ? `<h3 style="margin-top:16px;font-size:14px">Quem trouxe gente desde o envio</h3>
+    <table><thead><tr><th>Referrer</th><th style="text-align:center">Registos</th><th style="text-align:center">Qualificados</th></tr></thead>
+    <tbody>${referralCampaign.top.map(t => `<tr><td>${esc(t.email)}</td><td style="text-align:center">${t.n}</td><td style="text-align:center">${t.q}</td></tr>`).join('')}</tbody></table>` : ''}
+    <p style="font-size:11px;color:#94a3b8;margin-top:12px">Registos = linhas em referral_events criadas depois do primeiro envio (qualquer origem do código, não só o push). Qualificado = o amigo fez o 1º scan.</p>
+  </div>` : ''}
 
   <div class="card">
     <h2>🎯 Funil de Activação / Reactivação</h2>
@@ -1892,13 +1938,14 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const token = new URL(req.url, 'http://x').searchParams.get('token');
-      const [history, scheduledStats, funnelStats] = await Promise.all([
+      const [history, scheduledStats, funnelStats, referralCampaign] = await Promise.all([
         listPushBroadcasts(30),
         getScheduledNotifStats(),
         getFunnelStats(),
+        getReferralCampaignStats(),
       ]);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(token, null, history, scheduledStats, funnelStats));
+      res.end(htmlAdminPushPage(token, null, history, scheduledStats, funnelStats, referralCampaign));
       return;
     }
 
@@ -1929,11 +1976,11 @@ const server = http.createServer(async (req, res) => {
         .map(v => (v || '').trim())
         .filter(v => allowedDiets.has(v));
       if (!title || !body) {
-        const [history, scheduledStats, funnelStats] = await Promise.all([
-          listPushBroadcasts(30), getScheduledNotifStats(), getFunnelStats(),
+        const [history, scheduledStats, funnelStats, referralCampaign] = await Promise.all([
+          listPushBroadcasts(30), getScheduledNotifStats(), getFunnelStats(), getReferralCampaignStats(),
         ]);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history, scheduledStats, funnelStats));
+        res.end(htmlAdminPushPage(adminToken, '⚠️ Título e mensagem são obrigatórios', history, scheduledStats, funnelStats, referralCampaign));
         return;
       }
       const tokens = await listPushTokens({ locale, userType, onboardingScanUsed, dietIds });
@@ -1963,11 +2010,11 @@ const server = http.createServer(async (req, res) => {
         });
       }
       const summary = `✅ Enviadas: ${ok} · ❌ Erros: ${errors} · 🚫 Inválidos: ${invalid} · 📊 Total: ${tokens.length}`;
-      const [history, scheduledStats, funnelStats] = await Promise.all([
-        listPushBroadcasts(30), getScheduledNotifStats(), getFunnelStats(),
+      const [history, scheduledStats, funnelStats, referralCampaign] = await Promise.all([
+        listPushBroadcasts(30), getScheduledNotifStats(), getFunnelStats(), getReferralCampaignStats(),
       ]);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(htmlAdminPushPage(adminToken, summary, history, scheduledStats, funnelStats));
+      res.end(htmlAdminPushPage(adminToken, summary, history, scheduledStats, funnelStats, referralCampaign));
       return;
     }
 
