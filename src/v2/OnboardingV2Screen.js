@@ -167,6 +167,11 @@ export default function OnboardingV2Screen({ navigation, route }) {
       setPlan(r.plan);
       setPhase('reveal');
     } catch (e) {
+      if (e.status === 402) {
+        setPhase('form');
+        navigation.navigate('Paywall', { source: 'v2_plan', currentPlan: user?.user_type || 'free' });
+        return;
+      }
       setPhase('error');
     }
   }

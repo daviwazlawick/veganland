@@ -6,7 +6,7 @@
 // o cardápio e a ficha em cima deles. Assim o total do dia sempre bate.
 import './env.js';
 import { fallbackDiet, fallbackWorkout } from './fitnessFallback.js';
-import { getPool, logApiUsage, saveBodyProfile, saveNutritionGoals, logWeight, logBodyMeasurements, addConsumptionEntry } from './db.js';
+import { getPool, getUserById, logApiUsage, saveBodyProfile, saveNutritionGoals, logWeight, logBodyMeasurements, addConsumptionEntry } from './db.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const MODEL_PLAN = process.env.CLAUDE_MODEL_PLAN || 'claude-sonnet-5-5';
@@ -308,6 +308,9 @@ export async function handleFitnessRoutes(req, res, { origin, sendJson, readJson
   if (req.method === 'POST' && path === '/v2/fitness/plan') {
     const body = await readJsonBody(req);
     if (generating.has(userId)) { sendJson(res, 409, { error: 'already generating' }, origin); return true; }
+    // Dieta e treino gerados pela IA são do plano pago, como no app (free e sem plano vão pro paywall).
+    const u = await getUserById(userId);
+    if (!['starter', 'premium', 'admin'].includes(u?.user_type)) { sendJson(res, 402, { error: 'paid plan required' }, origin); return true; }
     const { rows } = await db.query('select data from fitness_profile where user_id = $1', [userId]);
     const profile = rows[0]?.data;
     if (!profile) { sendJson(res, 400, { error: 'profile missing' }, origin); return true; }
