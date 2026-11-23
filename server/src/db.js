@@ -526,7 +526,7 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
     `insert into users (email, password_hash, disclaimer_accepted_at, disclaimer_version,
                         referral_code, referred_by_user_id, user_type, email_confirmed,
                         utm_source, utm_medium, utm_campaign, platform_os)
-     values ($1, $2, $3, $4, $5, $6, 'free', true, $7, $8, $9, $10)
+     values ($1, $2, $3, $4, $5, $6, '${DEFAULT_USER_TYPE}', true, $7, $8, $9, $10)
      returning id, email, user_type, onboarding_scan_used, created_at, email_confirmed`,
     [normalizedEmail, passwordHash, disclaimerAt, disclaimerVersion, newCode, referrerId,
      a.utm_source || null, a.utm_medium || null, a.utm_campaign || null, a.platform_os || null]
@@ -1297,7 +1297,11 @@ export async function updateUserPassword(userId, passwordHash) {
   await db.query(`update users set password_hash = $1 where id = $2`, [passwordHash, userId]);
 }
 
+// V2 de teste: todo cadastro novo entra com este plano (padrão 'free').
+const DEFAULT_USER_TYPE = ['free', 'starter', 'premium'].includes(process.env.DEFAULT_USER_TYPE) ? process.env.DEFAULT_USER_TYPE : 'free';
+
 const MODEL_PRICING = {
+  'claude-sonnet-5-5':  { input:  3.00, output: 15.00 },
   'claude-opus-4-7':    { input: 15.00, output: 75.00 },
   'claude-opus-4-5':    { input: 15.00, output: 75.00 },
   'claude-sonnet-4-5':  { input:  3.00, output: 15.00 },
