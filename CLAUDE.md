@@ -501,7 +501,7 @@ Tudo o que foi adicionado entre 2026-06-29 e 2026-06-30:
 
 ### 1) Programa de Referência (referrals) — em produção desde 2026-06-29
 
-- **Mecânica:** Cada user tem código único de 6 chars (alfabeto sem 0/1/O/I, gerado em `referralCode.js`). Quando A indica B e B se regista usando o código: B ganha **+10 scans bónus** imediatamente. A ganha **+30 scans bónus** quando 3 amigos qualificarem (cada amigo "qualifica" ao fazer o primeiro scan, não só ao registar). Acumulativo — a cada novo trio que qualifica, A ganha outros +30. Sem cap lifetime.
+- **Mecânica (valores do código em `db.js`, confirmados live em 2026-11-16):** Cada user tem código único de 6 chars (alfabeto sem 0/1/O/I, gerado em `referralCode.js`). Quando A indica B e B se regista usando o código: B ganha imediatamente o equivalente à quota mensal do seu plano (`SCAN_LIMITS`, **+7 scans** no free). A ganha **+5 scans bónus** (`REFERRER_REWARD_BONUS`) quando **3 amigos** qualificarem (`REFERRALS_PER_REWARD`; cada amigo "qualifica" ao fazer o primeiro scan, não só ao registar). Acumulativo — a cada novo trio que qualifica, A ganha outros +5. Sem cap lifetime. (Valores antigos +10/+30 já não se aplicam.)
 - **Bónus expira em 30 dias** (rolling window — cada novo grant prolonga para `now() + 30d`)
 - **Migrações:** `017_referrals.sql` (colunas em users + tabela `referral_events`), `018_bonus_scans.sql` (colunas `bonus_scans_remaining`, `bonus_scans_expires_at`)
 - **Como é consumido o bónus:** `checkAndIncrementScanCounter` em `db.js` consome `bonus_scans_remaining` PRIMEIRO antes de tocar no `scan_counters` mensal. Funciona em qualquer plano (free/starter/premium).
@@ -2081,20 +2081,37 @@ Novo card "🎯 Funil de Activação / Reactivação" no fundo de `/admin/push?t
 
 ---
 
-## Paywall step de volta no onboarding (2026-10-22, OTA na 1.0.19)
+## Paywall no onboarding (reinserido 2026-10-22; movido para depois do 1º scan 2026-11-05)
 
-Contexto: desde `e0ef61a` (2026-09-01) o onboarding ia direto Profile → Scan/Main, sem paywall. Decidido reinserir o plan step entre Profile e o guided-first-scan para voltar a oferecer o trial a signups novos (versão com opção "continue free" visível, como era antes de Jul 2026 pré-A/B HIDE_FREE_OPTION).
+Contexto: desde `e0ef61a` (2026-09-01) o onboarding ia direto Profile → Scan/Main, sem paywall. Em 2026-10-22 o paywall foi reinserido entre Profile e o guided-first-scan (`c352085`). Em 2026-11-05 foi **movido para depois do primeiro scan grátis** (`3550ab5` + `1ee66af`), para o user ver valor antes de ver preços.
+
+### ✅ Estado actual (desde 2026-11-05) — fluxo em vigor
+
+```
+Register → ProfileSetup (3 steps) → Scan (onboarding=true) → Result ─┬─ (opcional) EditPersonal body info ─┐
+                                                                     └──────────────────────────────────────┴→ Paywall (source: onboarding_post_scan) ─┬─ continue_free / X → Main
+                                                                                                                                                       └─ starter/premium (RC) → Main
+```
+
+- **`ProfileSetupScreen.js`** — first-time: se `user.onboarding_scan_used !== true` → `reset` para `Scan { onboarding: true }`; senão → `Paywall { currentPlan: 'free', source: 'onboarding_post_scan', onboarding: true }`.
+- **`ScanScreen.js`** (`goToMain` / `goToBodyInfo`) e **`ResultScreen.js`** (`goToMainAfterOnboarding` / `goToBodyInfoAfterOnboarding`) — as saídas do onboarding fazem `reset` com o **Paywall como root** (em vez de `Main`). Quando o user aceita a oferta de body info, a stack é `[Paywall, EditPersonal]`, portanto save/back do EditPersonal aterra no Paywall.
+- **`PaywallScreen.js`** — `goAfterPaywall()` e o pós-compra RevenueCat vão **sempre** para `Main` (a lógica "ir para Scan se `onboarding_scan_used` falso" foi removida, já que o scan acontece antes).
+- Call sites não-onboarding (Profile Upgrade, ScanLimitCard, null-tier initial route em `AppNavigator.js`) não passam `onboarding: true` → continuam no path `canGoBack/Main`.
+- O `source` do paywall no onboarding é agora **`onboarding_post_scan`** (era `onboarding`) — afecta as queries de `funnel_events` abaixo.
+- **Deploy:** só JS. Commits feitos pelo Fabricio; confirmar se o `npm run update:novaqi` (Mac do Davi) já foi corrido para o runtime 1.0.19 — o commit `c352085` teve OTA (group `a75b89f7-430e-41c4-ace3-642be9f194ad`), mas não está registado aqui que `3550ab5`/`1ee66af` tenham tido.
+
+### Histórico: reinserção de 2026-10-22 (superseded pelo fluxo acima)
 
 **Commit:** `c352085` · **Update group EAS:** `a75b89f7-430e-41c4-ace3-642be9f194ad` · **Branch:** production · **Runtime:** appVersion 1.0.19.
 
-### Mudanças (só 2 ficheiros, JS puro)
+### Mudanças de 2026-10-22 (só 2 ficheiros, JS puro) — já não reflectem o código
 
 - **`src/screens/ProfileSetupScreen.js:94-98`** — após save em first-time, `navigation.reset` passa a mandar para `Paywall` com `{ currentPlan: 'free', source: 'onboarding', onboarding: true }` em vez de ir direto a `Scan`/`Main`. Removido o branch `needsOnboardingScan` dentro deste ficheiro (lógica deslocada para o PaywallScreen).
 - **`src/screens/PaywallScreen.js:58-80`** — nova helper `goAfterPaywall()`: se `route.params.onboarding === true`, faz `navigation.reset` para `Scan { onboarding: true }` quando `user.onboarding_scan_used !== true`, senão `Main`. `handleClose` (= botão "continue free" + X do topo) agora chama a helper em vez do antigo `canGoBack/Main`.
 - **`src/screens/PaywallScreen.js:184-197`** — pós-compra bem-sucedida também respeita o flag `onboarding`: user que compra Starter/Premium no onboarding segue para `Scan { onboarding: true }` (não salta o guided-first-scan).
 - Call sites não-onboarding ficam intactos (Profile Upgrade, ScanLimitCard, null-tier initial route em `AppNavigator.js:142`) — nenhum passa `onboarding: true` → caem no path antigo `canGoBack/Main`.
 
-### Fluxo final
+### Fluxo de 2026-10-22 (superseded)
 
 ```
 Register → ProfileSetup (3 steps) → Paywall ─┬─ continue_free → Scan (onboarding=true)
@@ -2151,10 +2168,13 @@ SELECT user_type, COUNT(*) FROM users
 WHERE created_at >= '2026-10-22'
 GROUP BY 1 ORDER BY 2 DESC;
 -- funil paywall_shown vs paywall_dismissed no onboarding
-SELECT event_type, COUNT(*) FROM funnel_events
-WHERE created_at >= '2026-10-22' AND metadata->>'source' = 'onboarding'
-GROUP BY 1;
+-- (source = 'onboarding' entre 22/10 e 05/11; 'onboarding_post_scan' desde 05/11)
+SELECT metadata->>'source' AS source, event_type, COUNT(*) FROM funnel_events
+WHERE created_at >= '2026-10-22' AND metadata->>'source' IN ('onboarding', 'onboarding_post_scan')
+GROUP BY 1, 2 ORDER BY 1, 2;
 ```
+
+**Cohorts a separar na análise:** como o fluxo mudou duas vezes, a query de activação deve distinguir 3 cohorts — `< 2026-10-22` (sem paywall), `2026-10-22 → 2026-11-05` (paywall antes do scan) e `≥ 2026-11-05` (paywall depois do scan). A hipótese do 2º move é que a activação (≥1 scan) suba, já que o scan deixa de estar atrás do paywall.
 
 **Hipóteses a validar:**
 - **H1 — melhorou:** signups ≥ baseline + 2-5% dos novos começam trial. Paywall não é fricção perceptível e capta receita.
@@ -2165,9 +2185,11 @@ GROUP BY 1;
 
 ### Rollback (se H3)
 
+Para voltar ao fluxo sem paywall no onboarding há que reverter **ambos** os moves (a ordem é do mais recente para o mais antigo): `git revert 1ee66af 3550ab5 c352085`. Reverter só os dois últimos devolve o paywall para antes do scan.
+
 ```bash
 cd ~/Veganland/veganland
-git revert c352085
+git revert 1ee66af 3550ab5 c352085
 git push origin main
 npm run update:novaqi
 ```
@@ -2175,3 +2197,9 @@ npm run update:novaqi
 ### Nota operacional importante
 
 - **OTAs correm sempre do Mac do Davi**, não do `/opt/veganland` no VPS (ver `MEMORY.md` → feedback-ota-command). O VPS pode estar vários commits atrás; o Mac tem a sessão EAS e os RN modules. Esta sessão: Mac estava 17 commits atrás + ainda em 1.0.18; teve de ser `git pull` + `npm install` (para apanhar os `@react-native-firebase/*`) antes do `npm run update:novaqi`.
+
+### Broadcast de referral (2026-11-16)
+
+- Push "Free scans, on us" para todos os tokens NovaQI com `last_seen_at` < 90d (535 tokens, 6 línguas, EN fallback) — `server/src/scripts/broadcast-referral.mjs` (`--dry-run`, `--only-user=<id>`). Deep-link `Referral`, `broadcast_id` no payload → cliques em `push_clicks`.
+- `/admin/push` tem o card "🎁 Campanha Referral" (`getReferralCampaignStats` em `server.js`): quem clicou (email, idioma, hora, se convidou depois), registos em `referral_events` desde o 1º envio (qualquer origem, não só o push) e top referrers.
+- Commit `eb966bf`, já em produção.
