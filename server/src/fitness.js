@@ -86,6 +86,29 @@ export function computeTargets(p) {
 
 // ── IA ──────────────────────────────────────────────────────────────────────
 
+// Extrai JSON de uma resposta do modelo, mesmo com markdown fences ou prosa à volta.
+function extractJson(text) {
+  // Tira cercas markdown ```json ... ``` ou ``` ... ```
+  const stripped = text.replace(/```(?:json|JSON)?\s*/g, '').replace(/```/g, '');
+  const start = stripped.indexOf('{');
+  if (start < 0) return null;
+  // Scan com contagem de chaves respeitando strings — mais fiável que regex greedy.
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < stripped.length; i++) {
+    const c = stripped[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) return stripped.slice(start, i + 1); }
+  }
+  return null;
+}
+
 async function callClaude(prompt, maxTokens) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not configured');
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -101,9 +124,18 @@ async function callClaude(prompt, maxTokens) {
   const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
   logApiUsage(MODEL_PLAN, usage.input_tokens, usage.output_tokens).catch(() => {});
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Invalid AI response');
-  return JSON.parse(match[0]);
+  const stopReason = data.stop_reason;
+  const json = extractJson(text);
+  if (!json) {
+    console.warn('[fitness] AI response without JSON. stop=' + stopReason + ' head=' + text.slice(0, 200));
+    throw new Error('Invalid AI response');
+  }
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    console.warn('[fitness] AI JSON parse failed: ' + e.message + ' stop=' + stopReason + ' len=' + json.length + ' tail=' + json.slice(-200));
+    throw new Error('Invalid AI JSON: ' + e.message);
+  }
 }
 
 const LANG = { pt: 'Brazilian Portuguese', en: 'English', de: 'German', fr: 'French', it: 'Italian', es: 'Spanish' };
