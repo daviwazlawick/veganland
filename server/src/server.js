@@ -1661,17 +1661,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/user/plan') {
       const claims = getAuthUser(req);
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
-      const body = await readJsonBody(req);
-      const validPlans = ['free', 'starter', 'premium'];
-      if (!validPlans.includes(body?.plan)) {
-        sendJson(res, 400, { error: 'Invalid plan' }, origin); return;
-      }
-      const currentUser = await getUserById(claims.userId);
-      if (currentUser?.user_type === 'admin') {
-        sendJson(res, 403, { error: 'Cannot change admin plan' }, origin); return;
-      }
-      await setUserType(claims.userId, body.plan);
-      sendJson(res, 200, { plan: body.plan }, origin);
+      sendJson(res, 403, { error: 'Plan changes only happen through purchase' }, origin);
       return;
     }
 
@@ -2820,11 +2810,11 @@ const server = http.createServer(async (req, res) => {
         } else if (['EXPIRATION', 'BILLING_ISSUE'].includes(eventType)) {
           // CANCELLATION = cancelled auto-renewal but access remains until expires_date
           // Only EXPIRATION means access truly ended
-          newUserType = 'free';
+          newUserType = 'none';
         }
 
         if (newUserType && userId) {
-          setUserType(userId, newUserType).catch(console.error);
+          setUserType(userId, newUserType === 'none' ? null : newUserType).catch(console.error);
           if (eventType === 'INITIAL_PURCHASE' && (newUserType === 'starter' || newUserType === 'premium')) {
             grantReferralSignupBonusOnPurchase(userId, newUserType).catch(console.error);
           }

@@ -141,6 +141,7 @@ export default {
     best_value: 'Bestes Preis-Leistungs-Verhältnis',
     restore: 'Käufe wiederherstellen',
     restore_done: 'Käufe erfolgreich wiederhergestellt',
+    restore_none: "Kein aktiver Kauf für dieses Konto gefunden",
     purchase_error: 'Kauf konnte nicht abgeschlossen werden. Bitte erneut versuchen.',
     mobile_only: 'Abonnements sind nur in der mobilen App verfügbar.',
     not_configured: 'Dieser Plan ist noch nicht verfügbar. Bitte später erneut versuchen.',

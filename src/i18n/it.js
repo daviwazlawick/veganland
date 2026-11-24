@@ -141,6 +141,7 @@ export default {
     best_value: "Miglior rapporto qualità-prezzo",
     restore: "Ripristina acquisti",
     restore_done: "Acquisti ripristinati con successo",
+    restore_none: "Nessun acquisto attivo trovato per questo account",
     purchase_error: "Impossibile completare l'acquisto. Riprova.",
     mobile_only: "Gli abbonamenti sono disponibili solo nell'app mobile.",
     not_configured: "Questo piano non è ancora disponibile. Riprova più tardi.",
