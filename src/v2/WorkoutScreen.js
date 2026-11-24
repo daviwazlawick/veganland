@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { font } from '../theme/type';
 import { s2 } from './strings';
 import { usePlan, weekdayIndex, sessionForDay } from './usePlan';
-import { v2SaveSet, v2WorkoutState, localDate } from './api';
+import { v2SaveSet, v2WorkoutState, v2LogSession, localDate } from './api';
 import { useTween } from './anim';
 
 const C = { bg: '#F1F3EF', card: '#FFFFFF', ink: '#17221B', muted: '#5F6E66', green: '#16A75A', deep: '#0B7A3F', forest: '#0E1B14', amber: '#E8991C', amberBg: '#FCEFD2', rule: '#E3E8E2', done: '#EAF6EE' };
@@ -33,6 +33,7 @@ export default function WorkoutScreen() {
   const date = localDate();
   const [state, setState] = useState({ today: [], last: {}, best: {}, sessions: [] });
   const [timer, setTimer] = useState(null); // { until, total }
+  const loggedSessionRef = useRef(null); // evita re-post ao marcar/desmarcar séries depois da sessão completa
 
   const load = useCallback(() => {
     if (!token) return;
@@ -116,7 +117,10 @@ export default function WorkoutScreen() {
               <Progress done={doneSets} total={totalSets} />
             </View>
             {doneSets === totalSets && totalSets > 0 ? (
-              <View style={[s.restCard, { backgroundColor: C.forest }]}><Text style={[s.restTitle, { color: '#fff' }]}>{T.workout.finished}</Text></View>
+              <>
+                <View style={[s.restCard, { backgroundColor: C.forest }]}><Text style={[s.restTitle, { color: '#fff' }]}>{T.workout.finished}</Text></View>
+                <AutoLogSession token={token} date={date} dayKey={session.key} durationMin={session.duration_min} onceRef={loggedSessionRef} />
+              </>
             ) : null}
             {session.warmup ? <Text style={s.warm}><Text style={s.warmLabel}>{T.workout.warmup}  </Text>{session.warmup}</Text> : null}
             {session.exercises.map(ex => (
@@ -134,6 +138,18 @@ export default function WorkoutScreen() {
       {timer && <RestTimer timer={timer} T={T} onClose={() => setTimer(null)} bottom={insets.bottom} />}
     </View>
   );
+}
+
+// Dispara o log da sessão uma vez por data+day_key. onceRef guarda a chave para não re-enviar.
+function AutoLogSession({ token, date, dayKey, durationMin, onceRef }) {
+  useEffect(() => {
+    if (!token || !dayKey) return;
+    const key = `${date}#${dayKey}`;
+    if (onceRef.current === key) return;
+    onceRef.current = key;
+    v2LogSession(token, date, dayKey, durationMin).catch(() => { onceRef.current = null; });
+  }, [token, date, dayKey, durationMin, onceRef]);
+  return null;
 }
 
 function Exercise({ ex, T, logged, last, best, onToggle }) {

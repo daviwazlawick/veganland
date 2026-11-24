@@ -28,6 +28,7 @@ export const v2LogMeal = (token, meal, local_date, meal_type) => call(token, 'PO
 export const v2SaveSet = (token, data) => call(token, 'POST', '/v2/workout/set', data);
 export const v2WorkoutState = (token, date) => call(token, 'GET', `/v2/workout/state?date=${date}`);
 export const v2ExerciseHistory = (token, key) => call(token, 'GET', `/v2/workout/history?exercise=${encodeURIComponent(key)}`);
+export const v2LogSession = (token, local_date, day_key, duration_min) => call(token, 'POST', '/v2/workout/log-session', { local_date, day_key, duration_min });
 
 export function localDate(d = new Date()) {
   const z = n => String(n).padStart(2, '0');

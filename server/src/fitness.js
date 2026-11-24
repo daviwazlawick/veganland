@@ -364,7 +364,7 @@ async function buildPlan(db, userId, profile, language) {
   if (d.status === 'rejected') console.warn('[fitness] diet AI failed, using fallback:', d.reason?.message);
   if (w.status === 'rejected') console.warn('[fitness] workout AI failed, using fallback:', w.reason?.message);
   const diet = d.status === 'fulfilled' ? { ...d.value, source: 'ia' } : fallbackDiet(profile, targets);
-  const workout = w.status === 'fulfilled' ? { ...w.value, source: 'ia' } : fallbackWorkout(profile);
+  const workout = w.status === 'fulfilled' ? { ...w.value, source: 'ia' } : fallbackWorkout(profile, language);
   const { rows } = await db.query(
     'insert into fitness_plan (user_id, targets, diet, workout) values ($1,$2,$3,$4) returning id, targets, diet, workout, created_at',
     [userId, JSON.stringify(targets), JSON.stringify(diet), JSON.stringify(workout)]
@@ -519,6 +519,39 @@ export async function handleFitnessRoutes(req, res, { origin, sendJson, readJson
       `select local_date, max(weight_kg)::float top_kg, sum(weight_kg*reps)::float volume, count(*)::int sets
        from workout_set_log where user_id=$1 and exercise_key=$2 group by local_date order by local_date`, [userId, ex]);
     sendJson(res, 200, rows, origin);
+    return true;
+  }
+
+  // POST /v2/workout/log-session — lança a sessão no Diário de exercícios (exercise_log),
+  // para contar nas estatísticas diárias e semanais. Idempotente por (user, data, day_key).
+  if (req.method === 'POST' && path === '/v2/workout/log-session') {
+    const b = await readJsonBody(req);
+    if (!b.local_date || !b.day_key) { sendJson(res, 400, { error: 'local_date, day_key required' }, origin); return true; }
+    const prof = (await db.query('select data from fitness_profile where user_id=$1', [userId])).rows[0]?.data || {};
+    const weightKg = Number(prof.weight_kg) || 70;
+    const place = prof.place || 'gym';
+    // MET: musculação ~5.0, bodyweight ~4.0 (Ainsworth compendium).
+    const met = place === 'bodyweight' ? 4.0 : 5.0;
+    // Duração: o cliente manda o estimado; se não mandar, pega da ficha do plano.
+    let durationMin = Number(b.duration_min);
+    if (!Number.isFinite(durationMin) || durationMin <= 0) {
+      const planRow = (await db.query('select workout from fitness_plan where user_id=$1 order by created_at desc limit 1', [userId])).rows[0];
+      const day = (planRow?.workout?.days || []).find(d => d.key === b.day_key);
+      durationMin = Number(day?.duration_min) || 45;
+    }
+    durationMin = Math.min(240, Math.max(5, durationMin));
+    const caloriesBurned = Math.round(durationMin * met * weightKg * 0.0175);
+    const planRow2 = (await db.query('select workout from fitness_plan where user_id=$1 order by created_at desc limit 1', [userId])).rows[0];
+    const day2 = (planRow2?.workout?.days || []).find(d => d.key === b.day_key);
+    const exerciseId = `v2_${b.day_key}`;
+    const exerciseName = day2?.title || `Workout ${b.day_key}`;
+    // Upsert por (user, data, exercise_id) — refazer no mesmo dia actualiza em vez de duplicar.
+    await db.query('delete from exercise_log where user_id=$1 and local_date=$2 and exercise_id=$3', [userId, b.local_date, exerciseId]);
+    const { rows } = await db.query(
+      'insert into exercise_log (user_id, exercise_id, exercise_name, duration_min, calories_burned, local_date) values ($1,$2,$3,$4,$5,$6) returning *',
+      [userId, exerciseId, exerciseName, durationMin, caloriesBurned, b.local_date]
+    );
+    sendJson(res, 200, rows[0], origin);
     return true;
   }
 

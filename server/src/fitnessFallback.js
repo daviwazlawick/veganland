@@ -164,27 +164,141 @@ const LIB = {
 
 const FOCUS_TO = { chest: 'chest', back: 'back', shoulders: 'shoulders', arms: 'biceps', abs: 'abs', glutes: 'glutes', thighs: 'quads', calves: 'calves' };
 
-const TEMPLATES = {
-  fullA: { title: 'Corpo todo A', focus: 'Pernas, peito e costas', parts: ['quads', 'chest', 'back', 'shoulders', 'hams', 'abs'] },
-  fullB: { title: 'Corpo todo B', focus: 'Posteriores, costas e ombros', parts: ['hams', 'back', 'chest', 'glutes', 'triceps', 'biceps'] },
-  fullC: { title: 'Corpo todo C', focus: 'Pernas, empurrar e puxar', parts: ['quads', 'back', 'shoulders', 'chest', 'calves', 'abs'] },
-  upA: { title: 'Superiores A', focus: 'Peito, costas e braços', parts: ['chest', 'back', 'shoulders', 'chest', 'biceps', 'triceps'] },
-  loA: { title: 'Inferiores A', focus: 'Quadríceps e glúteos', parts: ['quads', 'quads', 'hams', 'glutes', 'calves', 'abs'] },
-  upB: { title: 'Superiores B', focus: 'Costas, ombros e braços', parts: ['back', 'chest', 'back', 'shoulders', 'triceps', 'biceps'] },
-  loB: { title: 'Inferiores B', focus: 'Posteriores e glúteos', parts: ['hams', 'quads', 'glutes', 'hams', 'calves', 'abs'] },
-  push: { title: 'Empurrar', focus: 'Peito, ombros e tríceps', parts: ['chest', 'chest', 'shoulders', 'shoulders', 'triceps', 'triceps'] },
-  pull: { title: 'Puxar', focus: 'Costas e bíceps', parts: ['back', 'back', 'back', 'shoulders', 'biceps', 'biceps'] },
-  legs: { title: 'Pernas', focus: 'Quadríceps, posteriores e glúteos', parts: ['quads', 'quads', 'hams', 'glutes', 'calves', 'abs'] },
-};
-const PLANS = {
-  2: { name: 'Corpo todo', days: ['fullA', 'fullB'], schedule: ['A', 'rest', 'rest', 'B', 'rest', 'rest', 'rest'] },
-  3: { name: 'Corpo todo', days: ['fullA', 'fullB', 'fullC'], schedule: ['A', 'rest', 'B', 'rest', 'C', 'rest', 'rest'] },
-  4: { name: 'Superior / Inferior', days: ['upA', 'loA', 'upB', 'loB'], schedule: ['A', 'B', 'rest', 'C', 'D', 'rest', 'rest'] },
-  5: { name: 'Superior / Inferior + Empurrar, Puxar, Pernas', days: ['upA', 'loA', 'push', 'pull', 'legs'], schedule: ['A', 'B', 'rest', 'C', 'D', 'E', 'rest'] },
-  6: { name: 'Empurrar, Puxar, Pernas', days: ['push', 'pull', 'legs'], schedule: ['A', 'B', 'C', 'A', 'B', 'C', 'rest'] },
+// Dicionário compacto de tradução para o fallback. Só português está completo (origem);
+// outras línguas estão nas chaves que aparecem para o utilizador.
+const TR = {
+  pt: {
+    fullA: ['Corpo todo A', 'Pernas, peito e costas'],
+    fullB: ['Corpo todo B', 'Posteriores, costas e ombros'],
+    fullC: ['Corpo todo C', 'Pernas, empurrar e puxar'],
+    upA:   ['Superiores A', 'Peito, costas e braços'],
+    loA:   ['Inferiores A', 'Quadríceps e glúteos'],
+    upB:   ['Superiores B', 'Costas, ombros e braços'],
+    loB:   ['Inferiores B', 'Posteriores e glúteos'],
+    push:  ['Empurrar', 'Peito, ombros e tríceps'],
+    pull:  ['Puxar', 'Costas e bíceps'],
+    legs:  ['Pernas', 'Quadríceps, posteriores e glúteos'],
+    plans: { full: 'Corpo todo', updown: 'Superior / Inferior', mixed: 'Superior / Inferior + Empurrar, Puxar, Pernas', ppl: 'Empurrar, Puxar, Pernas' },
+    warmup: '5 min de bicicleta ou esteira leve e 2 séries leves do primeiro exercício.',
+    cueCompound: 'Desça controlando em 2 segundos e suba firme.',
+    cueIso: 'Sem roubar: amplitude completa antes de subir carga.',
+    progression: 'Quando fechar todas as séries no topo da faixa de repetições, suba 2 a 5% da carga na semana seguinte.',
+    summary: (n, name, min) => `${n} treinos por semana em ${name.toLowerCase()}, cada um com cerca de ${min} minutos.`,
+  },
+  en: {
+    fullA: ['Full body A', 'Legs, chest and back'],
+    fullB: ['Full body B', 'Hamstrings, back and shoulders'],
+    fullC: ['Full body C', 'Legs, push and pull'],
+    upA:   ['Upper A', 'Chest, back and arms'],
+    loA:   ['Lower A', 'Quads and glutes'],
+    upB:   ['Upper B', 'Back, shoulders and arms'],
+    loB:   ['Lower B', 'Hamstrings and glutes'],
+    push:  ['Push', 'Chest, shoulders and triceps'],
+    pull:  ['Pull', 'Back and biceps'],
+    legs:  ['Legs', 'Quads, hamstrings and glutes'],
+    plans: { full: 'Full body', updown: 'Upper / Lower', mixed: 'Upper / Lower + Push, Pull, Legs', ppl: 'Push, Pull, Legs' },
+    warmup: '5 min of easy bike or treadmill plus 2 light sets of the first exercise.',
+    cueCompound: 'Lower under control in 2 seconds, then drive up firmly.',
+    cueIso: 'No cheating: full range of motion before adding load.',
+    progression: 'When you hit the top of the rep range on every set, add 2–5% to the load next week.',
+    summary: (n, name, min) => `${n} workouts a week on a ${name.toLowerCase()} split, about ${min} minutes each.`,
+  },
+  es: {
+    fullA: ['Cuerpo entero A', 'Piernas, pecho y espalda'],
+    fullB: ['Cuerpo entero B', 'Isquios, espalda y hombros'],
+    fullC: ['Cuerpo entero C', 'Piernas, empujar y tirar'],
+    upA:   ['Superior A', 'Pecho, espalda y brazos'],
+    loA:   ['Inferior A', 'Cuádriceps y glúteos'],
+    upB:   ['Superior B', 'Espalda, hombros y brazos'],
+    loB:   ['Inferior B', 'Isquios y glúteos'],
+    push:  ['Empujar', 'Pecho, hombros y tríceps'],
+    pull:  ['Tirar', 'Espalda y bíceps'],
+    legs:  ['Piernas', 'Cuádriceps, isquios y glúteos'],
+    plans: { full: 'Cuerpo entero', updown: 'Superior / Inferior', mixed: 'Superior / Inferior + Empujar, Tirar, Piernas', ppl: 'Empujar, Tirar, Piernas' },
+    warmup: '5 min de bici o cinta suave y 2 series ligeras del primer ejercicio.',
+    cueCompound: 'Baja controlando en 2 segundos y sube firme.',
+    cueIso: 'Sin trampas: rango completo antes de subir carga.',
+    progression: 'Cuando cierres todas las series arriba del rango de reps, sube 2-5% la semana siguiente.',
+    summary: (n, name, min) => `${n} entrenamientos por semana en ${name.toLowerCase()}, cada uno de unos ${min} minutos.`,
+  },
+  fr: {
+    fullA: ['Corps entier A', 'Jambes, pectoraux et dos'],
+    fullB: ['Corps entier B', 'Ischios, dos et épaules'],
+    fullC: ['Corps entier C', 'Jambes, pousser et tirer'],
+    upA:   ['Haut A', 'Pectoraux, dos et bras'],
+    loA:   ['Bas A', 'Quadriceps et fessiers'],
+    upB:   ['Haut B', 'Dos, épaules et bras'],
+    loB:   ['Bas B', 'Ischios et fessiers'],
+    push:  ['Pousser', 'Pectoraux, épaules et triceps'],
+    pull:  ['Tirer', 'Dos et biceps'],
+    legs:  ['Jambes', 'Quadriceps, ischios et fessiers'],
+    plans: { full: 'Corps entier', updown: 'Haut / Bas', mixed: 'Haut / Bas + Pousser, Tirer, Jambes', ppl: 'Pousser, Tirer, Jambes' },
+    warmup: "5 min de vélo ou tapis léger et 2 séries légères du premier exercice.",
+    cueCompound: 'Descends en contrôle sur 2 secondes, puis pousse ferme.',
+    cueIso: 'Sans tricher : amplitude complète avant de monter la charge.',
+    progression: "Quand tu complètes toutes les séries en haut de la fourchette, ajoute 2 à 5 % la semaine suivante.",
+    summary: (n, name, min) => `${n} séances par semaine en ${name.toLowerCase()}, environ ${min} minutes chacune.`,
+  },
+  de: {
+    fullA: ['Ganzkörper A', 'Beine, Brust und Rücken'],
+    fullB: ['Ganzkörper B', 'Beinbeuger, Rücken und Schultern'],
+    fullC: ['Ganzkörper C', 'Beine, Drücken und Ziehen'],
+    upA:   ['Oberkörper A', 'Brust, Rücken und Arme'],
+    loA:   ['Unterkörper A', 'Quadrizeps und Gesäß'],
+    upB:   ['Oberkörper B', 'Rücken, Schultern und Arme'],
+    loB:   ['Unterkörper B', 'Beinbeuger und Gesäß'],
+    push:  ['Drücken', 'Brust, Schultern und Trizeps'],
+    pull:  ['Ziehen', 'Rücken und Bizeps'],
+    legs:  ['Beine', 'Quadrizeps, Beinbeuger und Gesäß'],
+    plans: { full: 'Ganzkörper', updown: 'Oberkörper / Unterkörper', mixed: 'Oberkörper / Unterkörper + Drücken, Ziehen, Beine', ppl: 'Drücken, Ziehen, Beine' },
+    warmup: '5 Min lockeres Rad oder Laufband plus 2 leichte Sätze der ersten Übung.',
+    cueCompound: 'In 2 Sekunden kontrolliert ablassen, dann fest hochdrücken.',
+    cueIso: 'Nicht schummeln: volle Bewegungsamplitude, bevor du mehr Gewicht nimmst.',
+    progression: 'Wenn du alle Sätze am oberen Ende der Wiederholungsspanne schaffst, nächste Woche 2 bis 5 % drauflegen.',
+    summary: (n, name, min) => `${n} Trainings pro Woche im ${name}-Split, jeweils etwa ${min} Minuten.`,
+  },
+  it: {
+    fullA: ['Total body A', 'Gambe, petto e schiena'],
+    fullB: ['Total body B', 'Femorali, schiena e spalle'],
+    fullC: ['Total body C', 'Gambe, spingere e tirare'],
+    upA:   ['Superiore A', 'Petto, schiena e braccia'],
+    loA:   ['Inferiore A', 'Quadricipiti e glutei'],
+    upB:   ['Superiore B', 'Schiena, spalle e braccia'],
+    loB:   ['Inferiore B', 'Femorali e glutei'],
+    push:  ['Spingere', 'Petto, spalle e tricipiti'],
+    pull:  ['Tirare', 'Schiena e bicipiti'],
+    legs:  ['Gambe', 'Quadricipiti, femorali e glutei'],
+    plans: { full: 'Total body', updown: 'Superiore / Inferiore', mixed: 'Superiore / Inferiore + Spingere, Tirare, Gambe', ppl: 'Spingere, Tirare, Gambe' },
+    warmup: '5 min di bici o tapis roulant leggero e 2 serie leggere del primo esercizio.',
+    cueCompound: 'Scendi controllato in 2 secondi, poi spingi deciso.',
+    cueIso: 'Niente trucchi: ampiezza completa prima di aumentare il carico.',
+    progression: 'Quando chiudi tutte le serie in cima al range di ripetizioni, aumenta del 2-5% la settimana dopo.',
+    summary: (n, name, min) => `${n} allenamenti a settimana in split ${name.toLowerCase()}, circa ${min} minuti ciascuno.`,
+  },
 };
 
-export function fallbackWorkout(p) {
+const PARTS = {
+  fullA: ['quads', 'chest', 'back', 'shoulders', 'hams', 'abs'],
+  fullB: ['hams', 'back', 'chest', 'glutes', 'triceps', 'biceps'],
+  fullC: ['quads', 'back', 'shoulders', 'chest', 'calves', 'abs'],
+  upA:   ['chest', 'back', 'shoulders', 'chest', 'biceps', 'triceps'],
+  loA:   ['quads', 'quads', 'hams', 'glutes', 'calves', 'abs'],
+  upB:   ['back', 'chest', 'back', 'shoulders', 'triceps', 'biceps'],
+  loB:   ['hams', 'quads', 'glutes', 'hams', 'calves', 'abs'],
+  push:  ['chest', 'chest', 'shoulders', 'shoulders', 'triceps', 'triceps'],
+  pull:  ['back', 'back', 'back', 'shoulders', 'biceps', 'biceps'],
+  legs:  ['quads', 'quads', 'hams', 'glutes', 'calves', 'abs'],
+};
+const PLANS = {
+  2: { planKey: 'full',   days: ['fullA', 'fullB'],                       schedule: ['A', 'rest', 'rest', 'B', 'rest', 'rest', 'rest'] },
+  3: { planKey: 'full',   days: ['fullA', 'fullB', 'fullC'],              schedule: ['A', 'rest', 'B', 'rest', 'C', 'rest', 'rest'] },
+  4: { planKey: 'updown', days: ['upA', 'loA', 'upB', 'loB'],             schedule: ['A', 'B', 'rest', 'C', 'D', 'rest', 'rest'] },
+  5: { planKey: 'mixed',  days: ['upA', 'loA', 'push', 'pull', 'legs'],   schedule: ['A', 'B', 'rest', 'C', 'D', 'E', 'rest'] },
+  6: { planKey: 'ppl',    days: ['push', 'pull', 'legs'],                 schedule: ['A', 'B', 'C', 'A', 'B', 'C', 'rest'] },
+};
+
+export function fallbackWorkout(p, language = 'pt') {
+  const tr = TR[language] || TR.en;
   const nDays = Math.min(6, Math.max(2, Number(p.days_per_week) || 3));
   const lib = LIB[p.place] || LIB.gym;
   const plan = PLANS[nDays];
@@ -193,10 +307,11 @@ export function fallbackWorkout(p) {
   const focusParts = (p.focus || []).map(f => FOCUS_TO[f]).filter(Boolean);
   const keys = 'ABCDEF';
   const days = plan.days.map((tk, di) => {
-    const tpl = TEMPLATES[tk];
-    let parts = tpl.parts.slice(0, perSession);
+    const [title, focus] = tr[tk] || TR.pt[tk];
+    const tplParts = PARTS[tk];
+    let parts = tplParts.slice(0, perSession);
     // Prioridade: a parte pedida ganha um exercício a mais onde já cabe na sessão.
-    for (const fp of focusParts) if (tpl.parts.includes(fp) && parts.length < perSession + 1) parts.push(fp);
+    for (const fp of focusParts) if (tplParts.includes(fp) && parts.length < perSession + 1) parts.push(fp);
     const used = {};
     const exercises = parts.map((part, i) => {
       const opts = lib[part] || lib.abs;
@@ -208,23 +323,24 @@ export function fallbackWorkout(p) {
         sets: beginner ? 3 : compound ? 4 : 3,
         reps: part === 'abs' ? (key === 'prancha' ? '30-45 s' : '12-15') : compound ? '6-10' : '10-12',
         rest_s: compound ? 120 : 75,
-        cue: compound ? 'Desça controlando em 2 segundos e suba firme.' : 'Sem roubar: amplitude completa antes de subir carga.',
+        cue: compound ? tr.cueCompound : tr.cueIso,
       };
     });
     const seen = new Set();
     return {
-      key: keys[di], title: tpl.title, focus: tpl.focus, duration_min: Number(p.session_min) || 60,
-      warmup: '5 min de bicicleta ou esteira leve e 2 séries leves do primeiro exercício.',
+      key: keys[di], title, focus, duration_min: Number(p.session_min) || 60,
+      warmup: tr.warmup,
       exercises: exercises.filter(e => (seen.has(e.key) ? false : seen.add(e.key))),
       finisher: '',
     };
   });
+  const planName = tr.plans[plan.planKey] || plan.planKey;
   return {
     source: 'regras',
-    split_name: plan.name,
-    summary: `${nDays} treinos por semana em ${plan.name.toLowerCase()}, cada um com cerca de ${Number(p.session_min) || 60} minutos.`,
+    split_name: planName,
+    summary: tr.summary(nDays, planName, Number(p.session_min) || 60),
     schedule: plan.schedule,
     days,
-    progression: 'Quando fechar todas as séries no topo da faixa de repetições, suba 2 a 5% da carga na semana seguinte.',
+    progression: tr.progression,
   };
 }
