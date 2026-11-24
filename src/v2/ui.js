@@ -102,7 +102,7 @@ export function Ruler({ value, onChange, min, max, step = 1, unit, fg, accent, w
             inputMode="decimal"
             accessibilityLabel={unit}
             selectTextOnFocus
-            style={[st.bigNum, { color: fg, width: Math.max(2, String(text).length) * 50 + 8 }, Platform.OS === 'web' ? { outlineStyle: 'none' } : null]}
+            style={[st.bigNum, { color: fg, width: Math.max(2, String(text).length) * 58 + 24 }, Platform.OS === 'web' ? { outlineStyle: 'none' } : null]}
           />
           <Text style={[st.unit, { color: fg }]}>{unit}</Text>
         </View>
