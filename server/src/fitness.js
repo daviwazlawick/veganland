@@ -425,7 +425,8 @@ export async function handleFitnessRoutes(req, res, { origin, sendJson, readJson
     if (generating.has(userId)) { sendJson(res, 409, { error: 'already generating' }, origin); return true; }
     // Dieta e treino gerados pela IA são do plano pago, como no app (free e sem plano vão pro paywall).
     const u = await getUserById(userId);
-    if (!['starter', 'premium', 'admin'].includes(u?.user_type)) { sendJson(res, 402, { error: 'paid plan required' }, origin); return true; }
+    // Removido o gate 402 pré-geração: queremos que o user null veja PLAN READY + preview antes
+    // do paywall, para aumentar vontade de converter. O plano fica guardado e desbloqueia ao pagar.
     const { rows } = await db.query('select data from fitness_profile where user_id = $1', [userId]);
     const profile = rows[0]?.data;
     if (!profile) { sendJson(res, 400, { error: 'profile missing' }, origin); return true; }

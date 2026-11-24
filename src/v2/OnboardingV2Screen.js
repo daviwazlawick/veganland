@@ -393,7 +393,9 @@ export default function OnboardingV2Screen({ navigation, route }) {
     );
   }
   if (phase === 'reveal') {
-    return <Reveal T={T} plan={plan} name={a.name} pal={pal} bg={bg} insets={insets} wide={wide} onEnter={enterApp} figure={figurePanel} />;
+    const locked = !['starter', 'premium', 'admin'].includes(user?.user_type);
+    const openPaywall = () => navigation.navigate('Paywall', { source: 'v2_plan', currentPlan: user?.user_type || 'free' });
+    return <Reveal T={T} plan={plan} name={a.name} pal={pal} bg={bg} insets={insets} wide={wide} onEnter={enterApp} onUnlock={openPaywall} locked={locked} figure={figurePanel} />;
   }
 
   // ── formulário ──────────────────────────────────────────────────────────
@@ -527,12 +529,34 @@ function GenRow({ label, state, fg, accent }) {
   );
 }
 
-function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure }) {
+function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure, locked, onUnlock }) {
   const t = plan?.targets || {};
   const kcal = useCountUp(t.calories_kcal || 0, 1400);
   const w = plan?.workout || {};
   const d = plan?.diet || {};
   const [busy, setBusy] = useState(false);
+  // Para user sem plano pago: mostra o anúncio "plano pronto" + macros reais, mas detalhes (treinos, refeições)
+  // ficam desfocados por baixo de um overlay com CTA para o paywall.
+  const details = (
+    <>
+      {d.summary ? <Text style={[st.revealText, { color: pal.fg }]}>{d.summary}</Text> : null}
+      <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
+        <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.reveal.split}</Text>
+        <Text style={[st.revealCardTitle, { color: pal.fg }]}>{w.split_name}</Text>
+        <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.days((w.days || []).length)}</Text>
+        {(w.days || []).map(day => (
+          <Text key={day.key} style={[st.revealDay, { color: pal.fg }]}>{day.key}  {day.title}  <Text style={{ opacity: 0.6 }}>{day.focus}</Text></Text>
+        ))}
+      </View>
+      <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
+        <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.tabs.diet}</Text>
+        <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.meals((d.meals || []).length)}</Text>
+        {(d.meals || []).map(m => (
+          <Text key={m.key} style={[st.revealDay, { color: pal.fg }]}>{m.time}  {m.name}  <Text style={{ opacity: 0.6 }}>{m.kcal} kcal</Text></Text>
+        ))}
+      </View>
+    </>
+  );
   return (
     <View style={[st.root, { backgroundColor: bg }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 24, paddingBottom: 40, alignItems: 'center' }}>
@@ -543,27 +567,32 @@ function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure }) {
           <Text style={[st.kcalLabel, { color: pal.fg, marginTop: 4 }]}>P {t.protein_g} g    C {t.carbs_g} g    G {t.fat_g} g</Text>
           {d.source === 'regras' || w.source === 'regras' ? <Text style={[st.revealText, { color: pal.hl, fontSize: 14 }]}>{T.reveal.rules}</Text> : null}
 
-          {d.summary ? <Text style={[st.revealText, { color: pal.fg }]}>{d.summary}</Text> : null}
-
-          <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
-            <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.reveal.split}</Text>
-            <Text style={[st.revealCardTitle, { color: pal.fg }]}>{w.split_name}</Text>
-            <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.days((w.days || []).length)}</Text>
-            {(w.days || []).map(day => (
-              <Text key={day.key} style={[st.revealDay, { color: pal.fg }]}>{day.key}  {day.title}  <Text style={{ opacity: 0.6 }}>{day.focus}</Text></Text>
-            ))}
-          </View>
-
-          <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
-            <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.tabs.diet}</Text>
-            <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.meals((d.meals || []).length)}</Text>
-            {(d.meals || []).map(m => (
-              <Text key={m.key} style={[st.revealDay, { color: pal.fg }]}>{m.time}  {m.name}  <Text style={{ opacity: 0.6 }}>{m.kcal} kcal</Text></Text>
-            ))}
-          </View>
-
-          <PrimaryButton label={T.reveal.cta} onPress={async () => { setBusy(true); try { await onEnter(); } finally { setBusy(false); } }}
-            disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 28 }} />
+          {locked ? (
+            <View style={{ position: 'relative', marginTop: 4 }}>
+              <View pointerEvents="none" style={{ opacity: 0.35 }}>{details}</View>
+              <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
+                <View style={{ backgroundColor: pal.surface, borderRadius: 20, padding: 20, width: '100%', maxWidth: 340, alignItems: 'center' }}>
+                  <Text style={{ color: pal.fg, fontSize: 18, textAlign: 'center', ...font('bold') }}>
+                    {T.reveal.unlockTitle || 'Desbloqueia o teu plano completo'}
+                  </Text>
+                  <Text style={{ color: pal.fg, fontSize: 14, textAlign: 'center', marginTop: 8, opacity: 0.75, ...font('body') }}>
+                    {T.reveal.unlockSub || 'Vê cada refeição e cada treino, e começa hoje.'}
+                  </Text>
+                  <PrimaryButton
+                    label={T.reveal.unlockCta || 'Ver plano'}
+                    onPress={async () => { setBusy(true); try { await onUnlock(); } finally { setBusy(false); } }}
+                    disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 16, width: '100%' }}
+                  />
+                </View>
+              </View>
+            </View>
+          ) : (
+            <>
+              {details}
+              <PrimaryButton label={T.reveal.cta} onPress={async () => { setBusy(true); try { await onEnter(); } finally { setBusy(false); } }}
+                disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 28 }} />
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

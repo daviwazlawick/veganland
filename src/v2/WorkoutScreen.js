@@ -1,7 +1,7 @@
 // Aba Treino: a ficha gerada pela IA, com a carga de cada série marcada na hora,
 // a referência da última vez e o cronômetro de descanso.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Platform, Vibration } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, ActivityIndicator, Platform, Vibration, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -121,6 +121,19 @@ export default function WorkoutScreen() {
                 <View style={[s.restCard, { backgroundColor: C.forest }]}><Text style={[s.restTitle, { color: '#fff' }]}>{T.workout.finished}</Text></View>
                 <AutoLogSession token={token} date={date} dayKey={session.key} durationMin={session.duration_min} onceRef={loggedSessionRef} />
               </>
+            ) : doneSets > 0 ? (
+              <EndEarlyButton
+                T={T}
+                doneSets={doneSets}
+                totalSets={totalSets}
+                onConfirm={() => {
+                  const ratio = doneSets / totalSets;
+                  const dur = Math.max(5, Math.round((Number(session.duration_min) || 45) * ratio));
+                  v2LogSession(token, date, session.key, dur)
+                    .then(() => { loggedSessionRef.current = `${date}#${session.key}`; load(); })
+                    .catch(() => {});
+                }}
+              />
             ) : null}
             {session.warmup ? <Text style={s.warm}><Text style={s.warmLabel}>{T.workout.warmup}  </Text>{session.warmup}</Text> : null}
             {session.exercises.map(ex => (
@@ -150,6 +163,31 @@ function AutoLogSession({ token, date, dayKey, durationMin, onceRef }) {
     v2LogSession(token, date, dayKey, durationMin).catch(() => { onceRef.current = null; });
   }, [token, date, dayKey, durationMin, onceRef]);
   return null;
+}
+
+// Botão para encerrar antes de completar tudo. Pro-rata as kcal pelo que foi feito.
+function EndEarlyButton({ T, doneSets, totalSets, onConfirm }) {
+  const confirm = T.workout.endConfirm
+    ? T.workout.endConfirm(doneSets, totalSets)
+    : `Encerrar com ${doneSets} de ${totalSets} séries?`;
+  const title = T.workout.end || 'Encerrar';
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => Alert.alert(title, confirm, [
+        { text: T.workout.endCancel || 'Continuar treino', style: 'cancel' },
+        { text: T.workout.endOk || 'Encerrar', onPress: onConfirm, style: 'destructive' },
+      ])}
+      style={({ pressed }) => ({
+        backgroundColor: C.amber, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 18,
+        alignSelf: 'center', marginVertical: 12, transform: [{ scale: pressed ? 0.97 : 1 }],
+      })}
+    >
+      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+        {T.workout.endWithProgress ? T.workout.endWithProgress(doneSets, totalSets) : `Encerrar com ${doneSets} de ${totalSets} séries`}
+      </Text>
+    </Pressable>
+  );
 }
 
 function Exercise({ ex, T, logged, last, best, onToggle }) {
