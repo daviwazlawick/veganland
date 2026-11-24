@@ -141,6 +141,7 @@ export default {
     best_value: 'Best value',
     restore: 'Restore purchases',
     restore_done: 'Purchases restored successfully',
+    restore_none: "No active purchase found for this account",
     purchase_error: 'Could not complete purchase. Please try again.',
     mobile_only: 'Subscriptions are only available in the mobile app.',
     not_configured: 'This plan is not yet available. Please try again later.',

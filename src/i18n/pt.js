@@ -141,6 +141,7 @@ export default {
     best_value: 'Melhor custo-benefício',
     restore: 'Restaurar compras',
     restore_done: 'Compras restauradas com sucesso',
+    restore_none: "Nenhuma compra ativa encontrada nesta conta",
     purchase_error: 'Não foi possível concluir a compra. Tente novamente.',
     mobile_only: 'Assinaturas disponíveis apenas no app mobile.',
     not_configured: 'Este plano ainda não está disponível. Tente mais tarde.',

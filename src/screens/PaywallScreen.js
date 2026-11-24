@@ -198,6 +198,10 @@ export default function PaywallScreen({ navigation, route }) {
     try {
       const customerInfo = await restorePurchases();
       const entId = activeEntitlementId(customerInfo);
+      if (!entId && isLocked) {
+        Alert.alert('', t(language, 'plans.restore_none'));
+        return;
+      }
       const newUserType = entitlementToUserType(entId);
       updateUserType(newUserType);
       Alert.alert('', t(language, 'plans.restore_done'));
@@ -318,14 +322,6 @@ export default function PaywallScreen({ navigation, route }) {
           );
         })}
 
-
-        {!isLocked && (
-          <TouchableOpacity onPress={handleClose} style={styles.continueFreeLinkWrap}>
-            <Text style={styles.continueFreeLink}>
-              {t(language, 'plans.continue_free')}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         {isNative && (
           <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreBtn}>
