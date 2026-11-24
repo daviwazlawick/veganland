@@ -178,7 +178,10 @@ export default function AppNavigator() {
   // Legacy users (any tier, including 'free') and paid users go to Main.
   // Cached sessions from before this change have user_type absent (undefined)
   // and are treated as legacy — they are NOT forced into the paywall.
-  const nullTier = process.env.EXPO_PUBLIC_V2 === '1' ? false : user?.user_type === null;
+  // Users sem plano (null) sempre vão para o Paywall no cold start, tanto em V1 como V2.
+  // No V2 o reveal do onboarding mostra preview desbloqueável antes, mas se saírem/fecharem
+  // a app, próximo arranque cai no Paywall até comprarem.
+  const nullTier = user?.user_type === null;
   const onboardingScanAvailable = nullTier && user?.onboarding_scan_used !== true;
   const profileInitialRoute = onboardingScanAvailable
     ? 'Scan'
