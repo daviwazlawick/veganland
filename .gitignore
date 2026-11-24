@@ -46,3 +46,8 @@ eas.json
 # generated native folders
 /ios
 /android
+
+# runtime storage no VPS
+uploads/
+test-data/
+server/src/__pycache__/
