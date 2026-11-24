@@ -10,6 +10,8 @@ import { getPool, getUserById, logApiUsage, saveBodyProfile, saveNutritionGoals,
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const MODEL_PLAN = process.env.CLAUDE_MODEL_PLAN || 'claude-sonnet-5-5';
+// Se o modelo primário falhar (bug específico, quota), tentamos estes a seguir antes de cair no fallback por regras.
+const MODEL_FALLBACKS = (process.env.CLAUDE_MODEL_FALLBACKS || 'claude-sonnet-4-6,claude-haiku-4-5-20251001').split(',').map(s => s.trim()).filter(Boolean);
 
 // ── Metas ───────────────────────────────────────────────────────────────────
 
@@ -109,14 +111,31 @@ function extractJson(text) {
   return null;
 }
 
-async function callClaude(prompt, maxTokens) {
+// Chama a Anthropic forçando a resposta por tool use: o modelo CHAMA a ferramenta com o input
+// no schema que nós definimos. A API valida o JSON contra o schema antes de devolver, então
+// nunca vem malformado. Dá retry em modelos alternativos antes de desistir.
+async function callClaudeTool(prompt, maxTokens, tool) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not configured');
-  // Prompt reforçado: só JSON, sem preâmbulo nem markdown.
-  const hardened = prompt + '\n\nRETURN ONLY THE JSON OBJECT. First character of your response MUST be `{`. Do not write any text before or after the JSON. Do not wrap in markdown fences.';
+  const models = [MODEL_PLAN, ...MODEL_FALLBACKS];
+  let lastErr;
+  for (const model of models) {
+    try {
+      return await callClaudeToolOnce(prompt, maxTokens, tool, model);
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[fitness] model ${model} falhou: ${e.message}`);
+    }
+  }
+  throw lastErr || new Error('all models failed');
+}
+
+async function callClaudeToolOnce(prompt, maxTokens, tool, model) {
   const body = {
-    model: MODEL_PLAN,
+    model,
     max_tokens: maxTokens,
-    messages: [{ role: 'user', content: hardened }],
+    tools: [tool],
+    tool_choice: { type: 'auto' },
+    messages: [{ role: 'user', content: prompt }],
   };
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -129,22 +148,15 @@ async function callClaude(prompt, maxTokens) {
   }
   const data = await response.json();
   const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
-  logApiUsage(MODEL_PLAN, usage.input_tokens, usage.output_tokens).catch(() => {});
+  logApiUsage(model, usage.input_tokens, usage.output_tokens).catch(() => {});
   const blocks = data.content || [];
-  const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
-  const stopReason = data.stop_reason;
-  const json = extractJson(text);
-  if (!json) {
+  const toolUse = blocks.find(b => b.type === 'tool_use' && b.name === tool.name);
+  if (!toolUse) {
     const types = blocks.map(b => b.type).join(',') || 'none';
-    console.warn(`[fitness] AI response without JSON. stop=${stopReason} types=${types} out_tokens=${usage.output_tokens} head=${text.slice(0, 200)}`);
-    throw new Error('Invalid AI response');
+    console.warn(`[fitness] AI response without tool_use. model=${model} stop=${data.stop_reason} types=${types} out_tokens=${usage.output_tokens}`);
+    throw new Error('AI did not call the tool');
   }
-  try {
-    return JSON.parse(json);
-  } catch (e) {
-    console.warn(`[fitness] AI JSON parse failed: ${e.message} stop=${stopReason} len=${json.length} tail=${json.slice(-200)}`);
-    throw new Error('Invalid AI JSON: ' + e.message);
-  }
+  return toolUse.input;
 }
 
 const LANG = { pt: 'Brazilian Portuguese', en: 'English', de: 'German', fr: 'French', it: 'Italian', es: 'Spanish' };
@@ -189,27 +201,58 @@ RULES
 - Realistic, cheap, repeatable. No exotic ingredients, no supplements unless whey fits naturally.
 - Write every text field in ${lang}.
 
-Return ONLY JSON, no markdown:
-{
-  "summary": "two short sentences explaining the strategy for this person",
-  "meals": [
-    {
-      "key": "m1",
-      "name": "Breakfast",
-      "time": "07:30",
-      "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0,
-      "items": [ { "food": "Ovos mexidos", "qty": "3 unidades (150 g)", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0 } ],
-      "swap": "short alternative, e.g. 'Trocar ovos por 170 g de iogurte grego + 30 g de aveia'"
-    }
-  ],
-  "rest_day_note": "what to change on rest days (usually cut part of the carbs)",
-  "tips": ["max 3 short, specific tips for THIS person"]
-}`;
-  const diet = await callClaude(prompt, 12000);
+Call the tool save_diet_plan with the plan.`;
+  const diet = await callClaudeTool(prompt, 12000, DIET_TOOL);
   if (!Array.isArray(diet.meals) || !diet.meals.length) throw new Error('diet without meals');
   diet.meals = diet.meals.map((m, i) => ({ ...m, key: m.key || `m${i + 1}` }));
   return diet;
 }
+
+const DIET_TOOL = {
+  name: 'save_diet_plan',
+  description: 'Saves the daily meal plan for the person. All human-readable fields must be in the requested language.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Two short sentences explaining the strategy for this person' },
+      meals: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            key: { type: 'string' },
+            name: { type: 'string' },
+            time: { type: 'string', description: 'HH:MM' },
+            kcal: { type: 'number' },
+            protein_g: { type: 'number' },
+            carbs_g: { type: 'number' },
+            fat_g: { type: 'number' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  food: { type: 'string' },
+                  qty: { type: 'string', description: 'E.g. "3 unidades (150 g)" or "80 g"' },
+                  kcal: { type: 'number' },
+                  protein_g: { type: 'number' },
+                  carbs_g: { type: 'number' },
+                  fat_g: { type: 'number' },
+                },
+                required: ['food', 'qty', 'kcal', 'protein_g', 'carbs_g', 'fat_g'],
+              },
+            },
+            swap: { type: 'string', description: 'One simple alternative with similar macros' },
+          },
+          required: ['name', 'time', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'items', 'swap'],
+        },
+      },
+      rest_day_note: { type: 'string' },
+      tips: { type: 'array', items: { type: 'string' }, description: 'Max 3 short, specific tips' },
+    },
+    required: ['summary', 'meals', 'rest_day_note', 'tips'],
+  },
+};
 
 export async function generateWorkout(p, t, language) {
   const lang = LANG[language] || LANG.en;
@@ -232,30 +275,61 @@ RULES
 - Beginner: machines and simple movements. Never prescribe something that hurts the listed injuries.
 - Write every human-readable text in ${lang}.
 
-Return ONLY JSON, no markdown:
-{
-  "split_name": "e.g. Superior / Inferior",
-  "summary": "two short sentences about why this split for this person",
-  "schedule": ["A", "B", "rest", "A", "B", "rest", "rest"],
-  "days": [
-    {
-      "key": "A",
-      "title": "Superiores",
-      "focus": "Peito, costas e ombros",
-      "duration_min": 60,
-      "warmup": "short warm-up instruction",
-      "exercises": [
-        { "key": "barbell_bench_press", "name": "Supino reto com barra", "muscle": "Peito", "sets": 4, "reps": "8-10", "rest_s": 90, "cue": "short cue" }
-      ],
-      "finisher": "optional short cardio/core finisher or empty string"
-    }
-  ],
-  "progression": "how to progress load week to week, in one or two sentences"
-}`;
-  const workout = await callClaude(prompt, 12000);
+Call the tool save_workout_plan with the program.`;
+  const workout = await callClaudeTool(prompt, 12000, WORKOUT_TOOL);
   if (!Array.isArray(workout.days) || !workout.days.length) throw new Error('workout without days');
   return workout;
 }
+
+const WORKOUT_TOOL = {
+  name: 'save_workout_plan',
+  description: 'Saves the training program for the person. All human-readable fields must be in the requested language.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      split_name: { type: 'string', description: 'E.g. "Superior / Inferior" or "Full body ABC"' },
+      summary: { type: 'string', description: 'Two short sentences explaining the split choice' },
+      schedule: {
+        type: 'array',
+        items: { type: 'string', description: 'Day key (e.g. "A", "B") or "rest"' },
+        description: 'Length 7, one entry per weekday starting Monday',
+      },
+      days: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            key: { type: 'string', description: 'Short id like "A", "B" matching schedule entries' },
+            title: { type: 'string' },
+            focus: { type: 'string' },
+            duration_min: { type: 'number' },
+            warmup: { type: 'string' },
+            exercises: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  key: { type: 'string', description: 'Stable snake_case English id, e.g. barbell_bench_press' },
+                  name: { type: 'string' },
+                  muscle: { type: 'string' },
+                  sets: { type: 'number' },
+                  reps: { type: 'string', description: 'Range like "8-10" or fixed like "12"' },
+                  rest_s: { type: 'number' },
+                  cue: { type: 'string', description: 'Short technique cue' },
+                },
+                required: ['key', 'name', 'muscle', 'sets', 'reps', 'rest_s', 'cue'],
+              },
+            },
+            finisher: { type: 'string', description: 'Optional short cardio/core finisher or empty string' },
+          },
+          required: ['key', 'title', 'focus', 'duration_min', 'warmup', 'exercises', 'finisher'],
+        },
+      },
+      progression: { type: 'string', description: 'How to progress load week to week' },
+    },
+    required: ['split_name', 'summary', 'schedule', 'days', 'progression'],
+  },
+};
 
 // ── Rotas ───────────────────────────────────────────────────────────────────
 
