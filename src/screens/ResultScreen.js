@@ -20,6 +20,7 @@ import { applyKosherRules, KOSHER_STATUS } from '../constants/kosherRules';
 import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 import AppSurveyModal from '../components/ui/AppSurveyModal';
 import { mealForNow } from '../utils/scanStatus';
+import { confirmBeforeLog } from '../utils/goalWarning';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -116,7 +117,7 @@ export default function ResultScreen({ navigation, route }) {
   const { language, scanHistory, profile, appSurveyDone, markAppSurveyDone } = useApp();
   const { token } = useAuth();
   const { stats: referralStats } = useReferral();
-  const { logConsumption, bodyProfile } = useNutrition();
+  const { logConsumption, bodyProfile, todayTotals, goals } = useNutrition();
   const insets = useSafeAreaInsets();
   const isOnboarding = route?.params?.onboarding === true;
   const showReferralBanner = !HIDE_REFERRAL
@@ -195,8 +196,7 @@ export default function ResultScreen({ navigation, route }) {
     const grams = parseFloat(consumeGrams) || 100;
     const factor = grams / 100;
     const n = nutrition || {};
-    setConsumeLogging(true);
-    await logConsumption({
+    const entry = {
       product_name: result?.title || result?.productInfo?.offMeta?.product_name || '',
       barcode: result?.barcode || null,
       source: 'scan',
@@ -209,11 +209,18 @@ export default function ResultScreen({ navigation, route }) {
       fiber_g:       n.fiber       ? Math.round(n.fiber       * factor * 10) / 10 : null,
       sugar_g:       n.sugars      ? Math.round(n.sugars      * factor * 10) / 10 : null,
       salt_g:        n.salt        ? Math.round(n.salt        * factor * 100) / 100 : null,
+    };
+    confirmBeforeLog({
+      todayTotals, goals, entry, language,
+      onConfirm: async () => {
+        setConsumeLogging(true);
+        await logConsumption(entry);
+        setConsumeLogging(false);
+        setConsumeLogged(true);
+        setConsumeModal(false);
+        setTimeout(() => setConsumeLogged(false), 3000);
+      },
     });
-    setConsumeLogging(false);
-    setConsumeLogged(true);
-    setConsumeModal(false);
-    setTimeout(() => setConsumeLogged(false), 3000);
   }
   const [showAppSurvey, setShowAppSurvey] = useState(false);
 

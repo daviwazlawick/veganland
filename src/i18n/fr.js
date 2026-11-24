@@ -327,6 +327,21 @@ export default {
     cancel: "Annuler",
     error: "Impossible de supprimer le compte. Veuillez réessayer.",
   },
+  goalWarning: {
+    title: 'Juste pour info',
+    body_one: "Enregistrer ceci mettra tes {{nutrient}} {{pct}}% au-dessus de ton objectif du jour. Tu veux l'enregistrer quand même ?",
+    body_many: "Enregistrer ceci dépassera ton objectif du jour sur : {{list}}. Tu veux continuer ?",
+    confirm: 'Enregistrer quand même',
+    cancel: 'Annuler',
+    nutrient: {
+      calories: 'calories',
+      protein: 'protéines',
+      fat: 'lipides',
+      carbs: 'glucides',
+      sugar: 'sucre',
+      salt: 'sel',
+    },
+  },
   limits: {
     monthly_reached: 'Vous avez utilisé vos {{limit}} scans mensuels.',
     resets_in_days: 'Vos scans seront renouvelés dans {{days}} jours.',

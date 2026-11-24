@@ -327,6 +327,21 @@ export default {
     cancel: 'Cancel',
     error: 'Could not delete account. Please try again.',
   },
+  goalWarning: {
+    title: 'Just a heads up',
+    body_one: 'Logging this would put your {{nutrient}} {{pct}}% over today\'s goal. Still want to log it?',
+    body_many: 'Logging this would push you over today\'s goal on: {{list}}. Still want to log it?',
+    confirm: 'Log anyway',
+    cancel: 'Cancel',
+    nutrient: {
+      calories: 'calories',
+      protein: 'protein',
+      fat: 'fat',
+      carbs: 'carbs',
+      sugar: 'sugar',
+      salt: 'salt',
+    },
+  },
   limits: {
     monthly_reached: "You've used all {{limit}} of your monthly scans.",
     resets_in_days: "Your scans will renew in {{days}} days.",

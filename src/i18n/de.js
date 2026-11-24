@@ -327,6 +327,21 @@ export default {
     cancel: 'Abbrechen',
     error: 'Konto konnte nicht gelöscht werden. Bitte versuche es erneut.',
   },
+  goalWarning: {
+    title: 'Nur ein Hinweis',
+    body_one: 'Wenn du das einträgst, liegt dein {{nutrient}} heute {{pct}}% über deinem Ziel. Trotzdem eintragen?',
+    body_many: 'Wenn du das einträgst, überschreitest du heute dein Ziel bei: {{list}}. Trotzdem eintragen?',
+    confirm: 'Trotzdem eintragen',
+    cancel: 'Abbrechen',
+    nutrient: {
+      calories: 'Kalorien',
+      protein: 'Eiweiß',
+      fat: 'Fett',
+      carbs: 'Kohlenhydrate',
+      sugar: 'Zucker',
+      salt: 'Salz',
+    },
+  },
   limits: {
     monthly_reached: 'Du hast alle {{limit}} Scans dieses Monats aufgebraucht.',
     resets_in_days: 'Deine Scans werden in {{days}} Tagen erneuert.',

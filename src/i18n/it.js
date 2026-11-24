@@ -327,6 +327,21 @@ export default {
     cancel: "Annulla",
     error: "Impossibile eliminare l'account. Riprova.",
   },
+  goalWarning: {
+    title: 'Solo un avviso',
+    body_one: 'Registrare questo porterà i tuoi {{nutrient}} {{pct}}% oltre l\'obiettivo di oggi. Vuoi registrarlo lo stesso?',
+    body_many: 'Registrare questo supererà il tuo obiettivo di oggi su: {{list}}. Vuoi continuare?',
+    confirm: 'Registra comunque',
+    cancel: 'Annulla',
+    nutrient: {
+      calories: 'calorie',
+      protein: 'proteine',
+      fat: 'grassi',
+      carbs: 'carboidrati',
+      sugar: 'zuccheri',
+      salt: 'sale',
+    },
+  },
   limits: {
     monthly_reached: 'Hai esaurito tutti i tuoi {{limit}} scan mensili.',
     resets_in_days: 'I tuoi scan si rinnoveranno tra {{days}} giorni.',

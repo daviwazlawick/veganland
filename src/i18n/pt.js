@@ -327,6 +327,21 @@ export default {
     cancel: 'Cancelar',
     error: 'Não foi possível eliminar a conta. Tente novamente.',
   },
+  goalWarning: {
+    title: 'Só a avisar',
+    body_one: 'Logar isto vai colocar o teu {{nutrient}} {{pct}}% acima da meta de hoje. Queres logar mesmo assim?',
+    body_many: 'Logar isto passa a tua meta de hoje em: {{list}}. Queres continuar?',
+    confirm: 'Logar mesmo assim',
+    cancel: 'Cancelar',
+    nutrient: {
+      calories: 'calorias',
+      protein: 'proteína',
+      fat: 'gordura',
+      carbs: 'hidratos',
+      sugar: 'açúcar',
+      salt: 'sal',
+    },
+  },
   limits: {
     monthly_reached: 'Você já usou todos os seus {{limit}} scans deste mês.',
     resets_in_days: 'Seus scans serão renovados em {{days}} dias.',

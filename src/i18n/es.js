@@ -327,6 +327,21 @@ export default {
     cancel: 'Cancelar',
     error: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
   },
+  goalWarning: {
+    title: 'Un aviso',
+    body_one: 'Registrar esto dejará tu {{nutrient}} {{pct}}% por encima del objetivo de hoy. ¿Quieres registrarlo igual?',
+    body_many: 'Registrar esto superará tu objetivo de hoy en: {{list}}. ¿Quieres continuar?',
+    confirm: 'Registrar igual',
+    cancel: 'Cancelar',
+    nutrient: {
+      calories: 'calorías',
+      protein: 'proteína',
+      fat: 'grasa',
+      carbs: 'carbohidratos',
+      sugar: 'azúcar',
+      salt: 'sal',
+    },
+  },
   limits: {
     monthly_reached: 'Ya has usado todos tus {{limit}} escaneos mensuales.',
     resets_in_days: 'Tus escaneos se renovarán en {{days}} días.',

@@ -19,6 +19,7 @@ import { logFunnelEvent } from '../services/funnelService';
 import ScanLimitCard from '../components/ScanLimitCard';
 import { EXERCISES, minutesToBurn, getExerciseName, DEFAULT_BURN_EXERCISES } from '../constants/exercises';
 import { mealForNow } from '../utils/scanStatus';
+import { confirmBeforeLog } from '../utils/goalWarning';
 
 const isNovaQI = Brand.id === 'novaqi';
 
@@ -53,7 +54,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export default function PlateAnalysisScreen({ navigation, route }) {
   const { language, profile, setMonthlyScanCount } = useApp();
   const { token } = useAuth();
-  const { logConsumption, bodyProfile } = useNutrition();
+  const { logConsumption, bodyProfile, todayTotals, goals } = useNutrition();
   const insets = useSafeAreaInsets();
   // Optional past-date target — when set, every logged plate item is pinned
   // to noon UTC of this date so it lands on the intended day.
@@ -303,37 +304,48 @@ export default function PlateAnalysisScreen({ navigation, route }) {
 
   async function handleLog() {
     if (!editableItems.length) return;
-    setLogging(true);
-    try {
-      for (const item of editableItems) {
-        const payload = {
-          product_name:  item.name,
-          source:        'plate_photo',
-          grams:         item.grams         || null,
-          meal_type:     meal,
-          calories_kcal: item.calories_kcal || null,
-          protein_g:     item.protein_g     || null,
-          fat_g:         item.fat_g         || null,
-          carbs_g:       item.carbs_g       || null,
-          fiber_g:       item.fiber_g       || null,
-          sugar_g:       item.sugar_g       || null,
-          salt_g:        item.salt_g        || null,
-        };
-        if (presetDate) payload.consumed_at = `${presetDate}T12:00:00Z`;
-        await logConsumption(payload);
+    // Soma do prato completo para o aviso de meta (não serve se for log para data passada).
+    const aggregate = presetDate ? null : editableItems.reduce((a, i) => ({
+      calories_kcal: (a.calories_kcal || 0) + Number(i.calories_kcal || 0),
+      protein_g:     (a.protein_g     || 0) + Number(i.protein_g     || 0),
+      fat_g:         (a.fat_g         || 0) + Number(i.fat_g         || 0),
+      carbs_g:       (a.carbs_g       || 0) + Number(i.carbs_g       || 0),
+      sugar_g:       (a.sugar_g       || 0) + Number(i.sugar_g       || 0),
+      salt_g:        (a.salt_g        || 0) + Number(i.salt_g        || 0),
+    }), {});
+    const doLog = async () => {
+      setLogging(true);
+      try {
+        for (const item of editableItems) {
+          const payload = {
+            product_name:  item.name,
+            source:        'plate_photo',
+            grams:         item.grams         || null,
+            meal_type:     meal,
+            calories_kcal: item.calories_kcal || null,
+            protein_g:     item.protein_g     || null,
+            fat_g:         item.fat_g         || null,
+            carbs_g:       item.carbs_g       || null,
+            fiber_g:       item.fiber_g       || null,
+            sugar_g:       item.sugar_g       || null,
+            salt_g:        item.salt_g        || null,
+          };
+          if (presetDate) payload.consumed_at = `${presetDate}T12:00:00Z`;
+          await logConsumption(payload);
+        }
+        setLogged(true);
+        setTimeout(() => {
+          if (presetDate && navigation.canGoBack()) navigation.goBack();
+          else navigation.navigate('Main', { screen: 'Diary' });
+        }, 1200);
+      } catch {
+        Alert.alert('', t(language, 'nutrition.plate_log_failed'));
+      } finally {
+        setLogging(false);
       }
-      setLogged(true);
-      // Past-date flow was launched from the dashboard's report view — go
-      // back so it stays on the same period and reloads the day card.
-      setTimeout(() => {
-        if (presetDate && navigation.canGoBack()) navigation.goBack();
-        else navigation.navigate('Main', { screen: 'Diary' });
-      }, 1200);
-    } catch {
-      Alert.alert('', t(language, 'nutrition.plate_log_failed'));
-    } finally {
-      setLogging(false);
-    }
+    };
+    if (presetDate) return doLog();
+    confirmBeforeLog({ todayTotals, goals, entry: aggregate, language, onConfirm: doLog });
   }
 
   const liveTotal = calcTotal(editableItems);

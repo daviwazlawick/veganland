@@ -13,6 +13,7 @@ import Brand, { BrandFonts } from '../brand';
 import { EXERCISES, CATEGORY_CONFIG, getExerciseName } from '../constants/exercises';
 import { font } from '../theme/type';
 import { mealForNow } from '../utils/scanStatus';
+import { confirmBeforeLog } from '../utils/goalWarning';
 
 function formatTime(iso, language) {
   if (!iso) return '';
@@ -790,18 +791,26 @@ export default function NutritionDashboardScreen({ navigation, route }) {
     if (!editingId && addForDate) {
       payload.consumed_at = `${addForDate}T12:00:00Z`;
     }
-    try {
-      if (editingId) {
-        await updateConsumption(editingId, payload);
-      } else {
-        await logConsumption(payload);
+    const save = async () => {
+      try {
+        if (editingId) {
+          await updateConsumption(editingId, payload);
+        } else {
+          await logConsumption(payload);
+        }
+        setAddModal(false);
+        reloadCurrentReport();
+      } catch (e) {
+        showError(e.message || t(language, 'nutrition.save_failed'));
       }
-      setAddModal(false);
-      reloadCurrentReport();
-    } catch (e) {
-      showError(e.message || t(language, 'nutrition.save_failed'));
+      setSavingEntry(false);
+    };
+    // Só avisa quando é entry novo no dia de hoje; edição e datas passadas não disparam.
+    if (!editingId && !addForDate) {
+      confirmBeforeLog({ todayTotals, goals, entry: payload, language, onConfirm: save, onCancel: () => setSavingEntry(false) });
+    } else {
+      await save();
     }
-    setSavingEntry(false);
   }
 
   const displayFields = expanded ? ALL_FIELDS : MACRO_FIELDS;
