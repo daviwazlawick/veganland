@@ -62,24 +62,32 @@ function buildMeal(p, kind, tgt) {
   const sum = () => items.reduce((a, i) => ({ p: a.p + i.protein_g, c: a.c + i.carbs_g, f: a.f + i.fat_g }), { p: 0, c: 0, f: 0 });
   let swap = '';
   if (kind === 'cafe' || kind === 'lanche' || kind === 'ceia') {
-    const prot = kind === 'cafe' ? first(p, ['ovo', 'iogurte', 'tofu', 'whey']) : first(p, ['iogurte', 'whey', 'ovo', 'tofu']);
+    const prot = kind === 'cafe'
+      ? first(p, ['ovo', 'iogurte', 'tofu', 'whey', 'amendoim', 'grao'])
+      : first(p, ['iogurte', 'whey', 'ovo', 'tofu', 'amendoim', 'grao']);
     const carb = kind === 'cafe' ? first(p, ['pao', 'tapioca', 'aveia']) : first(p, ['aveia', 'tapioca', 'pao']);
     if (kind !== 'ceia') add('fruta', kind === 'cafe' ? 120 : 100);
-    add(carb, ((tgt.c - (kind !== 'ceia' ? 14 : 0)) / F[carb].c) * 100);
+    if (carb) add(carb, ((tgt.c - (kind !== 'ceia' ? 14 : 0)) / F[carb].c) * 100);
     const s0 = sum();
-    add(prot, ((tgt.p - s0.p) / F[prot].p) * 100);
-    swap = prot === 'ovo' ? 'Trocar os ovos por iogurte natural com whey, mesma proteína.' : 'Trocar por ovos mexidos com pão, se preferir salgado.';
+    if (prot) add(prot, ((tgt.p - s0.p) / F[prot].p) * 100);
+    swap = prot === 'ovo'
+      ? 'Trocar os ovos por iogurte natural com whey, mesma proteína.'
+      : prot === 'amendoim' || prot === 'grao'
+        ? 'Variar a fonte de proteína vegetal (tofu, pasta de amendoim, grão-de-bico) conforme o que tiver em casa.'
+        : 'Trocar por ovos mexidos com pão, se preferir salgado.';
   } else {
-    const prot = kind === 'almoco' ? first(p, ['frango', 'patinho', 'tilapia', 'tofu', 'soja', 'ovo']) : first(p, ['patinho', 'tilapia', 'frango', 'soja', 'tofu', 'ovo']);
+    const prot = kind === 'almoco'
+      ? first(p, ['frango', 'patinho', 'tilapia', 'tofu', 'soja', 'ovo', 'grao'])
+      : first(p, ['patinho', 'tilapia', 'frango', 'soja', 'tofu', 'ovo', 'grao']);
     const carb = kind === 'almoco' ? 'arroz' : 'batata';
     add('legumes', 150);
     add('salada', 80);
     add('feijao', kind === 'almoco' ? 100 : 0);
     if (['vegan', 'vegetarian'].includes(p.diet_id)) add('grao', 80);
     const s0 = sum();
-    add(carb, ((tgt.c - s0.c) / F[carb].c) * 100);
+    if (carb) add(carb, ((tgt.c - s0.c) / F[carb].c) * 100);
     const s1 = sum();
-    add(prot, ((tgt.p - s1.p) / F[prot].p) * 100);
+    if (prot) add(prot, ((tgt.p - s1.p) / F[prot].p) * 100);
     swap = carb === 'arroz' ? 'Trocar o arroz por batata-doce: 1,4× o peso do arroz.' : 'Trocar a batata-doce por arroz: 0,7× o peso.';
   }
   const s2 = sum();
