@@ -43,10 +43,10 @@ function allowed(key, p) {
 }
 const first = (p, keys) => keys.find(k => allowed(k, p));
 
-const SPLITS = { 3: [0.3, 0.4, 0.3], 4: [0.25, 0.3, 0.15, 0.3], 5: [0.2, 0.1, 0.3, 0.15, 0.25], 6: [0.2, 0.1, 0.25, 0.1, 0.2, 0.15] };
-const KIND = { 3: ['cafe', 'almoco', 'jantar'], 4: ['cafe', 'almoco', 'lanche', 'jantar'], 5: ['cafe', 'lanche', 'almoco', 'lanche', 'jantar'], 6: ['cafe', 'lanche', 'almoco', 'lanche', 'jantar', 'ceia'] };
+const SPLITS = { 1: [1.0], 2: [0.45, 0.55], 3: [0.3, 0.4, 0.3], 4: [0.25, 0.3, 0.15, 0.3], 5: [0.2, 0.1, 0.3, 0.15, 0.25], 6: [0.2, 0.1, 0.25, 0.1, 0.2, 0.15] };
+const KIND = { 1: ['almoco'], 2: ['almoco', 'jantar'], 3: ['cafe', 'almoco', 'jantar'], 4: ['cafe', 'almoco', 'lanche', 'jantar'], 5: ['cafe', 'lanche', 'almoco', 'lanche', 'jantar'], 6: ['cafe', 'lanche', 'almoco', 'lanche', 'jantar', 'ceia'] };
 const NAME = { cafe: 'Café da manhã', almoco: 'Almoço', lanche: 'Lanche', jantar: 'Jantar', ceia: 'Ceia' };
-const TIME = { 3: ['07:30', '12:30', '19:30'], 4: ['07:30', '12:30', '16:30', '20:00'], 5: ['07:00', '10:00', '12:30', '16:30', '20:00'], 6: ['07:00', '10:00', '12:30', '16:00', '19:30', '22:00'] };
+const TIME = { 1: ['13:00'], 2: ['13:00', '19:30'], 3: ['07:30', '12:30', '19:30'], 4: ['07:30', '12:30', '16:30', '20:00'], 5: ['07:00', '10:00', '12:30', '16:30', '20:00'], 6: ['07:00', '10:00', '12:30', '16:00', '19:30', '22:00'] };
 
 function item(key, g) {
   const f = F[key];
@@ -98,7 +98,7 @@ function buildMeal(p, kind, tgt) {
 }
 
 export function fallbackDiet(p, t) {
-  const n = Math.min(6, Math.max(3, Number(p.meals_per_day) || 4));
+  const n = Math.min(6, Math.max(1, Number(p.meals_per_day) || 4));
   const meals = SPLITS[n].map((share, i) => {
     const kind = KIND[n][i];
     const m = buildMeal(p, kind, { kcal: t.calories_kcal * share, p: t.protein_g * share, c: t.carbs_g * share, f: t.fat_g * share });

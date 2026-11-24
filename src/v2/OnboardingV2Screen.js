@@ -334,7 +334,7 @@ export default function OnboardingV2Screen({ navigation, route }) {
             style={[st.input, { fontSize: 18, color: pal.fg, borderColor: pal.fg + '44', marginTop: 8 }, Platform.OS === 'web' ? { outlineStyle: 'none' } : null]} /></>);
       case 'meals':
         return (<><Question q={T.meals.q} />
-          <View style={st.wrap}>{[3, 4, 5, 6].map(n => <Chip key={n} big label={String(n)} selected={a.meals_per_day === n} onPress={() => pick('meals_per_day', n)} {...choiceProps} />)}</View>
+          <View style={st.wrap}>{[1, 2, 3, 4, 5, 6].map(n => <Chip key={n} big label={String(n)} selected={a.meals_per_day === n} onPress={() => pick('meals_per_day', n)} {...choiceProps} />)}</View>
           <Text style={[st.hint, { color: pal.fg }]}>{T.meals.unit}</Text></>);
       case 'cooking':
         return (<><Question q={T.cooking.q} />
