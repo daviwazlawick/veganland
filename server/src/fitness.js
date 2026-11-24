@@ -111,10 +111,20 @@ function extractJson(text) {
 
 async function callClaude(prompt, maxTokens) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not configured');
+  // Força o início da resposta com `{` via assistant turn pré-preenchido — corta preâmbulo
+  // e dá à Anthropic um stopping point natural depois do JSON.
+  const body = {
+    model: MODEL_PLAN,
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'user', content: prompt + '\n\nReturn only the JSON object, starting with `{` and nothing before it. No markdown, no commentary.' },
+      { role: 'assistant', content: '{' },
+    ],
+  };
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL_PLAN, max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -123,17 +133,21 @@ async function callClaude(prompt, maxTokens) {
   const data = await response.json();
   const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
   logApiUsage(MODEL_PLAN, usage.input_tokens, usage.output_tokens).catch(() => {});
-  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  const blocks = data.content || [];
+  const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
   const stopReason = data.stop_reason;
-  const json = extractJson(text);
+  // Como forçamos o assistant a começar com `{`, o response text é o INTERIOR — prefixamos de volta.
+  const raw = '{' + text;
+  const json = extractJson(raw);
   if (!json) {
-    console.warn('[fitness] AI response without JSON. stop=' + stopReason + ' head=' + text.slice(0, 200));
+    const types = blocks.map(b => b.type).join(',') || 'none';
+    console.warn(`[fitness] AI response without JSON. stop=${stopReason} types=${types} out_tokens=${usage.output_tokens} head=${text.slice(0, 200)}`);
     throw new Error('Invalid AI response');
   }
   try {
     return JSON.parse(json);
   } catch (e) {
-    console.warn('[fitness] AI JSON parse failed: ' + e.message + ' stop=' + stopReason + ' len=' + json.length + ' tail=' + json.slice(-200));
+    console.warn(`[fitness] AI JSON parse failed: ${e.message} stop=${stopReason} len=${json.length} tail=${json.slice(-200)}`);
     throw new Error('Invalid AI JSON: ' + e.message);
   }
 }
@@ -196,7 +210,7 @@ Return ONLY JSON, no markdown:
   "rest_day_note": "what to change on rest days (usually cut part of the carbs)",
   "tips": ["max 3 short, specific tips for THIS person"]
 }`;
-  const diet = await callClaude(prompt, 6000);
+  const diet = await callClaude(prompt, 12000);
   if (!Array.isArray(diet.meals) || !diet.meals.length) throw new Error('diet without meals');
   diet.meals = diet.meals.map((m, i) => ({ ...m, key: m.key || `m${i + 1}` }));
   return diet;
@@ -243,7 +257,7 @@ Return ONLY JSON, no markdown:
   ],
   "progression": "how to progress load week to week, in one or two sentences"
 }`;
-  const workout = await callClaude(prompt, 6000);
+  const workout = await callClaude(prompt, 12000);
   if (!Array.isArray(workout.days) || !workout.days.length) throw new Error('workout without days');
   return workout;
 }
