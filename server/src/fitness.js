@@ -111,15 +111,12 @@ function extractJson(text) {
 
 async function callClaude(prompt, maxTokens) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not configured');
-  // Força o início da resposta com `{` via assistant turn pré-preenchido — corta preâmbulo
-  // e dá à Anthropic um stopping point natural depois do JSON.
+  // Prompt reforçado: só JSON, sem preâmbulo nem markdown.
+  const hardened = prompt + '\n\nRETURN ONLY THE JSON OBJECT. First character of your response MUST be `{`. Do not write any text before or after the JSON. Do not wrap in markdown fences.';
   const body = {
     model: MODEL_PLAN,
     max_tokens: maxTokens,
-    messages: [
-      { role: 'user', content: prompt + '\n\nReturn only the JSON object, starting with `{` and nothing before it. No markdown, no commentary.' },
-      { role: 'assistant', content: '{' },
-    ],
+    messages: [{ role: 'user', content: hardened }],
   };
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -136,9 +133,7 @@ async function callClaude(prompt, maxTokens) {
   const blocks = data.content || [];
   const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
   const stopReason = data.stop_reason;
-  // Como forçamos o assistant a começar com `{`, o response text é o INTERIOR — prefixamos de volta.
-  const raw = '{' + text;
-  const json = extractJson(raw);
+  const json = extractJson(text);
   if (!json) {
     const types = blocks.map(b => b.type).join(',') || 'none';
     console.warn(`[fitness] AI response without JSON. stop=${stopReason} types=${types} out_tokens=${usage.output_tokens} head=${text.slice(0, 200)}`);
