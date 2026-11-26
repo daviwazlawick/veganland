@@ -36,6 +36,7 @@ const PAL = {
 const SECTIONS = ['voce', 'treino', 'comida', 'medidas', 'plano'];
 
 const SECTION_OF = {
+  intro_welcome: 'voce',
   intro_you: 'voce',
   name: 'voce', goal: 'voce', sex: 'voce', age: 'voce', height: 'voce', weight: 'voce', activity: 'voce',
   intro_training: 'treino',
@@ -48,7 +49,7 @@ const SECTION_OF = {
 const sectionOf = id => (id.startsWith('m_') ? 'medidas' : SECTION_OF[id]);
 
 function buildSteps(a) {
-  const s = ['intro_you', 'name', 'goal', 'sex', 'age', 'height', 'weight', 'activity',
+  const s = ['intro_welcome', 'intro_you', 'name', 'goal', 'sex', 'age', 'height', 'weight', 'activity',
     'intro_training', 'experience', 'days', 'session', 'place', 'focus', 'injuries',
     'intro_food', 'diet', 'allergies', 'meals', 'cooking',
     'intro_measures', 'measureMode'];
@@ -278,14 +279,16 @@ export default function OnboardingV2Screen({ navigation, route }) {
 
   function renderStep() {
     switch (id) {
+      case 'intro_welcome':
       case 'intro_you':
       case 'intro_training':
       case 'intro_food':
       case 'intro_measures': {
         const key = id.replace('intro_', '');
         const intro = T.intro?.[key] || { title: '', body: '' };
+        const isWelcome = key === 'welcome';
         return (<>
-          <Text style={[st.q, { color: pal.fg, fontSize: wide ? 36 : 28 }]}>{intro.title}</Text>
+          <Text style={[st.q, { color: pal.fg, fontSize: wide ? (isWelcome ? 44 : 36) : (isWelcome ? 32 : 28) }]}>{intro.title}</Text>
           <Text style={[st.hint, { color: pal.fg, fontSize: 16, marginTop: 14, lineHeight: 24 }]}>{intro.body}</Text>
           <Text style={{ color: pal.fg, fontSize: 11.5, opacity: 0.55, marginTop: 20, lineHeight: 17, ...font('body') }}>
             {T.intro?.disclaimer}
