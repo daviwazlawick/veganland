@@ -178,6 +178,7 @@ export default function AppNavigator() {
   //   - Demo terminou → Paywall no cold start.
   // Legacy users (user_type absent ou qualquer tier) seguem para Main.
   const nullTier = user?.user_type === null;
+  const onboardingScanAvailable = false; // legacy gate removido; variável mantida para initialParams
   const profileInitialRoute = nullTier
     ? (demoDone ? 'Paywall' : 'TourSlides')
     : 'Main';
@@ -260,6 +261,8 @@ export default function AppNavigator() {
             <Stack.Screen name="Diary" component={NutritionDashboardScreen} />
             <Stack.Screen name="History" component={HistoryScreen} />
             <Stack.Screen name="OnboardingV2" component={OnboardingV2Screen} />
+            <Stack.Screen name="SalesPitch" component={SalesPitchScreen} options={{ gestureEnabled: false }} />
+            <Stack.Screen name="TourSlides" component={TourSlidesScreen} options={{ gestureEnabled: false }} />
           </>
         )}
       </Stack.Navigator>
