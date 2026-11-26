@@ -182,6 +182,14 @@ const pt = {
     workout: { title: 'Esta é a aba Treino', body: 'A ficha de hoje — marca cada série à medida que fazes.' },
     profile: { title: 'Esta é a aba Perfil', body: 'Idioma, subscrição, ajuda e apagar conta — tudo aqui.' },
   },
+  tourSlides: {
+    welcome: { title: 'O que o NovaQI faz por ti', body: 'Em 30 segundos vais ver as funções principais. Desliza ou toca em Próximo.' },
+    scan:    { title: 'Scaneia qualquer produto', body: 'Aponta ao código de barras ou tira foto do rótulo — vês logo se encaixa na tua dieta e os macros por porção.' },
+    plate:   { title: 'Fotografa pratos inteiros', body: 'Tira uma foto da refeição completa — a IA identifica cada alimento e soma os macros de tudo.' },
+    plan:    { title: 'Plano personalizado para ti', body: 'Dieta e treino construídos a partir do teu corpo, objectivo e tempo disponível. Cada refeição e cada exercício pensado para ti.' },
+    track:   { title: 'Acompanha a tua evolução', body: 'Balanço calórico em tempo real. Diário, semanal e mensal — vês tudo o que comes e queimas ao longo do tempo.' },
+    final:   { title: 'Agora é contigo', body: 'Pronto para transformar o teu dia a dia?', reassure: '14 dias grátis · Cancela quando quiseres · Sem cobrança durante o teste.' },
+  },
   pitch: {
     title: 'Pronto para mudar a tua vida?',
     sub: 'Já viste o essencial. Agora o teu plano real desbloqueia e tudo o que fizeres passa a contar.',
@@ -377,6 +385,14 @@ const en = {
     diary: { title: 'This is the Diet tab', body: 'Your plan with each meal — tap "Ate this" when you eat.' },
     workout: { title: 'This is the Workout tab', body: 'Today\'s session — mark each set as you go.' },
     profile: { title: 'This is the Profile tab', body: 'Language, subscription, help and delete account — all here.' },
+  },
+  tourSlides: {
+    welcome: { title: 'What NovaQI does for you', body: 'In 30 seconds you\'ll see the main features. Swipe or tap Next.' },
+    scan:    { title: 'Scan any product', body: 'Point at a barcode or snap the label — see instantly if it fits your diet and the macros per serving.' },
+    plate:   { title: 'Photograph full plates', body: 'Take a photo of the whole meal — the AI identifies each food and sums the macros.' },
+    plan:    { title: 'A plan built for you', body: 'Diet and workout built from your body, goal and schedule. Every meal and every exercise crafted for you.' },
+    track:   { title: 'Track your progress', body: 'Real-time calorie balance. Daily, weekly and monthly — see what you eat and burn over time.' },
+    final:   { title: 'Now it\'s on you', body: 'Ready to transform your everyday?', reassure: '14 days free · Cancel anytime · No charge during the trial.' },
   },
   pitch: {
     title: 'Ready to change your life?',
@@ -574,6 +590,14 @@ const es = {
     workout: { title: 'Esta es la pestaña Entreno', body: 'Sesión de hoy — marca cada serie mientras la haces.' },
     profile: { title: 'Esta es la pestaña Perfil', body: 'Idioma, suscripción, ayuda y eliminar cuenta — todo aquí.' },
   },
+  tourSlides: {
+    welcome: { title: 'Lo que NovaQI hace por ti', body: 'En 30 segundos verás las funciones principales. Desliza o pulsa Siguiente.' },
+    scan:    { title: 'Escanea cualquier producto', body: 'Apunta al código de barras o fotografía la etiqueta — ves al instante si encaja en tu dieta y los macros por porción.' },
+    plate:   { title: 'Fotografía platos enteros', body: 'Haz una foto de la comida completa — la IA identifica cada alimento y suma los macros.' },
+    plan:    { title: 'Un plan hecho para ti', body: 'Dieta y entreno construidos desde tu cuerpo, objetivo y tiempo disponible. Cada comida y cada ejercicio pensado para ti.' },
+    track:   { title: 'Sigue tu evolución', body: 'Balance calórico en tiempo real. Diario, semanal y mensual — ves todo lo que comes y quemas con el tiempo.' },
+    final:   { title: 'Ahora es tu turno', body: '¿Listo para transformar tu día a día?', reassure: '14 días gratis · Cancela cuando quieras · Sin cargos durante la prueba.' },
+  },
   pitch: {
     title: '¿Listo para cambiar tu vida?',
     sub: 'Ya has visto lo esencial. Ahora tu plan real se desbloquea y todo lo que hagas empieza a contar.',
@@ -769,6 +793,14 @@ const fr = {
     diary: { title: 'Voici l\'onglet Diète', body: 'Ton plan avec chaque repas — appuie "Mangé" quand tu manges.' },
     workout: { title: 'Voici l\'onglet Séance', body: 'La séance du jour — coche chaque série au fur et à mesure.' },
     profile: { title: 'Voici l\'onglet Profil', body: 'Langue, abonnement, aide et suppression de compte — tout est là.' },
+  },
+  tourSlides: {
+    welcome: { title: 'Ce que NovaQI fait pour toi', body: 'En 30 secondes tu vas voir les fonctions principales. Glisse ou appuie sur Suivant.' },
+    scan:    { title: 'Scanne n\'importe quel produit', body: 'Vise un code-barres ou photographie l\'étiquette — tu vois tout de suite s\'il entre dans ton régime et les macros par portion.' },
+    plate:   { title: 'Photographie des assiettes entières', body: 'Prends une photo du repas complet — l\'IA identifie chaque aliment et additionne les macros.' },
+    plan:    { title: 'Un plan fait pour toi', body: 'Alimentation et entraînement construits à partir de ton corps, objectif et temps disponible. Chaque repas et chaque exercice pensé pour toi.' },
+    track:   { title: 'Suis ton évolution', body: 'Bilan calorique en temps réel. Quotidien, hebdomadaire et mensuel — vois tout ce que tu manges et brûles dans le temps.' },
+    final:   { title: 'Maintenant, c\'est à toi', body: 'Prêt à transformer ton quotidien ?', reassure: '14 jours gratuits · Annule quand tu veux · Aucun prélèvement pendant l\'essai.' },
   },
   pitch: {
     title: 'Prêt à changer ta vie ?',
@@ -966,6 +998,14 @@ const de = {
     workout: { title: 'Das ist der Training-Tab', body: 'Die heutige Einheit — hake jeden Satz ab, während du trainierst.' },
     profile: { title: 'Das ist der Profil-Tab', body: 'Sprache, Abo, Hilfe und Konto löschen — alles hier.' },
   },
+  tourSlides: {
+    welcome: { title: 'Was NovaQI für dich macht', body: 'In 30 Sekunden siehst du die wichtigsten Funktionen. Wisch oder tippe auf Weiter.' },
+    scan:    { title: 'Jedes Produkt scannen', body: 'Zeig auf den Barcode oder fotografier das Etikett — du siehst sofort, ob es zu deiner Ernährung passt, und die Makros pro Portion.' },
+    plate:   { title: 'Ganze Teller fotografieren', body: 'Mach ein Foto der ganzen Mahlzeit — die KI erkennt jedes Lebensmittel und summiert die Makros.' },
+    plan:    { title: 'Ein Plan für dich', body: 'Ernährung und Training aus deinem Körper, Ziel und verfügbarer Zeit. Jede Mahlzeit und jede Übung auf dich zugeschnitten.' },
+    track:   { title: 'Deine Entwicklung verfolgen', body: 'Kalorienbilanz in Echtzeit. Täglich, wöchentlich und monatlich — sieh alles, was du isst und verbrennst, über die Zeit.' },
+    final:   { title: 'Jetzt liegt es bei dir', body: 'Bereit, deinen Alltag zu verändern?', reassure: '14 Tage kostenlos · Jederzeit kündbar · Keine Abbuchung während der Testphase.' },
+  },
   pitch: {
     title: 'Bereit, dein Leben zu verändern?',
     sub: 'Du hast das Wesentliche gesehen. Jetzt entsperrt dein echter Plan — alles, was du machst, zählt ab jetzt.',
@@ -1161,6 +1201,14 @@ const it = {
     diary: { title: 'Questa è la scheda Dieta', body: 'Il tuo piano con ogni pasto — tocca "Mangiato" quando mangi.' },
     workout: { title: 'Questa è la scheda Allenamento', body: 'La sessione di oggi — spunta ogni serie mentre la fai.' },
     profile: { title: 'Questa è la scheda Profilo', body: 'Lingua, abbonamento, aiuto e eliminare l\'account — tutto qui.' },
+  },
+  tourSlides: {
+    welcome: { title: 'Cosa fa NovaQI per te', body: 'In 30 secondi vedrai le funzioni principali. Scorri o tocca Avanti.' },
+    scan:    { title: 'Scansiona qualsiasi prodotto', body: 'Punta al codice a barre o fotografa l\'etichetta — vedi subito se rientra nella tua dieta e i macro per porzione.' },
+    plate:   { title: 'Fotografa piatti interi', body: 'Fai una foto del pasto completo — l\'IA identifica ogni alimento e somma i macro.' },
+    plan:    { title: 'Un piano fatto per te', body: 'Dieta e allenamento costruiti dal tuo corpo, obiettivo e tempo disponibile. Ogni pasto e ogni esercizio pensato per te.' },
+    track:   { title: 'Segui la tua evoluzione', body: 'Bilancio calorico in tempo reale. Giornaliero, settimanale e mensile — vedi tutto quello che mangi e bruci nel tempo.' },
+    final:   { title: 'Ora tocca a te', body: 'Pronto a trasformare il tuo quotidiano?', reassure: '14 giorni gratis · Annulla quando vuoi · Nessun addebito durante la prova.' },
   },
   pitch: {
     title: 'Pronto a cambiare la tua vita?',

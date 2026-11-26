@@ -430,12 +430,8 @@ export default function OnboardingV2Screen({ navigation, route }) {
   }
   if (phase === 'reveal') {
     const locked = !['starter', 'premium', 'admin'].includes(user?.user_type);
-    // "Unlock" aqui já não vai direto ao Paywall. Arma o tour demo e leva o utilizador para
-    // Main; o tour arranca lá, passa por tudo, e no fim o SalesPitch encaminha para o Paywall.
-    const startTour = () => {
-      try { arm?.(); } catch {}
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    };
+    // Null users vão para o slide-show (TourSlides) que no fim leva ao Paywall.
+    const startTour = () => navigation.reset({ index: 0, routes: [{ name: 'TourSlides' }] });
     return <Reveal T={T} plan={plan} name={a.name} pal={pal} bg={bg} insets={insets} wide={wide} onEnter={enterApp} onUnlock={startTour} locked={locked} figure={figurePanel} />;
   }
 
