@@ -18,6 +18,14 @@ const pt = {
   },
   sex: { q: 'Sexo biológico', hint: 'Entra na conta do metabolismo.', male: 'Masculino', female: 'Feminino' },
   age: { q: 'Quantos anos você tem?', unit: 'anos' },
+  intro: {
+    you: { title: 'Vamos começar por ti', body: 'Estas respostas calculam o teu gasto diário, o objetivo de calorias e os macros certos para o teu corpo. Quanto mais honesto fores, mais preciso o plano.' },
+    training: { title: 'Agora o teu treino', body: 'Adaptamos a tua ficha à tua experiência, ao tempo que tens e ao local onde treinas — para progredires sem lesões. Se tiveres alguma dor ou problema prévio, dizemos à frente para evitarmos sugestões que o agravem.' },
+    food: { title: 'A tua alimentação', body: 'A dieta, as alergias e as refeições servem para montarmos sugestões que respeitam o que comes. Não propomos nada que te faça mal nem que não aceites por princípio.' },
+    measures: { title: 'As medidas (opcional)', body: 'Com medidas corporais estimamos a tua gordura real e acompanhamos a evolução ao longo do tempo. Sem fita métrica à mão, escolhes a silhueta mais parecida contigo.' },
+    disclaimer: '* Todas as sugestões do NovaQI são informativas e não substituem avaliação médica. Consulta sempre um profissional de saúde antes de iniciar ou alterar uma dieta ou programa de exercício, principalmente se tens lesões, dores ou condições pré-existentes.',
+    cta: 'Continuar',
+  },
   height: { q: 'Sua altura', unit: 'cm' },
   weight: { q: 'Seu peso hoje', unit: 'kg', hint: 'De manhã, em jejum, é o número mais honesto.' },
   activity: {
@@ -179,6 +187,14 @@ const en = {
   },
   sex: { q: 'Biological sex', hint: 'Used for the metabolism math.', male: 'Male', female: 'Female' },
   age: { q: 'How old are you?', unit: 'years' },
+  intro: {
+    you: { title: 'Let\'s start with you', body: 'These answers calculate your daily burn, calorie target and the right macros for your body. The more honest you are, the more accurate the plan.' },
+    training: { title: 'Now your training', body: 'We shape your program to your experience, the time you have and where you train — so you progress without getting hurt. If you have pain or a previous issue, tell us next so we avoid anything that could make it worse.' },
+    food: { title: 'Your food', body: 'Diet, allergies and meal count make sure every suggestion fits what you eat. We\'ll never propose something that hurts you or that you don\'t accept.' },
+    measures: { title: 'Measurements (optional)', body: 'With body measurements we estimate your real body fat and track progress over time. No tape handy? Pick the figure that looks most like you.' },
+    disclaimer: '* All NovaQI suggestions are informational and don\'t replace medical advice. Always consult a healthcare professional before starting or changing a diet or exercise program, especially if you have injuries, pain or pre-existing conditions.',
+    cta: 'Continue',
+  },
   height: { q: 'Your height', unit: 'cm' },
   weight: { q: 'Your weight today', unit: 'kg', hint: 'Morning, before eating, is the most honest number.' },
   activity: {
@@ -340,6 +356,14 @@ const es = {
   },
   sex: { q: 'Sexo biológico', hint: 'Entra en el cálculo del metabolismo.', male: 'Masculino', female: 'Femenino' },
   age: { q: '¿Cuántos años tienes?', unit: 'años' },
+  intro: {
+    you: { title: 'Empezamos por ti', body: 'Estas respuestas calculan tu gasto diario, el objetivo de calorías y los macros adecuados para tu cuerpo. Cuanto más honesto seas, más preciso será el plan.' },
+    training: { title: 'Ahora tu entrenamiento', body: 'Adaptamos tu rutina a tu experiencia, al tiempo que tienes y al lugar donde entrenas — para que progreses sin lesionarte. Si tienes dolor o alguna lesión previa, dínoslo a continuación para evitar lo que pueda empeorarla.' },
+    food: { title: 'Tu alimentación', body: 'La dieta, las alergias y el número de comidas hacen que cada sugerencia encaje con lo que comes. Nunca propondremos algo que te haga daño o que no aceptes.' },
+    measures: { title: 'Medidas (opcional)', body: 'Con medidas corporales estimamos tu grasa real y seguimos tu evolución. Sin cinta métrica a mano, eliges la silueta más parecida a ti.' },
+    disclaimer: '* Todas las sugerencias de NovaQI son informativas y no sustituyen una consulta médica. Consulta siempre a un profesional de la salud antes de empezar o cambiar una dieta o un programa de ejercicio, sobre todo si tienes lesiones, dolor o condiciones preexistentes.',
+    cta: 'Continuar',
+  },
   height: { q: 'Tu altura', unit: 'cm' },
   weight: { q: 'Tu peso hoy', unit: 'kg', hint: 'Por la mañana, en ayunas, es el número más honesto.' },
   activity: {
@@ -501,6 +525,14 @@ const fr = {
   },
   sex: { q: 'Sexe biologique', hint: 'Entre dans le calcul du métabolisme.', male: 'Masculin', female: 'Féminin' },
   age: { q: 'Quel âge as-tu ?', unit: 'ans' },
+  intro: {
+    you: { title: 'On commence par toi', body: 'Ces réponses calculent ta dépense journalière, ton objectif calorique et les bons macros pour ton corps. Plus tu es honnête, plus le plan est précis.' },
+    training: { title: 'Maintenant ton entraînement', body: 'On adapte ton programme à ton expérience, au temps que tu as et à ton lieu d\'entraînement — pour progresser sans te blesser. Si tu as mal ou une blessure, dis-le juste après pour qu\'on évite ce qui pourrait l\'aggraver.' },
+    food: { title: 'Ton alimentation', body: 'Le régime, les allergies et le nombre de repas garantissent que chaque suggestion respecte ce que tu manges. Nous ne proposons jamais quelque chose qui te ferait mal ou que tu refuses.' },
+    measures: { title: 'Mesures (optionnel)', body: 'Avec des mesures corporelles, nous estimons ta masse grasse réelle et suivons ton évolution. Sans mètre ruban, choisis la silhouette la plus proche de toi.' },
+    disclaimer: '* Toutes les suggestions de NovaQI sont informatives et ne remplacent pas un avis médical. Consulte toujours un professionnel de santé avant de commencer ou de modifier un régime ou un programme d\'exercice, surtout en cas de blessures, douleurs ou conditions préexistantes.',
+    cta: 'Continuer',
+  },
   height: { q: 'Ta taille', unit: 'cm' },
   weight: { q: 'Ton poids aujourd’hui', unit: 'kg', hint: 'Le matin, à jeun, c’est le chiffre le plus honnête.' },
   activity: {
@@ -662,6 +694,14 @@ const de = {
   },
   sex: { q: 'Biologisches Geschlecht', hint: 'Fließt in die Stoffwechselrechnung ein.', male: 'Männlich', female: 'Weiblich' },
   age: { q: 'Wie alt bist du?', unit: 'Jahre' },
+  intro: {
+    you: { title: 'Fangen wir mit dir an', body: 'Diese Antworten berechnen deinen Tagesumsatz, dein Kalorienziel und die passenden Makros für deinen Körper. Je ehrlicher du bist, desto genauer der Plan.' },
+    training: { title: 'Jetzt dein Training', body: 'Wir passen dein Programm an deine Erfahrung, deine verfügbare Zeit und deinen Trainingsort an — damit du Fortschritte machst, ohne dich zu verletzen. Hast du Schmerzen oder eine alte Verletzung, sag es gleich danach, damit wir nichts vorschlagen, was es verschlimmern könnte.' },
+    food: { title: 'Deine Ernährung', body: 'Ernährungsform, Allergien und Mahlzeitenanzahl stellen sicher, dass jeder Vorschlag zu dir passt. Wir schlagen niemals etwas vor, das dir schadet oder das du ablehnst.' },
+    measures: { title: 'Maße (optional)', body: 'Mit Körpermaßen schätzen wir deinen echten Körperfettanteil und begleiten deine Entwicklung. Ohne Maßband wählst du die Figur, die dir am nächsten kommt.' },
+    disclaimer: '* Alle Vorschläge von NovaQI sind informativ und ersetzen keine medizinische Beratung. Hol dir immer ärztlichen Rat, bevor du eine Diät oder ein Trainingsprogramm beginnst oder änderst, besonders bei Verletzungen, Schmerzen oder Vorerkrankungen.',
+    cta: 'Weiter',
+  },
   height: { q: 'Deine Größe', unit: 'cm' },
   weight: { q: 'Dein Gewicht heute', unit: 'kg', hint: 'Morgens, nüchtern, ist die ehrlichste Zahl.' },
   activity: {
@@ -823,6 +863,14 @@ const it = {
   },
   sex: { q: 'Sesso biologico', hint: 'Entra nel calcolo del metabolismo.', male: 'Maschile', female: 'Femminile' },
   age: { q: 'Quanti anni hai?', unit: 'anni' },
+  intro: {
+    you: { title: 'Partiamo da te', body: 'Queste risposte calcolano il tuo consumo giornaliero, l\'obiettivo di calorie e i macro giusti per il tuo corpo. Più sei onesto, più preciso è il piano.' },
+    training: { title: 'Ora il tuo allenamento', body: 'Adattiamo la tua scheda alla tua esperienza, al tempo che hai e al posto dove ti alleni — per farti progredire senza infortunarti. Se hai dolore o un infortunio pregresso, diccelo subito dopo per evitare proposte che possano peggiorarlo.' },
+    food: { title: 'La tua alimentazione', body: 'Dieta, allergie e numero di pasti fanno sì che ogni suggerimento rispetti ciò che mangi. Non proporremo mai qualcosa che ti faccia male o che non accetti.' },
+    measures: { title: 'Misure (opzionale)', body: 'Con le misure corporee stimiamo la tua vera massa grassa e seguiamo l\'evoluzione nel tempo. Senza metro a portata, scegli la silhouette più simile a te.' },
+    disclaimer: '* Tutti i suggerimenti di NovaQI sono informativi e non sostituiscono un parere medico. Consulta sempre un professionista della salute prima di iniziare o modificare una dieta o un programma di esercizio, specialmente se hai infortuni, dolori o condizioni preesistenti.',
+    cta: 'Continua',
+  },
   height: { q: 'La tua altezza', unit: 'cm' },
   weight: { q: 'Il tuo peso oggi', unit: 'kg', hint: 'La mattina, a digiuno, è il numero più onesto.' },
   activity: {

@@ -36,16 +36,22 @@ const PAL = {
 const SECTIONS = ['voce', 'treino', 'comida', 'medidas', 'plano'];
 
 const SECTION_OF = {
+  intro_you: 'voce',
   name: 'voce', goal: 'voce', sex: 'voce', age: 'voce', height: 'voce', weight: 'voce', activity: 'voce',
+  intro_training: 'treino',
   experience: 'treino', days: 'treino', session: 'treino', place: 'treino', focus: 'treino', injuries: 'treino',
+  intro_food: 'comida',
   diet: 'comida', allergies: 'comida', meals: 'comida', cooking: 'comida',
+  intro_measures: 'medidas',
   measureMode: 'medidas', silhouette: 'medidas', summary: 'plano',
 };
 const sectionOf = id => (id.startsWith('m_') ? 'medidas' : SECTION_OF[id]);
 
 function buildSteps(a) {
-  const s = ['name', 'goal', 'sex', 'age', 'height', 'weight', 'activity', 'experience', 'days', 'session', 'place', 'focus',
-    'injuries', 'diet', 'allergies', 'meals', 'cooking', 'measureMode'];
+  const s = ['intro_you', 'name', 'goal', 'sex', 'age', 'height', 'weight', 'activity',
+    'intro_training', 'experience', 'days', 'session', 'place', 'focus', 'injuries',
+    'intro_food', 'diet', 'allergies', 'meals', 'cooking',
+    'intro_measures', 'measureMode'];
   if (a.measure_mode === 'tape') s.push(...MEASURES.map(m => `m_${m}`));
   if (a.measure_mode === 'silhouette') s.push('silhouette');
   s.push('summary');
@@ -272,6 +278,20 @@ export default function OnboardingV2Screen({ navigation, route }) {
 
   function renderStep() {
     switch (id) {
+      case 'intro_you':
+      case 'intro_training':
+      case 'intro_food':
+      case 'intro_measures': {
+        const key = id.replace('intro_', '');
+        const intro = T.intro?.[key] || { title: '', body: '' };
+        return (<>
+          <Text style={[st.q, { color: pal.fg, fontSize: wide ? 36 : 28 }]}>{intro.title}</Text>
+          <Text style={[st.hint, { color: pal.fg, fontSize: 16, marginTop: 14, lineHeight: 24 }]}>{intro.body}</Text>
+          <Text style={{ color: pal.fg, fontSize: 11.5, opacity: 0.55, marginTop: 20, lineHeight: 17, ...font('body') }}>
+            {T.intro?.disclaimer}
+          </Text>
+        </>);
+      }
       case 'name':
         return (<>
           <Question q={T.name.q} />
