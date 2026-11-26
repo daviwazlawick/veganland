@@ -583,6 +583,11 @@ function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure, locked,
                     onPress={async () => { setBusy(true); try { await onUnlock(); } finally { setBusy(false); } }}
                     disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 16, width: '100%' }}
                   />
+                  {T.reveal.unlockReassure ? (
+                    <Text style={{ color: pal.fg, fontSize: 12.5, textAlign: 'center', marginTop: 12, lineHeight: 18, opacity: 0.7, ...font('body') }}>
+                      {T.reveal.unlockReassure}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             </View>
