@@ -19,6 +19,7 @@ import {
 } from '../services/purchasesService';
 import { logStartTrial, logSubscribe } from '../services/analyticsService';
 import { logFunnelEvent } from '../services/funnelService';
+import { apiGetMe } from '../services/apiService';
 
 const PLANS = [
   {
@@ -178,8 +179,23 @@ export default function PaywallScreen({ navigation, route }) {
         logSubscribe({ price, currency, planId: plan.id });
       }
       updateUserType(newUserType);
+      // RC pode resolver antes do receipt validar; o servidor confirma via webhook.
+      // Pede /auth/me até 5× (1s de intervalo) para apanhar o user_type real já pago.
+      let finalUserType = newUserType;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const data = await apiGetMe(token);
+          const srvType = data?.user?.user_type;
+          if (['starter', 'premium', 'admin'].includes(srvType)) {
+            updateUserType(srvType);
+            finalUserType = srvType;
+            break;
+          }
+        } catch {}
+        if (i < 4) await new Promise(r => setTimeout(r, 1000));
+      }
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-      if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
+      if (route?.params?.onPurchase) route.params.onPurchase(finalUserType);
     } catch (e) {
       if (!e.userCancelled) {
         Alert.alert('', t(language, 'plans.purchase_error'));
@@ -204,8 +220,22 @@ export default function PaywallScreen({ navigation, route }) {
       }
       const newUserType = entitlementToUserType(entId);
       updateUserType(newUserType);
+      // Confirma com o servidor antes de prosseguir, igual ao fluxo de compra.
+      let finalUserType = newUserType;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const data = await apiGetMe(token);
+          const srvType = data?.user?.user_type;
+          if (['starter', 'premium', 'admin'].includes(srvType)) {
+            updateUserType(srvType);
+            finalUserType = srvType;
+            break;
+          }
+        } catch {}
+        if (i < 4) await new Promise(r => setTimeout(r, 1000));
+      }
       Alert.alert('', t(language, 'plans.restore_done'));
-      if (route?.params?.onPurchase) route.params.onPurchase(newUserType);
+      if (route?.params?.onPurchase) route.params.onPurchase(finalUserType);
     } catch (e) {
       if (!e.userCancelled) Alert.alert('', t(language, 'plans.purchase_error'));
     } finally {
