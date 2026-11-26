@@ -174,14 +174,13 @@ export default function AppNavigator() {
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
   // Null user (post-lock signup sem plano):
-  //   - Nunca passou pelo demo tour → Main em modo demo (escritas não persistem).
-  //   - Já passou → Paywall no cold start até comprar.
-  // Legacy users (user_type absent ou qualquer tier) seguem para Main normalmente.
+  //   - Demo ainda não terminou → TourSlides (slide-show pre-paywall).
+  //   - Demo terminou → Paywall no cold start.
+  // Legacy users (user_type absent ou qualquer tier) seguem para Main.
   const nullTier = user?.user_type === null;
-  const onboardingScanAvailable = nullTier && user?.onboarding_scan_used !== true;
-  const profileInitialRoute = onboardingScanAvailable
-    ? 'Scan'
-    : (nullTier && demoDone) ? 'Paywall' : 'Main';
+  const profileInitialRoute = nullTier
+    ? (demoDone ? 'Paywall' : 'TourSlides')
+    : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
     return (
