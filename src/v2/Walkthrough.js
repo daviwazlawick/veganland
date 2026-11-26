@@ -6,6 +6,7 @@ import { font } from '../theme/type';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { s2 } from './strings';
+import { navigationRef } from '../navigation/AppNavigator';
 
 const WalkthroughContext = createContext(null);
 
@@ -80,12 +81,17 @@ export function useTourTarget(name) {
 }
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
-// Cada step: id, kind, target (opcional), place (above/below do callout), onNextIsTap (se precisa de tap real no alvo)
+// kind: modal (centered no overlay) | spot (aponta para alvo) | screen (navega e mostra modal)
 const STEPS = [
   { id: 'welcome', kind: 'modal' },
   { id: 'pill',    kind: 'spot', target: 'home.pill',  place: 'below' },
   { id: 'scan',    kind: 'spot', target: 'home.scan',  place: 'above' },
   { id: 'plate',   kind: 'spot', target: 'home.plate', place: 'above' },
+  { id: 'water',   kind: 'spot', target: 'home.water', place: 'above' },
+  { id: 'diary',   kind: 'screen', route: 'Plan' }, // "Plan" é a aba Dieta
+  { id: 'workout', kind: 'screen', route: 'Workout' },
+  { id: 'profile', kind: 'screen', route: 'Profile' },
+  { id: 'done',    kind: 'screen', route: 'SalesPitch' }, // último — SalesPitch screen fecha o loop
 ];
 
 // ─── Overlay (render) ────────────────────────────────────────────────────────
@@ -98,6 +104,35 @@ export function WalkthroughOverlay() {
   const step = STEPS[stepIdx];
   const tr = T.tour?.[step.id] || { title: '', body: '' };
   const { width: W, height: H } = Dimensions.get('window');
+
+  // Screen step: navega para a rota uma vez e mostra modal. Para 'done' navega para
+  // o SalesPitch e fecha o tour.
+  if (step.kind === 'screen') {
+    // Fire-and-forget navigation. Pequeno delay garante que o navigator está pronto.
+    try {
+      if (step.id === 'done') {
+        navigationRef.navigate?.('SalesPitch');
+        // Encerra o tour: SalesPitch cuida do resto (CTA → Paywall).
+        setTimeout(() => skip(), 0);
+        return null;
+      }
+      navigationRef.navigate?.('Main', { screen: step.route });
+    } catch {}
+    return (
+      <View style={st.full} pointerEvents="auto">
+        <View style={st.scrim} />
+        <View style={st.modalWrap} pointerEvents="box-none">
+          <View style={st.modalCard}>
+            <Text style={st.modalTitle}>{tr.title}</Text>
+            {tr.body ? <Text style={st.modalBody}>{tr.body}</Text> : null}
+            <Pressable onPress={next} style={({ pressed }) => [st.cta, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+              <Text style={st.ctaText}>{T.tour?.next || 'Próximo'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   if (step.kind === 'modal') {
     return (

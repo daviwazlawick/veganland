@@ -72,6 +72,7 @@ export default function HomeScreen({ navigation }) {
   const tourScan = useTourTarget('home.scan');
   const tourPlate = useTourTarget('home.plate');
   const tourPill = useTourTarget('home.pill');
+  const tourWater = useTourTarget('home.water');
 
   useEffect(() => {
     if (!token || isNovaQI) return;
@@ -344,6 +345,8 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
               <View style={styles.quickRule} />
               <TouchableOpacity
+                ref={tourWater.ref}
+                onLayout={tourWater.measure}
                 style={styles.quickItem}
                 onPress={() => setShowWaterModal(true)}
                 activeOpacity={0.7}

@@ -176,6 +176,22 @@ const pt = {
     pill: { title: 'O teu dia vive aqui', body: 'Meta, consumido e queimado em tempo real.' },
     scan: { title: 'Scaneia qualquer produto', body: 'Toca aqui para verificar se encaixa na tua dieta antes de comer.' },
     plate: { title: 'Fotografa a refeição', body: 'Prato inteiro — a IA identifica cada item e soma os macros.' },
+    water: { title: 'Hidratação num toque', body: 'Toca aqui para somares água ao teu dia.' },
+    diary: { title: 'O teu plano de dieta', body: 'Aqui vês cada refeição do teu plano e marcas o que já comeste.' },
+    workout: { title: 'A tua ficha de treino', body: 'Treino de hoje com séries, cargas e progressão automática.' },
+    profile: { title: 'Perfil e definições', body: 'Idioma, subscrição, apagar conta e ajuda — tudo aqui.' },
+  },
+  pitch: {
+    title: 'Pronto para mudar a tua vida?',
+    sub: 'Já viste o essencial. Agora o teu plano real desbloqueia e tudo o que fizeres passa a contar.',
+    bullets: [
+      'Plano de dieta personalizado, com cada refeição e macro calculados para ti',
+      'Treino com séries, cargas e progressão automática',
+      'Scan de produtos ilimitado dentro do teu plano',
+      'Diário diário, semanal e mensal com balanço calórico em tempo real',
+    ],
+    cta: 'Começar o meu trial grátis',
+    reassure: '14 dias grátis · Cancela quando quiseres · Sem cobrança durante o período de teste.',
   },
 };
 
@@ -355,6 +371,22 @@ const en = {
     pill: { title: 'Your day lives here', body: 'Target, eaten and burned — in real time.' },
     scan: { title: 'Scan any product', body: 'Tap here to check if it fits your diet before you eat it.' },
     plate: { title: 'Photograph the meal', body: 'Full plate — the AI identifies each item and sums the macros.' },
+    water: { title: 'Hydration in one tap', body: 'Tap here to add water to your day.' },
+    diary: { title: 'Your diet plan', body: 'See each meal in your plan and tick what you ate.' },
+    workout: { title: 'Your workout program', body: 'Today\'s session with sets, loads and automatic progression.' },
+    profile: { title: 'Profile and settings', body: 'Language, subscription, delete account and help — all here.' },
+  },
+  pitch: {
+    title: 'Ready to change your life?',
+    sub: 'You\'ve seen the essentials. Now your real plan unlocks and everything you do starts to count.',
+    bullets: [
+      'Personalized diet plan — every meal and macro built for you',
+      'Workout with sets, loads and automatic progression',
+      'Unlimited product scans inside your plan',
+      'Daily, weekly and monthly diary with real-time calorie balance',
+    ],
+    cta: 'Start my free trial',
+    reassure: '14 days free · Cancel anytime · No charge during the trial.',
   },
 };
 
@@ -534,6 +566,22 @@ const es = {
     pill: { title: 'Tu día vive aquí', body: 'Meta, consumido y quemado en tiempo real.' },
     scan: { title: 'Escanea cualquier producto', body: 'Toca aquí para comprobar si encaja en tu dieta antes de comerlo.' },
     plate: { title: 'Fotografía la comida', body: 'Plato entero — la IA identifica cada ítem y suma los macros.' },
+    water: { title: 'Hidratación en un toque', body: 'Toca aquí para sumar agua a tu día.' },
+    diary: { title: 'Tu plan de dieta', body: 'Ves cada comida de tu plan y marcas lo que ya comiste.' },
+    workout: { title: 'Tu rutina de entreno', body: 'Sesión de hoy con series, cargas y progresión automática.' },
+    profile: { title: 'Perfil y ajustes', body: 'Idioma, suscripción, eliminar cuenta y ayuda — todo aquí.' },
+  },
+  pitch: {
+    title: '¿Listo para cambiar tu vida?',
+    sub: 'Ya has visto lo esencial. Ahora tu plan real se desbloquea y todo lo que hagas empieza a contar.',
+    bullets: [
+      'Plan de dieta personalizado, con cada comida y macro calculados para ti',
+      'Entreno con series, cargas y progresión automática',
+      'Escaneo de productos ilimitado dentro de tu plan',
+      'Diario diario, semanal y mensual con balance calórico en tiempo real',
+    ],
+    cta: 'Empezar mi prueba gratuita',
+    reassure: '14 días gratis · Cancela cuando quieras · Sin cargos durante la prueba.',
   },
 };
 
@@ -713,6 +761,22 @@ const fr = {
     pill: { title: 'Ta journée est ici', body: 'Objectif, mangé et brûlé en temps réel.' },
     scan: { title: 'Scanne n\'importe quel produit', body: 'Appuie ici pour vérifier s\'il entre dans ton régime avant de le manger.' },
     plate: { title: 'Photographie ton repas', body: 'Assiette entière — l\'IA identifie chaque élément et additionne les macros.' },
+    water: { title: 'Hydratation en un geste', body: 'Appuie ici pour ajouter de l\'eau à ta journée.' },
+    diary: { title: 'Ton plan alimentaire', body: 'Vois chaque repas de ton plan et coche ce que tu as mangé.' },
+    workout: { title: 'Ton programme de séance', body: 'Séance du jour avec séries, charges et progression automatique.' },
+    profile: { title: 'Profil et paramètres', body: 'Langue, abonnement, suppression de compte et aide — tout est là.' },
+  },
+  pitch: {
+    title: 'Prêt à changer ta vie ?',
+    sub: 'Tu as vu l\'essentiel. Maintenant ton vrai plan se débloque et tout ce que tu fais commence à compter.',
+    bullets: [
+      'Plan alimentaire personnalisé — chaque repas et macro conçus pour toi',
+      'Entraînement avec séries, charges et progression automatique',
+      'Scans de produits illimités dans ton plan',
+      'Journal quotidien, hebdomadaire et mensuel avec bilan calorique en temps réel',
+    ],
+    cta: 'Commencer mon essai gratuit',
+    reassure: '14 jours gratuits · Annule quand tu veux · Aucun prélèvement pendant l\'essai.',
   },
 };
 
@@ -892,6 +956,22 @@ const de = {
     pill: { title: 'Dein Tag lebt hier', body: 'Ziel, gegessen und verbrannt — in Echtzeit.' },
     scan: { title: 'Jedes Produkt scannen', body: 'Tippe hier, um zu prüfen, ob es zu deiner Ernährung passt, bevor du es isst.' },
     plate: { title: 'Mahlzeit fotografieren', body: 'Ganzer Teller — die KI erkennt jedes Element und summiert die Makros.' },
+    water: { title: 'Hydration mit einem Tipp', body: 'Tippe hier, um Wasser zu deinem Tag hinzuzufügen.' },
+    diary: { title: 'Dein Ernährungsplan', body: 'Sieh jede Mahlzeit deines Plans und hake ab, was du schon gegessen hast.' },
+    workout: { title: 'Dein Trainingsprogramm', body: 'Heutige Einheit mit Sätzen, Gewichten und automatischer Progression.' },
+    profile: { title: 'Profil und Einstellungen', body: 'Sprache, Abo, Konto löschen und Hilfe — alles hier.' },
+  },
+  pitch: {
+    title: 'Bereit, dein Leben zu verändern?',
+    sub: 'Du hast das Wesentliche gesehen. Jetzt entsperrt dein echter Plan — alles, was du machst, zählt ab jetzt.',
+    bullets: [
+      'Persönlicher Ernährungsplan — jede Mahlzeit und jedes Makro für dich berechnet',
+      'Training mit Sätzen, Gewichten und automatischer Progression',
+      'Unbegrenzte Produkt-Scans innerhalb deines Plans',
+      'Tages-, Wochen- und Monatstagebuch mit Kalorienbilanz in Echtzeit',
+    ],
+    cta: 'Mein kostenloses Trial starten',
+    reassure: '14 Tage kostenlos · Jederzeit kündbar · Keine Abbuchung während der Testphase.',
   },
 };
 
@@ -1071,6 +1151,22 @@ const it = {
     pill: { title: 'La tua giornata è qui', body: 'Obiettivo, mangiato e bruciato in tempo reale.' },
     scan: { title: 'Scansiona qualsiasi prodotto', body: 'Tocca qui per verificare se rientra nella tua dieta prima di mangiarlo.' },
     plate: { title: 'Fotografa il pasto', body: 'Piatto intero — l\'IA identifica ogni elemento e somma i macro.' },
+    water: { title: 'Idratazione in un tocco', body: 'Tocca qui per aggiungere acqua alla tua giornata.' },
+    diary: { title: 'Il tuo piano alimentare', body: 'Vedi ogni pasto del tuo piano e spunta cosa hai mangiato.' },
+    workout: { title: 'La tua scheda di allenamento', body: 'Sessione di oggi con serie, carichi e progressione automatica.' },
+    profile: { title: 'Profilo e impostazioni', body: 'Lingua, abbonamento, eliminare l\'account e aiuto — tutto qui.' },
+  },
+  pitch: {
+    title: 'Pronto a cambiare la tua vita?',
+    sub: 'Hai visto l\'essenziale. Ora il tuo piano reale si sblocca e tutto quello che fai inizia a contare.',
+    bullets: [
+      'Piano alimentare personalizzato — ogni pasto e macro calcolati per te',
+      'Allenamento con serie, carichi e progressione automatica',
+      'Scansioni di prodotti illimitate dentro il tuo piano',
+      'Diario giornaliero, settimanale e mensile con bilancio calorico in tempo reale',
+    ],
+    cta: 'Inizia la mia prova gratuita',
+    reassure: '14 giorni gratis · Annulla quando vuoi · Nessun addebito durante la prova.',
   },
 };
 

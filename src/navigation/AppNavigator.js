@@ -39,6 +39,7 @@ import { t } from '../i18n';
 import OnboardingV2Screen from '../v2/OnboardingV2Screen';
 import DietPlanScreen from '../v2/DietPlanScreen';
 import WorkoutScreen from '../v2/WorkoutScreen';
+import SalesPitchScreen from '../v2/SalesPitchScreen';
 import { s2 } from '../v2/strings';
 import { PremiumIcon } from '../components/ui';
 
@@ -218,6 +219,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
+            <Stack.Screen name="SalesPitch" component={SalesPitchScreen} options={{ gestureEnabled: false }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
             <Stack.Screen name="Referral" component={ReferralScreen} />
             <Stack.Screen name="BodyProfile" component={BodyProfileScreen} />
