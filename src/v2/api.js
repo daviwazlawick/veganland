@@ -24,11 +24,23 @@ async function call(token, method, path, body) {
 export const v2GetFitness = token => call(token, 'GET', '/v2/fitness');
 export const v2SaveProfile = (token, profile, first = false) => call(token, 'PUT', '/v2/fitness/profile', { profile, first });
 export const v2GeneratePlan = (token, language) => call(token, 'POST', '/v2/fitness/plan', { language });
-export const v2LogMeal = (token, meal, local_date, meal_type) => call(token, 'POST', '/v2/diet/log-meal', { meal, local_date, meal_type });
-export const v2SaveSet = (token, data) => call(token, 'POST', '/v2/workout/set', data);
 export const v2WorkoutState = (token, date) => call(token, 'GET', `/v2/workout/state?date=${date}`);
 export const v2ExerciseHistory = (token, key) => call(token, 'GET', `/v2/workout/history?exercise=${encodeURIComponent(key)}`);
-export const v2LogSession = (token, local_date, day_key, duration_min) => call(token, 'POST', '/v2/workout/log-session', { local_date, day_key, duration_min });
+
+// As escritas abaixo respeitam demo mode: quando chamadas com { demoMode: true }
+// no último argumento, devolvem uma resposta fake e não batem no servidor.
+export const v2LogMeal = (token, meal, local_date, meal_type, opts = {}) => {
+  if (opts.demoMode) return Promise.resolve({ ok: true, ids: [`demo-${Date.now()}`], demo: true });
+  return call(token, 'POST', '/v2/diet/log-meal', { meal, local_date, meal_type });
+};
+export const v2SaveSet = (token, data, opts = {}) => {
+  if (opts.demoMode) return Promise.resolve({ ...data, id: `demo-${Date.now()}`, logged_at: new Date().toISOString(), demo: true });
+  return call(token, 'POST', '/v2/workout/set', data);
+};
+export const v2LogSession = (token, local_date, day_key, duration_min, opts = {}) => {
+  if (opts.demoMode) return Promise.resolve({ id: `demo-${Date.now()}`, local_date, day_key, duration_min, demo: true });
+  return call(token, 'POST', '/v2/workout/log-session', { local_date, day_key, duration_min });
+};
 
 export function localDate(d = new Date()) {
   const z = n => String(n).padStart(2, '0');

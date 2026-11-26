@@ -21,7 +21,7 @@ const fmtKg = v => (v == null ? '' : String(Number(v)).replace('.', ','));
 
 export default function WorkoutScreen() {
   const { language } = useApp();
-  const { token } = useAuth();
+  const { token, demoMode } = useAuth();
   const T = s2(language);
   const insets = useSafeAreaInsets();
   const { loading, plan } = usePlan();
@@ -51,9 +51,9 @@ export default function WorkoutScreen() {
     // Marca na tela antes da resposta: na academia ninguém espera spinner.
     setState(s => ({ ...s, today: was ? s.today.filter(r => !(r.exercise_key === ex.key && r.set_index === i)) : [...s.today, { ...body, weight_kg: weight, reps }] }));
     try {
-      await v2SaveSet(token, was ? { ...body, remove: true } : { ...body, weight_kg: weight, reps });
+      await v2SaveSet(token, was ? { ...body, remove: true } : { ...body, weight_kg: weight, reps }, { demoMode });
       if (!was && ex.rest_s) setTimer({ until: Date.now() + ex.rest_s * 1000, total: ex.rest_s });
-    } catch { load(); }
+    } catch { if (!demoMode) load(); }
   }
 
   if (loading) return <View style={[s.root, s.center]}><ActivityIndicator color={C.green} /></View>;
@@ -119,7 +119,7 @@ export default function WorkoutScreen() {
             {doneSets === totalSets && totalSets > 0 ? (
               <>
                 <View style={[s.restCard, { backgroundColor: C.forest }]}><Text style={[s.restTitle, { color: '#fff' }]}>{T.workout.finished}</Text></View>
-                <AutoLogSession token={token} date={date} dayKey={session.key} durationMin={session.duration_min} onceRef={loggedSessionRef} />
+                <AutoLogSession token={token} date={date} dayKey={session.key} durationMin={session.duration_min} onceRef={loggedSessionRef} demoMode={demoMode} />
               </>
             ) : doneSets > 0 ? (
               <EndEarlyButton
@@ -129,8 +129,8 @@ export default function WorkoutScreen() {
                 onConfirm={() => {
                   const ratio = doneSets / totalSets;
                   const dur = Math.max(5, Math.round((Number(session.duration_min) || 45) * ratio));
-                  v2LogSession(token, date, session.key, dur)
-                    .then(() => { loggedSessionRef.current = `${date}#${session.key}`; load(); })
+                  v2LogSession(token, date, session.key, dur, { demoMode })
+                    .then(() => { loggedSessionRef.current = `${date}#${session.key}`; if (!demoMode) load(); })
                     .catch(() => {});
                 }}
               />
@@ -154,14 +154,14 @@ export default function WorkoutScreen() {
 }
 
 // Dispara o log da sessão uma vez por data+day_key. onceRef guarda a chave para não re-enviar.
-function AutoLogSession({ token, date, dayKey, durationMin, onceRef }) {
+function AutoLogSession({ token, date, dayKey, durationMin, onceRef, demoMode }) {
   useEffect(() => {
     if (!token || !dayKey) return;
     const key = `${date}#${dayKey}`;
     if (onceRef.current === key) return;
     onceRef.current = key;
-    v2LogSession(token, date, dayKey, durationMin).catch(() => { onceRef.current = null; });
-  }, [token, date, dayKey, durationMin, onceRef]);
+    v2LogSession(token, date, dayKey, durationMin, { demoMode }).catch(() => { onceRef.current = null; });
+  }, [token, date, dayKey, durationMin, onceRef, demoMode]);
   return null;
 }
 

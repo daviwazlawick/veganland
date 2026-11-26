@@ -10,6 +10,7 @@ const AuthContext = createContext(null);
 const TOKEN_KEY = '@veganland_auth_token';
 const USER_KEY = '@veganland_auth_user';
 const LAUNCHED_KEY = '@veganland_launched';
+const DEMO_DONE_KEY = '@veganland_demo_done';
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
   const [hasLaunchedBefore, setHasLaunchedBefore] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [sessionExpiredAt, setSessionExpiredAt] = useState(null);
+  const [demoDone, setDemoDone] = useState(false);
   const loggingOutRef = useRef(false);
 
   useEffect(() => {
@@ -41,11 +43,13 @@ export function AuthProvider({ children }) {
 
   async function loadStoredAuth() {
     try {
-      const [storedToken, storedUser, launched] = await Promise.all([
+      const [storedToken, storedUser, launched, demo] = await Promise.all([
         AsyncStorage.getItem(TOKEN_KEY),
         AsyncStorage.getItem(USER_KEY),
         AsyncStorage.getItem(LAUNCHED_KEY),
+        AsyncStorage.getItem(DEMO_DONE_KEY),
       ]);
+      if (demo === '1') setDemoDone(true);
       if (storedToken) {
         setToken(storedToken);
         if (storedUser) {
@@ -193,8 +197,18 @@ export function AuthProvider({ children }) {
     } catch {}
   }
 
+  // Marcar o demo tour como concluído. Daqui para a frente, null users vão direto ao Paywall.
+  async function completeDemo() {
+    setDemoDone(true);
+    try { await AsyncStorage.setItem(DEMO_DONE_KEY, '1'); } catch {}
+  }
+
+  // Null + demoDone === false → o utilizador está em "modo demo": acede à app mas nenhuma
+  // acção de escrita (log, scan, treino) persiste. É um tour para converter.
+  const demoMode = user?.user_type === null && !demoDone;
+
   return (
-    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser, markOnboardingScanUsed, sessionExpiredAt }}>
+    <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser, markOnboardingScanUsed, sessionExpiredAt, demoMode, demoDone, completeDemo }}>
       {children}
     </AuthContext.Provider>
   );

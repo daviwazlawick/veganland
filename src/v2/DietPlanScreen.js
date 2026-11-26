@@ -19,7 +19,7 @@ const C = { bg: '#F1F3EF', card: '#FFFFFF', ink: '#17221B', muted: '#5F6E66', gr
 
 export default function DietPlanScreen({ navigation }) {
   const { language } = useApp();
-  const { token } = useAuth();
+  const { token, demoMode } = useAuth();
   const T = s2(language);
   const insets = useSafeAreaInsets();
   const { loading, plan } = usePlan();
@@ -48,12 +48,14 @@ export default function DietPlanScreen({ navigation }) {
   async function ate(meal) {
     setBusy(meal.key);
     try {
-      await v2LogMeal(token, meal, today, mealTypeFor(meal));
+      await v2LogMeal(token, meal, today, mealTypeFor(meal), { demoMode });
       const nd = [...done, meal.key];
       setDone(nd);
       AsyncStorage.setItem(key, JSON.stringify(nd)).catch(() => {});
-      const r = await apiGetDayLog(token, today);
-      setLog(Array.isArray(r) ? r : []);
+      if (!demoMode) {
+        const r = await apiGetDayLog(token, today);
+        setLog(Array.isArray(r) ? r : []);
+      }
     } catch {} finally { setBusy(null); }
   }
 

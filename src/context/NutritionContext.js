@@ -14,7 +14,7 @@ import {
 const NutritionContext = createContext(null);
 
 export function NutritionProvider({ children }) {
-  const { token } = useAuth();
+  const { token, demoMode } = useAuth();
   const [bodyProfile, setBodyProfile] = useState(null);
   const [goals, setGoals] = useState(null);
   const [todayLog, setTodayLog] = useState([]);
@@ -67,11 +67,17 @@ export function NutritionProvider({ children }) {
 
   const logConsumption = useCallback(async (entry) => {
     if (!token) return null;
+    // Demo mode: optimistic local-only. Não bate no servidor, não persiste.
+    if (demoMode) {
+      const fake = { id: `demo-${Date.now()}`, ...entry, local_date: entry.local_date || todayStr() };
+      setTodayLog(prev => [...prev, fake]);
+      return fake;
+    }
     const res = await apiLogConsumption(token, entry);
     const log = await apiGetDayLog(token, todayStr());
     setTodayLog(Array.isArray(log) ? log : []);
     return res;
-  }, [token]);
+  }, [token, demoMode]);
 
   const updateConsumption = useCallback(async (id, entry) => {
     if (!token) return null;
@@ -108,6 +114,13 @@ export function NutritionProvider({ children }) {
 
   const logExercise = useCallback(async (entry) => {
     if (!token) return null;
+    if (demoMode) {
+      const fake = { id: `demo-${Date.now()}`, ...entry };
+      if (!entry?.local_date || entry.local_date === todayStr()) {
+        setTodayExercise(prev => [...prev, fake]);
+      }
+      return fake;
+    }
     const res = await apiLogExercise(token, entry);
     // Only merge into todayExercise when the entry is actually for today —
     // logging into a past date must not inflate the "today" burn card.
@@ -115,7 +128,7 @@ export function NutritionProvider({ children }) {
       setTodayExercise(prev => [...prev, res]);
     }
     return res;
-  }, [token]);
+  }, [token, demoMode]);
 
   const deleteExercise = useCallback(async (id) => {
     if (!token) return;

@@ -168,24 +168,18 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { token, user, hasLaunchedBefore, isLoaded: authLoaded } = useAuth();
+  const { token, user, hasLaunchedBefore, isLoaded: authLoaded, demoDone } = useAuth();
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
-  // Users whose user_type is explicitly null (post-lock signups who haven't
-  // picked a plan yet) are routed away from Main. If they still have their
-  // one free onboarding scan available, we send them through the guided
-  // Scan flow first; otherwise straight to the paywall.
-  // Legacy users (any tier, including 'free') and paid users go to Main.
-  // Cached sessions from before this change have user_type absent (undefined)
-  // and are treated as legacy — they are NOT forced into the paywall.
-  // Users sem plano (null) sempre vão para o Paywall no cold start, tanto em V1 como V2.
-  // No V2 o reveal do onboarding mostra preview desbloqueável antes, mas se saírem/fecharem
-  // a app, próximo arranque cai no Paywall até comprarem.
+  // Null user (post-lock signup sem plano):
+  //   - Nunca passou pelo demo tour → Main em modo demo (escritas não persistem).
+  //   - Já passou → Paywall no cold start até comprar.
+  // Legacy users (user_type absent ou qualquer tier) seguem para Main normalmente.
   const nullTier = user?.user_type === null;
   const onboardingScanAvailable = nullTier && user?.onboarding_scan_used !== true;
   const profileInitialRoute = onboardingScanAvailable
     ? 'Scan'
-    : nullTier ? 'Paywall' : 'Main';
+    : (nullTier && demoDone) ? 'Paywall' : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
     return (
