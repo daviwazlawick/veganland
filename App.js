@@ -10,7 +10,6 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { ReferralProvider, useReferral } from './src/context/ReferralContext';
 import { NutritionProvider } from './src/context/NutritionContext';
-import { WalkthroughProvider, WalkthroughOverlay } from './src/v2/Walkthrough';
 import AppNavigator, { navigationRef } from './src/navigation/AppNavigator';
 import usePushNotifications from './src/hooks/usePushNotifications';
 import ForceUpdateScreen from './src/screens/ForceUpdateScreen';
@@ -83,7 +82,6 @@ function AppContent() {
     <View style={{ flex: 1 }}>
       <AppNavigator />
       <PendingReferralPrompt />
-      <WalkthroughOverlay />
     </View>
   );
 }
@@ -98,9 +96,7 @@ export default function App() {
         <AppProvider>
           <ReferralProvider>
             <NutritionProvider>
-              <WalkthroughProvider>
-                <AppContent />
-              </WalkthroughProvider>
+              <AppContent />
             </NutritionProvider>
           </ReferralProvider>
         </AppProvider>

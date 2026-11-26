@@ -203,9 +203,9 @@ export function AuthProvider({ children }) {
     try { await AsyncStorage.setItem(DEMO_DONE_KEY, '1'); } catch {}
   }
 
-  // Null + demoDone === false → o utilizador está em "modo demo": acede à app mas nenhuma
-  // acção de escrita (log, scan, treino) persiste. É um tour para converter.
-  const demoMode = user?.user_type === null && !demoDone;
+  // Demo mode removido: null users já não acedem à Main — vão direto para o slide-show
+  // (TourSlides) e daí para o Paywall. Mantido aqui como false para não quebrar consumers.
+  const demoMode = false;
 
   return (
     <AuthContext.Provider value={{ token, user, isLoaded, hasLaunchedBefore, login, register, signInWithProvider, logout, updateUserType, refreshUser, markOnboardingScanUsed, sessionExpiredAt, demoMode, demoDone, completeDemo }}>
