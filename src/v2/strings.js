@@ -168,6 +168,15 @@ const pt = {
     endCancel: 'Continuar treino',
   },
   home: { workoutToday: 'Treino de hoje', restToday: 'Descanso hoje', nextMeal: 'Próxima refeição', open: 'Abrir' },
+  tour: {
+    start: 'Começar',
+    next: 'Próximo',
+    skip: 'Saltar',
+    welcome: { title: 'Deixa-nos mostrar-te', body: 'Em menos de um minuto vais ver como o NovaQI funciona. Toca sempre no destacado para avançar.' },
+    pill: { title: 'O teu dia vive aqui', body: 'Meta, consumido e queimado em tempo real.' },
+    scan: { title: 'Scaneia qualquer produto', body: 'Toca aqui para verificar se encaixa na tua dieta antes de comer.' },
+    plate: { title: 'Fotografa a refeição', body: 'Prato inteiro — a IA identifica cada item e soma os macros.' },
+  },
 };
 
 const en = {
@@ -338,6 +347,15 @@ const en = {
     endCancel: 'Keep training',
   },
   home: { workoutToday: 'Today’s workout', restToday: 'Rest today', nextMeal: 'Next meal', open: 'Open' },
+  tour: {
+    start: 'Start',
+    next: 'Next',
+    skip: 'Skip',
+    welcome: { title: 'Let us show you around', body: 'In less than a minute you\'ll see how NovaQI works. Always tap the highlighted area to move forward.' },
+    pill: { title: 'Your day lives here', body: 'Target, eaten and burned — in real time.' },
+    scan: { title: 'Scan any product', body: 'Tap here to check if it fits your diet before you eat it.' },
+    plate: { title: 'Photograph the meal', body: 'Full plate — the AI identifies each item and sums the macros.' },
+  },
 };
 
 const es = {
@@ -508,6 +526,15 @@ const es = {
     endCancel: 'Seguir entrenando',
   },
   home: { workoutToday: 'Entreno de hoy', restToday: 'Descanso hoy', nextMeal: 'Próxima comida', open: 'Abrir' },
+  tour: {
+    start: 'Empezar',
+    next: 'Siguiente',
+    skip: 'Saltar',
+    welcome: { title: 'Te mostramos cómo', body: 'En menos de un minuto verás cómo funciona NovaQI. Toca siempre lo destacado para avanzar.' },
+    pill: { title: 'Tu día vive aquí', body: 'Meta, consumido y quemado en tiempo real.' },
+    scan: { title: 'Escanea cualquier producto', body: 'Toca aquí para comprobar si encaja en tu dieta antes de comerlo.' },
+    plate: { title: 'Fotografía la comida', body: 'Plato entero — la IA identifica cada ítem y suma los macros.' },
+  },
 };
 
 const fr = {
@@ -678,6 +705,15 @@ const fr = {
     endCancel: 'Continuer',
   },
   home: { workoutToday: 'Séance du jour', restToday: 'Repos aujourd’hui', nextMeal: 'Prochain repas', open: 'Ouvrir' },
+  tour: {
+    start: 'Commencer',
+    next: 'Suivant',
+    skip: 'Passer',
+    welcome: { title: 'Laisse-nous te montrer', body: 'En moins d\'une minute tu verras comment NovaQI fonctionne. Appuie toujours sur la zone en surbrillance pour avancer.' },
+    pill: { title: 'Ta journée est ici', body: 'Objectif, mangé et brûlé en temps réel.' },
+    scan: { title: 'Scanne n\'importe quel produit', body: 'Appuie ici pour vérifier s\'il entre dans ton régime avant de le manger.' },
+    plate: { title: 'Photographie ton repas', body: 'Assiette entière — l\'IA identifie chaque élément et additionne les macros.' },
+  },
 };
 
 const de = {
@@ -848,6 +884,15 @@ const de = {
     endCancel: 'Weitertrainieren',
   },
   home: { workoutToday: 'Heutiges Training', restToday: 'Heute Pause', nextMeal: 'Nächste Mahlzeit', open: 'Öffnen' },
+  tour: {
+    start: 'Los',
+    next: 'Weiter',
+    skip: 'Überspringen',
+    welcome: { title: 'Wir zeigen dir alles', body: 'In unter einer Minute siehst du, wie NovaQI funktioniert. Tippe immer auf den markierten Bereich, um weiterzumachen.' },
+    pill: { title: 'Dein Tag lebt hier', body: 'Ziel, gegessen und verbrannt — in Echtzeit.' },
+    scan: { title: 'Jedes Produkt scannen', body: 'Tippe hier, um zu prüfen, ob es zu deiner Ernährung passt, bevor du es isst.' },
+    plate: { title: 'Mahlzeit fotografieren', body: 'Ganzer Teller — die KI erkennt jedes Element und summiert die Makros.' },
+  },
 };
 
 const it = {
@@ -1018,6 +1063,15 @@ const it = {
     endCancel: 'Continua',
   },
   home: { workoutToday: 'Allenamento di oggi', restToday: 'Riposo oggi', nextMeal: 'Prossimo pasto', open: 'Apri' },
+  tour: {
+    start: 'Inizia',
+    next: 'Avanti',
+    skip: 'Salta',
+    welcome: { title: 'Ti mostriamo tutto', body: 'In meno di un minuto vedrai come funziona NovaQI. Tocca sempre l\'area evidenziata per andare avanti.' },
+    pill: { title: 'La tua giornata è qui', body: 'Obiettivo, mangiato e bruciato in tempo reale.' },
+    scan: { title: 'Scansiona qualsiasi prodotto', body: 'Tocca qui per verificare se rientra nella tua dieta prima di mangiarlo.' },
+    plate: { title: 'Fotografa il pasto', body: 'Piatto intero — l\'IA identifica ogni elemento e somma i macro.' },
+  },
 };
 
 const ALL = { pt, en, es, fr, de, it };

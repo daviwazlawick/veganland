@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTourTarget } from '../v2/Walkthrough';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,6 +68,10 @@ export default function HomeScreen({ navigation }) {
   const [customWaterMl, setCustomWaterMl] = useState('');
   const [recentPlates, setRecentPlates] = useState([]);
   const [badgeTooltip, setBadgeTooltip] = useState(false);
+  // Tour targets (null users em demo mode).
+  const tourScan = useTourTarget('home.scan');
+  const tourPlate = useTourTarget('home.plate');
+  const tourPill = useTourTarget('home.pill');
 
   useEffect(() => {
     if (!token || isNovaQI) return;
@@ -225,6 +230,8 @@ export default function HomeScreen({ navigation }) {
         {isNovaQI ? (
           <>
             <TouchableOpacity
+              ref={tourScan.ref}
+              onLayout={tourScan.measure}
               style={styles.scanBlock}
               onPress={() => navigation.navigate('Scan')}
               activeOpacity={0.88}
@@ -238,6 +245,8 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              ref={tourPlate.ref}
+              onLayout={tourPlate.measure}
               style={styles.plateRow}
               onPress={() => navigation.navigate('PlateAnalysis')}
               activeOpacity={0.8}
@@ -255,7 +264,7 @@ export default function HomeScreen({ navigation }) {
 
             {/* O dia num lugar só: o resumo (sempre visível, com ou sem metas) e as
                 três formas de registrar logo embaixo. Tocar no resumo abre o Diário. */}
-            <View style={styles.today}>
+            <View style={styles.today} ref={tourPill.ref} onLayout={tourPill.measure}>
               <TouchableOpacity
                 style={styles.todayTop}
                 onPress={() => navigation.navigate('Diary')}
