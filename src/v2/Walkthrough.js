@@ -12,7 +12,7 @@ const WalkthroughContext = createContext(null);
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 export function WalkthroughProvider({ children }) {
-  const { demoMode } = useAuth();
+  const { demoMode, completeDemo } = useAuth();
   const [stepIdx, setStepIdx] = useState(-1); // -1 = inactive
   const [targets, setTargets] = useState({}); // { name: { x, y, w, h } }
   // Pedido pelos ecrãs quando montam: 'navegar para X foi concluído, se quiseres podes avançar'.
@@ -34,7 +34,14 @@ export function WalkthroughProvider({ children }) {
 
   const start = useCallback(() => setStepIdx(0), []);
   const next = useCallback(() => setStepIdx(i => (i < 0 ? 0 : i + 1)), []);
-  const skip = useCallback(() => setStepIdx(-2), []); // -2 = encerrou
+  // Saltar fecha o tour E marca demo_done — senão o utilizador que salta cai no mesmo
+  // tour no próximo arranque; fica numa UX frustrante.
+  const skip = useCallback(() => {
+    setStepIdx(-2);
+    try { completeDemo?.(); } catch {}
+    // Depois do flag, routing vai mandar o utilizador para o Paywall na próxima navegação.
+    try { navigationRef.navigate?.('Paywall', { source: 'demo_skip' }); } catch {}
+  }, [completeDemo]);
   const complete = useCallback(() => setStepIdx(-2), []);
 
   // Dispara start automático quando o user entra em demo mode pela 1ª vez.
