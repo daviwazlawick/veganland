@@ -16,10 +16,12 @@ export function WalkthroughProvider({ children }) {
   const { disclaimerAccepted, profile } = useApp();
   const [stepIdx, setStepIdx] = useState(-1); // -1 = inactive
   const [targets, setTargets] = useState({}); // { name: { x, y, w, h } }
+  const [armed, setArmed] = useState(false); // user pediu explicitamente para começar o tour
   // Pedido pelos ecrãs quando montam: 'navegar para X foi concluído, se quiseres podes avançar'.
   const screenReachedRef = useRef('');
   // Gate: só podemos arrancar o tour quando o utilizador está na Main (disclaimer aceite + perfil pronto).
-  const canStart = demoMode && disclaimerAccepted && !!profile;
+  // + armed (foi explicitamente pedido via botão na reveal).
+  const canStart = armed && demoMode && disclaimerAccepted && !!profile;
 
   const register = useCallback((name, layout) => {
     if (!layout) return;
@@ -36,6 +38,7 @@ export function WalkthroughProvider({ children }) {
   }, []);
 
   const start = useCallback(() => setStepIdx(0), []);
+  const arm = useCallback(() => setArmed(true), []);
   const next = useCallback(() => setStepIdx(i => (i < 0 ? 0 : i + 1)), []);
   // Saltar fecha o tour E marca demo_done — senão o utilizador que salta cai no mesmo
   // tour no próximo arranque; fica numa UX frustrante.
@@ -60,7 +63,7 @@ export function WalkthroughProvider({ children }) {
   const screenReached = useCallback(name => { screenReachedRef.current = name; }, []);
 
   return (
-    <WalkthroughContext.Provider value={{ stepIdx, targets, register, unregister, start, next, skip, complete, screenReached }}>
+    <WalkthroughContext.Provider value={{ stepIdx, targets, register, unregister, start, arm, next, skip, complete, screenReached }}>
       {children}
     </WalkthroughContext.Provider>
   );
@@ -68,7 +71,7 @@ export function WalkthroughProvider({ children }) {
 
 export function useWalkthrough() {
   const ctx = useContext(WalkthroughContext);
-  if (!ctx) return { stepIdx: -1, targets: {}, register: () => {}, unregister: () => {}, start: () => {}, next: () => {}, skip: () => {}, complete: () => {}, screenReached: () => {} };
+  if (!ctx) return { stepIdx: -1, targets: {}, register: () => {}, unregister: () => {}, start: () => {}, arm: () => {}, next: () => {}, skip: () => {}, complete: () => {}, screenReached: () => {} };
   return ctx;
 }
 
@@ -155,9 +158,6 @@ export function WalkthroughOverlay() {
             <Pressable onPress={next} style={({ pressed }) => [st.cta, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
               <Text style={st.ctaText}>{T.tour?.start || 'Começar'}</Text>
             </Pressable>
-            <Pressable onPress={skip} style={({ pressed }) => [st.skip, { opacity: pressed ? 0.6 : 1 }]}>
-              <Text style={st.skipText}>{T.tour?.skip || 'Saltar'}</Text>
-            </Pressable>
           </View>
         </View>
       </View>
@@ -167,8 +167,22 @@ export function WalkthroughOverlay() {
   // Spot: 4 rects à volta do alvo (top/bottom/left/right). Alvo fica "furado".
   const tgt = targets[step.target];
   if (!tgt) {
-    // Alvo ainda não medido: escurece tudo e espera 1 tick.
-    return <View style={st.full} pointerEvents="auto"><View style={st.scrim} /></View>;
+    // Alvo ainda não medido (screen não montou ou ref ainda não registou).
+    // Mostra callout central com Next para não ficar preso.
+    return (
+      <View style={st.full} pointerEvents="auto">
+        <View style={st.scrim} />
+        <View style={st.modalWrap} pointerEvents="box-none">
+          <View style={st.modalCard}>
+            <Text style={st.modalTitle}>{tr.title}</Text>
+            {tr.body ? <Text style={st.modalBody}>{tr.body}</Text> : null}
+            <Pressable onPress={next} style={({ pressed }) => [st.cta, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+              <Text style={st.ctaText}>{T.tour?.next || 'Próximo'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
   }
   const pad = 8; // folga à volta do alvo
   const hx = Math.max(0, tgt.x - pad);
@@ -199,9 +213,7 @@ export function WalkthroughOverlay() {
           <Text style={st.calloutTitle}>{tr.title}</Text>
           {tr.body ? <Text style={st.calloutBody}>{tr.body}</Text> : null}
           <View style={st.calloutRow}>
-            <Pressable onPress={skip} style={({ pressed }) => [st.ghostBtn, { opacity: pressed ? 0.6 : 1 }]}>
-              <Text style={st.ghostBtnText}>{T.tour?.skip || 'Saltar'}</Text>
-            </Pressable>
+            <View style={{ flex: 1 }} />
             <Pressable onPress={next} style={({ pressed }) => [st.nextBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
               <Text style={st.nextBtnText}>{T.tour?.next || 'Próximo'}</Text>
             </Pressable>

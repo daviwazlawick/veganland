@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useNutrition } from '../context/NutritionContext';
+import { useWalkthrough } from './Walkthrough';
 import { DIETS } from '../constants/diets';
 import { ALLERGIES } from '../constants/allergies';
 import { font } from '../theme/type';
@@ -65,6 +66,7 @@ export default function OnboardingV2Screen({ navigation, route }) {
   const { language, saveProfile, profile } = useApp();
   const { token, user } = useAuth();
   const { refresh: refreshNutrition } = useNutrition();
+  const { arm } = useWalkthrough();
   const STORE = STORE_PREFIX + (user?.id || 'anon');
   const T = s2(language);
   const insets = useSafeAreaInsets();
@@ -428,8 +430,13 @@ export default function OnboardingV2Screen({ navigation, route }) {
   }
   if (phase === 'reveal') {
     const locked = !['starter', 'premium', 'admin'].includes(user?.user_type);
-    const openPaywall = () => navigation.navigate('Paywall', { source: 'v2_plan', currentPlan: user?.user_type || 'free' });
-    return <Reveal T={T} plan={plan} name={a.name} pal={pal} bg={bg} insets={insets} wide={wide} onEnter={enterApp} onUnlock={openPaywall} locked={locked} figure={figurePanel} />;
+    // "Unlock" aqui já não vai direto ao Paywall. Arma o tour demo e leva o utilizador para
+    // Main; o tour arranca lá, passa por tudo, e no fim o SalesPitch encaminha para o Paywall.
+    const startTour = () => {
+      try { arm?.(); } catch {}
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    };
+    return <Reveal T={T} plan={plan} name={a.name} pal={pal} bg={bg} insets={insets} wide={wide} onEnter={enterApp} onUnlock={startTour} locked={locked} figure={figurePanel} />;
   }
 
   // ── formulário ──────────────────────────────────────────────────────────
@@ -569,28 +576,9 @@ function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure, locked,
   const w = plan?.workout || {};
   const d = plan?.diet || {};
   const [busy, setBusy] = useState(false);
-  // Para user sem plano pago: mostra o anúncio "plano pronto" + macros reais, mas detalhes (treinos, refeições)
-  // ficam desfocados por baixo de um overlay com CTA para o paywall.
-  const details = (
-    <>
-      {d.summary ? <Text style={[st.revealText, { color: pal.fg }]}>{d.summary}</Text> : null}
-      <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
-        <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.reveal.split}</Text>
-        <Text style={[st.revealCardTitle, { color: pal.fg }]}>{w.split_name}</Text>
-        <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.days((w.days || []).length)}</Text>
-        {(w.days || []).map(day => (
-          <Text key={day.key} style={[st.revealDay, { color: pal.fg }]}>{day.key}  {day.title}  <Text style={{ opacity: 0.6 }}>{day.focus}</Text></Text>
-        ))}
-      </View>
-      <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
-        <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.tabs.diet}</Text>
-        <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.meals((d.meals || []).length)}</Text>
-        {(d.meals || []).map(m => (
-          <Text key={m.key} style={[st.revealDay, { color: pal.fg }]}>{m.time}  {m.name}  <Text style={{ opacity: 0.6 }}>{m.kcal} kcal</Text></Text>
-        ))}
-      </View>
-    </>
-  );
+  // CTA: null users vão para o tour demo ("Let us show you around"). Pagos saltam para Main ("Enter app").
+  const ctaLabel = locked ? (T.reveal.tourCta || 'Let us show you around') : T.reveal.cta;
+  const ctaAction = locked ? onUnlock : onEnter;
   return (
     <View style={[st.root, { backgroundColor: bg }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 24, paddingHorizontal: 24, paddingBottom: 40, alignItems: 'center' }}>
@@ -601,37 +589,26 @@ function Reveal({ T, plan, name, pal, bg, insets, wide, onEnter, figure, locked,
           <Text style={[st.kcalLabel, { color: pal.fg, marginTop: 4 }]}>P {t.protein_g} g    C {t.carbs_g} g    G {t.fat_g} g</Text>
           {d.source === 'regras' || w.source === 'regras' ? <Text style={[st.revealText, { color: pal.hl, fontSize: 14 }]}>{T.reveal.rules}</Text> : null}
 
-          {locked ? (
-            <View style={{ position: 'relative', marginTop: 4 }}>
-              <View pointerEvents="none" style={{ opacity: 0.35 }}>{details}</View>
-              <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
-                <View style={{ backgroundColor: pal.surface, borderRadius: 20, padding: 20, width: '100%', maxWidth: 340, alignItems: 'center' }}>
-                  <Text style={{ color: pal.fg, fontSize: 18, textAlign: 'center', ...font('bold') }}>
-                    {T.reveal.unlockTitle || 'Desbloqueia o teu plano completo'}
-                  </Text>
-                  <Text style={{ color: pal.fg, fontSize: 14, textAlign: 'center', marginTop: 8, opacity: 0.75, ...font('body') }}>
-                    {T.reveal.unlockSub || 'Vê cada refeição e cada treino, e começa hoje.'}
-                  </Text>
-                  <PrimaryButton
-                    label={T.reveal.unlockCta || 'Ver plano'}
-                    onPress={async () => { setBusy(true); try { await onUnlock(); } finally { setBusy(false); } }}
-                    disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 16, width: '100%' }}
-                  />
-                  {T.reveal.unlockReassure ? (
-                    <Text style={{ color: pal.fg, fontSize: 12.5, textAlign: 'center', marginTop: 12, lineHeight: 18, opacity: 0.7, ...font('body') }}>
-                      {T.reveal.unlockReassure}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          ) : (
-            <>
-              {details}
-              <PrimaryButton label={T.reveal.cta} onPress={async () => { setBusy(true); try { await onEnter(); } finally { setBusy(false); } }}
-                disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 28 }} />
-            </>
-          )}
+          {d.summary ? <Text style={[st.revealText, { color: pal.fg }]}>{d.summary}</Text> : null}
+          <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
+            <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.reveal.split}</Text>
+            <Text style={[st.revealCardTitle, { color: pal.fg }]}>{w.split_name}</Text>
+            <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.days((w.days || []).length)}</Text>
+            {(w.days || []).map(day => (
+              <Text key={day.key} style={[st.revealDay, { color: pal.fg }]}>{day.key}  {day.title}  <Text style={{ opacity: 0.6 }}>{day.focus}</Text></Text>
+            ))}
+          </View>
+          <View style={[st.revealCard, { backgroundColor: pal.surface }]}>
+            <Text style={[st.revealCardLabel, { color: pal.hl }]}>{T.tabs.diet}</Text>
+            <Text style={[st.revealCardSub, { color: pal.fg }]}>{T.reveal.meals((d.meals || []).length)}</Text>
+            {(d.meals || []).map(m => (
+              <Text key={m.key} style={[st.revealDay, { color: pal.fg }]}>{m.time}  {m.name}  <Text style={{ opacity: 0.6 }}>{m.kcal} kcal</Text></Text>
+            ))}
+          </View>
+
+          <PrimaryButton label={ctaLabel}
+            onPress={async () => { setBusy(true); try { await ctaAction(); } finally { setBusy(false); } }}
+            disabled={busy} bg={pal.btnBg} fg={pal.btnFg} style={{ marginTop: 28 }} />
         </View>
       </ScrollView>
     </View>

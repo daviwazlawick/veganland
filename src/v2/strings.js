@@ -102,6 +102,7 @@ const pt = {
     bmi: 'IMC', bf: 'gordura corporal', bfFromTape: 'pelas suas medidas', bfFromSil: 'estimada pelo boneco',
     note: 'A IA monta o cardápio e a ficha de treino em cima desses números.',
     cta: 'Gerar meu plano',
+    tourCta: 'Deixa-nos mostrar-te o essencial',
   },
   gen: {
     title: 'Montando seu plano',
@@ -297,6 +298,7 @@ const en = {
     bmi: 'BMI', bf: 'body fat', bfFromTape: 'from your measurements', bfFromSil: 'estimated from the figure',
     note: 'The AI builds your meal plan and workout on top of these numbers.',
     cta: 'Build my plan',
+    tourCta: 'Let us show you around',
   },
   gen: {
     title: 'Building your plan',
@@ -492,6 +494,7 @@ const es = {
     bmi: 'IMC', bf: 'grasa corporal', bfFromTape: 'por tus medidas', bfFromSil: 'estimada por la figura',
     note: 'La IA monta el menú y la rutina de entrenamiento sobre estos números.',
     cta: 'Generar mi plan',
+    tourCta: 'Déjanos enseñarte lo básico',
   },
   gen: {
     title: 'Montando tu plan',
@@ -687,6 +690,7 @@ const fr = {
     bmi: 'IMC', bf: 'masse grasse', bfFromTape: 'à partir de tes mesures', bfFromSil: 'estimée via la silhouette',
     note: 'L’IA construit ton plan repas et ta séance par-dessus ces chiffres.',
     cta: 'Générer mon plan',
+    tourCta: 'Laisse-nous te montrer l\'essentiel',
   },
   gen: {
     title: 'On construit ton plan',
@@ -882,6 +886,7 @@ const de = {
     bmi: 'BMI', bf: 'Körperfett', bfFromTape: 'aus deinen Maßen', bfFromSil: 'über die Figur geschätzt',
     note: 'Die KI baut Ernährungsplan und Training auf diesen Zahlen auf.',
     cta: 'Meinen Plan erstellen',
+    tourCta: 'Lass uns dir das Wichtigste zeigen',
   },
   gen: {
     title: 'Dein Plan wird erstellt',
@@ -1077,6 +1082,7 @@ const it = {
     bmi: 'IMC', bf: 'massa grassa', bfFromTape: 'dalle tue misure', bfFromSil: 'stimata dalla figura',
     note: 'L’IA costruisce il piano alimentare e la scheda su questi numeri.',
     cta: 'Genera il mio piano',
+    tourCta: 'Ti mostriamo l\'essenziale',
   },
   gen: {
     title: 'Sto costruendo il tuo piano',
