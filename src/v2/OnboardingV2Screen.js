@@ -165,6 +165,17 @@ export default function OnboardingV2Screen({ navigation, route }) {
     try {
       const r = await v2GeneratePlan(token, language);
       setPlan(r.plan);
+      // Persiste já o perfil principal (diet, alergias, nome) na tabela users via /auth/profile.
+      // Antes isto só acontecia no onEnter — mas no fluxo locked o user sai pelo paywall e
+      // nunca chamava saveProfile, deixando users.diet_id = NULL.
+      const dietId = a.diet_id || 'omnivore';
+      await saveProfile({
+        ...(editMode ? (profile || {}) : {}),
+        dietId,
+        allergyIds: a.allergy_ids || [],
+        name: (a.name || profile?.name || '').trim() || null,
+        halalStrictness: editMode ? undefined : null,
+      }).catch(() => {});
       setPhase('reveal');
     } catch (e) {
       if (e.status === 402) {
