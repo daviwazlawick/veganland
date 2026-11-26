@@ -13,10 +13,13 @@ const WalkthroughContext = createContext(null);
 // ─── Provider ────────────────────────────────────────────────────────────────
 export function WalkthroughProvider({ children }) {
   const { demoMode, completeDemo } = useAuth();
+  const { disclaimerAccepted, profile } = useApp();
   const [stepIdx, setStepIdx] = useState(-1); // -1 = inactive
   const [targets, setTargets] = useState({}); // { name: { x, y, w, h } }
   // Pedido pelos ecrãs quando montam: 'navegar para X foi concluído, se quiseres podes avançar'.
   const screenReachedRef = useRef('');
+  // Gate: só podemos arrancar o tour quando o utilizador está na Main (disclaimer aceite + perfil pronto).
+  const canStart = demoMode && disclaimerAccepted && !!profile;
 
   const register = useCallback((name, layout) => {
     if (!layout) return;
@@ -44,15 +47,15 @@ export function WalkthroughProvider({ children }) {
   }, [completeDemo]);
   const complete = useCallback(() => setStepIdx(-2), []);
 
-  // Dispara start automático quando o user entra em demo mode pela 1ª vez.
+  // Dispara start automático SÓ depois do disclaimer aceite e do perfil criado (user em Main).
   // Pequeno atraso para o layout dos ecrãs estar pronto.
   useEffect(() => {
-    if (demoMode && stepIdx === -1) {
-      const t = setTimeout(() => setStepIdx(0), 500);
+    if (canStart && stepIdx === -1) {
+      const t = setTimeout(() => setStepIdx(0), 800);
       return () => clearTimeout(t);
     }
     if (!demoMode && stepIdx >= 0) setStepIdx(-1);
-  }, [demoMode]);
+  }, [canStart, demoMode, stepIdx]);
 
   const screenReached = useCallback(name => { screenReachedRef.current = name; }, []);
 
