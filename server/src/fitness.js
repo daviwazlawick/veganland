@@ -167,6 +167,71 @@ const DIET_LABEL = {
   omnivore: 'omnivore (eats everything)',
 };
 
+// Hard "DO NOT USE" lists per diet. The prompt enforces these explicitly to catch
+// diets where a soft hint ("vegan") isn't enough — e.g. halal/kosher rarely come up
+// in the model's training samples with the same strictness.
+const DIET_RULES = {
+  vegan: [
+    'NO meat of any kind (beef, pork, lamb, chicken, turkey, duck, game).',
+    'NO fish, seafood, shellfish, or crustaceans.',
+    'NO eggs (chicken, duck, quail).',
+    'NO dairy (milk, butter, cheese, yogurt, cream, whey, casein, ghee).',
+    'NO honey, gelatin, or any animal-derived ingredient.',
+    'Protein sources MUST be plant-based: tofu, tempeh, seitan, legumes, lentils, chickpeas, plant protein powder, nuts/seeds.',
+  ],
+  vegetarian: [
+    'NO meat of any kind (beef, pork, lamb, chicken, turkey).',
+    'NO fish, seafood, shellfish.',
+    'NO gelatin or meat-derived broth.',
+    'Eggs and dairy ARE allowed.',
+  ],
+  pescatarian: [
+    'NO land animal meat (beef, pork, lamb, chicken, turkey).',
+    'Fish, seafood, shellfish ARE allowed.',
+    'Eggs and dairy ARE allowed.',
+  ],
+  gluten_free: [
+    'NO wheat, barley, rye, spelt, kamut, triticale.',
+    'NO regular bread, pasta, couscous, bulgur, seitan, soy sauce, beer.',
+    'NO regular oats unless explicitly labeled "certified gluten-free" (prefer rice/corn alternatives).',
+    'Use rice, quinoa, corn, buckwheat, potato, GF-certified oats and breads as carb sources.',
+  ],
+  halal: [
+    'NO pork or pork derivatives (ham, bacon, sausage with pork, gelatin from pork).',
+    'NO alcohol in any form (wine, beer, mirin, cooking wine, liquor extracts).',
+    'NO non-halal meat — assume meat is halal-certified; prefer "frango halal", "carne halal".',
+    'NO carnivorous animals, birds of prey, or blood products.',
+    'Fish, seafood, eggs, dairy are allowed.',
+  ],
+  kosher: [
+    'NO pork or pork derivatives.',
+    'NO shellfish or crustaceans (shrimp, crab, lobster, mussels, oysters, clams).',
+    'NO mixing meat and dairy in the same meal (a meat meal cannot contain cheese, milk, cream, butter, yogurt).',
+    'Prefer kosher-certified cuts and parve (neutral) ingredients when unsure.',
+    'Fish with fins and scales are allowed.',
+  ],
+  omnivore: [
+    'No dietary restrictions.',
+  ],
+};
+
+// Food IDs → human allergen names in English (prompt always in EN; the output text is localised by the AI).
+const ALLERGY_LABELS = {
+  peanuts: 'peanuts and peanut-derived products (peanut butter, peanut oil)',
+  tree_nuts: 'tree nuts (almonds, walnuts, cashews, pistachios, pecans, hazelnuts, macadamia, Brazil nuts) and their butters/oils',
+  dairy: 'dairy (milk, butter, cheese, yogurt, cream, whey, casein, ghee, lactose)',
+  eggs: 'eggs (chicken, duck, quail) and anything containing egg (mayonnaise, custard, pasta with egg)',
+  gluten: 'gluten (wheat, barley, rye, spelt, regular oats, seitan, soy sauce, beer)',
+  soy: 'soy and soy derivatives (tofu, tempeh, edamame, soy sauce, soy milk, textured soy protein)',
+  shellfish: 'shellfish and crustaceans (shrimp, crab, lobster, prawn, mussels, oysters, clams, scallops)',
+  fish: 'fish (salmon, tuna, cod, tilapia, sardines, anchovies) and fish sauce',
+  sesame: 'sesame seeds, tahini, sesame oil',
+  corn: 'corn, cornmeal, cornstarch, corn syrup, polenta',
+  sulfites: 'sulfite-preserved foods (dried fruit, wine, some processed meats)',
+  mustard: 'mustard seeds and prepared mustard',
+  peppers: 'spicy peppers and chili-based condiments',
+};
+
 function personBlock(p, t) {
   return [
     `Sex: ${t.sex}. Age: ${t.age}. Height: ${t.height_cm} cm. Weight: ${t.weight_kg} kg. BMI ${t.bmi}.`,
@@ -181,24 +246,56 @@ function personBlock(p, t) {
 
 export async function generateDiet(p, t, language) {
   const lang = LANG[language] || LANG.en;
+  const dietId = p.diet_id || 'omnivore';
+  if (!DIET_LABEL[dietId]) {
+    console.warn(`[fitness] generateDiet: unknown diet_id="${p.diet_id}" — falling back to omnivore. user keys=${Object.keys(p).join(',')}`);
+  }
+  const effectiveDiet = DIET_LABEL[dietId] ? dietId : 'omnivore';
+  const allergyIds = (p.allergy_ids || []).filter(id => ALLERGY_LABELS[id]);
+  const allergyLines = allergyIds.length
+    ? allergyIds.map(id => `- ${ALLERGY_LABELS[id]}`).join('\n')
+    : '- (none declared)';
+
+  // Diet-aware cultural food examples: avoid suggesting foods the person cannot eat.
+  const BR_SAFE = {
+    vegan:        'arroz, feijão, grão-de-bico, lentilha, tofu, batata-doce, aveia (se não houver intolerância), abacate, castanhas, frutas da estação',
+    vegetarian:   'arroz, feijão, ovos, iogurte, queijo minas, tofu, batata-doce, aveia, frutas da estação',
+    pescatarian:  'arroz, feijão, peixe (tilápia, sardinha, salmão), ovos, iogurte, batata-doce, aveia, frutas da estação',
+    gluten_free:  'arroz, feijão, frango, ovos, batata-doce, mandioca, tapioca, aveia certificada sem glúten, frutas da estação',
+    halal:        'arroz, feijão, frango halal, carne bovina halal, ovos, iogurte, batata-doce, aveia, frutas da estação',
+    kosher:       'arroz, feijão, frango kosher, peixe com escamas, ovos, batata-doce, aveia, frutas da estação (não misturar carne e lacticínios)',
+    omnivore:     'arroz, feijão, frango, ovos, batata-doce, aveia, iogurte, frutas da estação',
+  };
+  const cultural = language === 'pt'
+    ? `Brazil — use foods sold in any Brazilian supermarket. Good starting list for this diet: ${BR_SAFE[effectiveDiet]}.`
+    : 'Use common supermarket foods appropriate to the diet.';
+
   const prompt = `You are a sports nutritionist building a practical daily meal plan.
 
 PERSON
 ${personBlock(p, t)}
-Diet style: ${DIET_LABEL[p.diet_id] || 'omnivore'}.
-Allergies / foods to avoid: ${(p.allergy_ids || []).join(', ') || 'none'}${p.dislikes ? `; dislikes: ${p.dislikes}` : ''}.
+Diet style: ${DIET_LABEL[effectiveDiet]}.
 Meals per day: ${p.meals_per_day || 4}. Cooking: ${({ none: 'almost never cooks, needs simple assembly', some: 'cooks a few times a week, likes batch cooking', lots: 'enjoys cooking' })[p.cooking] || 'cooks a few times a week'}.
-Country / food culture: ${language === 'pt' ? 'Brazil (use foods sold in any Brazilian supermarket: arroz, feijão, frango, ovos, batata-doce, aveia, iogurte, frutas da estação etc.)' : 'use common supermarket foods'}.
+Country / food culture: ${cultural}
+
+DIET COMPLIANCE — MANDATORY. Every meal, every ingredient, every swap suggestion MUST satisfy ALL of:
+${DIET_RULES[effectiveDiet].map(r => `- ${r}`).join('\n')}
+
+ALLERGIES & INTOLERANCES — MANDATORY. Never include, as an ingredient or hidden component (sauces, broths, toppings, breading, marinades):
+${allergyLines}
+${p.dislikes ? `Also avoid (dislikes, not medical): ${p.dislikes}.` : ''}
 
 DAILY TARGETS (already calculated, the sum of all meals MUST land within ±5% of these):
 ${t.calories_kcal} kcal · protein ${t.protein_g} g · carbs ${t.carbs_g} g · fat ${t.fat_g} g · fiber ≥ ${t.fiber_g} g.
 
 RULES
+- BEFORE writing each meal, verify every ingredient against the diet + allergy lists above. If an item violates either, replace it.
 - Quantities in grams (cooked weight when relevant) or household units with grams in parentheses.
 - Put more carbs around the training session (pre and post workout meals).
-- Every meal has protein.
-- Each meal gets ONE simple swap option with similar macros.
-- Realistic, cheap, repeatable. No exotic ingredients, no supplements unless whey fits naturally.
+- Every meal has protein from a source that complies with the diet rules above.
+- Each meal gets ONE simple swap option with similar macros — the swap MUST also comply.
+- Realistic, cheap, repeatable. No exotic ingredients.
+- No supplements unless whey fits naturally AND no dairy allergy AND diet is not vegan.
 - Write every text field in ${lang}.
 
 Call the tool save_diet_plan with the plan.`;

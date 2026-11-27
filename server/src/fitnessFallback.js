@@ -3,6 +3,8 @@
 // Fica marcado com source: 'regras' pra tela saber que não veio da IA.
 
 // por 100 g: kcal, proteína, carbo, gordura
+// tags: gluten|eggs|dairy|soy|peanuts|fish|meat|pork|shellfish|vegan|veg
+// Qualquer carne genérica fica marcada como meat; para halal/kosher usamos variantes certificadas.
 const F = {
   ovo:        { n: 'Ovos', k: 143, p: 12.6, c: 0.7, f: 9.5, unit: 50, unitName: 'unidade', tags: ['eggs', 'veg'] },
   pao:        { n: 'Pão integral', k: 247, p: 13, c: 41, f: 3.4, unit: 25, unitName: 'fatia', tags: ['gluten', 'vegan'] },
@@ -12,8 +14,10 @@ const F = {
   queijo:     { n: 'Queijo minas frescal', k: 264, p: 17, c: 3, f: 20, tags: ['dairy', 'veg'] },
   banana:     { n: 'Banana', k: 89, p: 1.1, c: 23, f: 0.3, unit: 100, unitName: 'unidade', tags: ['vegan'] },
   frango:     { n: 'Peito de frango grelhado', k: 165, p: 31, c: 0, f: 3.6, tags: ['meat'] },
+  frango_halal: { n: 'Peito de frango halal grelhado', k: 165, p: 31, c: 0, f: 3.6, tags: ['meat', 'halal_ok', 'kosher_ok'] },
   patinho:    { n: 'Patinho moído refogado', k: 200, p: 30, c: 0, f: 9, tags: ['meat'] },
-  tilapia:    { n: 'Tilápia grelhada', k: 128, p: 26, c: 0, f: 2.7, tags: ['fish'] },
+  carne_halal: { n: 'Carne bovina halal refogada', k: 200, p: 30, c: 0, f: 9, tags: ['meat', 'halal_ok', 'kosher_ok'] },
+  tilapia:    { n: 'Tilápia grelhada', k: 128, p: 26, c: 0, f: 2.7, tags: ['fish', 'halal_ok', 'kosher_ok'] },
   tofu:       { n: 'Tofu firme grelhado', k: 144, p: 15.6, c: 3, f: 8.7, tags: ['soy', 'vegan'] },
   soja:       { n: 'Proteína de soja hidratada', k: 120, p: 17, c: 9, f: 0.5, tags: ['soy', 'vegan'] },
   grao:       { n: 'Grão-de-bico cozido', k: 164, p: 8.9, c: 27, f: 2.6, tags: ['vegan'] },
@@ -38,7 +42,12 @@ function allowed(key, p) {
   if (t.includes('soy') && al.has('soy')) return false;
   if (t.includes('peanuts') && al.has('peanuts')) return false;
   if (t.includes('fish') && (al.has('fish') || ['vegan', 'vegetarian'].includes(diet))) return false;
+  if (t.includes('shellfish') && (al.has('shellfish') || ['vegan', 'vegetarian', 'kosher'].includes(diet))) return false;
+  if (t.includes('pork') && ['vegan', 'vegetarian', 'pescatarian', 'halal', 'kosher'].includes(diet)) return false;
   if (t.includes('meat') && ['vegan', 'vegetarian', 'pescatarian'].includes(diet)) return false;
+  // Halal: meat must be explicitly halal-ok. Kosher: same + no shellfish + no meat+dairy mixing (handled at meal-build level).
+  if (diet === 'halal' && t.includes('meat') && !t.includes('halal_ok')) return false;
+  if (diet === 'kosher' && t.includes('meat') && !t.includes('kosher_ok')) return false;
   return true;
 }
 const first = (p, keys) => keys.find(k => allowed(k, p));
@@ -76,9 +85,14 @@ function buildMeal(p, kind, tgt) {
         ? 'Variar a fonte de proteína vegetal (tofu, pasta de amendoim, grão-de-bico) conforme o que tiver em casa.'
         : 'Trocar por ovos mexidos com pão, se preferir salgado.';
   } else {
-    const prot = kind === 'almoco'
-      ? first(p, ['frango', 'patinho', 'tilapia', 'tofu', 'soja', 'ovo', 'grao'])
-      : first(p, ['patinho', 'tilapia', 'frango', 'soja', 'tofu', 'ovo', 'grao']);
+    const diet = p.diet_id || 'omnivore';
+    const almocoList = ['halal', 'kosher'].includes(diet)
+      ? ['frango_halal', 'carne_halal', 'tilapia', 'tofu', 'soja', 'ovo', 'grao']
+      : ['frango', 'patinho', 'tilapia', 'tofu', 'soja', 'ovo', 'grao'];
+    const jantarList = ['halal', 'kosher'].includes(diet)
+      ? ['carne_halal', 'tilapia', 'frango_halal', 'soja', 'tofu', 'ovo', 'grao']
+      : ['patinho', 'tilapia', 'frango', 'soja', 'tofu', 'ovo', 'grao'];
+    const prot = first(p, kind === 'almoco' ? almocoList : jantarList);
     const carb = kind === 'almoco' ? 'arroz' : 'batata';
     add('legumes', 150);
     add('salada', 80);
