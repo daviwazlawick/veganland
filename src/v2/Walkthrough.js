@@ -124,8 +124,8 @@ export function WalkthroughOverlay() {
     // Fire-and-forget navigation. Pequeno delay garante que o navigator está pronto.
     try {
       if (step.id === 'done') {
-        navigationRef.navigate?.('SalesPitch');
-        // Encerra o tour: SalesPitch cuida do resto (CTA → Paywall).
+        // SalesPitch foi apagado; o tour antigo (demoMode) termina direto no Paywall.
+        navigationRef.navigate?.('Paywall', { source: 'demo_tour_done' });
         setTimeout(() => skip(), 0);
         return null;
       }

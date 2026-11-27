@@ -913,7 +913,7 @@ export default function NutritionDashboardScreen({ navigation, route }) {
         <>
 
             {noGoals ? (
-              <TouchableOpacity style={s.setupCard} onPress={() => navigation.navigate('BodyProfile')}>
+              <TouchableOpacity style={s.setupCard} onPress={() => navigation.navigate('EditPersonal')}>
                 <Text style={s.setupTitle}>{t(language, 'nutrition.setup_prompt_title')}</Text>
                 <Text style={s.setupBody}>{t(language, 'nutrition.setup_prompt_body')}</Text>
                 <Text style={s.setupCta}>{t(language, 'nutrition.setup_prompt_cta')} →</Text>

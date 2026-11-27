@@ -26,9 +26,6 @@ import PaywallScreen from '../screens/PaywallScreen';
 import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 import DisclaimerScreen from '../screens/DisclaimerScreen';
 import ReferralScreen from '../screens/ReferralScreen';
-import BodyProfileScreen from '../screens/BodyProfileScreen';
-import BodyAnalysisScreen from '../screens/BodyAnalysisScreen';
-import VideoAnalysisScreen from '../screens/VideoAnalysisScreen';
 import ReportProductScreen from '../screens/ReportProductScreen';
 import NutritionGoalsScreen from '../screens/NutritionGoalsScreen';
 import NutritionDashboardScreen from '../screens/NutritionDashboardScreen';
@@ -39,8 +36,7 @@ import { t } from '../i18n';
 import OnboardingV2Screen from '../v2/OnboardingV2Screen';
 import DietPlanScreen from '../v2/DietPlanScreen';
 import WorkoutScreen from '../v2/WorkoutScreen';
-import SalesPitchScreen from '../v2/SalesPitchScreen';
-import TourSlidesScreen from '../v2/TourSlidesScreen';
+import WalkthroughV2 from '../v2/WalkthroughV2';
 import { s2 } from '../v2/strings';
 import { PremiumIcon } from '../components/ui';
 
@@ -174,13 +170,13 @@ export default function AppNavigator() {
   const { isLoaded: appLoaded, isProfileLoaded, profile, disclaimerAccepted } = useApp();
 
   // Null user (post-lock signup sem plano):
-  //   - Demo ainda não terminou → TourSlides (slide-show pre-paywall).
-  //   - Demo terminou → Paywall no cold start.
+  //   - Walkthrough ainda não terminou → Walkthrough (demo hands-on pre-paywall).
+  //   - Walkthrough terminou → Paywall no cold start.
   // Legacy users (user_type absent ou qualquer tier) seguem para Main.
   const nullTier = user?.user_type === null;
   const onboardingScanAvailable = false; // legacy gate removido; variável mantida para initialParams
   const profileInitialRoute = nullTier
-    ? (demoDone ? 'Paywall' : 'TourSlides')
+    ? (demoDone ? 'Paywall' : 'Walkthrough')
     : 'Main';
 
   if (!authLoaded || !appLoaded || (token && !isProfileLoaded)) {
@@ -220,13 +216,9 @@ export default function AppNavigator() {
             <Stack.Screen name="Result" component={ResultScreen} />
             <Stack.Screen name="EditPersonal" component={EditPersonalScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
-            <Stack.Screen name="SalesPitch" component={SalesPitchScreen} options={{ gestureEnabled: false }} />
-            <Stack.Screen name="TourSlides" component={TourSlidesScreen} options={{ gestureEnabled: false }} />
+            <Stack.Screen name="Walkthrough" component={WalkthroughV2} options={{ gestureEnabled: false }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
             <Stack.Screen name="Referral" component={ReferralScreen} />
-            <Stack.Screen name="BodyProfile" component={BodyProfileScreen} />
-            <Stack.Screen name="BodyAnalysis" component={BodyAnalysisScreen} />
-            <Stack.Screen name="VideoAnalysis" component={VideoAnalysisScreen} />
             <Stack.Screen name="NutritionGoals" component={NutritionGoalsScreen} />
             <Stack.Screen name="NutritionDashboard" component={NutritionDashboardScreen} />
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
@@ -250,9 +242,6 @@ export default function AppNavigator() {
             <Stack.Screen name="Paywall" component={PaywallScreen} initialParams={{ currentPlan: 'free' }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
             <Stack.Screen name="Referral" component={ReferralScreen} />
-            <Stack.Screen name="BodyProfile" component={BodyProfileScreen} />
-            <Stack.Screen name="BodyAnalysis" component={BodyAnalysisScreen} />
-            <Stack.Screen name="VideoAnalysis" component={VideoAnalysisScreen} />
             <Stack.Screen name="NutritionGoals" component={NutritionGoalsScreen} />
             <Stack.Screen name="NutritionDashboard" component={NutritionDashboardScreen} />
             <Stack.Screen name="PlateAnalysis" component={PlateAnalysisScreen} />
@@ -261,8 +250,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Diary" component={NutritionDashboardScreen} />
             <Stack.Screen name="History" component={HistoryScreen} />
             <Stack.Screen name="OnboardingV2" component={OnboardingV2Screen} />
-            <Stack.Screen name="SalesPitch" component={SalesPitchScreen} options={{ gestureEnabled: false }} />
-            <Stack.Screen name="TourSlides" component={TourSlidesScreen} options={{ gestureEnabled: false }} />
+            <Stack.Screen name="Walkthrough" component={WalkthroughV2} options={{ gestureEnabled: false }} />
           </>
         )}
       </Stack.Navigator>

@@ -120,8 +120,10 @@ export default function ResultScreen({ navigation, route }) {
   const { logConsumption, bodyProfile, todayTotals, goals } = useNutrition();
   const insets = useSafeAreaInsets();
   const isOnboarding = route?.params?.onboarding === true;
+  const fromWalkthroughStep = route?.params?.fromWalkthroughStep || null;
   const showReferralBanner = !HIDE_REFERRAL
     && !isOnboarding
+    && !fromWalkthroughStep
     && (referralStats?.credit_count || 0) < (referralStats?.referrals_needed || 3)
     && scanHistory.length > 0 && scanHistory.length % 5 === 0;
   const { result } = route.params;
@@ -366,7 +368,7 @@ export default function ResultScreen({ navigation, route }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: cfg.bannerBg }]} edges={['top']}>
       <View style={[v.header, { backgroundColor: cfg.bannerBg }]}>
-        {isOnboarding ? (
+        {isOnboarding || fromWalkthroughStep ? (
           <View style={{ width: 44 }} />
         ) : (
           <TouchableOpacity
@@ -382,7 +384,17 @@ export default function ResultScreen({ navigation, route }) {
         <Text style={v.headerTitle}>
           {isOnboarding ? t(language, 'onboarding.scan_title') : t(language, 'result.full_analysis')}
         </Text>
-        <View style={{ width: 44 }} />
+        {fromWalkthroughStep ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Walkthrough', { completedStep: fromWalkthroughStep })}
+            style={v.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="arrow-forward" size={24} color={Colors.white} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 44 }} />
+        )}
       </View>
 
       <ScrollView

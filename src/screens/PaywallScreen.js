@@ -100,10 +100,17 @@ export default function PaywallScreen({ navigation, route }) {
           console.log('[RC] offering:', JSON.stringify(o));
           setOffering(o);
           setOfferingLoaded(true);
+          const count = o?.availablePackages?.length || 0;
+          if (count > 0) {
+            logFunnelEvent('paywall_offering_loaded', { package_count: count }, token);
+          } else {
+            logFunnelEvent('paywall_offering_empty', { reason: 'no_packages' }, token);
+          }
         })
         .catch(e => {
           console.log('[RC] offering error:', e?.message);
           setOfferingLoaded(true);
+          logFunnelEvent('paywall_offering_empty', { reason: 'error', error: (e?.message || '').slice(0, 120) }, token);
         });
     }
   }, [isNative]);
@@ -154,6 +161,8 @@ export default function PaywallScreen({ navigation, route }) {
   async function handleSelect(plan) {
     if (plan.id === currentPlan) { navigation.goBack(); return; }
 
+    logFunnelEvent('paywall_cta_tapped', { plan_id: plan.id }, token);
+
     if (!isNative) {
       Alert.alert('', t(language, 'plans.mobile_only'));
       return;
@@ -161,6 +170,7 @@ export default function PaywallScreen({ navigation, route }) {
 
     const pkg = getRcPackage(plan.id);
     if (!pkg) {
+      logFunnelEvent('paywall_purchase_failed', { plan_id: plan.id, code: 'not_configured' }, token);
       Alert.alert('', t(language, 'plans.not_configured'));
       return;
     }
@@ -197,6 +207,12 @@ export default function PaywallScreen({ navigation, route }) {
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       if (route?.params?.onPurchase) route.params.onPurchase(finalUserType);
     } catch (e) {
+      logFunnelEvent('paywall_purchase_failed', {
+        plan_id: plan.id,
+        code: e?.userCancelled ? 'user_cancelled' : (e?.code || 'error'),
+        user_cancelled: !!e?.userCancelled,
+        message: (e?.message || '').slice(0, 120),
+      }, token);
       if (!e.userCancelled) {
         Alert.alert('', t(language, 'plans.purchase_error'));
       }

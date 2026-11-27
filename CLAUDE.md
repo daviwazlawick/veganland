@@ -1802,7 +1802,7 @@ User 297 (lumozini) apanhou repetidamente `cannot identify image file '/tmp/ba_f
   - HEIC/HEIF → JPEG via `heic_to_jpg.py` (novo helper, reutiliza `/opt/body-analysis-env` + pillow-heif já instalado)
   - Attachments com `contentTransferEncoding: 'base64'` + `contentDisposition: 'attachment'` — sem isto o Gmail iOS escondia as fotos como se fossem inline sem CID
 - `ResultScreen.js`: botão antigo "Not my product" (que fazia re-scan) rewired para navigate('ReportProduct') — label mudado para "Reportar informação errada" em 6 idiomas
-- **NOVAQI_SMTP_PASS estava stale**: password no `.env` era `NovaQI2026!`, real é `VeganLand2026!` (mesma do VeganLand). Actualizado. Isto explica também por que emails de confirmação/reset para users NovaQI falhavam silenciosamente há semanas.
+- **NOVAQI_SMTP_PASS estava stale**: password no `.env` estava desactualizada (diferente da do VeganLand, que é a correcta). Actualizado. Isto explica também por que emails de confirmação/reset para users NovaQI falhavam silenciosamente há semanas.
 - **DKIM em falta**: `novaqi.app` e `veganland.app` têm SPF + DMARC `p=quarantine` mas ZERO DKIM. Gmail quarantina automaticamente. Fix requer Davi no Hostinger hPanel → habilitar DKIM + adicionar TXT record.
 
 **Body-fat auto-calc (client-only, EditPersonalScreen)**
@@ -2203,3 +2203,68 @@ npm run update:novaqi
 - Push "Free scans, on us" para todos os tokens NovaQI com `last_seen_at` < 90d (535 tokens, 6 línguas, EN fallback) — `server/src/scripts/broadcast-referral.mjs` (`--dry-run`, `--only-user=<id>`). Deep-link `Referral`, `broadcast_id` no payload → cliques em `push_clicks`.
 - `/admin/push` tem o card "🎁 Campanha Referral" (`getReferralCampaignStats` em `server.js`): quem clicou (email, idioma, hora, se convidou depois), registos em `referral_events` desde o 1º envio (qualquer origem, não só o push) e top referrers.
 - Commit `eb966bf`, já em produção.
+
+---
+
+## Walkthrough hands-on + Body Analysis escondido (2026-11-27)
+
+**Motivação:** diagnóstico mostrou 0 conversões RC reais e 0 purchase_attempts logados nos 25 utilizadores null-tier desde 2026-11-24. O paywall "tour passivo" (`TourSlidesScreen`) não dava ao user chance de sentir o valor antes de pagar. Substituído por walkthrough hands-on de 8 passos + instrumentação para distinguir intenção vs falha técnica.
+
+### Novo fluxo (null-tier users)
+
+```
+Register → Disclaimer → OnboardingV2 → Walkthrough (8 passos) → Paywall (source: walkthrough_done)
+```
+
+### 8 passos do `WalkthroughV2.js`
+
+1. **"As tuas metas, calculadas"** — mostra TDEE + macros do signup (inline).
+2. **Scanear produto** — hands-on, lança `ScanScreen({ fromWalkthroughStep: 2 })`. ResultScreen com seta "continuar" → `Walkthrough { completedStep: 2 }`.
+3. **Fotografar refeição** — hands-on, lança `PlateAnalysis({ fromWalkthroughStep: 3 })`. Fallback "ver exemplo" → `useSample: true` injecta prato canned (chicken+rice+broccoli) sem câmara nem call ao servidor.
+4. **Macros do dia** — barras preenchidas em tempo real (reading `todayTotals` / `goals` do `NutritionContext`).
+5. **Treino de hoje** — preview hardcoded de 3 exercícios locked.
+6. **Refeições de hoje** — preview hardcoded de 4 refeições locked.
+7. **Track your progress** — mock de phone a destacar o tab Profile.
+8. **"Está tudo pronto"** — card de reasseguramento ("Hoje não é cobrado nada. Cancela quando quiseres antes do fim do trial") → Paywall.
+
+### Ficheiros
+
+- **Novo:** `src/v2/WalkthroughV2.js`, `src/v2/strings.walkthrough.js` (6 línguas: en, pt, es, fr, de, it).
+- **Nav (`src/navigation/AppNavigator.js`):** `TourSlides` → `Walkthrough` no branch null-tier. Removidas rotas `BodyAnalysis`, `BodyProfile`, `VideoAnalysis`, `SalesPitch`, `TourSlides`.
+- **Scan:** `src/screens/ScanScreen.js` — aceita `fromWalkthroughStep`; `handleClose` volta para Walkthrough quando set. Passa o param para o Result.
+- **Result:** `src/screens/ResultScreen.js` — se `fromWalkthroughStep` set, header tem seta direita → `Walkthrough { completedStep: N }`.
+- **Plate:** `src/screens/PlateAnalysisScreen.js` — aceita `fromWalkthroughStep` + `useSample`; após log OK volta ao Walkthrough. Back também volta.
+- **Home:** `src/screens/HomeScreen.js` — removido `scoreCard` + imports `bodyScore`. Entry `BodyProfile` trocada por `EditPersonal`.
+- **Paywall instrumentation (`src/screens/PaywallScreen.js`):** novos eventos `paywall_offering_loaded`, `paywall_offering_empty`, `paywall_cta_tapped`, `paywall_purchase_failed`. Fecha a zona cega que impedia distinguir "não quer" de "falha técnica".
+
+### Apagados
+
+- `src/screens/BodyAnalysisScreen.js`
+- `src/screens/BodyProfileScreen.js`
+- `src/screens/VideoAnalysisScreen.js`
+- `src/v2/TourSlidesScreen.js`
+- `src/v2/SalesPitchScreen.js`
+
+### Server
+
+- **Migração `046_walkthrough_bonus.sql`:** adiciona `users.walkthrough_completed boolean DEFAULT false`. Backfill: 25 null-tier users existentes recebem `bonus_scans_remaining >= 2` + nova janela de 30d para completarem o walkthrough ao reabrir.
+- **`db.js createUser` + `createOAuthUser`:** se `user_type IS NULL` no insert, concede 2 bonus scans (cobre produto + prato do walkthrough).
+- **`db.js checkAndIncrementScanCounter`:** null-tier agora consome bonus_scans primeiro (antes só tinha 1 legacy onboarding scan).
+
+### Eventos funnel novos
+
+- `walkthrough_step_shown { step: 1..8 }`
+- `walkthrough_step_completed { step: 1..8 }`
+- `walkthrough_abandoned { step }` (no unmount com step<8)
+- `walkthrough_scan_launched`, `walkthrough_plate_launched`, `walkthrough_plate_sample_used`
+- `paywall_offering_loaded { package_count }`, `paywall_offering_empty { reason, error? }`
+- `paywall_cta_tapped { plan_id }`, `paywall_purchase_failed { plan_id, code, user_cancelled, message }`
+
+### Strings
+
+- `src/v2/strings.walkthrough.js` exporta `s3(language)` com 6 locales. PT é europeu (tu), consistente com `OnboardingV2`. Fallback: en.
+
+### Risco e TODO
+
+- **Nav tour antigo (`src/v2/Walkthrough.js`)** mantido — serve `demoMode` (diferente do null-tier), com `useTourTarget` ainda consumido pelo `HomeScreen`. Não foi tocado.
+- **EditPersonalScreen** ainda usa `computeBodyAnalysis` para mostrar score inline — diferente da feature photo-based (hidden). Não requer alteração.

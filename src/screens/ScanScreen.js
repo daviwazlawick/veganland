@@ -28,6 +28,7 @@ export default function ScanScreen({ navigation, route }) {
   const { token, refreshUser, markOnboardingScanUsed } = useAuth();
   const insets = useSafeAreaInsets();
   const isOnboarding = route?.params?.onboarding === true;
+  const fromWalkthroughStep = route?.params?.fromWalkthroughStep || null;
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
   const [searchingText, setSearchingText] = useState(null);
@@ -88,6 +89,10 @@ export default function ScanScreen({ navigation, route }) {
   function handleClose() {
     clearTimeout(lockRef.current.timer);
     setCameraActive(false);
+    if (fromWalkthroughStep) {
+      navigation.navigate('Walkthrough');
+      return;
+    }
     if (isOnboarding) {
       // No previous screen to pop back to — offer body info (for BMI/BMR)
       // before landing the user on Main, even if they bail on the guided scan.
@@ -328,6 +333,12 @@ export default function ScanScreen({ navigation, route }) {
   async function navigateToResult(scan) {
     await addScanToHistory(scan);
     setCameraActive(false);
+    if (fromWalkthroughStep) {
+      // Durante o walkthrough queremos voltar automaticamente ao próximo passo.
+      // O scan fica no histórico; o utilizador pode vê-lo depois de subscrever.
+      navigation.navigate('Walkthrough', { completedStep: fromWalkthroughStep });
+      return;
+    }
     navigation.replace('Result', { result: scan, onboarding: isOnboarding });
   }
 

@@ -59,6 +59,8 @@ export default function PlateAnalysisScreen({ navigation, route }) {
   // Optional past-date target — when set, every logged plate item is pinned
   // to noon UTC of this date so it lands on the intended day.
   const presetDate = ISO_DATE.test(route?.params?.presetDate) ? route.params.presetDate : null;
+  const fromWalkthroughStep = route?.params?.fromWalkthroughStep || null;
+  const useSample = route?.params?.useSample === true;
 
   const [image, setImage] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -110,6 +112,18 @@ export default function PlateAnalysisScreen({ navigation, route }) {
   useEffect(() => {
     if (result?.items) setEditableItems(result.items.map(i => ({ ...i })));
   }, [result?.items]);
+
+  // Sample plate for the walkthrough's "see a demo" fallback — no camera, no API call.
+  useEffect(() => {
+    if (!useSample) return;
+    const sampleItems = [
+      { name: 'Grilled chicken', grams: '150', calories_kcal: '246', protein_g: '46', fat_g: '6', carbs_g: '0' },
+      { name: 'White rice',      grams: '150', calories_kcal: '195', protein_g: '4',  fat_g: '0.4', carbs_g: '43' },
+      { name: 'Broccoli',        grams: '100', calories_kcal: '34',  protein_g: '2.8', fat_g: '0.4', carbs_g: '7' },
+    ];
+    setResult({ items: sampleItems, sample: true });
+    setImage('sample');
+  }, [useSample]);
 
   function updateNameAndSuggest(text) {
     setEditDraft(d => ({ ...d, name: text }));
@@ -335,6 +349,10 @@ export default function PlateAnalysisScreen({ navigation, route }) {
         }
         setLogged(true);
         setTimeout(() => {
+          if (fromWalkthroughStep) {
+            navigation.navigate('Walkthrough', { completedStep: fromWalkthroughStep });
+            return;
+          }
           if (presetDate && navigation.canGoBack()) navigation.goBack();
           else navigation.navigate('Main', { screen: 'Diary' });
         }, 1200);
@@ -353,7 +371,10 @@ export default function PlateAnalysisScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <TouchableOpacity
+          onPress={() => fromWalkthroughStep ? navigation.navigate('Walkthrough') : navigation.goBack()}
+          style={s.backBtn}
+        >
           <Text style={s.backBtnText}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>

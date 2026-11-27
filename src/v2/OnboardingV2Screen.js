@@ -208,8 +208,10 @@ export default function OnboardingV2Screen({ navigation, route }) {
     }
     await saveProfile({ dietId, allergyIds: a.allergy_ids || [], name: (a.name || '').trim() || null, halalStrictness: null }).catch(() => {});
     // A rota do onboarding existe nos dois grupos do navegador, então a troca de
-    // perfil sozinha não tira a pessoa daqui: reset explícito pra Main.
-    setTimeout(() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] }), 0);
+    // perfil sozinha não tira a pessoa daqui: reset explícito. Null-tier users
+    // ainda têm de passar pelo Walkthrough (hands-on demo) antes do Paywall.
+    const nextRoute = user?.user_type === null ? 'Walkthrough' : 'Main';
+    setTimeout(() => navigation.reset({ index: 0, routes: [{ name: nextRoute }] }), 0);
   }
 
   // ── boneco ──────────────────────────────────────────────────────────────
@@ -430,8 +432,8 @@ export default function OnboardingV2Screen({ navigation, route }) {
   }
   if (phase === 'reveal') {
     const locked = !['starter', 'premium', 'admin'].includes(user?.user_type);
-    // Null users vão para o slide-show (TourSlides) que no fim leva ao Paywall.
-    const startTour = () => navigation.reset({ index: 0, routes: [{ name: 'TourSlides' }] });
+    // Null users vão para o walkthrough hands-on que no fim leva ao Paywall.
+    const startTour = () => navigation.reset({ index: 0, routes: [{ name: 'Walkthrough' }] });
     return <Reveal T={T} plan={plan} name={a.name} pal={pal} bg={bg} insets={insets} wide={wide} onEnter={enterApp} onUnlock={startTour} locked={locked} figure={figurePanel} />;
   }
 

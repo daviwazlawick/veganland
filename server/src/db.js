@@ -544,6 +544,13 @@ export async function createUser(email, passwordHash, disclaimerVersion = null, 
     await grantBonusScans(user.id, referredSignupBonus(user.user_type));
   }
 
+  // Null-tier users need scans to complete the hands-on walkthrough
+  // (product + plate). Grant 2 bonus scans on signup. The paywall still
+  // gates all other app usage until they pick a plan.
+  if (user.user_type === null) {
+    await grantBonusScans(user.id, 2);
+  }
+
   return user;
 }
 
@@ -622,6 +629,10 @@ export async function createOAuthUser({ email, provider, sub, disclaimerVersion,
       [referrerId, user.id]
     );
     await grantBonusScans(user.id, referredSignupBonus(user.user_type));
+  }
+  // Null-tier OAuth signups also need 2 scans for the walkthrough.
+  if (user.user_type === null) {
+    await grantBonusScans(user.id, 2);
   }
   return user;
 }
@@ -988,12 +999,31 @@ export async function checkAndIncrementScanCounter(userId) {
   // that, client-side paywall blocks the UI and this branch is the
   // server-side safety net (matches SCAN_LIMITS defense-in-depth).
   if (!userType) {
-    if (onboardingUsed) return { allowed: false, count: 0, limit: 0, resets_at };
-    await db.query(
-      'update users set onboarding_scan_used = true where id = $1 and onboarding_scan_used = false',
-      [userId]
-    );
-    return { allowed: true, count: 1, limit: 1, resets_at: null, onboarding: true };
+    // Null-tier gets walkthrough bonus scans (granted on signup) + a single
+    // legacy onboarding scan as a last-resort fallback. Order matters: use
+    // bonus first so the counter visible to the user matches the one in
+    // getScanUsage.
+    const client = await db.connect();
+    try {
+      await client.query('begin');
+      const bonus = await tryConsumeBonusScan(client, userId);
+      if (bonus) {
+        await client.query('commit');
+        return { allowed: true, count: 1, limit: 1, resets_at: null, onboarding: true, bonus_remaining: bonus.bonus_scans_remaining };
+      }
+      if (!onboardingUsed) {
+        await client.query(
+          'update users set onboarding_scan_used = true where id = $1 and onboarding_scan_used = false',
+          [userId]
+        );
+        await client.query('commit');
+        return { allowed: true, count: 1, limit: 1, resets_at: null, onboarding: true };
+      }
+      await client.query('commit');
+      return { allowed: false, count: 0, limit: 0, resets_at };
+    } finally {
+      client.release();
+    }
   }
   const limit = userType in SCAN_LIMITS ? SCAN_LIMITS[userType] : 0;
 

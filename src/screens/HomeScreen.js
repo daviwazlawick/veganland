@@ -19,7 +19,6 @@ import { apiGetRecentPlates } from '../services/apiService';
 import { HIDE_REFERRAL } from '../constants/features';
 import { effectiveStatus, STATUS_CONFIG } from '../utils/scanStatus';
 import TodayPlanCard from '../v2/TodayPlanCard';
-import { computeBodyAnalysis, buildMeasures, scoreLevel } from '../utils/bodyScore';
 
 const WATER_PRESETS = [
   { ml: 150,  cups: '¾' },
@@ -102,23 +101,6 @@ export default function HomeScreen({ navigation }) {
   }));
   const hasGoals = goals?.calories_kcal > 0;
 
-  // Mesma conta do EditPersonal: sem perímetro, % de gordura ou foto não há score.
-  const bodyScore = useMemo(() => {
-    if (!isNovaQI) return null;
-    const bm = bodyMeasurements || [];
-    const analysis = computeBodyAnalysis({
-      bodyMeasurements: bm,
-      measures: buildMeasures((measurementsHistory || [])[0] || null, bm[0] || null),
-      height: bodyProfile?.height_cm ? String(bodyProfile.height_cm) : '',
-      weight: bodyProfile?.weight_kg ? String(bodyProfile.weight_kg) : '',
-      birthDate: bodyProfile?.birth_date ? bodyProfile.birth_date.slice(0, 10) : '',
-      sex: bodyProfile?.sex || null,
-      bodyProfile,
-    });
-    return analysis?.score ?? null;
-  }, [isNovaQI, bodyMeasurements, measurementsHistory, bodyProfile]);
-  const scoreInfo = bodyScore != null ? scoreLevel(bodyScore) : null;
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {isNovaQI ? (
@@ -165,46 +147,6 @@ export default function HomeScreen({ navigation }) {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {isNovaQI && (
-          <TouchableOpacity
-            style={[styles.scoreCard, scoreInfo == null && styles.scoreCardCta]}
-            onPress={() => navigation.navigate('EditPersonal')}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-          >
-            {scoreInfo ? (
-              <>
-                <View style={styles.scoreTop}>
-                  <Text style={styles.scoreLabel}>{t(language, 'body_analysis.score')}</Text>
-                  <View style={[styles.scorePill, { backgroundColor: scoreInfo.color + '22' }]}>
-                    <Text style={[styles.scorePillText, { color: scoreInfo.color }]}>
-                      {t(language, `body_analysis_screen.${scoreInfo.key}`)}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.scoreNumRow}>
-                  <Text style={[styles.scoreNum, { color: scoreInfo.color }]}>{bodyScore}</Text>
-                  <Text style={styles.scoreDen}>/100</Text>
-                </View>
-                <View style={styles.scoreBarTrack}>
-                  <View style={[styles.scoreBarFill, { width: `${Math.min(100, bodyScore)}%`, backgroundColor: scoreInfo.color }]} />
-                </View>
-              </>
-            ) : (
-              <View style={styles.scoreCtaRow}>
-                <View style={styles.scoreCtaIcon}>
-                  <Ionicons name="analytics-outline" size={22} color={Colors.primaryDark} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.scoreCtaTitle}>{t(language, 'home.score_cta_title')}</Text>
-                  <Text style={styles.scoreCtaSub}>{t(language, 'home.score_cta_sub')}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
 
         {isNovaQI && (
           <View style={styles.intro}>
@@ -312,7 +254,7 @@ export default function HomeScreen({ navigation }) {
                       <Text style={styles.todayLabel}>{t(language, 'home.today_eaten')}</Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => navigation.navigate('BodyProfile')}
+                      onPress={() => navigation.navigate('EditPersonal')}
                       style={styles.todayGoalsBtn}
                       activeOpacity={0.8}
                       accessibilityRole="button"
