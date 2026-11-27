@@ -354,7 +354,10 @@ function Step8({ T }) {
       </View>
       <Text style={st.readyTitle}>{T.s8.title}</Text>
       <Text style={st.readyBody}>{T.s8.body}</Text>
-      <Text style={st.readyReassure}>{T.s8.reassure}</Text>
+      <View style={st.readyReassureCard}>
+        <Ionicons name="shield-checkmark" size={26} color={C.green} />
+        <Text style={st.readyReassureStrong}>{T.s8.reassure}</Text>
+      </View>
     </View>
   );
 }
@@ -434,7 +437,28 @@ const st = StyleSheet.create({
   readyBadge: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(47,196,114,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 20, borderWidth: 2, borderColor: C.green },
   readyTitle: { ...font('h1'), fontSize: 30, color: C.ink, textAlign: 'center', marginBottom: 14 },
   readyBody: { ...font('body'), fontSize: 16, color: C.muted, textAlign: 'center', lineHeight: 24, marginBottom: 18, paddingHorizontal: 8 },
-  readyReassure: { ...font('body'), fontSize: 13, color: C.mutedDark, textAlign: 'center', lineHeight: 20, paddingHorizontal: 8 },
+  readyReassureCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(47,196,114,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(47,196,114,0.4)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 6,
+    marginHorizontal: 4,
+  },
+  readyReassureStrong: {
+    ...font('body'),
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.ink,
+    lineHeight: 20,
+    letterSpacing: 0.3,
+  },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingTop: 12, backgroundColor: 'rgba(14,27,20,0.96)' },
   btn: { backgroundColor: C.green, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   btnText: { ...font('bodyBold'), color: '#06110C', fontSize: 16 },

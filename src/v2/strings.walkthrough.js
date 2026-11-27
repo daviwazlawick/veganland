@@ -8,7 +8,7 @@ const en = {
   s5: { title: "Today's workout, built for you.", body: 'Series, loads, and progression — tuned to your goal, the time you have, and where you train. Tap any set to mark it done when you unlock the plan.', cta: 'Continue', locked: 'Unlock to track your sets' },
   s6: { title: "Today's meals, ready to cook.", body: 'Each meal built to hit your macros, respect your allergies, and fit your diet. Tap "I ate this" to log it instantly when you unlock the plan.', cta: 'Continue', locked: 'Unlock to log meals from your plan' },
   s7: { title: 'See yourself change.', body: "Every few weeks, come back to your profile and update your weight and measurements. That's how you'll see — in numbers — what the plan is doing for you.", cta: 'Got it' },
-  s8: { title: "You're all set.", body: 'Pick the plan that fits you and start your free trial.', reassure: 'Nothing is charged today. Cancel anytime before the trial ends.', cta: 'Choose my plan' },
+  s8: { title: "You're all set.", body: 'Pick the plan that fits you and start your free trial.', reassure: 'NOTHING IS CHARGED DURING THE TRIAL. CANCEL ANYTIME, NO RISK.', cta: 'Choose my plan' },
   macros: { kcal: 'kcal', protein: 'Protein', carbs: 'Carbs', fat: 'Fat' },
   mock: { breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner', sets: 'sets', reps: 'reps', min: 'min' },
 };
@@ -21,7 +21,7 @@ const pt = {
   s5: { title: 'O treino de hoje, feito para ti.', body: 'Séries, cargas e progressão — ajustados à tua meta, ao tempo que tens e ao sítio onde treinas. Toca em qualquer série para marcares feita quando desbloqueares o plano.', cta: 'Continuar', locked: 'Desbloqueia para marcar séries' },
   s6: { title: 'As refeições de hoje, prontas a fazer.', body: 'Cada refeição montada para bater os teus macros, respeitar as tuas alergias e caber na tua dieta. Toca em "Comi esta" para registar num toque ao desbloqueares.', cta: 'Continuar', locked: 'Desbloqueia para registar refeições' },
   s7: { title: 'Vê-te a mudar.', body: 'De duas em duas semanas, volta ao teu perfil e actualiza o peso e as medidas. É assim que vais ver — em números — o que o plano está a fazer por ti.', cta: 'Entendido' },
-  s8: { title: 'Está tudo pronto.', body: 'Escolhe o plano que te encaixa e começa o teu trial gratuito.', reassure: 'Hoje não é cobrado nada. Cancela quando quiseres antes do fim do trial.', cta: 'Escolher o meu plano' },
+  s8: { title: 'Está tudo pronto.', body: 'Escolhe o plano que te encaixa e começa o teu trial gratuito.', reassure: 'NADA SERÁ COBRADO DURANTE O TRIAL. CANCELA QUANDO QUISERES, SEM RISCO.', cta: 'Escolher o meu plano' },
   macros: { kcal: 'kcal', protein: 'Proteína', carbs: 'Hidratos', fat: 'Gorduras' },
   mock: { breakfast: 'Pequeno-almoço', lunch: 'Almoço', snack: 'Lanche', dinner: 'Jantar', sets: 'séries', reps: 'reps', min: 'min' },
 };
@@ -34,7 +34,7 @@ const es = {
   s5: { title: 'Tu entrenamiento de hoy, hecho para ti.', body: 'Series, cargas y progresión — ajustados a tu objetivo, al tiempo que tienes y a dónde entrenas. Toca una serie para marcarla al desbloquear el plan.', cta: 'Continuar', locked: 'Desbloquea para marcar series' },
   s6: { title: 'Las comidas de hoy, listas para cocinar.', body: 'Cada comida pensada para alcanzar tus macros, respetar tus alergias y encajar en tu dieta. Toca "Lo he comido" para registrarla al desbloquear el plan.', cta: 'Continuar', locked: 'Desbloquea para registrar comidas' },
   s7: { title: 'Mírate cambiar.', body: 'Cada pocas semanas, vuelve a tu perfil y actualiza tu peso y medidas. Así verás — en números — lo que el plan está haciendo por ti.', cta: 'Entendido' },
-  s8: { title: 'Todo listo.', body: 'Elige el plan que mejor te encaje y empieza tu prueba gratis.', reassure: 'Hoy no se cobra nada. Cancela cuando quieras antes de que acabe la prueba.', cta: 'Elegir mi plan' },
+  s8: { title: 'Todo listo.', body: 'Elige el plan que mejor te encaje y empieza tu prueba gratis.', reassure: 'NO SE COBRA NADA DURANTE LA PRUEBA. CANCELA CUANDO QUIERAS, SIN RIESGO.', cta: 'Elegir mi plan' },
   macros: { kcal: 'kcal', protein: 'Proteína', carbs: 'Carbohidratos', fat: 'Grasas' },
   mock: { breakfast: 'Desayuno', lunch: 'Comida', snack: 'Merienda', dinner: 'Cena', sets: 'series', reps: 'reps', min: 'min' },
 };
@@ -47,7 +47,7 @@ const fr = {
   s5: { title: 'Ta séance du jour, faite pour toi.', body: "Séries, charges, progression — adaptées à ton objectif, au temps que tu as et à ton lieu d'entraînement. Appuie sur une série pour la cocher dès que tu débloques.", cta: 'Continuer', locked: 'Débloque pour cocher tes séries' },
   s6: { title: 'Tes repas du jour, prêts à cuisiner.', body: "Chaque repas conçu pour atteindre tes macros, respecter tes allergies et coller à ton régime. Touche « J'ai mangé » pour l'enregistrer dès que tu débloques.", cta: 'Continuer', locked: 'Débloque pour enregistrer les repas' },
   s7: { title: 'Regarde-toi changer.', body: "Toutes les quelques semaines, reviens dans ton profil et mets à jour ton poids et tes mesures. C'est comme ça que tu verras — chiffres à l'appui — ce que le plan fait pour toi.", cta: 'Compris' },
-  s8: { title: 'Tout est prêt.', body: 'Choisis le plan qui te correspond et démarre ton essai gratuit.', reassure: "Aucun paiement aujourd'hui. Annule à tout moment avant la fin de l'essai.", cta: 'Choisir mon plan' },
+  s8: { title: 'Tout est prêt.', body: 'Choisis le plan qui te correspond et démarre ton essai gratuit.', reassure: "AUCUN PAIEMENT PENDANT L'ESSAI. ANNULE QUAND TU VEUX, SANS RISQUE.", cta: 'Choisir mon plan' },
   macros: { kcal: 'kcal', protein: 'Protéines', carbs: 'Glucides', fat: 'Lipides' },
   mock: { breakfast: 'Petit-déjeuner', lunch: 'Déjeuner', snack: 'Collation', dinner: 'Dîner', sets: 'séries', reps: 'reps', min: 'min' },
 };
@@ -60,7 +60,7 @@ const de = {
   s5: { title: 'Dein Training heute, auf dich zugeschnitten.', body: 'Sätze, Gewichte und Progression — passend zu deinem Ziel, deiner Zeit und deinem Trainingsort. Tippe einen Satz an, um ihn nach dem Freischalten abzuhaken.', cta: 'Weiter', locked: 'Freischalten, um Sätze abzuhaken' },
   s6: { title: 'Deine Mahlzeiten heute, bereit zum Kochen.', body: 'Jede Mahlzeit trifft deine Makros, berücksichtigt deine Allergien und passt zu deiner Ernährung. Tippe auf „Gegessen", um sie nach dem Freischalten direkt einzutragen.', cta: 'Weiter', locked: 'Freischalten, um Mahlzeiten einzutragen' },
   s7: { title: 'Beobachte deine Veränderung.', body: 'Alle paar Wochen gehst du zurück ins Profil und aktualisierst Gewicht und Maße. So siehst du — in Zahlen — was der Plan für dich tut.', cta: 'Verstanden' },
-  s8: { title: 'Alles bereit.', body: 'Wähle den Plan, der zu dir passt, und starte deine kostenlose Testphase.', reassure: 'Heute wird nichts abgebucht. Du kannst jederzeit vor Ende der Testphase kündigen.', cta: 'Plan auswählen' },
+  s8: { title: 'Alles bereit.', body: 'Wähle den Plan, der zu dir passt, und starte deine kostenlose Testphase.', reassure: 'WÄHREND DER TESTPHASE WIRD NICHTS ABGEBUCHT. JEDERZEIT KÜNDIGEN, OHNE RISIKO.', cta: 'Plan auswählen' },
   macros: { kcal: 'kcal', protein: 'Eiweiß', carbs: 'Kohlenhydrate', fat: 'Fett' },
   mock: { breakfast: 'Frühstück', lunch: 'Mittagessen', snack: 'Snack', dinner: 'Abendessen', sets: 'Sätze', reps: 'Wdh.', min: 'Min.' },
 };
@@ -73,7 +73,7 @@ const it = {
   s5: { title: "L'allenamento di oggi, fatto per te.", body: 'Serie, carichi e progressione — tarati sul tuo obiettivo, sul tempo che hai e sul posto dove ti alleni. Tocca una serie per spuntarla quando sblocchi il piano.', cta: 'Continua', locked: 'Sblocca per spuntare le serie' },
   s6: { title: 'I pasti di oggi, pronti da cucinare.', body: 'Ogni pasto pensato per centrare i tuoi macro, rispettare le tue allergie e stare nella tua dieta. Tocca "L\'ho mangiato" per registrarlo subito dopo lo sblocco.', cta: 'Continua', locked: 'Sblocca per registrare i pasti' },
   s7: { title: 'Guardati cambiare.', body: 'Ogni due o tre settimane torna al profilo e aggiorna peso e misure. Così vedi — in numeri — cosa sta facendo il piano per te.', cta: 'Capito' },
-  s8: { title: 'È tutto pronto.', body: 'Scegli il piano che fa per te e inizia la tua prova gratuita.', reassure: 'Oggi non si paga nulla. Puoi annullare in qualsiasi momento prima della fine della prova.', cta: 'Scegli il mio piano' },
+  s8: { title: 'È tutto pronto.', body: 'Scegli il piano che fa per te e inizia la tua prova gratuita.', reassure: 'DURANTE LA PROVA NON SI PAGA NULLA. ANNULLA QUANDO VUOI, SENZA RISCHIO.', cta: 'Scegli il mio piano' },
   macros: { kcal: 'kcal', protein: 'Proteine', carbs: 'Carboidrati', fat: 'Grassi' },
   mock: { breakfast: 'Colazione', lunch: 'Pranzo', snack: 'Spuntino', dinner: 'Cena', sets: 'serie', reps: 'reps', min: 'min' },
 };
