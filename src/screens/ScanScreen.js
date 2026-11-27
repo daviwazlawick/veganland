@@ -167,7 +167,7 @@ export default function ScanScreen({ navigation, route }) {
         status: result.status,
       }, token);
       setCameraActive(false);
-      navigation.replace('Result', { result: scan, onboarding: isOnboarding });
+      navigation.replace('Result', { result: scan, onboarding: isOnboarding, fromWalkthroughStep });
     } catch (e) {
       setScanError(buildErrorMessage(e, language));
       setIsLimitError(e.status === 429);
@@ -316,7 +316,7 @@ export default function ScanScreen({ navigation, route }) {
         status: result.status,
       }, token);
       setCameraActive(false);
-      navigation.replace('Result', { result: scan, onboarding: isOnboarding });
+      navigation.replace('Result', { result: scan, onboarding: isOnboarding, fromWalkthroughStep });
     } catch (e) {
       setScanError(buildErrorMessage(e, language));
       setIsLimitError(e.status === 429);
