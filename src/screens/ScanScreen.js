@@ -619,7 +619,10 @@ export default function ScanScreen({ navigation, route }) {
           <TouchableOpacity
             style={cameraChoiceStyles.option}
             activeOpacity={0.85}
-            onPress={() => { setShowCameraChoice(false); navigation.navigate('PlateAnalysis'); }}
+            onPress={() => {
+              setShowCameraChoice(false);
+              navigation.navigate('PlateAnalysis', fromWalkthroughStep ? { fromWalkthroughStep: 3 } : undefined);
+            }}
           >
             <Ionicons name="restaurant-outline" size={28} color={Colors.navy} />
             <View style={{ flex: 1 }}>
