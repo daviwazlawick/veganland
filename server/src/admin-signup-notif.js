@@ -91,30 +91,31 @@ export async function runAdminFlopNotif() {
   const db = await getPool();
   if (!db) return;
 
+  // Trigger: first paywall_shown with a known source, OR user.created_at if
+  // the user has zero paywall funnel events (older app builds without
+  // tracking — treated as "reached paywall" per product decision).
   const { rows } = await db.query(
-    `WITH first_dismiss AS (
+    `WITH first_shown AS (
        SELECT fe.user_id, MIN(fe.created_at) AS first_at
          FROM funnel_events fe
-        WHERE fe.event_type = 'paywall_dismissed'
+        WHERE fe.event_type = 'paywall_shown'
           AND fe.metadata->>'source' = ANY($1)
         GROUP BY fe.user_id
      )
      SELECT u.id, u.email, u.name, u.created_at, u.platform_os, u.utm_source, u.utm_campaign,
-            fd.first_at,
+            COALESCE(fs.first_at, u.created_at) AS first_at,
+            (fs.first_at IS NULL) AS no_tracking,
             (SELECT locale FROM push_tokens WHERE user_id = u.id ORDER BY last_seen_at DESC LIMIT 1) AS locale,
-            (SELECT count(*) FROM scan_events WHERE user_id = u.id)::int AS scan_count,
-            (SELECT count(*) FROM funnel_events WHERE user_id = u.id
-               AND event_type = 'paywall_dismissed'
-               AND metadata->>'source' = ANY($1))::int AS dismiss_count
-       FROM first_dismiss fd
-       JOIN users u ON u.id = fd.user_id
+            (SELECT count(*) FROM scan_events WHERE user_id = u.id)::int AS scan_count
+       FROM users u
+       LEFT JOIN first_shown fs ON fs.user_id = u.id
       WHERE u.user_type IS NULL
-        AND fd.first_at < now() - ($2 || ' minutes')::interval
+        AND COALESCE(fs.first_at, u.created_at) < now() - ($2 || ' minutes')::interval
         AND NOT EXISTS (
           SELECT 1 FROM funnel_events ne
            WHERE ne.user_id = u.id AND ne.event_type = $3
         )
-      ORDER BY fd.first_at DESC
+      ORDER BY COALESCE(fs.first_at, u.created_at) DESC
       LIMIT 20`,
     [ONBOARDING_PAYWALL_SOURCES, String(FLOP_DELAY_MINUTES), FLOP_NOTIFIED_EVENT]
   ).catch(e => { console.warn('[admin-signup-notif] flop query', e.message); return { rows: [] }; });
@@ -124,21 +125,21 @@ export async function runAdminFlopNotif() {
   for (const u of rows) {
     const flag = flagFromLocale(u.locale);
     const minsSinceSignup = minutesAgo(u.created_at);
-    const minsSinceDismiss = minutesAgo(u.first_at);
+    const minsSinceShown = minutesAgo(u.first_at);
     const sinceSignup = minsSinceSignup == null ? '' : minsSinceSignup < 60 ? `${minsSinceSignup}min` : `${Math.round(minsSinceSignup / 60)}h`;
     const utm = u.utm_source ? ` · ${u.utm_source}${u.utm_campaign ? '/' + u.utm_campaign : ''}` : '';
-    const dismissSuffix = u.dismiss_count > 1 ? ` · ${u.dismiss_count}× fechou` : '';
+    const trackingSuffix = u.no_tracking ? ' · sem funnel tracking' : '';
 
     await pushToAdmin({
       title: `🚪 Paywall flop`,
-      body: `${flag ? flag + ' ' : ''}${u.email} · ${u.platform_os || '?'} · ${u.scan_count} scans · ${minsSinceDismiss}min sem comprar${dismissSuffix} · signup há ${sinceSignup}${utm}`,
+      body: `${flag ? flag + ' ' : ''}${u.email} · ${u.platform_os || '?'} · ${u.scan_count} scans · ${minsSinceShown}min no paywall sem plano${trackingSuffix} · signup há ${sinceSignup}${utm}`,
       data: { route: 'AdminUserDetail', userId: String(u.id), kind: 'paywall_flop' },
     });
 
     await db.query(
       `INSERT INTO funnel_events (user_id, event_type, brand, metadata)
        VALUES ($1, $2, 'novaqi', $3)`,
-      [u.id, FLOP_NOTIFIED_EVENT, { first_dismiss_at: u.first_at, scan_count: u.scan_count, dismiss_count: u.dismiss_count }]
+      [u.id, FLOP_NOTIFIED_EVENT, { first_shown_at: u.first_at, scan_count: u.scan_count, no_tracking: u.no_tracking }]
     ).catch(e => console.warn('[admin-signup-notif] flop log failed', e.message));
   }
 }

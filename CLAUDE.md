@@ -2280,8 +2280,10 @@ Push para o Davi (ADMIN_USER_ID=2) em dois momentos do funnel de onboarding — 
 
 ### Paywall flop
 - Trigger: cron 5min (`setInterval` 5·60·1000) + 90s delay inicial.
-- Query dispara push quando: user tem `paywall_dismissed` com `source ∈ {walkthrough_done, onboarding_post_scan, demo_skip, v2_plan, onboarding, tour_done}` há **≥10 min** E `user_type IS NULL` E não há `admin_flop_notified` anterior.
-- Backfill 2026-11-28: 132 users históricos marcados `admin_flop_notified` para evitar flood no 1º run.
+- Query dispara push quando: user tem `paywall_shown` com `source ∈ {walkthrough_done, onboarding_post_scan, demo_skip, v2_plan, onboarding, tour_done}` há **≥10 min** E `user_type IS NULL` E não há `admin_flop_notified` anterior.
+- Fallback para app antiga sem tracking: `COALESCE(first_paywall_shown, user.created_at)` — se zero funnel events, usa signup como referência (decisão produto 2026-11-28).
+- Trigger original era `paywall_dismissed` mas 0 users firam esse evento (só `handleClose()` no botão X dispara; swipe/home/kill não). Trocado para `shown` em 2026-11-28.
+- Backfill 2026-11-28: 132 users históricos (free) + 32 nulls marcados `admin_flop_notified` para evitar flood.
 
 ### Módulo
 - `server/src/admin-signup-notif.js` — `notifyAdminTrialStarted()` + `runAdminFlopNotif()`.
@@ -2298,11 +2300,17 @@ Cadeia de 3 pushes de encorajamento para users que floparam no paywall de onboar
 - **T+72h**: "🌱 Muda o teu corpo em 7 dias — grátis" (última, impacto)
 
 ### Fluxo
-- Trigger: mesmo que admin flop — primeiro `paywall_dismissed` de onboarding source + `user_type IS NULL`.
+- Trigger: mesmo que admin flop — primeiro `paywall_shown` com source conhecido + `user_type IS NULL`. Fallback via `user.created_at` para app antiga sem tracking.
 - Query corre a cada 5min; usa latest `push_tokens` do user.
-- Dedup via `onboarding_notification_log (user_id, campaign, local_date)` com `date(first_dismiss_at)` como estável.
+- Dedup via `onboarding_notification_log (user_id, campaign, local_date)`.
 - Se `user_type` deixa de ser null (= comprou), a query pára de incluir o user → cadeia interrompe automaticamente.
-- Backfill 2026-11-28: 132 users históricos × 3 campanhas = 396 rows inseridos no log, clean slate.
+- Backfills 2026-11-28: 132 free históricos × 3 campanhas + 32 nulls × 3 campanhas. Depois unblock manual do 45min para 17 nulls elegíveis → 17 pushes disparados.
+
+### Factos verificados usados na copy (NÃO INVENTAR)
+- Trial: 14 dias iOS / 15 dias Android (ver `src/i18n/*.js:trial_ios/trial_android`). Usamos "2 semanas" como fórmula neutra entre plataformas.
+- "Nothing is charged during the trial" verbatim em `src/v2/strings.walkthrough.js:s8.reassure`.
+- "Cancel anytime" verbatim em `src/i18n/*.js:trial_disclosure`.
+- "No card needed" **NUNCA FOI VERDADE** — confirmado pelo Davi 2026-11-28, não usar.
 
 ### Deep-link
 - `data.route = 'Paywall'` + `data.params = { source: '<campaign>', currentPlan: 'free' }`.

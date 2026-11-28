@@ -15,28 +15,28 @@ const CAMPAIGNS = [
 
 const MESSAGES = {
   flop_recovery_45min: {
-    en: { title: '💪 Try it free — no card needed',           body: '7 days free to see what your meals really do to your body. Start anytime.' },
-    pt: { title: '💪 Experimenta grátis — sem cartão',        body: '7 dias grátis para veres o que as refeições fazem ao teu corpo.' },
-    es: { title: '💪 Pruébalo gratis — sin tarjeta',          body: '7 días gratis para ver qué hacen tus comidas en tu cuerpo.' },
-    de: { title: '💪 Kostenlos testen — keine Karte nötig',   body: '7 Tage gratis sehen, was dein Essen mit deinem Körper macht.' },
-    fr: { title: '💪 Essaie gratuit — sans carte',            body: '7 jours gratuits pour voir ce que tes repas font à ton corps.' },
-    it: { title: '💪 Prova gratis — nessuna carta',           body: '7 giorni gratis per vedere cosa fa il cibo al tuo corpo.' },
+    en: { title: '💪 Try it free for 2 weeks',                   body: 'No charge during the trial. Cancel anytime.' },
+    pt: { title: '💪 Experimenta grátis 2 semanas',              body: 'Nada é cobrado durante o teste. Cancelas quando quiseres.' },
+    es: { title: '💪 Pruébalo gratis 2 semanas',                 body: 'Nada se cobra durante la prueba. Cancela cuando quieras.' },
+    de: { title: '💪 2 Wochen gratis testen',                    body: 'Nichts wird während des Testzeitraums abgerechnet. Jederzeit kündbar.' },
+    fr: { title: '💪 Essaie 2 semaines gratuit',                 body: 'Rien n\'est facturé pendant l\'essai. Annule quand tu veux.' },
+    it: { title: '💪 Prova gratis 2 settimane',                  body: 'Nessun addebito durante la prova. Disdici quando vuoi.' },
   },
   flop_recovery_24h: {
-    en: { title: '🔥 Still thinking? Trial is free',          body: 'Hit your macros, scan your meals, track your body. Cancel anytime in 7 days.' },
-    pt: { title: '🔥 Ainda a pensar? O trial é grátis',       body: 'Macros, scans, corpo controlado. Cancelas quando quiseres nos 7 dias.' },
-    es: { title: '🔥 ¿Aún lo piensas? Prueba gratis',         body: 'Macros, escaneos, cuerpo bajo control. Cancela cuando quieras en 7 días.' },
-    de: { title: '🔥 Noch am Überlegen? Trial ist gratis',    body: 'Makros, Scans, Körper im Griff. Kündige jederzeit in 7 Tagen.' },
-    fr: { title: '🔥 Tu hésites encore ? Trial gratuit',      body: 'Macros, scans, corps sous contrôle. Annule quand tu veux en 7 jours.' },
-    it: { title: '🔥 Ancora indeciso? Prova gratis',          body: 'Macro, scansioni, corpo sotto controllo. Disdici in 7 giorni.' },
+    en: { title: '🔥 Still thinking? Trial is free',             body: 'Macros, scans, body tracking. 2 weeks free, cancel anytime.' },
+    pt: { title: '🔥 Ainda a pensar? O trial é grátis',          body: 'Macros, scans, corpo controlado. 2 semanas grátis, cancelas quando quiseres.' },
+    es: { title: '🔥 ¿Aún lo piensas? Prueba gratis',            body: 'Macros, escaneos, control corporal. 2 semanas gratis, cancela cuando quieras.' },
+    de: { title: '🔥 Noch am Überlegen? Trial ist gratis',       body: 'Makros, Scans, Körperkontrolle. 2 Wochen gratis, jederzeit kündbar.' },
+    fr: { title: '🔥 Tu hésites encore ? Trial gratuit',         body: 'Macros, scans, suivi du corps. 2 semaines gratuites, annule quand tu veux.' },
+    it: { title: '🔥 Ancora indeciso? Prova gratis',             body: 'Macro, scansioni, controllo del corpo. 2 settimane gratis, disdici quando vuoi.' },
   },
   flop_recovery_72h: {
-    en: { title: '🌱 Change your body in 7 days — free',      body: 'Your trial is still open. No card, no commitment. Just see the difference.' },
-    pt: { title: '🌱 Muda o teu corpo em 7 dias — grátis',    body: 'O trial continua aberto. Sem cartão, sem compromisso. Experimenta.' },
-    es: { title: '🌱 Transforma tu cuerpo en 7 días — gratis', body: 'Tu prueba sigue abierta. Sin tarjeta, sin compromiso. Compruébalo.' },
-    de: { title: '🌱 Verändere deinen Körper in 7 Tagen — gratis', body: 'Dein Trial ist noch offen. Keine Karte, kein Risiko. Probier es.' },
-    fr: { title: '🌱 Change ton corps en 7 jours — gratuit',  body: 'Ton trial est toujours ouvert. Sans carte, sans engagement. Teste.' },
-    it: { title: '🌱 Trasforma il tuo corpo in 7 giorni — gratis', body: 'La tua prova è ancora attiva. Nessuna carta, nessun impegno.' },
+    en: { title: '🌱 Change your body in 2 weeks — free',        body: 'Trial still open. No charge during the trial. Just see the difference.' },
+    pt: { title: '🌱 Muda o teu corpo em 2 semanas — grátis',    body: 'Trial ainda aberto. Nada é cobrado durante o teste. Experimenta.' },
+    es: { title: '🌱 Transforma tu cuerpo en 2 semanas — gratis', body: 'Prueba sigue abierta. Nada se cobra durante la prueba.' },
+    de: { title: '🌱 Verändere deinen Körper in 2 Wochen — gratis', body: 'Trial noch offen. Nichts wird während des Testzeitraums abgerechnet.' },
+    fr: { title: '🌱 Change ton corps en 2 semaines — gratuit',  body: 'Trial toujours ouvert. Rien n\'est facturé pendant l\'essai.' },
+    it: { title: '🌱 Trasforma il tuo corpo in 2 settimane — gratis', body: 'Prova ancora attiva. Nessun addebito durante la prova.' },
   },
 };
 
@@ -50,11 +50,13 @@ async function runCampaign(campaign) {
   const db = await getPool();
   if (!db) return;
 
+  // Trigger: first paywall_shown with known source, OR user.created_at if
+  // zero paywall funnel events (older app builds without tracking).
   const { rows } = await db.query(
-    `WITH first_dismiss AS (
+    `WITH first_shown AS (
        SELECT fe.user_id, MIN(fe.created_at) AS first_at
          FROM funnel_events fe
-        WHERE fe.event_type = 'paywall_dismissed'
+        WHERE fe.event_type = 'paywall_shown'
           AND fe.metadata->>'source' = ANY($1)
           AND fe.user_id IS NOT NULL
         GROUP BY fe.user_id
@@ -65,18 +67,19 @@ async function runCampaign(campaign) {
         WHERE user_id IS NOT NULL
         ORDER BY user_id, last_seen_at DESC
      )
-     SELECT u.id, u.email, fd.first_at,
+     SELECT u.id, u.email,
+            COALESCE(fs.first_at, u.created_at) AS first_at,
             lt.token, lt.locale, lt.platform
-       FROM first_dismiss fd
-       JOIN users u ON u.id = fd.user_id
+       FROM users u
+       LEFT JOIN first_shown fs ON fs.user_id = u.id
        JOIN latest_token lt ON lt.user_id = u.id
       WHERE u.user_type IS NULL
-        AND fd.first_at < now() - ($2 || ' minutes')::interval
+        AND COALESCE(fs.first_at, u.created_at) < now() - ($2 || ' minutes')::interval
         AND NOT EXISTS (
           SELECT 1 FROM onboarding_notification_log l
            WHERE l.user_id = u.id AND l.campaign = $3
         )
-      ORDER BY fd.first_at DESC
+      ORDER BY COALESCE(fs.first_at, u.created_at) DESC
       LIMIT 200`,
     [ONBOARDING_PAYWALL_SOURCES, String(campaign.delayMinutes), campaign.id]
   ).catch(e => { console.warn('[flop-recovery]', campaign.id, 'query', e.message); return { rows: [] }; });
