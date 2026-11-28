@@ -2268,3 +2268,47 @@ Register → Disclaimer → OnboardingV2 → Walkthrough (8 passos) → Paywall 
 
 - **Nav tour antigo (`src/v2/Walkthrough.js`)** mantido — serve `demoMode` (diferente do null-tier), com `useTourTarget` ainda consumido pelo `HomeScreen`. Não foi tocado.
 - **EditPersonalScreen** ainda usa `computeBodyAnalysis` para mostrar score inline — diferente da feature photo-based (hidden). Não requer alteração.
+
+## Admin signup notifications (2026-11-28)
+
+Push para o Davi (ADMIN_USER_ID=2) em dois momentos do funnel de onboarding — só admin, nunca utilizadores normais.
+
+### Trial started
+- Trigger: webhook `/webhook/revenuecat` em `INITIAL_PURCHASE` com entitlement `starter`/`pro`.
+- `server.js` chama `notifyAdminTrialStarted({ userId, plan, entitlementId, eventType })` depois do `setUserType`.
+- Dedup via `funnel_event admin_trial_notified` (1× por user).
+
+### Paywall flop
+- Trigger: cron 5min (`setInterval` 5·60·1000) + 90s delay inicial.
+- Query dispara push quando: user tem `paywall_dismissed` com `source ∈ {walkthrough_done, onboarding_post_scan, demo_skip, v2_plan, onboarding, tour_done}` há **≥10 min** E `user_type IS NULL` E não há `admin_flop_notified` anterior.
+- Backfill 2026-11-28: 132 users históricos marcados `admin_flop_notified` para evitar flood no 1º run.
+
+### Módulo
+- `server/src/admin-signup-notif.js` — `notifyAdminTrialStarted()` + `runAdminFlopNotif()`.
+- Tokens via `push_tokens WHERE user_id = 2`. Reusa `sendPushMessages()` do `water-notif.js`.
+- Payload inclui: email, país (flag via locale), platform, scan_count, delta temporal, UTM.
+- `data.route = 'AdminUserDetail'` + `data.kind` para deep-link futuro.
+
+## Flop recovery push chain (2026-11-28)
+
+Cadeia de 3 pushes de encorajamento para users que floparam no paywall de onboarding — todos localizados (en/pt/es/de/fr/it via `push_tokens.locale`), lembrando sempre que trial é grátis.
+
+- **T+45min**: "💪 Experimenta grátis — sem cartão" (urgência leve)
+- **T+24h**: "🔥 Ainda a pensar? O trial é grátis" (reforço com features)
+- **T+72h**: "🌱 Muda o teu corpo em 7 dias — grátis" (última, impacto)
+
+### Fluxo
+- Trigger: mesmo que admin flop — primeiro `paywall_dismissed` de onboarding source + `user_type IS NULL`.
+- Query corre a cada 5min; usa latest `push_tokens` do user.
+- Dedup via `onboarding_notification_log (user_id, campaign, local_date)` com `date(first_dismiss_at)` como estável.
+- Se `user_type` deixa de ser null (= comprou), a query pára de incluir o user → cadeia interrompe automaticamente.
+- Backfill 2026-11-28: 132 users históricos × 3 campanhas = 396 rows inseridos no log, clean slate.
+
+### Deep-link
+- `data.route = 'Paywall'` + `data.params = { source: '<campaign>', currentPlan: 'free' }`.
+- `data.slot = '<campaign>'` para tap tracking via `apiReportNotificationTap`.
+- Cliente já tem handler em `src/hooks/usePushNotifications.js` que lê `data.route` + `data.params`.
+
+### Módulo
+- `server/src/flop-recovery-notif.js` — `runFlopRecoveryNotif()` corre as 3 campanhas sequencialmente.
+- Strings em bloco `MESSAGES[campaign][lang]`, fallback `en`. Para adicionar novo locale: adicionar entrada no bloco.

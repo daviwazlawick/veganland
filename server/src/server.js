@@ -6,6 +6,8 @@ import { runNotifications } from './water-notif.js';
 import { runOnboardingNotifications } from './onboarding-notif.js';
 import { runOnboardingEmails } from './onboarding-email.js';
 import { runDailyAdminReport } from './daily-admin-report.js';
+import { notifyAdminTrialStarted, runAdminFlopNotif } from './admin-signup-notif.js';
+import { runFlopRecoveryNotif } from './flop-recovery-notif.js';
 import { runUnsubscribeInbox } from './unsubscribe-inbox.js';
 import { verifyUnsubscribe } from './unsubscribe.js';
 import { verifyEmailTracking } from './emailTracking.js';
@@ -2817,6 +2819,7 @@ const server = http.createServer(async (req, res) => {
           setUserType(userId, newUserType === 'none' ? null : newUserType).catch(console.error);
           if (eventType === 'INITIAL_PURCHASE' && (newUserType === 'starter' || newUserType === 'premium')) {
             grantReferralSignupBonusOnPurchase(userId, newUserType).catch(console.error);
+            notifyAdminTrialStarted({ userId, plan: newUserType, entitlementId, eventType }).catch(e => console.warn('[admin-notif] trial', e.message));
           }
         }
       }
@@ -2902,3 +2905,16 @@ setInterval(() => runDailyAdminReport().catch(e => console.warn('[daily-admin-re
 // never modifies the mailbox. See unsubscribe-inbox.js.
 setTimeout(() => runUnsubscribeInbox().catch(e => console.warn('[unsubscribe-inbox]', e.message)), 7 * 60 * 1000);
 setInterval(() => runUnsubscribeInbox().catch(e => console.warn('[unsubscribe-inbox]', e.message)), NOTIF_INTERVAL_MS);
+
+// Admin push: 10 min after a user first dismisses the onboarding paywall
+// without purchasing, notify admin. Runs every 5 min.
+const ADMIN_FLOP_INTERVAL_MS = 5 * 60 * 1000;
+setTimeout(() => runAdminFlopNotif().catch(e => console.warn('[admin-flop-notif]', e.message)), 90 * 1000);
+setInterval(() => runAdminFlopNotif().catch(e => console.warn('[admin-flop-notif]', e.message)), ADMIN_FLOP_INTERVAL_MS);
+
+// User recovery push chain for flopped onboarding: 45min / 24h / 72h after
+// first dismiss, if still user_type IS NULL. Localized to push_tokens.locale.
+// Deeplink to Paywall for 1-tap trial start. Runs every 5 min.
+const FLOP_RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
+setTimeout(() => runFlopRecoveryNotif().catch(e => console.warn('[flop-recovery]', e.message)), 2 * 60 * 1000);
+setInterval(() => runFlopRecoveryNotif().catch(e => console.warn('[flop-recovery]', e.message)), FLOP_RECOVERY_INTERVAL_MS);
