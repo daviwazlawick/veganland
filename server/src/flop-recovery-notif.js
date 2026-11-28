@@ -119,6 +119,16 @@ async function runCampaign(campaign) {
     params
   ).catch(e => console.warn('[flop-recovery]', campaign.id, 'log', e.message));
 
+  // Emit funnel event per real send so conversion monitoring can
+  // distinguish real sends from backfilled dedup rows.
+  for (const u of rows) {
+    await db.query(
+      `INSERT INTO funnel_events (user_id, event_type, brand, metadata)
+       VALUES ($1, 'recovery_push_sent', 'novaqi', $2)`,
+      [u.id, { campaign: campaign.id, locale: u.locale, platform: u.platform, first_at: u.first_at }]
+    ).catch(e => console.warn('[flop-recovery]', campaign.id, 'funnel', e.message));
+  }
+
   console.log(`[flop-recovery] ${campaign.id}: sent ${rows.length}`);
 }
 

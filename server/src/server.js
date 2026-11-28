@@ -344,6 +344,7 @@ function htmlAdminPage(stats, token, dateRange = {}) {
     <h1>NovaQI</h1>
     <span>ADMIN</span>
     <a class="refresh" href="/admin/push" style="background:#FFCB3B;color:#0B1E3F;margin-right:6px">📢 Push</a>
+    <a class="refresh" href="/admin/recovery" style="background:#8B5CF6;color:#fff;margin-right:6px">📊 Recovery</a>
     <a class="refresh" href="/admin/photos" style="background:#22C55E;color:#fff;margin-right:6px">📸 Fotos</a>
     <a class="refresh" href="/admin">↻ Atualizar</a>
     <form method="POST" action="/admin/logout" style="display:inline;margin-left:6px"><button class="refresh" style="background:#FF4B4B;color:#fff;border:none;cursor:pointer">↩ Sair</button></form>
@@ -1256,6 +1257,131 @@ async function isAdminRequest(req) {
   return user?.user_type === 'admin';
 }
 
+async function getRecoveryStats() {
+  const db = await import('./db.js').then(m => m.getPool());
+  if (!db) return { summary: [], recipients: [] };
+
+  const [summaryRes, recipientsRes] = await Promise.all([
+    db.query(`
+      WITH sends AS (
+        SELECT fe.user_id, fe.metadata->>'campaign' AS campaign, MIN(fe.created_at) AS sent_at
+          FROM funnel_events fe
+         WHERE fe.event_type = 'recovery_push_sent'
+         GROUP BY 1, 2
+      )
+      SELECT s.campaign,
+             COUNT(DISTINCT s.user_id)::int AS sent,
+             COUNT(DISTINCT CASE WHEN t.user_id IS NOT NULL THEN s.user_id END)::int AS tapped,
+             COUNT(DISTINCT CASE WHEN u.user_type IN ('starter','premium') THEN s.user_id END)::int AS converted,
+             COUNT(DISTINCT CASE WHEN u.user_type = 'free' THEN s.user_id END)::int AS still_free,
+             COUNT(DISTINCT CASE WHEN u.user_type IS NULL THEN s.user_id END)::int AS still_null
+        FROM sends s
+        JOIN users u ON u.id = s.user_id
+        LEFT JOIN scheduled_notification_taps t ON t.user_id = s.user_id AND t.slot = s.campaign AND t.tapped_at >= s.sent_at
+       GROUP BY s.campaign
+       ORDER BY s.campaign
+    `),
+    db.query(`
+      WITH sends AS (
+        SELECT fe.user_id, fe.metadata->>'campaign' AS campaign,
+               MIN(fe.created_at) AS sent_at
+          FROM funnel_events fe
+         WHERE fe.event_type = 'recovery_push_sent'
+         GROUP BY 1, 2
+      )
+      SELECT s.user_id, s.campaign, s.sent_at,
+             u.email, u.user_type, u.created_at AS signup_at,
+             (SELECT locale FROM push_tokens WHERE user_id = u.id ORDER BY last_seen_at DESC LIMIT 1) AS locale,
+             (SELECT platform FROM push_tokens WHERE user_id = u.id ORDER BY last_seen_at DESC LIMIT 1) AS platform,
+             EXISTS (SELECT 1 FROM scheduled_notification_taps t WHERE t.user_id = s.user_id AND t.slot = s.campaign AND t.tapped_at >= s.sent_at) AS tapped
+        FROM sends s
+        JOIN users u ON u.id = s.user_id
+       ORDER BY s.sent_at DESC
+       LIMIT 500
+    `),
+  ]);
+  return { summary: summaryRes.rows, recipients: recipientsRes.rows };
+}
+
+function htmlAdminRecoveryPage(stats) {
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pctStr = (num, den) => den === 0 ? '—' : `${Math.round((num / den) * 100)}%`;
+  const userTypeBadge = t => {
+    const map = {
+      starter: { label: 'Starter', bg: '#E5F5EC', color: '#1A6B3E' },
+      premium: { label: 'Premium', bg: '#F3EEFF', color: '#7C3AED' },
+      admin:   { label: 'Admin',   bg: '#FFF1E2', color: '#9A6121' },
+      free:    { label: 'Free',    bg: '#F5F5F5', color: '#666' },
+    };
+    const b = map[t] || { label: 'null', bg: '#FBEAEA', color: '#8A3D3D' };
+    return `<span style="background:${b.bg};color:${b.color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">${b.label}</span>`;
+  };
+  const fmtDate = ts => new Date(ts).toISOString().slice(0, 16).replace('T', ' ');
+
+  const summaryRows = stats.summary.map(s => `
+    <tr>
+      <td><b>${esc(s.campaign)}</b></td>
+      <td style="text-align:right">${s.sent}</td>
+      <td style="text-align:right">${s.tapped} <span style="color:#999;font-size:11px">(${pctStr(s.tapped, s.sent)})</span></td>
+      <td style="text-align:right;font-weight:700;color:#1A6B3E">${s.converted} <span style="color:#999;font-size:11px;font-weight:400">(${pctStr(s.converted, s.sent)})</span></td>
+      <td style="text-align:right;color:#888">${s.still_free}</td>
+      <td style="text-align:right;color:#888">${s.still_null}</td>
+    </tr>`).join('');
+
+  const recipientRows = stats.recipients.map(r => `
+    <tr>
+      <td style="font-size:12px;color:#666">${fmtDate(r.sent_at)}</td>
+      <td>${esc(r.campaign)}</td>
+      <td><a href="/admin/user/${r.user_id}" style="color:#1C2B22;font-weight:600;text-decoration:none">${esc(r.email)}</a></td>
+      <td>${userTypeBadge(r.user_type)}</td>
+      <td style="font-size:12px;color:#666">${esc(r.locale || '—')} · ${esc(r.platform || '—')}</td>
+      <td style="text-align:center">${r.tapped ? '✅' : '—'}</td>
+      <td style="text-align:center">${r.user_type === 'starter' || r.user_type === 'premium' ? '💸' : '—'}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recovery monitor — NovaQI Admin</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f7fb;color:#0B1E3F;margin:0}
+header{background:#0B1E3F;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:12px}
+header h1{margin:0;font-size:20px}
+header a{background:#FFCB3B;color:#0B1E3F;padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px}
+main{padding:22px;max-width:1200px;margin:0 auto}
+h2{font-size:16px;margin:24px 0 10px}
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 8px;text-align:left;border-bottom:1px solid #eef1f7}
+th{background:#eef1f7;font-size:11px;text-transform:uppercase;color:#64748b;letter-spacing:.5px}
+tr:hover td{background:#fafbfd}
+.hint{color:#64748b;font-size:12px;margin:4px 0 0}
+</style></head><body>
+<header>
+  <h1>📊 Recovery push monitor</h1>
+  <a href="/admin">← Admin</a>
+  <a href="/admin/recovery" style="background:#22C55E;color:#fff">↻ Refresh</a>
+</header>
+<main>
+  <div class="card">
+    <h2>Resumo por campanha</h2>
+    <p class="hint">Só conta sends reais (via funnel_event <code>recovery_push_sent</code>), não backfill de dedup.</p>
+    <table>
+      <tr><th>Campanha</th><th style="text-align:right">Enviados</th><th style="text-align:right">Tapped (CTR)</th><th style="text-align:right">💸 Converteu (CVR)</th><th style="text-align:right">Free</th><th style="text-align:right">Null</th></tr>
+      ${summaryRows || '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px">Sem sends registados ainda.</td></tr>'}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Recipients (últimos 500)</h2>
+    <table>
+      <tr><th>Enviado em</th><th>Campanha</th><th>Email</th><th>Estado actual</th><th>Device</th><th>Tap</th><th>Conv.</th></tr>
+      ${recipientRows || '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px">Vazio.</td></tr>'}
+    </table>
+  </div>
+</main>
+</body></html>`;
+}
+
 function htmlAdminDenied() {
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1849,7 +1975,7 @@ const server = http.createServer(async (req, res) => {
       if (!claims) { sendJson(res, 401, { error: 'Unauthorized' }, origin); return; }
       const body = await readJsonBody(req);
       const slot = String(body.slot || '').trim();
-      const VALID_SLOTS = ['water_morning','water_afternoon','water_evening','food_morning','food_midday','food_evening'];
+      const VALID_SLOTS = ['water_morning','water_afternoon','water_evening','food_morning','food_midday','food_evening','flop_recovery_45min','flop_recovery_24h','flop_recovery_72h'];
       if (!VALID_SLOTS.includes(slot)) { sendJson(res, 400, { error: 'invalid slot' }, origin); return; }
       const db = await import('./db.js').then(m => m.getPool());
       await db.query('INSERT INTO scheduled_notification_taps (user_id, slot) VALUES ($1, $2)', [claims.userId, slot]).catch(() => {});
@@ -1875,6 +2001,19 @@ const server = http.createServer(async (req, res) => {
       const { token: pushToken } = await readJsonBody(req);
       if (pushToken) await deletePushToken(pushToken);
       sendJson(res, 200, { ok: true }, origin);
+      return;
+    }
+
+    // GET /admin/recovery — recovery push campaign monitor (admin only)
+    if (req.method === 'GET' && req.url.startsWith('/admin/recovery')) {
+      if (!(await isAdminRequest(req))) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<p>Forbidden</p>');
+        return;
+      }
+      const stats = await getRecoveryStats();
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(htmlAdminRecoveryPage(stats));
       return;
     }
 
